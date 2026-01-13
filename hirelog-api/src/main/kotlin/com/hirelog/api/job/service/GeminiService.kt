@@ -1,6 +1,8 @@
 package com.hirelog.api.job.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.config.properties.GeminiProperties
+import com.hirelog.api.job.dto.JobSummaryResult
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
@@ -11,15 +13,16 @@ import java.time.Duration
 class GeminiService(
     @Qualifier("geminiWebClient")
     private val webClient: WebClient,
-    private val geminiProperties: GeminiProperties
+    private val geminiProperties: GeminiProperties,
+    private val objectMapper: ObjectMapper
 ) {
 
     /**
      * 단순 텍스트 → Gemini 응답 텍스트 반환
      * (중복 체크 이후, 테스트/요약용)
      */
-    fun analyzeJobDescription(jdText: String): String {
-        val prompt = buildPrompt(jdText)
+    fun summaryJobDescription(jdText: String): JobSummaryResult  {
+        val prompt = buildJobSummaryPrompt(jdText)
 
         val requestBody = mapOf(
             "contents" to listOf(
@@ -44,7 +47,13 @@ class GeminiService(
             .timeout(Duration.ofSeconds(30))
             .block()
 
-        return extractText(response)
+        val rawText = extractText(response)
+        val normalizedJson = normalizeGeminiJson(rawText)
+
+        return objectMapper.readValue(
+            normalizedJson,
+            JobSummaryResult::class.java
+        )
     }
 
 
@@ -64,29 +73,47 @@ class GeminiService(
         return firstPart?.get("text") as? String ?: ""
     }
 
-    private fun buildPrompt(jdText: String): String {
-        return """
-    너는 채용 공고(Job Description)를 분석하는 시스템이다.
-
-    [규칙]
-    - 반드시 JSON만 출력한다
-    - 설명 문장, 마크다운, 코드블록 사용 금지
-    - 값이 없으면 null로 표기
-    - 추측하지 말고, JD에 명시된 내용만 사용
-
-    [출력 포맷]
-    {
-      "company": string | null,
-      "position": string | null,
-      "date": string | null,
-      "skills": [string],
-      "requirements": [string],
-      "summary": string
+    private fun normalizeGeminiJson(raw: String): String {
+        return raw
+            .replace(Regex("```json\\s*", RegexOption.IGNORE_CASE), "")
+            .replace("```", "")
+            .trim()
     }
 
-    [JD 원문]
-    $jdText
-    """.trimIndent()
+
+    private fun buildJobSummaryPrompt(jdText: String): String {
+        return """
+        You are an AI system that analyzes a Job Description (JD) and produces a structured summary.
+        
+        [Rules]
+        - Output MUST be valid JSON only
+        - Do NOT include explanations, markdown, or code blocks
+        - Do NOT infer or guess missing information
+        - Use ONLY information explicitly stated in the JD
+        - If a value does not exist, use null
+        - All text values MUST be written in Korean
+        
+        [Output JSON Format]
+        {
+          "summary": string,
+          "responsibilities": string,
+          "requiredQualifications": string,
+          "preferredQualifications": string | null,
+          "techStack": string | null,
+          "recruitmentProcess": string | null
+        }
+        
+        [Guidelines]
+        - "summary": 3–5 sentences summarizing the overall role and purpose
+        - "responsibilities": core duties and responsibilities of the position
+        - "requiredQualifications": mandatory requirements or qualifications
+        - "preferredQualifications": preferred or optional qualifications
+        - "techStack": technologies, frameworks, or tools mentioned
+        - "recruitmentProcess": hiring steps if explicitly mentioned (e.g., document screening, interview, assignment)
+        
+        [Job Description]
+        $jdText
+        """.trimIndent()
     }
 
 }
