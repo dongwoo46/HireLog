@@ -1,7 +1,6 @@
 package com.hirelog.api.job.controller
 
-import com.hirelog.api.job.dto.GeminiSummaryResponse
-import com.hirelog.api.job.dto.GeminiSummaryRequest
+import com.hirelog.api.job.dto.GeminiSummaryTextRequest
 import com.hirelog.api.job.dto.JobSummaryResult
 import com.hirelog.api.job.service.GeminiService
 import org.springframework.http.ResponseEntity
@@ -19,16 +18,16 @@ class GeminiController(
      * ⚠️ 내부 테스트 전용
      * ⚠️ 인증/인가 붙이기 전까지 외부 노출 금지
      */
-    @PostMapping("/summary")
-    fun analyzeJobDescription(
-        @RequestBody request: GeminiSummaryRequest
+    @PostMapping("/summary/text")
+    fun summaryJobDescription(
+        @RequestBody request: GeminiSummaryTextRequest
     ): ResponseEntity<JobSummaryResult> {
 
         if (request.jdText.isBlank()) {
             return ResponseEntity.badRequest().build()
         }
 
-        val result = geminiService.summaryJobDescription(request.jdText)
+        val result = geminiService.summaryTextJobDescription(request.companyName, request.position, request.jdText)
 
         return ResponseEntity.ok(result)
     }

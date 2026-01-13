@@ -21,8 +21,12 @@ class GeminiService(
      * 단순 텍스트 → Gemini 응답 텍스트 반환
      * (중복 체크 이후, 테스트/요약용)
      */
-    fun summaryJobDescription(jdText: String): JobSummaryResult  {
-        val prompt = buildJobSummaryPrompt(jdText)
+    fun summaryTextJobDescription(
+        companyName: String,
+        position: String,
+        jdText: String
+    ): JobSummaryResult {
+        val prompt = buildJobSummaryPrompt(companyName, position, jdText)
 
         val requestBody = mapOf(
             "contents" to listOf(
@@ -81,39 +85,54 @@ class GeminiService(
     }
 
 
-    private fun buildJobSummaryPrompt(jdText: String): String {
+    private fun buildJobSummaryPrompt(
+        companyName: String,
+        position: String,
+        jdText: String
+    ): String {
         return """
-        You are an AI system that analyzes a Job Description (JD) and produces a structured summary.
-        
-        [Rules]
-        - Output MUST be valid JSON only
-        - Do NOT include explanations, markdown, or code blocks
-        - Do NOT infer or guess missing information
-        - Use ONLY information explicitly stated in the JD
-        - If a value does not exist, use null
-        - All text values MUST be written in Korean
-        
-        [Output JSON Format]
-        {
-          "summary": string,
-          "responsibilities": string,
-          "requiredQualifications": string,
-          "preferredQualifications": string | null,
-          "techStack": string | null,
-          "recruitmentProcess": string | null
-        }
-        
-        [Guidelines]
-        - "summary": 3–5 sentences summarizing the overall role and purpose
-        - "responsibilities": core duties and responsibilities of the position
-        - "requiredQualifications": mandatory requirements or qualifications
-        - "preferredQualifications": preferred or optional qualifications
-        - "techStack": technologies, frameworks, or tools mentioned
-        - "recruitmentProcess": hiring steps if explicitly mentioned (e.g., document screening, interview, assignment)
-        
-        [Job Description]
-        $jdText
-        """.trimIndent()
+            You are an AI system that analyzes a Job Description (JD) and produces a structured summary.
+            
+            [Rules]
+            - Output MUST be valid JSON only
+            - Do NOT include explanations, markdown, or code blocks
+            - Do NOT infer or guess missing information
+            - Use ONLY information explicitly stated in the JD
+            - If a value does not exist, use null
+            - All text values MUST be written in Korean
+            - The company name and position provided below are fixed inputs
+            - Do NOT modify, reinterpret, or regenerate company name or position
+            
+            [Fixed Input]
+            - companyName: $companyName
+            - position: $position
+            
+            [Output JSON Format]
+            {
+              "companyName": string,
+              "position": string,
+              "summary": string,
+              "responsibilities": string,
+              "requiredQualifications": string,
+              "preferredQualifications": string | null,
+              "techStack": string | null,
+              "recruitmentProcess": string | null
+            }
+            
+            [Guidelines]
+            - "companyName": MUST exactly match the fixed input
+            - "position": MUST exactly match the fixed input
+            - "summary": 3–5 sentences summarizing the overall role and purpose
+            - "responsibilities": core duties and responsibilities of the position
+            - "requiredQualifications": mandatory requirements or qualifications
+            - "preferredQualifications": preferred or optional qualifications
+            - "techStack": technologies, frameworks, or tools mentioned
+            - "recruitmentProcess": hiring steps if explicitly mentioned (e.g., document screening, interview, assignment)
+            
+            [Job Description]
+            $jdText
+            """.trimIndent()
     }
+
 
 }

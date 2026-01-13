@@ -27,6 +27,19 @@ class JobSummary(
     @Column(name = "job_snapshot_id", nullable = false, unique = true)
     val jobSnapshotId: Long,
 
+    //  비정규화 필드 (조회 최적화용)
+    @Column(name = "company_id", nullable = false)
+    val companyId: Long,
+
+    @Column(name = "company_name", nullable = false, length = 200)
+    val companyName: String,
+
+    @Column(name = "position_id", nullable = false)
+    val positionId: Long,
+
+    @Column(name = "position_name", nullable = false, length = 200)
+    val positionName: String,
+
     /**
      * JD 전체를 한눈에 이해할 수 있는 요약 (3~5줄)
      */
