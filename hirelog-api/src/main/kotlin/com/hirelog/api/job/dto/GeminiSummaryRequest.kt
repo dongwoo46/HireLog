@@ -1,5 +1,5 @@
 package com.hirelog.api.job.dto
 
-data class GeminiAnalyzeRequest(
+data class GeminiSummaryRequest(
     val jdText: String
 )
