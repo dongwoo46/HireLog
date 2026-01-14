@@ -7,6 +7,7 @@ import java.time.LocalDateTime
 @Table(
     name = "job_snapshot",
     indexes = [
+        Index(name = "idx_job_snapshot_brand_id", columnList = "brand_id"),
         Index(name = "idx_job_snapshot_company_id", columnList = "company_id"),
         Index(name = "idx_job_snapshot_position_id", columnList = "position_id"),
         Index(name = "idx_job_snapshot_hash", columnList = "content_hash", unique = true)
@@ -19,41 +20,48 @@ class JobSnapshot(
     val id: Long = 0,
 
     /**
-     * 소속 회사
+     * 채용 주체 브랜드
+     * (JD 기준 식별자)
      */
-    @Column(name = "company_id", nullable = false)
-    val companyId: Long,
+    @Column(name = "brand_id", nullable = false)
+    val brandId: Long,
 
     /**
-     * 회사 내 포지션 (기업 종속)
+     * 법적 회사 (분석/정합성용)
+     */
+    @Column(name = "company_id", nullable = true)
+    val companyId: Long? = null,
+
+    /**
+     * 포지션
+     * (Brand 기준 포지션)
      */
     @Column(name = "position_id", nullable = false)
     val positionId: Long,
 
     /**
      * JD 수집 방식
-     * URL / IMAGE / TEXT
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false)
     val sourceType: JobSourceType,
 
     /**
-     * JD 원본 URL (이미지/텍스트 입력일 경우 null)
+     * JD 원본 URL
      */
     @Column(name = "source_url", length = 1000)
     val sourceUrl: String? = null,
 
     /**
-     * JD 원문 텍스트 (크롤링 / OCR 결과)
+     * JD 원문 텍스트
      */
     @Lob
     @Column(name = "raw_text", nullable = false)
     val rawText: String,
 
     /**
-     * 동일 JD 중복 방지를 위한 해시
-     * (rawText 기반)
+     * 중복 방지 해시
+     * (brand + position + canonical_text 기준)
      */
     @Column(name = "content_hash", nullable = false, length = 64)
     val contentHash: String,
@@ -64,3 +72,4 @@ class JobSnapshot(
     @Column(name = "captured_at", nullable = false)
     val capturedAt: LocalDateTime = LocalDateTime.now()
 )
+

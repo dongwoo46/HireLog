@@ -57,6 +57,13 @@ class Company(
     val source: CompanySource,
 
     /**
+     * 회사 검증 상태 (단순)
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "company_verification_status", nullable = false, length = 30)
+    val verificationStatus: CompanyVerificationStatus,
+
+    /**
      * 외부 식별자 (선택)
      * 예: 사업자등록번호, 공공데이터 ID
      */

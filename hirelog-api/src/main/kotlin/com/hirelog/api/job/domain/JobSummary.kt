@@ -27,18 +27,46 @@ class JobSummary(
     @Column(name = "job_snapshot_id", nullable = false, unique = true)
     val jobSnapshotId: Long,
 
-    //  비정규화 필드 (조회 최적화용)
-    @Column(name = "company_id", nullable = false)
-    val companyId: Long,
+    // =========================
+    // 🔥 핵심 비정규화 필드
+    // =========================
 
-    @Column(name = "company_name", nullable = false, length = 200)
-    val companyName: String,
+    /** JD 기준 브랜드 */
+    @Column(name = "brand_id", nullable = false)
+    val brandId: Long,
 
-    @Column(name = "position_id", nullable = false)
+    @Column(name = "brand_name", nullable = false, length = 200)
+    val brandName: String,
+
+    /** 소속 법인 (없을 수도 있음) */
+    @Column(name = "company_id")
+    val companyId: Long? = null,
+
+    @Column(name = "company_name", length = 200)
+    val companyName: String? = null,
+
+    @Column(name="position_id", nullable = false)
     val positionId: Long,
 
+    /** 포지션 (Brand 종속 개념) */
     @Column(name = "position_name", nullable = false, length = 200)
     val positionName: String,
+
+    /**
+     * 채용 경력 유형
+     * (신입 / 경력 / 무관)
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "career_type", nullable = false, length = 20)
+    val careerType: CareerType,
+
+    /**
+     * 최소 경력 연차
+     * - 신입 / 무관 / 미기재 → null
+     * - "3년 이상" → 3
+     */
+    @Column(name = "career_years")
+    val careerYears: Int? = null,
 
     /**
      * JD 전체를 한눈에 이해할 수 있는 요약 (3~5줄)

@@ -3,13 +3,14 @@ package com.hirelog.api.job.controller
 import com.hirelog.api.job.dto.GeminiSummaryTextRequest
 import com.hirelog.api.job.dto.JobSummaryResult
 import com.hirelog.api.job.service.GeminiService
+import com.hirelog.api.job.service.JobSummaryFacadeService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/gemini")
 class GeminiController(
-    private val geminiService: GeminiService
+    private val jobSummaryFacadeService: JobSummaryFacadeService
 ) {
 
     /**
@@ -23,11 +24,11 @@ class GeminiController(
         @RequestBody request: GeminiSummaryTextRequest
     ): ResponseEntity<JobSummaryResult> {
 
-        if (request.jdText.isBlank()) {
-            return ResponseEntity.badRequest().build()
-        }
-
-        val result = geminiService.summaryTextJobDescription(request.companyName, request.position, request.jdText)
+        val result = jobSummaryFacadeService.summarizeTextJDAndSave(
+            brandName = request.brandName,
+            positionName = request.positionName,
+            rawText = request.jdText
+        )
 
         return ResponseEntity.ok(result)
     }

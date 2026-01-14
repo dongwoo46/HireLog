@@ -5,13 +5,13 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface PositionRepository : JpaRepository<Position, Long> {
 
-    fun findByCompanyIdAndNormalizedName(
-        companyId: Long,
+    fun findByBrandIdAndNormalizedName(
+        brandId: Long,
         normalizedName: String
     ): Position?
 
-    fun existsByCompanyIdAndNormalizedName(
-        companyId: Long,
+    fun existsByBrandIdAndNormalizedName(
+        brandId: Long,
         normalizedName: String
     ): Boolean
 }

@@ -1,12 +1,13 @@
 import type { JobSummaryResult } from '../types/JobSummaryResult';
-import { apiClient } from './apiClient';
+import type { SummaryTextRequest } from '../types/SummaryTextRequest';
+import { apiClient } from '../utils/apiClient';
 
 export const summaryJobDescription = async (
-  jdText: string
+  payload: SummaryTextRequest
 ): Promise<JobSummaryResult> => {
-  const res = await apiClient.post<JobSummaryResult>('/gemini/summary/text', {
-    jdText,
-  });
-
+  const res = await apiClient.post<JobSummaryResult>(
+    '/gemini/summary/text',
+    payload
+  );
   return res.data;
 };

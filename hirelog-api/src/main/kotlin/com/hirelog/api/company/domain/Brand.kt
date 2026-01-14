@@ -1,6 +1,7 @@
 package com.hirelog.api.company.domain
 
 import jakarta.persistence.*
+import java.time.LocalDateTime
 
 @Entity
 @Table(
@@ -25,7 +26,7 @@ class Brand(
 
     /**
      * 브랜드명
-     * 예: 토스
+     * 예: 토스, 강남언니
      */
     @Column(name = "name", nullable = false, length = 200)
     val name: String,
@@ -37,8 +38,40 @@ class Brand(
     val normalizedName: String,
 
     /**
-     * 소유 회사
+     * 소유 회사 (검증 전에는 null 가능)
      */
-    @Column(name = "company_id", nullable = false)
-    val companyId: Long
-)
+    @Column(name = "company_id")
+    val companyId: Long? = null,
+
+    /**
+     * 브랜드 검증 상태
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", nullable = false, length = 30)
+    val verificationStatus: BrandVerificationStatus,
+
+    /**
+     * 브랜드 데이터 출처
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false, length = 30)
+    val source: BrandSource,
+
+    /**
+     * 생성 시각
+     */
+    @Column(name = "created_at", nullable = false)
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 수정 시각
+     */
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: LocalDateTime = LocalDateTime.now()
+) {
+
+    @PreUpdate
+    fun onUpdate() {
+        this.updatedAt = LocalDateTime.now()
+    }
+}

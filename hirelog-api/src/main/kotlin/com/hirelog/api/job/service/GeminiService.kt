@@ -22,11 +22,11 @@ class GeminiService(
      * (중복 체크 이후, 테스트/요약용)
      */
     fun summaryTextJobDescription(
-        companyName: String,
+        brandName: String,
         position: String,
         jdText: String
     ): JobSummaryResult {
-        val prompt = buildJobSummaryPrompt(companyName, position, jdText)
+        val prompt = buildJobSummaryPrompt(brandName, position, jdText)
 
         val requestBody = mapOf(
             "contents" to listOf(
@@ -66,7 +66,9 @@ class GeminiService(
      * candidates[0].content.parts[0].text
      */
     private fun extractText(response: Map<*, *>?): String {
-        if (response == null) return ""
+        if (response == null) {
+            throw IllegalStateException("Gemini API 응답이 null입니다")
+        }
 
         val candidates = response["candidates"] as? List<*>
         val firstCandidate = candidates?.firstOrNull() as? Map<*, *>
@@ -74,7 +76,7 @@ class GeminiService(
         val parts = content?.get("parts") as? List<*>
         val firstPart = parts?.firstOrNull() as? Map<*, *>
 
-        return firstPart?.get("text") as? String ?: ""
+        return firstPart?.get("text") as? String ?: throw IllegalStateException("Gemini 응답에서 텍스트를 추출할 수 없습니다")
     }
 
     private fun normalizeGeminiJson(raw: String): String {
@@ -86,13 +88,13 @@ class GeminiService(
 
 
     private fun buildJobSummaryPrompt(
-        companyName: String,
+        brandName: String,
         position: String,
         jdText: String
     ): String {
         return """
             You are an AI system that analyzes a Job Description (JD) and produces a structured summary.
-            
+    
             [Rules]
             - Output MUST be valid JSON only
             - Do NOT include explanations, markdown, or code blocks
@@ -100,17 +102,21 @@ class GeminiService(
             - Use ONLY information explicitly stated in the JD
             - If a value does not exist, use null
             - All text values MUST be written in Korean
-            - The company name and position provided below are fixed inputs
-            - Do NOT modify, reinterpret, or regenerate company name or position
-            
+            - The brand name and position provided below are fixed inputs
+            - Do NOT modify, reinterpret, or regenerate brand name or position
+    
             [Fixed Input]
-            - companyName: $companyName
+            - brandName: $brandName
             - position: $position
-            
+    
             [Output JSON Format]
             {
-              "companyName": string,
+              "brandName": string,
               "position": string,
+    
+              "careerType": "ENTRY" | "EXPERIENCED" | "ANY",
+              "careerYears": number | null,
+    
               "summary": string,
               "responsibilities": string,
               "requiredQualifications": string,
@@ -118,20 +124,31 @@ class GeminiService(
               "techStack": string | null,
               "recruitmentProcess": string | null
             }
-            
+    
+            [Career Rules]
+            - careerType:
+              - ENTRY: 신입만 명시된 경우
+              - EXPERIENCED: 경력만 명시된 경우
+              - ANY: 신입/경력 무관, 또는 둘 다 가능한 경우
+            - careerYears:
+              - Extract only the minimum required years if explicitly stated
+              - Example: "3년 이상" → 3
+              - If not clearly stated, return null
+            - Do NOT guess career information
+    
             [Guidelines]
-            - "companyName": MUST exactly match the fixed input
-            - "position": MUST exactly match the fixed input
+            - "brandName" MUST exactly match the fixed input
+            - "position" MUST exactly match the fixed input
             - "summary": 3–5 sentences summarizing the overall role and purpose
             - "responsibilities": core duties and responsibilities of the position
             - "requiredQualifications": mandatory requirements or qualifications
             - "preferredQualifications": preferred or optional qualifications
             - "techStack": technologies, frameworks, or tools mentioned
-            - "recruitmentProcess": hiring steps if explicitly mentioned (e.g., document screening, interview, assignment)
-            
+            - "recruitmentProcess": hiring steps if explicitly mentioned
+    
             [Job Description]
             $jdText
-            """.trimIndent()
+        """.trimIndent()
     }
 
 

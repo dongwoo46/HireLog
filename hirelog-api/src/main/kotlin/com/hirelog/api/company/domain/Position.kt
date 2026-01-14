@@ -8,8 +8,8 @@ import java.time.LocalDateTime
     name = "position",
     indexes = [
         Index(
-            name = "idx_position_company_id_normalized_name",
-            columnList = "company_id, normalized_name",
+            name = "idx_position_brand_id_normalized_name",
+            columnList = "brand_id, normalized_name",
             unique = true
         )
     ]
@@ -21,33 +21,32 @@ class Position(
     val id: Long = 0,
 
     /**
-     * 소속 회사
+     * 소속 브랜드
      */
-    @Column(name = "company_id", nullable = false)
-    val companyId: Long,
+    @Column(name = "brand_id", nullable = false)
+    val brandId: Long,
 
     /**
      * 포지션 표시명
-     * (사용자 입력 그대로)
+     * 예: 백엔드 개발자
      */
     @Column(name = "name", nullable = false, length = 200)
     val name: String,
 
     /**
      * 정규화된 포지션명
-     * (검색/비교/중복 방지용)
      */
     @Column(name = "normalized_name", nullable = false, length = 200)
     val normalizedName: String,
 
     /**
-     * 포지션에 대한 간단 설명 (선택)
+     * 포지션 설명 (선택)
      */
     @Column(name = "description", length = 500)
     val description: String? = null,
 
     /**
-     * 포지션 최초 등록 시각
+     * 최초 등록 시각
      */
     @Column(name = "created_at", nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
