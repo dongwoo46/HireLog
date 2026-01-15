@@ -27,8 +27,40 @@ services:
       TZ: Asia/Seoul
 
     ports:
-      - '6379:6379' # Redis core
-      # - '8001:8001' # RedisInsight UI
+      - '6379:6379'
 
     volumes:
       - ./redis_data:/data
+
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: opensearch_hirelog
+    restart: unless-stopped
+
+    environment:
+      - cluster.name=hirelog-opensearch
+      - node.name=opensearch-node-1
+      - discovery.type=single-node
+
+      # JVM 메모리 (개발용 최소)
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+
+      # 보안 비활성화 (로컬 개발용)
+      - DISABLE_SECURITY_PLUGIN=true
+
+      - TZ=Asia/Seoul
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    ports:
+      - '9200:9200' # REST API
+      - '9600:9600' # Performance Analyzer
+
+    volumes:
+      - ./opensearch_data:/usr/share/opensearch/data
