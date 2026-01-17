@@ -1,7 +1,7 @@
 package com.hirelog.api.company.domain
 
+import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
-import java.time.LocalDateTime
 
 @Entity
 @Table(
@@ -11,10 +11,6 @@ import java.time.LocalDateTime
             name = "idx_company_relation_parent_child",
             columnList = "parent_company_id, child_company_id",
             unique = true
-        ),
-        Index(
-            name = "idx_company_relation_parent",
-            columnList = "parent_company_id"
         ),
         Index(
             name = "idx_company_relation_child",
@@ -47,6 +43,4 @@ class CompanyRelation(
     @Column(name = "relation_type", nullable = false, length = 30)
     val relationType: CompanyRelationType,
 
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+) : BaseEntity()

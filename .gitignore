@@ -1,3 +1,43 @@
 .copilot-chat.md
 /data/
 /redis_data/
+.env
+.venv/
+__pycache__/
+.vite/
+opensearch_data/
+
+# ===============================
+# Frontend
+# ===============================
+hirelog-web/.vite/
+
+# ===============================
+# Infra / Local volumes
+# ===============================
+opensearch_data/
+
+# ===============================
+# Env
+# ===============================
+.env
+.env.*
+
+# ===============================
+# Python (global)
+# ===============================
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# ===============================
+# text-pipeline 전용
+# ===============================
+text-pipeline/.venv/
+text-pipeline/data/
+text-pipeline/.cache/
+text-pipeline/.pytest_cache/
+text-pipeline/output/
+text-pipeline/logs/

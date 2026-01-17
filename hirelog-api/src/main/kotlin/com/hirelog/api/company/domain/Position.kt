@@ -1,6 +1,8 @@
 package com.hirelog.api.company.domain
 
+import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
+import org.hibernate.annotations.CreationTimestamp
 import java.time.LocalDateTime
 
 @Entity
@@ -45,9 +47,5 @@ class Position(
     @Column(name = "description", length = 500)
     val description: String? = null,
 
-    /**
-     * 최초 등록 시각
-     */
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+) : BaseEntity()
+

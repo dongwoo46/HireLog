@@ -4,6 +4,7 @@ import com.hirelog.api.job.dto.GeminiSummaryTextRequest
 import com.hirelog.api.job.dto.JobSummaryResult
 import com.hirelog.api.job.service.GeminiService
 import com.hirelog.api.job.service.JobSummaryFacadeService
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
@@ -20,8 +21,8 @@ class GeminiController(
      * ⚠️ 인증/인가 붙이기 전까지 외부 노출 금지
      */
     @PostMapping("/summary/text")
-    fun summaryJobDescription(
-        @RequestBody request: GeminiSummaryTextRequest
+    fun summarizeJobDescription(
+        @Valid @RequestBody request: GeminiSummaryTextRequest
     ): ResponseEntity<JobSummaryResult> {
 
         val result = jobSummaryFacadeService.summarizeTextJDAndSave(

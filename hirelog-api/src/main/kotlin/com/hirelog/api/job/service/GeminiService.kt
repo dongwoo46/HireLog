@@ -1,6 +1,9 @@
 package com.hirelog.api.job.service
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.hirelog.api.common.exception.GeminiParseException
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.config.properties.GeminiProperties
 import com.hirelog.api.job.dto.JobSummaryResult
 import org.springframework.beans.factory.annotation.Qualifier
@@ -25,7 +28,7 @@ class GeminiService(
         brandName: String,
         position: String,
         jdText: String
-    ): JobSummaryResult {
+    ): GeminiSummary {
         val prompt = buildJobSummaryPrompt(brandName, position, jdText)
 
         val requestBody = mapOf(
@@ -54,10 +57,20 @@ class GeminiService(
         val rawText = extractText(response)
         val normalizedJson = normalizeGeminiJson(rawText)
 
-        return objectMapper.readValue(
-            normalizedJson,
-            JobSummaryResult::class.java
-        )
+        try {
+            return objectMapper.readValue(
+                normalizedJson,
+                GeminiSummary::class.java
+            )
+        } catch (e: JsonProcessingException) {
+            log.error(
+                "Failed to parse Gemini response. length={}, snippet={}",
+                normalizedJson.length,
+                normalizedJson.take(300),
+                e
+            )
+            throw GeminiParseException(e)
+        }
     }
 
 
