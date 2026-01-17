@@ -11,14 +11,13 @@ Semantic Preprocessor (Lite)
 - skill 추출 ❌
 """
 
-from typing import List
 from dataclasses import replace
 
 from preprocess.structural_preprocess.section_builder import Section
 from .semantic_zone import detect_semantic_zone
 
 
-def apply_semantic_lite(sections: List[Section]) -> List[Section]:
+def apply_semantic_lite(sections: list[Section]) -> list[Section]:
     """
     각 Section에 semantic_zone을 태깅한다.
 
@@ -27,7 +26,7 @@ def apply_semantic_lite(sections: List[Section]) -> List[Section]:
     - semantic_zone == "others" 인 경우에만 header 기반 판별 수행
     """
 
-    enriched: List[Section] = []
+    enriched: list[Section] = []
 
     for sec in sections:
         # 🔒 이미 구조 단계에서 역할이 정해진 섹션은 건드리지 않음

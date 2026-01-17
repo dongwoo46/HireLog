@@ -1,6 +1,5 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Set
 
 import yaml
 
@@ -13,7 +12,7 @@ DEFAULT_NOISE_KEYWORDS_PATH = (
 @lru_cache(maxsize=1)
 def load_noise_keywords(
         path: str | Path | None = None,
-) -> Dict[str, Set[str]]:
+) -> dict[str, set[str]]:
     """
     노이즈 키워드 로더 (YAML 전용)
 
@@ -45,7 +44,7 @@ def load_noise_keywords(
     if not isinstance(raw, dict):
         raise ValueError("noise_keywords.yml must be a dict")
 
-    result: Dict[str, Set[str]] = {}
+    result: dict[str, set[str]] = {}
 
     for key in ("exact", "prefix", "suffix", "navigation"):
         values = raw.get(key, [])

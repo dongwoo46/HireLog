@@ -1,11 +1,9 @@
-from typing import List, Dict
-
 from normalize.text import normalize_text
 from normalize.char import normalize_chars
 from normalize.line import normalize_line
 
 
-def normalize_lines(lines: List[Dict]) -> List[Dict]:
+def normalize_lines(lines: list[dict]) -> list[dict]:
     """
     OCR 결과 line 리스트에 대해 텍스트 정규화 파이프라인을 적용한다.
 

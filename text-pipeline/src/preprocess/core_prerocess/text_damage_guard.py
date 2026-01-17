@@ -1,6 +1,4 @@
 import re
-from typing import List
-
 
 _MEANING_CHAR_RE = re.compile(r"[A-Za-z0-9가-힣]")
 _SPECIAL_CHAR_RE = re.compile(r"[^A-Za-z0-9가-힣\s]")
@@ -38,7 +36,7 @@ def _is_obviously_broken(line: str) -> bool:
     return False
 
 
-def guard_text_damage(lines: List[str]) -> List[str]:
+def guard_text_damage(lines: list[str]) -> list[str]:
     """
     Core Preprocessing - Text Damage Guard
 
@@ -47,7 +45,7 @@ def guard_text_damage(lines: List[str]) -> List[str]:
     - 나머지는 전부 보존
     """
 
-    guarded: List[str] = []
+    guarded: list[str] = []
 
     for line in lines:
         if _is_obviously_broken(line):

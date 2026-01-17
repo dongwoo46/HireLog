@@ -1,6 +1,6 @@
 from paddleocr import PaddleOCR
 import numpy as np
-from typing import Dict, Any, List
+from typing import TypedDict
 
 
 # PaddleX pipeline을 타지 않는 순수 PaddleOCR 인스턴스
@@ -10,8 +10,17 @@ _ocr = PaddleOCR(
     lang="korean",
 )
 
+class OCRLine(TypedDict):
+    text: str
+    confidence: float
+    box: np.ndarray | list | None
+    height: float | None
 
-def run_ocr(image: np.ndarray) -> Dict[str, Any]:
+class OCRResult(TypedDict):
+    raw: list[OCRLine]
+    confidence: float
+
+def run_ocr(image: np.ndarray) -> OCRResult:
     """
     PaddleOCR 기반 OCR 엔진 실행 함수.
 
@@ -53,8 +62,8 @@ def run_ocr(image: np.ndarray) -> Dict[str, Any]:
     scores = page.get("rec_scores", [])
     boxes = page.get("rec_polys") or page.get("rec_boxes") or []
 
-    lines: List[Dict[str, Any]] = []
-    confidences: List[float] = []
+    lines: list[OCRLine] = []
+    confidences: list[float] = []
 
     # ----------------------------------------
     # 2️⃣ line 단위 결과 구성

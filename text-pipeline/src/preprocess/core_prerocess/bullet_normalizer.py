@@ -1,6 +1,4 @@
 import re
-from typing import List
-
 
 # 다양한 bullet / 번호 표현
 _BULLET_PATTERN = re.compile(
@@ -23,7 +21,7 @@ _BULLET_PATTERN = re.compile(
 STANDARD_BULLET = "• "
 
 
-def normalize_bullets(lines: List[str]) -> List[str]:
+def normalize_bullets(lines: list[str]) -> list[str]:
     """
     Core Preprocessing - Bullet / List Normalization
 
@@ -33,7 +31,7 @@ def normalize_bullets(lines: List[str]) -> List[str]:
     - 들여쓰기 보존
     """
 
-    normalized: List[str] = []
+    normalized: list[str] = []
 
     for line in lines:
         match = _BULLET_PATTERN.match(line)

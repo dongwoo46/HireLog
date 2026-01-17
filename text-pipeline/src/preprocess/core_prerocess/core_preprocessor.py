@@ -1,5 +1,3 @@
-from typing import List
-
 from preprocess.core_prerocess.input_normalizer import normalize_input_text
 from preprocess.core_prerocess.noise_filter import remove_ui_noise
 from preprocess.core_prerocess.line_segmenter import segment_lines
@@ -21,7 +19,7 @@ class CorePreprocessor:
     def __init__(self):
         self._ui_noise_patterns = load_noise_keywords()
 
-    def process(self, raw_text: str) -> List[str]:
+    def process(self, raw_text: str) -> list[str]:
         """
         Core Preprocessing 단일 진입점
 

@@ -1,12 +1,10 @@
-from typing import Dict
 from common.section.loader import load_header_keywords
 
 HEADER_MAX_LENGTH = 40
-HEADER_MIN_CONFIDENCE = 60.0     # confidence_avg 기준
 HEADER_MAX_TOKENS = 6
 
 
-def is_header_line(line: Dict) -> bool:
+def is_ocr_header_line(line: dict) -> bool:
     """
     JD 헤더(header) 여부를 보수적으로 판정한다.
 
@@ -54,8 +52,8 @@ def _looks_like_sentence(text: str) -> bool:
     설명 문장처럼 보이는 텍스트 제거
     """
 
-    # 종결형
-    if "." in text or text.endswith("다") or "다." in text:
+    # 명확한 문장 종결
+    if text.endswith(".") or text.endswith("다") or text.endswith("다."):
         return True
 
     # 설명형 조사/어미
@@ -67,7 +65,7 @@ def _looks_like_sentence(text: str) -> bool:
 
     return any(marker in text for marker in sentence_markers)
 
-def _visual_header_signal(line: Dict) -> bool:
+def _visual_header_signal(line: dict) -> bool:
     """
     OCR 결과 기반 시각적 헤더 신호
     """

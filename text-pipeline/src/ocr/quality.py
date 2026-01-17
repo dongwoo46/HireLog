@@ -1,11 +1,9 @@
-from typing import List, Dict, Tuple
-
 
 def filter_low_quality_lines(
-        lines: List[Dict],
+        lines: list[dict],
         min_confidence: int = 45,
         max_garbage_ratio: float = 0.6,
-) -> Tuple[List[Dict], List[Dict]]:
+) -> tuple[list[dict], list[dict]]:
     """
     OCR 결과에 대한 라인 단위 품질 게이트.
 

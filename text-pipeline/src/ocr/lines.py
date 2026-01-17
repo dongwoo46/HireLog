@@ -7,6 +7,11 @@ PaddleOCR raw 결과를 line 단위 구조로 정규화하는 모듈
 - 이후 normalize / quality filter / JD 후처리의 기준 입력 생성
 """
 
+ROW_TOLERANCE = 5  # 픽셀 단위, 실험으로 조정
+
+def _sort_key(line):
+    x, y, *_ = line["bbox"]
+    return (y // ROW_TOLERANCE, x)
 
 def build_lines(raw):
     """
@@ -68,7 +73,7 @@ def build_lines(raw):
         })
 
     # 시각적 위 → 아래 순서를 보장하기 위해 y 좌표 기준 정렬
-    lines.sort(key=lambda x: x["bbox"][1])
+    lines.sort(key=_sort_key)
 
     return lines
 

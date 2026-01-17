@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from structure.header_grouping import extract_sections_by_header
+from ocr.structure.header_grouping import extract_sections_by_header
 
 """
 OCR + JD 파이프라인 디버그 실행 스크립트

@@ -28,7 +28,7 @@ _NUM_HANGUL_RE = re.compile(r"([0-9])([가-힣])")
 
 def normalize_input_text(text: str) -> str:
     """
-    JD Core Preprocessing – Input Normalization
+    JD Core Preprocessing - Input Normalization
 
     역할:
     - OCR / TEXT / URL 입력의 문자 레벨 차이 제거

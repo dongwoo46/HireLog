@@ -13,9 +13,7 @@ Section Builder
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional
-
-from .header_detector import is_header_line
+from .header_detector import is_text_header_candidate
 
 
 @dataclass
@@ -45,9 +43,9 @@ class Section:
         - Semantic Preprocessing(Lite) 단계에서 부여되는 의미 영역
         - 기본값은 'others'
     """
-    header: Optional[str]
-    lines: List[str]
-    lists: List[List[str]]
+    header: str | None
+    lines: list[str]
+    lists: list[list[str]]
     semantic_zone: str = field(default="others")
 
 def build_sections(lines: list[str]) -> list[Section]:
@@ -82,7 +80,7 @@ def build_sections(lines: list[str]) -> list[Section]:
 
         # 1️⃣ Header 판정
         # 의미가 아니라 "레이아웃 상 섹션 제목처럼 보이는지"만 판단
-        if is_header_line(stripped, next_line):
+        if is_text_header_candidate(stripped, next_line):
             # 기존 섹션에 내용이 있다면 결과에 추가
             if current.lines or current.lists:
                 sections.append(current)

@@ -16,8 +16,6 @@ Structural Preprocessor
 - Skill 추출 ❌
 """
 
-from typing import List
-
 from .section_builder import build_sections, Section
 from .list_grouper import group_lists
 
@@ -27,7 +25,7 @@ class StructuralPreprocessor:
     JD Structural Preprocessing 파이프라인
     """
 
-    def process(self, lines: List[str]) -> List[Section]:
+    def process(self, lines: list[str]) -> list[Section]:
         """
         Structural Preprocessing 단일 진입점
 

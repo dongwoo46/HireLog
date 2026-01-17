@@ -1,6 +1,4 @@
 import re
-from wordfreq import zipf_frequency
-
 
 # OCR에서 자주 깨지는 특수문자
 _OCR_CONFUSABLE_CHARS = r"[×¥¬¦§]"
@@ -36,19 +34,25 @@ def looks_broken(token: str) -> bool:
     if alpha_cnt < 2:
         return False
 
-    # 1️⃣ 알파벳 + 숫자 혼합 (jav4, spr1ng)
+    # 1️⃣ 동일 문자 3회 이상 반복 → broken 후보
+    # 예: aaaa, $$$$, ㅋㅋㅋㅋ
+    if _REPEATED.search(t):
+        return True
+
+    # 2️⃣ 알파벳 + 숫자 혼합 (jav4, spr1ng)
     if re.search(r"[A-Za-z]", t) and re.search(r"[0-9]", t):
         return True
 
-    # 2️⃣ 알파벳 + OCR confusable 문자
+    # 3️⃣ 알파벳 + OCR confusable 문자
     if re.search(_OCR_CONFUSABLE_CHARS, t) and re.search(r"[A-Za-z]", t):
         return True
 
-    # 3️⃣ 알파벳 위주인데 특수문자가 약간 섞인 경우
+    # 4️⃣ 알파벳 위주인데 특수문자가 약간 섞인 경우
     # 예: qrpc, k8s
     non_alpha_ratio = (len(t) - alpha_cnt) / len(t)
-    if non_alpha_ratio <= 0.3 and alpha_cnt >= 4:
+
+    # 알파벳이 대부분이지만, 0은 아니고 약간 섞인 경우만 broken 후보
+    if 0 < non_alpha_ratio <= 0.3 and alpha_cnt >= 4:
         return True
 
     return False
-

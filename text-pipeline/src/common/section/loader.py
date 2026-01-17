@@ -1,8 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List
 import yaml
-from typing import Set
 
 DEFAULT_SECTION_KEYWORDS_PATH = (Path(__file__).parent / "section_keywords.yml")
 DEFAULT_META_KEYWORDS_PATH = Path(__file__).parent / "jd_meta_keywords.yml"
@@ -11,7 +9,7 @@ DEFAULT_HEADER_KEYWORDS_PATH = Path(__file__).parent / "header_keywords.yml"
 @lru_cache(maxsize=1)
 def load_section_keywords(
         path: Path = DEFAULT_SECTION_KEYWORDS_PATH,
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """
     JD 섹션 키워드 로드
 
@@ -39,7 +37,7 @@ def load_section_keywords(
 @lru_cache(maxsize=1)
 def load_jd_meta_keywords(
         path: Path = DEFAULT_META_KEYWORDS_PATH,
-) -> Set[str]:
+) -> set[str]:
     """
     JD 메타 키워드 로드
 
@@ -51,14 +49,28 @@ def load_jd_meta_keywords(
     with open(path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
+    # 1️⃣ YAML이 비어 있거나 dict가 아니면 빈 집합
+    if not isinstance(raw, dict):
+        return set()
+
     keywords = raw.get("meta_keywords", [])
-    return {k.lower() for k in keywords}
+
+    # 2️⃣ meta_keywords가 list가 아니면 무시
+    if not isinstance(keywords, list):
+        return set()
+
+    # 3️⃣ 문자열만 허용 + 소문자 정규화
+    return {
+        k.lower()
+        for k in keywords
+        if isinstance(k, str)
+    }
 
 
 @lru_cache(maxsize=1)
 def load_header_keywords(
         path: Path = DEFAULT_HEADER_KEYWORDS_PATH,
-) -> Set[str]:
+) -> set[str]:
     """
     JD 헤더 판별용 키워드 로드
 

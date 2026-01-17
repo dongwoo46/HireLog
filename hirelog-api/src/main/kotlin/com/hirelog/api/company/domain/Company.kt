@@ -1,8 +1,8 @@
 package com.hirelog.api.company.domain
 
+import com.hirelog.api.common.jpa.BaseEntity
 import com.hirelog.api.common.jpa.StringListJsonConverter
 import jakarta.persistence.*
-import java.time.LocalDateTime
 
 @Entity
 @Table(
@@ -37,13 +37,6 @@ class Company(
 
     /**
      * 회사 별칭 목록
-     * - 법인명 변형
-     * - 영문명
-     * - 약칭
-     *
-     * 예: ["(주)비바리퍼블리카", "Viva Republica"]
-     *
-     * Brand(토스 등)는 여기에 넣지 않는다.
      */
     @Column(name = "aliases", columnDefinition = "jsonb", nullable = false)
     @Convert(converter = StringListJsonConverter::class)
@@ -57,29 +50,21 @@ class Company(
     val source: CompanySource,
 
     /**
-     * 회사 검증 상태 (단순)
+     * 회사 검증 상태
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "company_verification_status", nullable = false, length = 30)
     val verificationStatus: CompanyVerificationStatus,
 
     /**
-     * 외부 식별자 (선택)
-     * 예: 사업자등록번호, 공공데이터 ID
+     * 외부 식별자
      */
     @Column(name = "external_id", length = 100)
     val externalId: String? = null,
 
     /**
      * 사용 여부
-     * (잘못 매핑된 회사 비활성화용)
      */
     @Column(name = "is_active", nullable = false)
-    val isActive: Boolean = true,
-
-    /**
-     * 회사 최초 등록 시각
-     */
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+    val isActive: Boolean = true
+) :BaseEntity()

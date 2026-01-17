@@ -1,4 +1,3 @@
-from typing import List
 from preprocess.structural_preprocess.section_builder import Section
 
 # JD 의미상 제거해도 되는 섹션 키워드
@@ -13,7 +12,7 @@ DROP_SECTION_KEYWORDS = (
 )
 
 
-def filter_irrelevant_sections(sections: List[Section]) -> List[Section]:
+def filter_irrelevant_sections(sections: list[Section]) -> list[Section]:
     """
     JD 의미와 직접 관련 없는 섹션 제거
 
@@ -27,10 +26,10 @@ def filter_irrelevant_sections(sections: List[Section]) -> List[Section]:
     - semantic_zone == others라도 무조건 제거하지는 않는다
     """
 
-    filtered: List[Section] = []
+    filtered: list[Section] = []
 
     for sec in sections:
-        header = sec.header or ""
+        header = (sec.header or "").lower().strip()
 
         if any(k in header for k in DROP_SECTION_KEYWORDS):
             continue

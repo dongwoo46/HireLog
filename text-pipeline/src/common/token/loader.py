@@ -1,6 +1,5 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Set
 
 import yaml
 
@@ -10,7 +9,7 @@ DEFAULT_PATTERN_PATH = Path(__file__).parent / "patterns.yml"
 @lru_cache(maxsize=1)
 def load_token_patterns(
         path: Path = DEFAULT_PATTERN_PATH,
-) -> Dict[str, Set[str]]:
+) -> dict[str, set[str]]:
     """
     기술 키워드 토큰 보정 패턴 로드
 

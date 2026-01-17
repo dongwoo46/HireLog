@@ -11,8 +11,6 @@ Semantic Zone Detector (Lite)
 - 오탐보다 미탐을 허용
 """
 
-from typing import Optional
-
 RESPONSIBILITIES_KEYWORDS = (
     "responsibil",
     "role",
@@ -97,15 +95,15 @@ def detect_semantic_zone(header: str | None) -> str:
     if any(k in h for k in RESPONSIBILITIES_KEYWORDS):
         return "responsibilities"
 
-    # 2️⃣ 필수 자격 요건
-    # 업무 다음으로 중요한 평가 기준
-    if any(k in h for k in REQUIREMENTS_KEYWORDS):
-        return "requirements"
-
-    # 3️⃣ 우대 사항
-    # 필수 요건과 의미 충돌을 피하기 위해 requirements 이후 처리
+    # 2️⃣ 우대 사항
+    # 'preferred'가 명시되면 qualification 포함 여부와 무관하게 우대
     if any(k in h for k in PREFERRED_KEYWORDS):
         return "preferred"
+
+    # 3️⃣ 필수 자격 요건
+    # preferred에 해당하지 않는 qualification / requirement만 처리
+    if any(k in h for k in REQUIREMENTS_KEYWORDS):
+        return "requirements"
 
     # 4️⃣ 회사 / 포지션 소개
     # JD 요약에는 직접 사용되지 않지만

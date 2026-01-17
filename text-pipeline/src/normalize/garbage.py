@@ -28,7 +28,8 @@ def looks_garbage(token: str) -> bool:
     t = token.strip()
 
     # 1️⃣ 길이 기준
-    if len(t) <= 1:
+    # 단, 한글 1글자는 의미가 있을 수 있으므로 제외
+    if len(t) <= 1 and not any('가' <= c <= '힣' for c in t):
         return True
 
     # 2️⃣ 특수문자만 있는 경우

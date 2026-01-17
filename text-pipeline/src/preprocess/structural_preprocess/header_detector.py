@@ -1,7 +1,6 @@
 from common.section.loader import load_header_keywords
 
-
-def is_header_line(line: str, next_line: str | None) -> bool:
+def is_text_header_candidate(line: str, next_line: str | None) -> bool:
     """
     JD 섹션 헤더 판별 (Structural 단계)
 
@@ -42,14 +41,20 @@ def is_header_line(line: str, next_line: str | None) -> bool:
     if stripped.endswith(":"):
         return True
 
-    # 4️⃣ ⭐ JD 특화 규칙 (핵심)
-    # - 짧은 단독 명사형 라인
-    # - 다음 줄이 일반 문장
+    # 4️⃣ ⭐ JD 특화 규칙 (보수적)
+    # - 짧은 단독 라인
+    # - 다음 줄이 문장처럼 보이지 않을 때만
     if next_line:
         next_stripped = next_line.strip()
+
         if (
                 2 <= len(stripped) <= 15
                 and not next_stripped.startswith("•")
+                and len(next_stripped) >= 20          # 다음 줄이 본문처럼 길어야 함
+                and (
+                stripped[:1].isupper()            # 영문 헤더
+                or '가' <= stripped[:1] <= '힣'   # 한글 헤더
+            )
         ):
             return True
 

@@ -1,10 +1,8 @@
-from typing import List, Dict, Optional
-from structure.is_header import is_header_line, normalize_header_key
+from ocr.structure.is_header import is_ocr_header_line, normalize_header_key
 
 INTRO_KEY = "__intro__"
 
-
-def extract_sections_by_header(lines: List[Dict]) -> Dict[str, List[str]]:
+def extract_sections_by_header(lines: list[dict]) -> dict[str, list[str]]:
     """
     OCR 라인 목록에서 header를 기준으로
     각 header에 속하는 '텍스트' 라인들을 추출한다.
@@ -15,11 +13,11 @@ def extract_sections_by_header(lines: List[Dict]) -> Dict[str, List[str]]:
     - header 이전 라인은 intro로 수집
     """
 
-    sections: Dict[str, List[str]] = {
+    sections: dict[str, list[str]] = {
         INTRO_KEY: []
     }
 
-    current_header: Optional[str] = None
+    current_header: str | None = None
 
     for line in lines:
         text = line.get("text", "").strip()
@@ -27,7 +25,7 @@ def extract_sections_by_header(lines: List[Dict]) -> Dict[str, List[str]]:
             continue
 
         # 1️⃣ 헤더 판정
-        if is_header_line(line):
+        if is_ocr_header_line(line):
             header_key = normalize_header_key(text)
             current_header = header_key
             sections.setdefault(current_header, [])

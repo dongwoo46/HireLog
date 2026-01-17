@@ -1,5 +1,6 @@
 package com.hirelog.api.job.domain
 
+import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
@@ -24,7 +25,7 @@ class JobSummary(
      * 요약 대상 JD 스냅샷
      * (JobSnapshot 1:1 관계)
      */
-    @Column(name = "job_snapshot_id", nullable = false, unique = true)
+    @Column(name = "job_snapshot_id", nullable = false)
     val jobSnapshotId: Long,
 
     // =========================
@@ -122,9 +123,4 @@ class JobSummary(
     @Column(name = "model_version", nullable = false, length = 100)
     val modelVersion: String,
 
-    /**
-     * 요약 생성 시각
-     */
-    @Column(name = "generated_at", nullable = false)
-    val generatedAt: LocalDateTime = LocalDateTime.now()
-)
+) : BaseEntity()

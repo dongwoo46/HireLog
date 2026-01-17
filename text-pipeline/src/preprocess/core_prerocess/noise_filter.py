@@ -1,9 +1,7 @@
-from typing import Dict, Set
-
 
 def _is_noise_line(
         line: str,
-        patterns: Dict[str, Set[str]],
+        patterns: dict[str, set[str]],
 ) -> bool:
     """
     JD와 무관한 명백한 UI / 시스템 노이즈 라인 판정

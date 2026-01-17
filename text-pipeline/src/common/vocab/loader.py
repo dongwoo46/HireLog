@@ -1,7 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Set
-
+import yaml
 
 DEFAULT_JD_VOCAB_PATH = Path(__file__).parent / "jd_vocab.yml"
 DEFAULT_SKILL_ALIAS_PATH = Path(__file__).parent / "skill_alias.yml"
@@ -11,7 +10,7 @@ DEFAULT_SKILL_VOCAB_PATH = Path(__file__).parent / "skill_vocab.yml"
 @lru_cache(maxsize=1)
 def load_jd_vocab(
         path: Path = DEFAULT_JD_VOCAB_PATH,
-) -> Set[str]:
+) -> set[str]:
     """
     JD 도메인에서 '절대 보호해야 하는 단어 집합' 로드
 
@@ -38,11 +37,7 @@ def load_jd_vocab(
 
     return vocab
 
-from functools import lru_cache
-from pathlib import Path
-from typing import Dict, Set
 
-import yaml
 
 
 
@@ -50,7 +45,7 @@ import yaml
 @lru_cache(maxsize=1)
 def load_skill_vocab(
         path: Path = DEFAULT_SKILL_VOCAB_PATH,
-) -> Dict[str, Set[str]]:
+) -> dict[str, set[str]]:
     """
     JD 기술 스택 추출용 vocab 로드
 
@@ -73,13 +68,13 @@ def load_skill_vocab(
     if not isinstance(raw, dict):
         raise ValueError("skill_vocab.yml must be a mapping of categories")
 
-    vocab: Dict[str, Set[str]] = {}
+    vocab: dict[str, set[str]] = {}
 
     for category, tokens in raw.items():
         if not isinstance(tokens, list):
             continue
 
-        normalized: Set[str] = set()
+        normalized: set[str] = set()
 
         for token in tokens:
             if isinstance(token, str):
@@ -95,7 +90,7 @@ def load_skill_vocab(
 @lru_cache(maxsize=1)
 def load_skill_alias(
         path: Path = DEFAULT_SKILL_ALIAS_PATH,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     skill alias 로드
     - alias → canonical 매핑
@@ -115,7 +110,7 @@ def load_skill_alias(
     if not isinstance(raw, dict):
         raise ValueError("skill_alias.yml must be a dict")
 
-    alias_map: Dict[str, str] = {}
+    alias_map: dict[str, str] = {}
 
     for canonical, aliases in raw.items():
         if not isinstance(aliases, list):
