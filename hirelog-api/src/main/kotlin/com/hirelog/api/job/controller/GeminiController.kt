@@ -1,15 +1,17 @@
 package com.hirelog.api.job.controller
 
-import com.hirelog.api.job.dto.GeminiAnalyzeRequest
-import com.hirelog.api.job.dto.GeminiAnalyzeResponse
+import com.hirelog.api.job.dto.GeminiSummaryTextRequest
+import com.hirelog.api.job.dto.JobSummaryResult
 import com.hirelog.api.job.service.GeminiService
+import com.hirelog.api.job.service.JobSummaryFacadeService
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/gemini")
 class GeminiController(
-    private val geminiService: GeminiService
+    private val jobSummaryFacadeService: JobSummaryFacadeService
 ) {
 
     /**
@@ -18,19 +20,17 @@ class GeminiController(
      * ⚠️ 내부 테스트 전용
      * ⚠️ 인증/인가 붙이기 전까지 외부 노출 금지
      */
-    @PostMapping("/analyze")
-    fun analyzeJobDescription(
-        @RequestBody request: GeminiAnalyzeRequest
-    ): ResponseEntity<GeminiAnalyzeResponse> {
+    @PostMapping("/summary/text")
+    fun summarizeJobDescription(
+        @Valid @RequestBody request: GeminiSummaryTextRequest
+    ): ResponseEntity<JobSummaryResult> {
 
-        if (request.jdText.isBlank()) {
-            return ResponseEntity.badRequest().build()
-        }
-
-        val result = geminiService.analyzeJobDescription(request.jdText)
-
-        return ResponseEntity.ok(
-            GeminiAnalyzeResponse(result = result)
+        val result = jobSummaryFacadeService.summarizeTextJDAndSave(
+            brandName = request.brandName,
+            positionName = request.positionName,
+            rawText = request.jdText
         )
+
+        return ResponseEntity.ok(result)
     }
 }
