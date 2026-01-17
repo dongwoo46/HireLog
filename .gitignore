@@ -6,6 +6,11 @@
 __pycache__/
 .vite/
 opensearch_data/
+# IDE
+.idea/
+*.iml
+.vscode/
+.intellij/
 
 # ===============================
 # Frontend
