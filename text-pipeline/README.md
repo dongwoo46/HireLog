@@ -12,6 +12,9 @@ hirelog-ocr-dev
 본 시스템은 OCR 결과를 그대로 사용하지 않고,
 Job Description(JD)에 적합한 형태로 **단계적으로 정제·구조화** 한다.
 
+### 테스트 실행 코드
+pip uninstall paddlepaddle paddleocr -y
+
 ---
 
 ##  처리 순서

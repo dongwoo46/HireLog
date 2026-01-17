@@ -1,8 +1,8 @@
-from jd.vocab import is_known_vocab
-from jd.garbage import looks_garbage
-from jd.broken import looks_broken
-from jd.candidate import generate_candidates
-from jd.select import select_best_candidate
+from normalize.vocab import is_known_vocab
+from normalize.garbage import looks_garbage
+from normalize.broken import looks_broken
+from normalize.candidate import generate_candidates
+from normalize.select import select_best_candidate
 
 
 def normalize_token(

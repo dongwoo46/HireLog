@@ -1,52 +1,115 @@
-import pytesseract
-from pytesseract import Output
+from paddleocr import PaddleOCR
+import numpy as np
+from typing import Dict, Any, List
 
 
-TESSERACT_CONFIG = "--oem 1 --psm 6"
-TESSERACT_LANG = "kor+eng"
+# PaddleX pipeline을 타지 않는 순수 PaddleOCR 인스턴스
+# - detection + recognition만 사용
+# - JD 해석과 무관한 순수 OCR 엔진 역할만 수행
+_ocr = PaddleOCR(
+    lang="korean",
+)
 
 
-def run_ocr(image):
+def run_ocr(image: np.ndarray) -> Dict[str, Any]:
     """
-    OCR 엔진 실행 함수
+    PaddleOCR 기반 OCR 엔진 실행 함수.
 
-    목적:
-    - 전처리된 이미지를 OCR 엔진에 전달
-    - 단어 단위 텍스트와 confidence를 수집
-    - 후속 파이프라인에서 사용할 raw 데이터 제공
+    역할:
+    - 전처리된 이미지를 PaddleOCR에 전달
+    - OCR 결과를 line 단위 raw 데이터로 정규화하여 반환
+
+    설계 원칙:
+    - JD 해석 / 의미 판단은 절대 하지 않는다
+    - OCR 엔진이 제공하는 정보를 최대한 보존한다
+    - PP-OCR v5 기준의 반환 구조(dict 기반)에 맞춰 처리한다
+    - downstream 파이프라인이 신뢰할 수 있는 고정 포맷을 제공한다
     """
 
-    # pytesseract OCR 실행
-    # 단어 단위 결과 + confidence + 위치 정보 반환
-    data = pytesseract.image_to_data(
-        image,
-        lang=TESSERACT_LANG,
-        config=TESSERACT_CONFIG,
-        output_type=Output.DICT,
-    )
+    # ----------------------------------------
+    # 1️⃣ OCR 실행
+    # ----------------------------------------
+    # 반환 구조:
+    # result = [
+    #   {
+    #     "rec_texts": [...],
+    #     "rec_scores": [...],
+    #     "rec_polys" or "rec_boxes": [...]
+    #     ...
+    #   }
+    # ]
+    result = _ocr.ocr(image)
 
-    texts = []          # 인식된 단어 텍스트
-    confidences = []    # 단어별 confidence 값
+    # OCR 결과가 비어 있거나 예상한 구조가 아닐 경우
+    if not result or not isinstance(result[0], dict):
+        return {
+            "raw": [],
+            "confidence": 0.0,
+        }
 
-    # OCR 결과는 단어 단위로 반환됨
-    for i in range(len(data["text"])):
-        text = data["text"][i].strip()
-        conf = int(data["conf"][i])
+    page = result[0]
 
-        # 인식 실패(conf <= 0) 또는 빈 문자열 제거
-        if conf > 0 and text:
-            texts.append(text)
-            confidences.append(conf)
+    texts = page.get("rec_texts", [])
+    scores = page.get("rec_scores", [])
+    boxes = page.get("rec_polys") or page.get("rec_boxes") or []
 
-    # 전체 OCR 평균 confidence 계산
+    lines: List[Dict[str, Any]] = []
+    confidences: List[float] = []
+
+    # ----------------------------------------
+    # 2️⃣ line 단위 결과 구성
+    # ----------------------------------------
+    for text, score, box in zip(texts, scores, boxes):
+
+        # 텍스트 기본 검증
+        if not text:
+            continue
+
+        text = text.strip()
+        if not text:
+            continue
+
+        # confidence 값 검증
+        try:
+            score = float(score)
+        except (TypeError, ValueError):
+            continue
+
+        # ------------------------------------
+        # 3️⃣ 글자 크기(height) 추정
+        # ------------------------------------
+        # box는 보통 (N, 2) 형태의 polygon 또는 bounding box
+        height = None
+        try:
+            if hasattr(box, "ndim") and box.ndim == 2 and box.shape[1] == 2:
+                ys = box[:, 1]
+                height = float(max(ys) - min(ys))
+        except Exception:
+            height = None
+
+        # ------------------------------------
+        # 4️⃣ raw line 저장
+        # ------------------------------------
+        lines.append({
+            "text": text,
+            "confidence": score * 100.0,   # 0~100 스케일로 통일
+            "box": box,                    # 원본 좌표 (후속 판단용)
+            "height": height               # 글자 크기 추정값
+        })
+
+        confidences.append(score)
+
+    # ----------------------------------------
+    # 5️⃣ 전체 OCR 품질 지표 계산
+    # ----------------------------------------
     avg_confidence = (
         sum(confidences) / len(confidences)
-        if confidences else 0
+        if confidences else 0.0
     )
 
-    # 후속 처리에 필요한 정보 반환
+    # OCR 단계의 출력은
+    # "의미 해석 이전의 원재료(raw material)"만 제공하는 것이 목적
     return {
-        "text": " ".join(texts),   # 디버그용 전체 텍스트
-        "confidence": avg_confidence,
-        "raw": data                # line 구조화를 위한 원본 데이터
+        "raw": lines,                         # line-level raw 데이터
+        "confidence": avg_confidence * 100.0 # 전체 OCR 품질 지표
     }

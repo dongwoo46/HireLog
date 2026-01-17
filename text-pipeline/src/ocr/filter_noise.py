@@ -1,60 +1,73 @@
-import re
+from common.section.loader import load_jd_meta_keywords
 
 def filter_ocr_noise_lines(
         lines,
-        min_avg_conf=40,
-        max_low_conf_ratio=0.5
+        noise_keywords
 ):
     """
-    OCR 결과에서 '인식 품질 문제'로 판단되는 라인을 제거한다.
+    JD 처리 단계에서 '의미/도메인 관점의 노이즈'를 제거한다.
 
     이 함수의 책임:
-    - OCR 인식 실패 또는 품질이 낮은 라인 제거
-    - 문서 의미(JD, 문장 구조)는 고려하지 않음
-    - 오직 OCR 결과 품질만 기준으로 판단
+    - JD 문서로서 의미 없는 라인 제거
 
     제거 대상:
-    - 평균 confidence가 낮은 라인
-    - low confidence 토큰 비율이 높은 라인
-    - OCR 쓰레기(기호/숫자만 있는 라인)
+    - 지원하기, apply, privacy 등 UI/메타 문구
+    - JD 본문과 무관한 시스템 문장
     """
 
-    # OCR 품질 필터를 통과한 라인만 누적
-    result = []
+    # JD 의미 필터를 통과한 라인만 누적
+    result: list[dict] = []
 
-    # OCR 파이프라인에서 전달된 모든 라인 순회
+    # JD 필요 데이터 로드
+    meta_keywords = load_jd_meta_keywords()
+
+    # JD 처리 대상 라인 순회
     for line in lines:
 
-        # 라인 텍스트의 앞뒤 공백 제거
+        # 라인 텍스트 추출 및 공백 제거
         text = line["text"].strip()
-
-        # 1️⃣ 평균 confidence 기준 제거
-        # → OCR이 해당 라인을 제대로 인식하지 못했을 가능성
-        if line["confidence_avg"] < min_avg_conf:
+        if not text:
             continue
 
-        # 2️⃣ low confidence 토큰 비율 기준 제거
-        # → 일부 토큰만 맞고 나머지가 깨진 라인 제거
-        if line["low_conf_ratio"] > max_low_conf_ratio:
+        # 키워드 매칭을 위한 소문자 변환
+        text_lower = text.lower()
+
+        # #  JD 메타 라인은 무조건 통과
+        if any(k in text_lower for k in meta_keywords):
+            result.append(line)
             continue
 
-        # 3️⃣ 너무 짧은 라인 제거
-        # → 단일 문자, OCR 잔여 토큰 제거
-        if len(text) <= 2:
+        #  ️UI / 메타 / boilerplate 키워드 포함 여부 검사
+        # → JD 본문과 무관한 문장 제거
+        if _is_noise_line(text, noise_keywords):
             continue
 
-        # 4️⃣ 특수문자 또는 기호만 있는 라인 제거
-        # 예: "---", "|||", "•••"
-        if re.fullmatch(r"[\W_]+", text):
-            continue
-
-        # 5️⃣ 숫자만 있는 라인 제거
-        # → 페이지 번호, UI 카운터 등
-        if text.isdigit():
-            continue
-
-        # OCR 품질 기준을 통과한 라인만 추가
+        # JD 의미 기준을 통과한 라인만 추가
         result.append(line)
 
-    # OCR noise 제거가 완료된 라인 목록 반환
+    # JD noise 제거가 완료된 라인 목록 반환
     return result
+
+def _is_noise_line(text: str, noise_keywords: dict[str, set[str]]) -> bool:
+    text_lower = text.lower().strip()
+
+    # 1️⃣ exact match
+    if text_lower in noise_keywords.get("exact", set()):
+        return True
+
+    # 2️⃣ prefix match
+    for p in noise_keywords.get("prefix", set()):
+        if text_lower.startswith(p):
+            return True
+
+    # 3️⃣ suffix match
+    for s in noise_keywords.get("suffix", set()):
+        if text_lower.endswith(s):
+            return True
+
+    # 4️⃣ navigation / 포함 match
+    for n in noise_keywords.get("navigation", set()):
+        if n in text_lower:
+            return True
+
+    return False

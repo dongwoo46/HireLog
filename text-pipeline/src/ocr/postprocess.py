@@ -9,10 +9,11 @@ JD 도메인 후처리 모듈
 """
 
 from common.noise.loader import load_noise_keywords
-from jd.filter_noise import filter_jd_noise_lines
-from jd.token_normalizer import normalize_token
+from ocr.filter_noise import filter_ocr_noise_lines
+from normalize.token_normalizer import normalize_token
 from common.vocab.loader import load_jd_vocab
-
+from ocr.garbled_korean import is_garbled_korean
+from common.section.loader import load_jd_meta_keywords
 
 def is_korean_sentence(text: str) -> bool:
     """
@@ -30,7 +31,7 @@ def is_korean_sentence(text: str) -> bool:
     return sum(1 for c in text if '가' <= c <= '힣') >= 3
 
 
-def postprocess_jd_lines(lines: list[dict]) -> list[dict]:
+def postprocess_ocr_lines(lines: list[dict]) -> list[dict]:
     """
     JD 도메인 후처리 파이프라인
 
@@ -46,21 +47,31 @@ def postprocess_jd_lines(lines: list[dict]) -> list[dict]:
     noise_keywords = load_noise_keywords()
 
     # JD 기술 어휘 (java, spring, kafka 등)
-    # → normalize_token에서 보호용으로 사용
     vocab = load_jd_vocab()
 
-    # 1️⃣ JD와 무관한 라인 제거
-    # (푸터, 전형절차 안내 등 명백한 노이즈만 제거)
-    filtered = filter_jd_noise_lines(lines, noise_keywords)
+    # JD 메타 키워드 (전형절차, 인터뷰)
+    meta_keywords = load_jd_meta_keywords()
 
+    # JD와 무관한 라인 제거
+    # (푸터, 전형절차 안내 등 명백한 노이즈만 제거)
+    filtered = filter_ocr_noise_lines(lines, noise_keywords)
     processed: list[dict] = []
 
     for line in filtered:
         text = line.get("text", "")
         section = line.get("section")
+        # 1️⃣ OCR 깨진 한글 제거
+        if is_garbled_korean(text):
+            continue
 
-        # 2️⃣ 한국어 설명 문장 보호
-        # → 토큰 분해 자체를 하지 않음
+        text_lower = text.lower()
+
+        # 2️⃣ JD 메타 정보 보호 (전형절차, 고용형태 등)
+        if any(k in text_lower for k in meta_keywords):
+            processed.append(line)
+            continue
+
+        # 3️⃣ 한국어 설명 문장 보호
         if is_korean_sentence(text):
             processed.append(line)
             continue

@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from structure.header_grouping import extract_sections_by_header
 
 """
 OCR + JD 파이프라인 디버그 실행 스크립트
@@ -41,10 +42,6 @@ if str(SRC_DIR) not in sys.path:
 # - 이미지 → 텍스트(lines + rawText) 변환 담당
 from inputs.ocr_input import process_ocr_input
 
-# JD 도메인 파이프라인
-# - OCR 결과를 "JD 구조"로 해석
-from jd.pipeline import parse_jd_document
-
 
 def main():
     """
@@ -60,7 +57,7 @@ def main():
     # --------------------------------------------------
     # 테스트할 이미지 경로
     # --------------------------------------------------
-    image_path = "data/raw/sample_jd.png"
+    image_path = "data/raw/sample2.png"
 
     # ==================================================
     # 1️⃣ OCR 파이프라인 실행
@@ -82,37 +79,27 @@ def main():
     print("\nRAW TEXT\n--------")
     print(ocr_result["rawText"])
 
+    # 2️⃣ Header 기반 JD 구조화
+    sections = extract_sections_by_header(ocr_result["lines"])
 
-    # ==================================================
-    # 2️⃣ JD 파이프라인 실행
-    # ==================================================
-    # 이 단계의 책임:
-    # - OCR 결과(lines)를 입력으로 받아
-    # - JD 섹션 구조화
-    # - 기술 스택 / 요건 / 우대사항 추출
-    # - 중복체크/LLM 요약에 사용할 데이터 생성
-    jd_doc = parse_jd_document(ocr_result)
+    # JD 구조화 결과 출력
+    print("\nJD STRUCTURED SECTIONS")
+    print("======================")
 
-    # --------------------------------------------------
-    # JD 파싱 결과 출력 (디버그용)
-    # --------------------------------------------------
-    print("\n\nJD PARSE RESULT")
-    print("===============")
+    if not sections:
+        print("(no sections detected)")
+        return
 
-    # JD 섹션 구조 확인
-    print("\n[SECTIONS]")
-    for section, lines in jd_doc["sections"].items():
-        print(f"\n[{section}]")
-        for line in lines:
-            print("-", line)
+    for header, lines in sections.items():
+        print(f"\n[{header}]")
 
-    # 기술 스택 / 요건 / 우대사항 추출 결과
-    print("\n[FEATURES]")
-    print(jd_doc["features"])
+        if not lines:
+            print("  (empty)")
+            continue
 
-    # JD 중복체크용 canonical text
-    print("\n[CANONICAL TEXT]")
-    print(jd_doc["canonical_text"])
+        for text in lines:
+            print(f"  - {text}")
+
 
 
 # --------------------------------------------------

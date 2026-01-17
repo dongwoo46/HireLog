@@ -1,26 +1,39 @@
-# OCR / Image
-Pillow
-opencv-python
-numpy
-paddlepaddle
-paddleocr
-pytesseract
+# ===============================
+# OCR / Image Processing
+# ===============================
 
-# Text preprocessing
-regex
-langdetect
-wordfreq
+Pillow>=10.0.0
+opencv-python-headless==4.9.0.80
+numpy<2.0
 
-rapidfuzz
-symspellpy
+# Paddle (CPU 기준)
+paddlepaddle==3.1.1
+paddleocr==3.1.1
+paddlex==3.1.1
 
-# Config
-PyYAML
+# ===============================
+# Text Preprocessing (후처리 대비)
+# ===============================
 
-# Infra / schema
-pydantic
-python-dotenv
+regex>=2023.10.0
+langdetect>=1.0.9
+wordfreq>=3.0.5
 
-rich
+rapidfuzz>=3.5.2
+symspellpy>=6.7.7
 
-# pip install -r requirements.txt
+
+# ===============================
+# Config / Schema
+# ===============================
+
+PyYAML>=6.0.1
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+
+
+# ===============================
+# Debug / Logging / CLI
+# ===============================
+
+rich>=13.7.0

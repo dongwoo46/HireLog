@@ -2,10 +2,12 @@ from ocr.preprocess import preprocess_image
 from ocr.engine import run_ocr
 from ocr.lines import build_lines
 from normalize.pipeline import normalize_lines
-from ocr.postprocess import postprocess_jd_lines
+from ocr.postprocess import postprocess_ocr_lines
 from outputs.rawtext import build_raw_text
 from ocr.confidence import classify_confidence
 from ocr.quality import filter_low_quality_lines
+from utils.dump_tmp import dump_tmp_data
+from ocr.header_detector import detect_visual_headers
 
 def process_ocr_input(image_path: str):
     """
@@ -31,9 +33,18 @@ def process_ocr_input(image_path: str):
 
     # 2️ OCR 실행
     ocr_result = run_ocr(preprocessed_image)
+    if not ocr_result["raw"]:
+        return {
+            "rawText": "",
+            "lines": [],
+            "confidence": ocr_result["confidence"],
+            "status": "FAIL",
+        }
 
     # 3️. OCR raw → 라인 구조화
     lines = build_lines(ocr_result["raw"])
+
+    lines = detect_visual_headers(lines)
 
     # 4. 라인 단위 normalize 파이프라인
     normalized = normalize_lines(lines)
@@ -42,24 +53,27 @@ def process_ocr_input(image_path: str):
     # - confidence 낮은 라인
     # - garbage 비율 높은 라인
     # - 좌표 이상 라인 제거/격리
-    filtered_lines = filter_low_quality_lines(
+    passed_lines, dropped_lines = filter_low_quality_lines(
         normalized,
         min_confidence=45,          # 임시 기준
         max_garbage_ratio=0.6       # 임시 기준
     )
 
-    # 5. JD 도메인 후처리
-    jd_lines = postprocess_jd_lines(filtered_lines)
+    # dump_tmp_data("pass_lines", passed_lines)
+    # dump_tmp_data("dropped_lines", dropped_lines)
+
+    # 5. ocr로 처리한 raw 데이터 후처리
+    ocr_lines = postprocess_ocr_lines(passed_lines)
 
     # 6. 최종 rawText 생성
-    raw_text = build_raw_text(jd_lines)
+    raw_text = build_raw_text(ocr_lines)
 
     # 7. OCR 품질 상태 분류
     status = classify_confidence(ocr_result["confidence"])
 
     return {
         "rawText": raw_text,     # 사람이 읽는 용도
-        "lines": jd_lines,       # 👉 JD 파이프라인 입력용 (중요)
+        "lines": ocr_lines,       # 👉 JD 파이프라인 입력용 (중요)
         "confidence": ocr_result["confidence"],
         "status": status,
     }
