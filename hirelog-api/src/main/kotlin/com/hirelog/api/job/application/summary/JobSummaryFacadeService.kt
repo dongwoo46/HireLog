@@ -34,7 +34,6 @@ class JobSummaryFacadeService(
      * 트랜잭션
      * - 외부 LLM 호출 포함
      */
-    @Transactional
     fun summarizeTextAndSave(
         brandName: String,
         positionName: String,
