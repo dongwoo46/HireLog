@@ -21,7 +21,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create
+      ddl-auto: create   # ⭐ create → update (최소 수정)
     properties:
       hibernate:
         format_sql: true
@@ -33,15 +33,22 @@ spring:
       port: 6379
       timeout: 3s
 
+# LLM 공통 설정 (핵심)
+llm:
+  provider: GEMINI              #  현재 활성 LLM
+  model: gemini-2.5-flash-lite  #  공통 기본 모델 (optional)
+
+# Gemini 전용 설정
 gemini:
   api-key: ${GEMINI_API_KEY}
-  model: gemini-2.5-flash-lite
+  model: gemini-2.5-flash       # fallback 기본값
   timeout-ms: 10000
 
 logging:
   level:
     root: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: INFO
+    com.hirelog.api: DEBUG
 
 server:
   servlet:

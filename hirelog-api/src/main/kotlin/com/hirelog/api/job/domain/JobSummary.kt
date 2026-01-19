@@ -1,126 +1,216 @@
 package com.hirelog.api.job.domain
 
+import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
-import java.time.LocalDateTime
 
+/**
+ * Job Description 요약 엔티티 (Read Model)
+ *
+ * 역할:
+ * - JobSnapshot을 기반으로 생성된 "조회 전용 요약 데이터"
+ * - 검색, 리스트, 상세 조회에 최적화된 형태
+ *
+ * 설계 의도:
+ * - Snapshot(원문)은 무겁고 변경 불가
+ * - Summary는 비정규화를 통해 조회 비용을 최소화
+ *
+ * 제약:
+ * - JobSnapshot과 1:1 관계
+ * - 생성 이후 수정되지 않는다
+ */
 @Entity
 @Table(
     name = "job_summary",
     indexes = [
         Index(
-            name = "idx_job_summary_job_snapshot_id",
+            name = "uk_job_summary_snapshot_id",
             columnList = "job_snapshot_id",
             unique = true
         )
     ]
 )
-class JobSummary(
+class JobSummary protected constructor(
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long = 0,
+    val id: Long = 0L,
 
     /**
-     * 요약 대상 JD 스냅샷
-     * (JobSnapshot 1:1 관계)
+     * 요약 대상 JobSnapshot 식별자
+     *
+     * 주의:
+     * - JPA 연관관계는 의도적으로 사용하지 않는다
+     * - Summary는 Snapshot을 참조만 하며 생명주기를 공유하지 않는다
      */
-    @Column(name = "job_snapshot_id", nullable = false)
+    @Column(name = "job_snapshot_id", nullable = false, updatable = false)
     val jobSnapshotId: Long,
 
     // =========================
-    // 🔥 핵심 비정규화 필드
+    // 비정규화 필드
     // =========================
 
-    /** JD 기준 브랜드 */
-    @Column(name = "brand_id", nullable = false)
+    /**
+     * JD 기준 브랜드 식별자
+     * 조회 조건 최적화를 위해 중복 저장
+     */
+    @Column(name = "brand_id", nullable = false, updatable = false)
     val brandId: Long,
 
-    @Column(name = "brand_name", nullable = false, length = 200)
+    /**
+     * 브랜드명
+     * Snapshot 이후 변경되어도 Summary는 고정
+     */
+    @Column(name = "brand_name", nullable = false, length = 200, updatable = false)
     val brandName: String,
 
-    /** 소속 법인 (없을 수도 있음) */
-    @Column(name = "company_id")
+    /**
+     * 법적 회사 식별자
+     * 없는 경우 null
+     */
+    @Column(name = "company_id", updatable = false)
     val companyId: Long? = null,
 
-    @Column(name = "company_name", length = 200)
+    /**
+     * 회사명
+     */
+    @Column(name = "company_name", length = 200, updatable = false)
     val companyName: String? = null,
 
-    @Column(name="position_id", nullable = false)
+    /**
+     * 브랜드 기준 포지션 식별자
+     */
+    @Column(name = "position_id", nullable = false, updatable = false)
     val positionId: Long,
 
-    /** 포지션 (Brand 종속 개념) */
-    @Column(name = "position_name", nullable = false, length = 200)
+    /**
+     * 포지션명
+     */
+    @Column(name = "position_name", nullable = false, length = 200, updatable = false)
     val positionName: String,
 
     /**
      * 채용 경력 유형
-     * (신입 / 경력 / 무관)
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "career_type", nullable = false, length = 20)
+    @Column(name = "career_type", nullable = false, length = 20, updatable = false)
     val careerType: CareerType,
 
     /**
      * 최소 경력 연차
      * - 신입 / 무관 / 미기재 → null
-     * - "3년 이상" → 3
      */
-    @Column(name = "career_years")
+    @Column(name = "career_years", updatable = false)
     val careerYears: Int? = null,
 
     /**
-     * JD 전체를 한눈에 이해할 수 있는 요약 (3~5줄)
+     * JD 전체 요약
+     * 3~5줄 분량
      */
     @Lob
-    @Column(name = "summary_text", nullable = false)
+    @Column(name = "summary_text", nullable = false, updatable = false)
     val summaryText: String,
 
     /**
-     * 핵심 역할 / 담당 업무
-     * (회사가 이 포지션에 기대하는 역할)
+     * 핵심 역할 / 담당 업무 요약
      */
     @Lob
-    @Column(name = "responsibilities", nullable = false)
+    @Column(name = "responsibilities", nullable = false, updatable = false)
     val responsibilities: String,
 
     /**
-     * 필수 요구사항 / 자격요건
-     * (합격의 기준선)
+     * 필수 자격 요건
      */
     @Lob
-    @Column(name = "required_qualifications", nullable = false)
+    @Column(name = "required_qualifications", nullable = false, updatable = false)
     val requiredQualifications: String,
 
     /**
-     * 우대사항
-     * (있으면 좋은 조건)
+     * 우대 사항
      */
     @Lob
-    @Column(name = "preferred_qualifications")
+    @Column(name = "preferred_qualifications", updatable = false)
     val preferredQualifications: String? = null,
 
     /**
      * 주요 기술 스택
-     * (텍스트 또는 CSV 형태)
+     * CSV 또는 자연어 형태
      */
-    @Column(name = "tech_stack", length = 1000)
+    @Column(name = "tech_stack", length = 1000, updatable = false)
     val techStack: String? = null,
 
     /**
      * 채용 과정 요약
-     * (예: 서류 → 과제 → 기술 면접 → 컬처핏)
-     * 지원 준비 전략을 위한 정보
      */
     @Lob
-    @Column(name = "recruitment_process")
+    @Column(name = "recruitment_process", updatable = false)
     val recruitmentProcess: String? = null,
 
     /**
-     * 요약 생성에 사용된 LLM 모델 버전
-     * (예: gemini-1.5-flash)
+     * 요약 생성에 사용된 LLM Provider
+     * (GEMINI / OPENAI / OPENSEARCH)
      */
-    @Column(name = "model_version", nullable = false, length = 100)
-    val modelVersion: String,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "llm_provider", nullable = false, length = 20, updatable = false)
+    val llmProvider: LlmProvider,
 
-) : BaseEntity()
+    /**
+     * 요약 생성에 사용된 LLM 모델
+     * Provider에 따라 null 가능
+     */
+    @Column(name = "llm_model", nullable = false, length = 20, updatable = false)
+    val llmModel: String
+
+
+
+) : BaseEntity() {
+
+    companion object {
+        /**
+         * JobSummary 생성 전용 팩토리 메서드
+         *
+         * 목적:
+         * - Summary 생성 규칙을 한 곳에 고정
+         * - Snapshot → Summary 변환 책임 명확화
+         */
+        fun create(
+            jobSnapshotId: Long,
+            brandId: Long,
+            brandName: String,
+            companyId: Long?,
+            companyName: String?,
+            positionId: Long,
+            positionName: String,
+            careerType: CareerType,
+            careerYears: Int?,
+            summaryText: String,
+            responsibilities: String,
+            requiredQualifications: String,
+            preferredQualifications: String?,
+            techStack: String?,
+            recruitmentProcess: String?,
+            llmProvider: LlmProvider,
+            llmModel: String
+        ): JobSummary {
+            return JobSummary(
+                jobSnapshotId = jobSnapshotId,
+                brandId = brandId,
+                brandName = brandName,
+                companyId = companyId,
+                companyName = companyName,
+                positionId = positionId,
+                positionName = positionName,
+                careerType = careerType,
+                careerYears = careerYears,
+                summaryText = summaryText,
+                responsibilities = responsibilities,
+                requiredQualifications = requiredQualifications,
+                preferredQualifications = preferredQualifications,
+                techStack = techStack,
+                recruitmentProcess = recruitmentProcess,
+                llmProvider = llmProvider,
+                llmModel = llmModel
+            )
+        }
+    }
+}
