@@ -43,4 +43,31 @@ class CompanyRelation(
     @Column(name = "relation_type", nullable = false, length = 30)
     val relationType: CompanyRelationType,
 
-) : BaseEntity()
+    ) : BaseEntity() {
+    init {
+        require(parentCompanyId != childCompanyId) {
+            "Company cannot have relation with itself"
+        }
+    }
+
+    companion object {
+
+        /**
+         * 회사 관계 생성
+         *
+         * 역할:
+         * - 회사 간 관계를 의미적으로 생성
+         */
+        fun create(
+            parentCompanyId: Long,
+            childCompanyId: Long,
+            relationType: CompanyRelationType
+        ): CompanyRelation {
+            return CompanyRelation(
+                parentCompanyId = parentCompanyId,
+                childCompanyId = childCompanyId,
+                relationType = relationType
+            )
+        }
+    }
+}
