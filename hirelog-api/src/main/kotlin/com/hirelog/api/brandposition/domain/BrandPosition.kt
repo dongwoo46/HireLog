@@ -28,7 +28,7 @@ import java.time.LocalDateTime
         )
     ]
 )
-class BrandPosition(
+class BrandPosition protected constructor(
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,43 +47,34 @@ class BrandPosition(
     val positionId: Long,
 
     /**
-     * 브랜드/회사 내부에서 사용하는 포지션명
-     * 예: Server Engineer, Platform Backend Engineer
-     *
-     * - null이면 Position.name 사용
+     * 브랜드 내부에서 사용하는 포지션명
+     * - null이면 공통 Position.name 사용
      */
     @Column(name = "display_name", length = 200)
     val displayName: String? = null,
 
     /**
      * 브랜드 기준 포지션 상태
-     *
-     * CANDIDATE : LLM 자동 생성 / 검증 대기
-     * ACTIVE    : 관리자 승인 완료 + 사용 중
-     * INACTIVE  : 더 이상 사용하지 않음
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    var status: BrandPositionStatus = BrandPositionStatus.CANDIDATE,
+    var status: BrandPositionStatus,
 
     /**
      * 생성 출처
-     * - LLM   : JD 분석 기반 자동 생성
-     * - ADMIN : 관리자가 직접 생성
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 20)
     val source: BrandPositionSource,
 
     /**
-     * 관리자 승인 시각
-     * - status가 ACTIVE로 전환된 시점
+     * 승인 시각
      */
     @Column(name = "approved_at")
     var approvedAt: LocalDateTime? = null,
 
     /**
-     * 승인한 관리자 ID
+     * 승인 관리자 ID
      */
     @Column(name = "approved_by")
     var approvedBy: Long? = null
@@ -93,30 +84,76 @@ class BrandPosition(
     /**
      * 관리자 승인 처리
      *
-     * 역할:
-     * - 상태를 ACTIVE로 변경
-     * - 승인 시각 및 관리자 정보 기록
-     *
-     * idempotent:
-     * - 이미 ACTIVE면 아무 작업도 하지 않음
+     * 도메인 규칙:
+     * - CANDIDATE 상태에서만 승인 가능
+     * - INACTIVE 상태에서는 승인 불가
      */
-    fun approve(adminId: Long, approvedTime: LocalDateTime = LocalDateTime.now()) {
-        if (status == BrandPositionStatus.ACTIVE) return
+    fun approve(
+        adminId: Long,
+        approvedTime: LocalDateTime = LocalDateTime.now()
+    ) {
+        require(adminId > 0) { "adminId must be valid" }
 
-        status = BrandPositionStatus.ACTIVE
-        approvedAt = approvedTime
-        approvedBy = adminId
+        when (status) {
+            BrandPositionStatus.ACTIVE -> return
+
+            BrandPositionStatus.INACTIVE ->
+                throw IllegalStateException("Inactive BrandPosition cannot be approved")
+
+            BrandPositionStatus.CANDIDATE -> {
+                status = BrandPositionStatus.ACTIVE
+                approvedAt = approvedTime
+                approvedBy = adminId
+            }
+        }
     }
 
     /**
      * 비활성화 처리
      *
-     * 역할:
-     * - 더 이상 사용하지 않는 포지션으로 전환
-     * - 과거 데이터 보존 목적
+     * 도메인 규칙:
+     * - ACTIVE / CANDIDATE → INACTIVE 허용
+     * - 이미 INACTIVE면 no-op
      */
     fun deactivate() {
         if (status == BrandPositionStatus.INACTIVE) return
         status = BrandPositionStatus.INACTIVE
+    }
+
+    /**
+     * 승인 여부
+     *
+     * 조회 전용 도메인 로직
+     */
+    fun isApproved(): Boolean =
+        status == BrandPositionStatus.ACTIVE
+
+    companion object {
+
+        /**
+         * BrandPosition 생성 팩토리
+         *
+         * 생성 규칙:
+         * - 초기 상태는 반드시 CANDIDATE
+         * - brandId / positionId / source 필수
+         */
+        fun create(
+            brandId: Long,
+            positionId: Long,
+            displayName: String?,
+            source: BrandPositionSource
+        ): BrandPosition {
+
+            require(brandId > 0) { "brandId must be positive" }
+            require(positionId > 0) { "positionId must be positive" }
+
+            return BrandPosition(
+                brandId = brandId,
+                positionId = positionId,
+                displayName = displayName,
+                status = BrandPositionStatus.CANDIDATE,
+                source = source
+            )
+        }
     }
 }

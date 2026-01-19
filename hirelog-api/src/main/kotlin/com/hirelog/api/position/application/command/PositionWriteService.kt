@@ -1,6 +1,10 @@
 package com.hirelog.api.position.application.command
 
+import com.hirelog.api.common.exception.EntityAlreadyExistsException
+import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.position.application.query.PositionQuery
 import com.hirelog.api.position.domain.Position
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -17,37 +21,52 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class PositionWriteService(
-    private val positionCommand: PositionCommand
+    private val positionCommand: PositionCommand,
+    private val positionQuery: PositionQuery
 ) {
 
     /**
      * Position 생성
+     *
+     * 정책:
+     * - normalizedName 중복 불가
+     * - 동시성은 DB unique + 예외 변환으로 처리
      */
     @Transactional
     fun create(
         name: String,
         normalizedName: String,
         description: String?
-    ): Position =
-        positionCommand.create(
+    ): Position {
+
+        val position = Position.create(
             name = name,
             normalizedName = normalizedName,
             description = description
         )
 
-    /**
-     * Position 활성화
-     */
-    @Transactional
-    fun activate(positionId: Long) {
-        positionCommand.activate(positionId)
+        return try {
+            positionCommand.save(position)
+        } catch (ex: DataIntegrityViolationException) {
+            throw EntityAlreadyExistsException(
+                "Position already exists. normalizedName=$normalizedName",
+                ex
+            )
+        }
     }
 
-    /**
-     * Position 비활성화
-     */
+    @Transactional
+    fun activate(positionId: Long) {
+        getRequired(positionId).activate()
+    }
+
     @Transactional
     fun deprecate(positionId: Long) {
-        positionCommand.deprecate(positionId)
+        getRequired(positionId).deprecate()
     }
+
+    private fun getRequired(positionId: Long): Position =
+        positionQuery.findById(positionId)
+            ?: throw EntityNotFoundException("Position", positionId)
 }
+

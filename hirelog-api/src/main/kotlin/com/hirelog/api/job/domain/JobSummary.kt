@@ -158,7 +158,7 @@ class JobSummary protected constructor(
      * 요약 생성에 사용된 LLM 모델
      * Provider에 따라 null 가능
      */
-    @Column(name = "llm_model", length = 100, updatable = false)
+    @Column(name = "llm_model", nullable = false, length = 20, updatable = false)
     val llmModel: String
 
 

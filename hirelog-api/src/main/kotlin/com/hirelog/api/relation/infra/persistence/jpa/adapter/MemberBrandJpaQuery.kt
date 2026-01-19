@@ -21,10 +21,15 @@ class MemberBrandJpaQuery(
         return repository.findAllByMemberId(memberId)
     }
 
-    override fun existsByMemberIdAndBrandId(
+    override fun findAllByBrandId(brandId: Long): List<MemberBrand> {
+        return repository.findAllByBrandId(brandId)
+    }
+
+    override fun findByMemberIdAndBrandId(
         memberId: Long,
         brandId: Long
-    ): Boolean {
-        return repository.existsByMemberIdAndBrandId(memberId, brandId)
+    ): MemberBrand? {
+        return repository.findByMemberIdAndBrandId(memberId, brandId)
     }
 }
+

@@ -28,11 +28,30 @@ class ReviewContent(
     val experience: String? = null
 ) {
 
-    init {
-        require(
-            feeling != null || tip != null || experience != null
-        ) {
-            "ReviewContent must have at least one field"
+    companion object {
+
+        /**
+         * ReviewContent 생성
+         *
+         * 규칙:
+         * - feeling, tip, experience 중 최소 하나는 반드시 존재해야 한다
+         */
+        fun of(
+            feeling: String? = null,
+            tip: String? = null,
+            experience: String? = null
+        ): ReviewContent {
+            require(
+                feeling != null || tip != null || experience != null
+            ) {
+                "ReviewContent must have at least one field"
+            }
+
+            return ReviewContent(
+                feeling = feeling,
+                tip = tip,
+                experience = experience
+            )
         }
     }
 }

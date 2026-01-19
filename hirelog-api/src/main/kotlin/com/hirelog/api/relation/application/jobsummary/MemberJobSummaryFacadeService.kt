@@ -19,96 +19,65 @@ import org.springframework.stereotype.Service
  */
 @Service
 class MemberJobSummaryFacadeService(
-    private val memberJobSummaryQuery: MemberJobSummaryQuery,
     private val memberJobSummaryWriteService: MemberJobSummaryWriteService
 ) {
 
     /**
      * JD 저장
-     *
-     * 정책:
-     * - 동일 회원-JD 요약 중복 저장 불가
      */
     fun save(
         memberId: Long,
         jobSummaryId: Long,
         saveType: MemberJobSummarySaveType,
         memo: String?
-    ): MemberJobSummary {
-
-        require(
-            memberJobSummaryQuery
-                .findByMemberIdAndJobSummaryId(memberId, jobSummaryId) == null
-        ) {
-            "MemberJobSummary already exists. member=$memberId jobSummary=$jobSummaryId"
-        }
-
-        val relation = MemberJobSummary.create(
+    ): MemberJobSummary =
+        memberJobSummaryWriteService.save(
             memberId = memberId,
             jobSummaryId = jobSummaryId,
             saveType = saveType,
             memo = memo
         )
 
-        return memberJobSummaryWriteService.create(relation)
-    }
-
     /**
      * 저장 목적 변경
-     *
-     * 정책:
-     * - 관계가 반드시 존재해야 함
      */
     fun changeSaveType(
         memberId: Long,
         jobSummaryId: Long,
         saveType: MemberJobSummarySaveType
     ) {
-        val relation = memberJobSummaryQuery
-            .findByMemberIdAndJobSummaryId(memberId, jobSummaryId)
-            ?: throw IllegalArgumentException(
-                "MemberJobSummary not found. member=$memberId jobSummary=$jobSummaryId"
-            )
-
-        relation.changeSaveType(saveType)
-
-        memberJobSummaryWriteService.update(relation)
+        memberJobSummaryWriteService.changeSaveType(
+            memberId = memberId,
+            jobSummaryId = jobSummaryId,
+            saveType = saveType
+        )
     }
 
     /**
      * 메모 수정
-     *
-     * 정책:
-     * - 관계가 반드시 존재해야 함
      */
     fun updateMemo(
         memberId: Long,
         jobSummaryId: Long,
         memo: String?
     ) {
-        val relation = memberJobSummaryQuery
-            .findByMemberIdAndJobSummaryId(memberId, jobSummaryId)
-            ?: throw IllegalArgumentException(
-                "MemberJobSummary not found. member=$memberId jobSummary=$jobSummaryId"
-            )
-
-        relation.updateMemo(memo)
-
-        memberJobSummaryWriteService.update(relation)
+        memberJobSummaryWriteService.updateMemo(
+            memberId = memberId,
+            jobSummaryId = jobSummaryId,
+            memo = memo
+        )
     }
 
     /**
      * 저장 취소
-     *
-     * 정책:
-     * - 관계가 존재할 경우에만 삭제
      */
     fun delete(
         memberId: Long,
         jobSummaryId: Long
     ) {
-        memberJobSummaryQuery
-            .findByMemberIdAndJobSummaryId(memberId, jobSummaryId)
-            ?.let { memberJobSummaryWriteService.delete(it) }
+        memberJobSummaryWriteService.delete(
+            memberId = memberId,
+            jobSummaryId = jobSummaryId
+        )
     }
 }

@@ -18,10 +18,15 @@ class MemberCompanyJpaQuery(
         return repository.findAllByMemberId(memberId)
     }
 
-    override fun existsByMemberIdAndCompanyId(
+    override fun findAllByCompanyId(companyId: Long): List<MemberCompany> {
+        return repository.findAllByCompanyId(companyId)
+    }
+
+    override fun findByMemberIdAndCompanyId(
         memberId: Long,
         companyId: Long
-    ): Boolean {
-        return repository.existsByMemberIdAndCompanyId(memberId, companyId)
+    ): MemberCompany? {
+        return repository.findByMemberIdAndCompanyId(memberId, companyId)
     }
 }
+

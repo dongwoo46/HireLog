@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service
  */
 @Service
 class MemberBrandFacadeService(
-    private val memberBrandQuery: MemberBrandQuery,
     private val memberBrandWriteService: MemberBrandWriteService
 ) {
 
@@ -33,21 +32,12 @@ class MemberBrandFacadeService(
         memberId: Long,
         brandId: Long,
         interestType: InterestType
-    ): MemberBrand {
-
-        require(
-            memberBrandQuery.findByMemberIdAndBrandId(memberId, brandId) == null
-        ) {
-            "MemberBrand already exists. member=$memberId brand=$brandId"
-        }
-
-        val relation = MemberBrand.create(
+    ) {
+        memberBrandWriteService.register(
             memberId = memberId,
             brandId = brandId,
             interestType = interestType
         )
-
-        return memberBrandWriteService.create(relation)
     }
 
     /**
@@ -61,15 +51,11 @@ class MemberBrandFacadeService(
         brandId: Long,
         interestType: InterestType
     ) {
-        val relation = memberBrandQuery
-            .findByMemberIdAndBrandId(memberId, brandId)
-            ?: throw IllegalArgumentException(
-                "MemberBrand not found. member=$memberId brand=$brandId"
-            )
-
-        relation.changeInterestType(interestType)
-
-        memberBrandWriteService.update(relation)
+        memberBrandWriteService.changeInterestType(
+            memberId = memberId,
+            brandId = brandId,
+            interestType = interestType
+        )
     }
 
     /**
@@ -82,8 +68,9 @@ class MemberBrandFacadeService(
         memberId: Long,
         brandId: Long
     ) {
-        memberBrandQuery
-            .findByMemberIdAndBrandId(memberId, brandId)
-            ?.let { memberBrandWriteService.delete(it) }
+        memberBrandWriteService.unregister(
+            memberId = memberId,
+            brandId = brandId
+        )
     }
 }

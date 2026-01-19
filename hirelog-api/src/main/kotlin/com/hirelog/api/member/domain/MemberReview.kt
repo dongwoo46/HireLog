@@ -4,6 +4,14 @@ import com.hirelog.api.common.jpa.BaseEntity
 import com.hirelog.api.member.domain.vo.ReviewContent
 import jakarta.persistence.*
 
+/**
+ * MemberReview
+ *
+ * 설계 의도:
+ * - Member, JobSummary와 ID 기반 느슨한 결합
+ * - DB FK를 사용하지 않는다
+ * - 탈퇴/삭제 이후에도 리뷰 데이터는 보존될 수 있다
+ */
 @Entity
 @Table(
     name = "member_review",

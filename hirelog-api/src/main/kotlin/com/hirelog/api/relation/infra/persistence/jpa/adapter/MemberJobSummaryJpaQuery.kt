@@ -17,10 +17,14 @@ class MemberJobSummaryJpaQuery(
         return repository.findAllByMemberId(memberId)
     }
 
-    override fun existsByMemberIdAndJobSummaryId(
+    override fun findAllByJobSummaryId(jobSummaryId: Long): List<MemberJobSummary> {
+        return repository.findAllByJobSummaryId(jobSummaryId)
+    }
+
+    override fun findByMemberIdAndJobSummaryId(
         memberId: Long,
         jobSummaryId: Long
-    ): Boolean {
-        return repository.existsByMemberIdAndJobSummaryId(memberId, jobSummaryId)
+    ): MemberJobSummary? {
+        return repository.findByMemberIdAndJobSummaryId(memberId, jobSummaryId)
     }
 }

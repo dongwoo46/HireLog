@@ -22,13 +22,6 @@ interface MemberJobSummaryJpaRepository : JpaRepository<MemberJobSummary, Long> 
      */
     fun findAllByJobSummaryId(jobSummaryId: Long): List<MemberJobSummary>
 
-    /**
-     * 중복 저장 여부 확인
-     */
-    fun existsByMemberIdAndJobSummaryId(
-        memberId: Long,
-        jobSummaryId: Long
-    ): Boolean
 
     /**
      * 단건 관계 조회

@@ -27,14 +27,6 @@ interface MemberBrandJpaRepository : JpaRepository<MemberBrand, Long> {
     fun findAllByBrandId(brandId: Long): List<MemberBrand>
 
     /**
-     * 중복 관심 등록 여부 확인
-     */
-    fun existsByMemberIdAndBrandId(
-        memberId: Long,
-        brandId: Long
-    ): Boolean
-
-    /**
      * 단건 관계 조회
      */
     fun findByMemberIdAndBrandId(

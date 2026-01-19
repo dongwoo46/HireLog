@@ -1,5 +1,8 @@
 package com.hirelog.api.job.infrastructure.external.gemini
 
+import com.hirelog.api.common.exception.GeminiCallException
+import com.hirelog.api.common.exception.GeminiParseException
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryLlmResult
 
@@ -51,9 +54,34 @@ class GeminiJobSummaryClient(
         )
 
         // Gemini API 호출을 통해 raw 응답 획득
-        val raw = geminiClient.generateContent(prompt)
+        // 1️⃣ Gemini API 호출
+        val raw = try {
+            geminiClient.generateContent(prompt)
+        } catch (ex: Exception) {
+
+            // 🔥 로그에만 상세 컨텍스트 기록
+            log.error(
+                "Gemini API call failed. brand={}, position={}",
+                brandName,
+                position,
+                ex
+            )
+
+            throw GeminiCallException(ex)
+        }
 
         // Gemini 응답을 공통 LLM 결과 모델로 파싱
-        return responseParser.parseJobSummary(raw)
+        return try {
+            responseParser.parseJobSummary(raw)
+        } catch (ex: Exception) {
+            // 🔥 파싱 실패도 로그만
+            log.error(
+                "Gemini response parse failed. brand={}, position={}",
+                brandName,
+                position,
+                ex
+            )
+            throw GeminiParseException(ex)
+        }
     }
 }

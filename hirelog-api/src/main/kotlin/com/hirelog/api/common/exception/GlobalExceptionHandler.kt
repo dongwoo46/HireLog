@@ -43,4 +43,65 @@ class GlobalExceptionHandler {
             )
         )
     }
+
+
+    /**
+     * 공통 Entity Not Found 처리
+     *
+     * - 모든 도메인의 필수 엔티티 조회 실패
+     * - REST API 기준 404 Not Found
+     */
+    @ExceptionHandler(EntityNotFoundException::class)
+    fun handleEntityNotFound(
+        ex: EntityNotFoundException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.NOT_FOUND
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = ex.message ?: status.reasonPhrase,
+                path = request.requestURI
+            )
+        )
+    }
+
+    @ExceptionHandler(EntityAlreadyExistsException::class)
+    fun handleEntityExists(
+        ex: EntityAlreadyExistsException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.CONFLICT
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = ex.message ?: status.reasonPhrase,
+                path = request.requestURI
+            )
+        )
+    }
+
+
+    @ExceptionHandler(GeminiCallException::class)
+    fun handleGeminiCall(
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.BAD_GATEWAY
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = status.reasonPhrase,
+                path = request.requestURI
+            )
+        )
+    }
 }

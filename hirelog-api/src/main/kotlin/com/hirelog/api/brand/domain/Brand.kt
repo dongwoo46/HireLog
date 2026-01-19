@@ -33,13 +33,13 @@ class Brand(
      * 브랜드명
      * 예: 토스, 강남언니
      */
-    @Column(name = "name", nullable = false, length = 200)
+    @Column(name = "name", nullable = false, length = 100)
     val name: String,
 
     /**
      * 정규화된 브랜드명
      */
-    @Column(name = "normalized_name", nullable = false, length = 200)
+    @Column(name = "normalized_name", nullable = false, length = 100)
     val normalizedName: String,
 
     /**
@@ -59,7 +59,7 @@ class Brand(
      * 브랜드 데이터 출처
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "source", nullable = false, length = 10)
+    @Column(name = "source", nullable = false, length = 20)
     val source: BrandSource,
 
     @Column(name = "is_active", nullable = false)

@@ -16,4 +16,8 @@ class MemberJobSummaryJpaCommand(
     override fun save(memberJobSummary: MemberJobSummary): MemberJobSummary {
         return repository.save(memberJobSummary)
     }
+
+    override fun delete(memberJobSummary: MemberJobSummary) {
+        repository.delete(memberJobSummary)
+    }
 }

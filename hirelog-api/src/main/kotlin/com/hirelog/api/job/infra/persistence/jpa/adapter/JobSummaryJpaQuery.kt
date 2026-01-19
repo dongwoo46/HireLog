@@ -2,6 +2,7 @@ package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.summary.query.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummaryView
+import com.hirelog.api.job.infra.persistence.jpa.repository.JobSummaryJpaQueryDslRepository
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSummaryJpaRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
@@ -21,7 +22,8 @@ import org.springframework.stereotype.Component
  */
 @Component
 class JobSummaryJpaQuery(
-    private val repository: JobSummaryJpaRepository
+    private val repository: JobSummaryJpaRepository,
+    private val queryDslRepository: JobSummaryJpaQueryDslRepository
 ) : JobSummaryQuery {
 
     /**
@@ -41,8 +43,15 @@ class JobSummaryJpaQuery(
 
         val pageable = PageRequest.of(page, size)
 
-        val entityPage = repository.findAll(pageable)
+        // ✅ QueryDSL 검색 실행
+        val entityPage = queryDslRepository.search(
+            brandId = brandId,
+            positionId = positionId,
+            keyword = keyword,
+            pageable = pageable
+        )
 
+        // ✅ Entity → View 변환
         val views = entityPage.content.map { entity ->
             JobSummaryView(
                 summaryId = entity.id,

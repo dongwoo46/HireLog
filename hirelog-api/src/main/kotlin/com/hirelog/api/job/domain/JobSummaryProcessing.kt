@@ -2,7 +2,6 @@ package com.hirelog.api.job.domain
 
 import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
-import org.springframework.data.annotation.Id
 import java.util.*
 
 @Entity

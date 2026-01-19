@@ -22,7 +22,11 @@ interface JobSnapshotQuery {
     fun findById(snapshotId: Long): JobSnapshot?
 
     /**
-     * 브랜드 + 포지션 기준 최신 Snapshot 조회
+     * 브랜드 + 포지션 기준 최신 JobSnapshot 조회
+     *
+     * 최신(latest)의 정의:
+     * - createdAt DESC 기준
+     * - 가장 최근에 생성된 Snapshot
      */
     fun findLatestByBrandAndPosition(
         brandId: Long,

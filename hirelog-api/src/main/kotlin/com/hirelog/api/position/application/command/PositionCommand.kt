@@ -3,30 +3,29 @@ package com.hirelog.api.position.application.command
 import com.hirelog.api.position.domain.Position
 
 /**
- * Position Write Port
+ * Position Command Port
  *
  * 책임:
- * - Position 변경/생성 계약 정의
- * - 저장소 구현을 알지 않는다
+ * - Position 영속화 추상화
+ * - 저장 / 삭제만 담당
+ *
+ * 금지:
+ * - 상태 변경 ❌
+ * - 조회 ❌
+ * - 비즈니스 판단 ❌
  */
 interface PositionCommand {
 
     /**
-     * Position 생성
+     * Position 저장
+     *
+     * - 신규 생성
+     * - 상태 변경 후 반영 (Dirty Checking)
      */
-    fun create(
-        name: String,
-        normalizedName: String,
-        description: String?
-    ): Position
+    fun save(position: Position): Position
 
     /**
-     * Position 활성화
+     * Position 삭제 (필요 시)
      */
-    fun activate(positionId: Long)
-
-    /**
-     * Position 비활성화
-     */
-    fun deprecate(positionId: Long)
+    fun delete(position: Position)
 }

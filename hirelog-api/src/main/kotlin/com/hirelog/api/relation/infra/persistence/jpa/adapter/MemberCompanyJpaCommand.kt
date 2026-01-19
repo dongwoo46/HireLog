@@ -17,4 +17,8 @@ class MemberCompanyJpaCommand(
     override fun save(memberCompany: MemberCompany): MemberCompany {
         return repository.save(memberCompany)
     }
+
+    override fun delete(memberCompany: MemberCompany) {
+        repository.delete(memberCompany)
+    }
 }

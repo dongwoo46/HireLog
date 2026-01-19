@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.summary.facade
 
-import com.hirelog.api.brand.application.facade.BrandFacadeService
+import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.common.utils.Normalizer
@@ -10,7 +10,6 @@ import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.position.application.facade.PositionFacadeService
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 
 /**
  * JobSummary Facade Service
@@ -21,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class JobSummaryFacadeService(
-    private val brandFacadeService: BrandFacadeService,
+    private val brandWriteService: BrandWriteService,
     private val positionFacadeService: PositionFacadeService,
     private val snapshotFacadeService: JobSnapshotFacadeService,
     private val jobSummaryWriteService: JobSummaryWriteService,
@@ -43,7 +42,7 @@ class JobSummaryFacadeService(
         // 1️⃣ Brand 확보
         val normalizedBrand = Normalizer.normalizeBrand(brandName)
 
-        val brand = brandFacadeService.getOrCreate(
+        val brand = brandWriteService.getOrCreate(
             name = brandName,
             normalizedName = normalizedBrand,
             companyId = null,

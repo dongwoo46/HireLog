@@ -51,7 +51,7 @@ class MemberBrand(
      * WATCH    : 관심 (알림/추천 대상)
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "interest_type", nullable = false, length = 20)
+    @Column(name = "interest_type", nullable = false, length = 32)
     var interestType: InterestType = InterestType.FAVORITE
 
 ) : BaseEntity() {

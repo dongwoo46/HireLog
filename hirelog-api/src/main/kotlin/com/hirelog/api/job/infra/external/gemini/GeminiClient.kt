@@ -1,6 +1,6 @@
 package com.hirelog.api.job.infrastructure.external.gemini
 
-import com.hirelog.api.config.properties.GeminiProperties
+import com.hirelog.api.common.config.properties.GeminiProperties
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import java.time.Duration

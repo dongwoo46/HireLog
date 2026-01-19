@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.summary.command
 
 import com.hirelog.api.brand.domain.Brand
-import com.hirelog.api.config.properties.LlmProperties
+import com.hirelog.api.common.config.properties.LlmProperties
 import com.hirelog.api.job.application.summary.command.JobSummaryCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSnapshot
@@ -32,8 +32,8 @@ class JobSummaryWriteService(
             jobSnapshotId = snapshot.id,
             brandId = brand.id,
             brandName = brand.name,
-            companyId = null,
-            companyName = null,
+            companyId = null,      // Brand-centric 모델: JobSummary 생성 시점에는 Company를 연결하지 않는다
+            companyName = null,    // Company 매핑은 후속 파이프라인 또는 수동 검증 단계에서 수행
             positionId = position.id,
             positionName = position.name,
             careerType = llmResult.careerType,

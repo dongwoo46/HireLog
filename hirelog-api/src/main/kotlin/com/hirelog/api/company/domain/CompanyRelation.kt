@@ -44,7 +44,10 @@ class CompanyRelation(
     val relationType: CompanyRelationType,
 
     ) : BaseEntity() {
-    init {
+    @PostLoad
+    @PostPersist
+    @PostUpdate
+    private fun validateInvariant() {
         require(parentCompanyId != childCompanyId) {
             "Company cannot have relation with itself"
         }

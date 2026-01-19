@@ -18,59 +18,13 @@ class BrandJpaCommand(
 ) : BrandCommand {
 
     /**
-     * Brand 생성
+     * Brand 저장
+     *
+     * - 신규/수정 공통
+     * - Dirty Checking 기반
      */
-    override fun create(
-        name: String,
-        normalizedName: String,
-        companyId: Long?,
-        source: BrandSource
-    ): Brand {
-        require(!brandRepository.existsByNormalizedName(normalizedName)) {
-            "Brand already exists: $normalizedName"
-        }
-
-        val brand = Brand.create(
-            name = name,
-            normalizedName = normalizedName,
-            companyId = companyId,
-            source = source
-        )
-
+    override fun save(brand: Brand): Brand {
         return brandRepository.save(brand)
     }
-
-    /**
-     * 브랜드 검증 승인
-     */
-    override fun verify(brandId: Long) {
-        val brand = getOrThrow(brandId)
-        brand.verify()
-    }
-
-    /**
-     * 브랜드 검증 거절
-     */
-    override fun reject(brandId: Long) {
-        val brand = getOrThrow(brandId)
-        brand.reject()
-    }
-
-    /**
-     * 브랜드 비활성화
-     */
-    override fun deactivate(brandId: Long) {
-        val brand = getOrThrow(brandId)
-        brand.deactivate()
-    }
-
-    /**
-     * 내부 공통 조회
-     *
-     * 주의:
-     * - infra 내부에서만 사용
-     */
-    private fun getOrThrow(brandId: Long): Brand =
-        brandRepository.findById(brandId)
-            .orElseThrow { IllegalArgumentException("Brand not found: $brandId") }
 }
+

@@ -5,6 +5,7 @@ import com.hirelog.api.job.application.snapshot.command.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.query.JobSnapshotQuery
 import com.hirelog.api.job.domain.JobSnapshot
 import com.hirelog.api.job.domain.JobSourceType
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 
 /**
@@ -45,14 +46,21 @@ class JobSnapshotFacadeService(
         snapshotQuery.findByContentHash(contentHash)
             ?.let { return it }
 
-        return snapshotWriteService.create(
-            brandId = brandId,
-            positionId = positionId,
-            sourceType = sourceType,
-            sourceUrl = sourceUrl,
-            rawText = rawText,
-            contentHash = contentHash
-        )
+        return try {
+            // 2. 최종 판단은 DB
+            snapshotWriteService.create(
+                brandId = brandId,
+                positionId = positionId,
+                sourceType = sourceType,
+                sourceUrl = sourceUrl,
+                rawText = rawText,
+                contentHash = contentHash
+            )
+        } catch (ex: DataIntegrityViolationException) {
+            // 3. 동시성 중복 발생 시 재조회
+            snapshotQuery.findByContentHash(contentHash)
+                ?: throw ex
+        }
     }
 
 }

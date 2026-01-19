@@ -20,9 +20,6 @@ interface JobSnapshotJpaRepository : JpaRepository<JobSnapshot, Long> {
 
     /**
      * 브랜드 + 포지션 기준 최신 Snapshot 조회
-     *
-     * 주의:
-     * - Pageable을 사용해 LIMIT 1 처리
      */
     fun findByBrandIdAndPositionIdOrderByCreatedAtDesc(
         brandId: Long,

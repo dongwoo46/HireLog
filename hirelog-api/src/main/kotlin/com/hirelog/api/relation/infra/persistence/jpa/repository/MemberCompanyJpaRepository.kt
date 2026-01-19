@@ -22,13 +22,6 @@ interface MemberCompanyJpaRepository : JpaRepository<MemberCompany, Long> {
      */
     fun findAllByCompanyId(companyId: Long): List<MemberCompany>
 
-    /**
-     * 중복 관심 등록 여부 확인
-     */
-    fun existsByMemberIdAndCompanyId(
-        memberId: Long,
-        companyId: Long
-    ): Boolean
 
     /**
      * 단건 관계 조회
