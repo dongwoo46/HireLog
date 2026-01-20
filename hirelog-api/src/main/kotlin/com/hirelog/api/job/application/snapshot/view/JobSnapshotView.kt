@@ -1,4 +1,4 @@
-package com.hirelog.api.job.application.snapshot.query
+package com.hirelog.api.job.application.snapshot.dto
 
 /**
  * JobSnapshot 조회 결과 View

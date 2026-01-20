@@ -1,4 +1,4 @@
-package com.hirelog.api.job.application.summary.port
+package com.hirelog.api.job.application.summary.query
 
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.job.domain.CareerType
