@@ -3,6 +3,7 @@ package com.hirelog.api.brandposition.service
 import com.hirelog.api.brandposition.domain.BrandPosition
 import com.hirelog.api.brandposition.domain.BrandPositionSource
 import com.hirelog.api.brandposition.infra.persistence.jpa.repository.BrandPositionJpaRepository
+import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -42,8 +43,9 @@ class BrandPositionWriteService(
 
         // 빠른 실패 목적의 사전 체크 (동시성 보장 아님)
         if (brandPositionRepository.existsByBrandIdAndPositionId(brandId, positionId)) {
-            throw IllegalArgumentException(
-                "BrandPosition already exists. brandId=$brandId, positionId=$positionId"
+            throw EntityAlreadyExistsException(
+                entityName = "BrandPosition",
+                identifier = "brandId=$brandId, positionId=$positionId",
             )
         }
 
@@ -59,9 +61,10 @@ class BrandPositionWriteService(
         } catch (ex: DataIntegrityViolationException) {
             // 동시성 상황에서 발생한 unique constraint 위반을
             // 비즈니스 의미의 예외로 변환
-            throw IllegalArgumentException(
-                "BrandPosition already exists. brandId=$brandId, positionId=$positionId",
-                ex
+            throw EntityAlreadyExistsException(
+                entityName = "BrandPosition",
+                identifier = "brandId=$brandId, positionId=$positionId",
+                cause = ex
             )
         }
     }

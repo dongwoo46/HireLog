@@ -4,7 +4,7 @@ import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
-import com.hirelog.api.job.application.summary.port.JobSummaryLlmResult
+import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 
 /**
  * Gemini 기반 JD 요약 LLM Adapter
@@ -18,7 +18,7 @@ import com.hirelog.api.job.application.summary.port.JobSummaryLlmResult
  * - Gemini 관련 로직은 이 클래스 내부로 완전히 캡슐화한다
  * - Prompt 생성 / API 호출 / 응답 파싱 책임을 명확히 분리한다
  */
-class GeminiJobSummaryClient(
+class GeminiJobSummaryLlm(
     private val geminiClient: GeminiClient,
     private val responseParser: GeminiResponseParser
 ) : JobSummaryLlm {

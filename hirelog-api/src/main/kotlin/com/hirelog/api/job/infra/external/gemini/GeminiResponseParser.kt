@@ -3,7 +3,7 @@ package com.hirelog.api.job.infrastructure.external.gemini
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.exception.GeminiParseException
-import com.hirelog.api.job.application.summary.port.JobSummaryLlmResult
+import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 
 /**
  * Gemini 응답 파서

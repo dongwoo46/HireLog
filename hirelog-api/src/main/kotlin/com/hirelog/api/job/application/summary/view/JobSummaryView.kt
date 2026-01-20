@@ -1,4 +1,4 @@
-package com.hirelog.api.job.application.summary.query
+package com.hirelog.api.job.application.summary.view
 
 import com.hirelog.api.job.domain.CareerType
 

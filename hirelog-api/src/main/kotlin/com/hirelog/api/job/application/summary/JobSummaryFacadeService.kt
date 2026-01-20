@@ -4,8 +4,8 @@ import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.common.utils.Normalizer
-import com.hirelog.api.job.application.snapshot.facade.JobSnapshotFacadeService
-import com.hirelog.api.job.application.summary.command.JobSummaryWriteService
+import com.hirelog.api.job.application.preprocess.JdPreprocessRequestService
+import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.position.application.facade.PositionFacadeService
@@ -22,73 +22,28 @@ import org.springframework.stereotype.Service
 class JobSummaryFacadeService(
     private val brandWriteService: BrandWriteService,
     private val positionFacadeService: PositionFacadeService,
-    private val snapshotFacadeService: JobSnapshotFacadeService,
+    private val jdPreprocessRequestService: JdPreprocessRequestService,
+//    private val snapshotFacadeService: JobSnapshotFacadeService,
     private val jobSummaryWriteService: JobSummaryWriteService,
     private val summaryLlm: JobSummaryLlm,
 ) {
 
     /**
-     * 텍스트 기반 JD 요약 생성
+     * JD 요약 요청
      *
-     * 트랜잭션
-     * - 외부 LLM 호출 포함
+     * 처리 방식:
+     * - 비동기 파이프라인 시작
+     * - 즉시 반환
      */
-    fun summarizeTextAndSave(
+    fun requestSummary(
         brandName: String,
         positionName: String,
         rawText: String
     ) {
-
-        // 1️⃣ Brand 확보
-        val normalizedBrand = Normalizer.normalizeBrand(brandName)
-
-        val brand = brandWriteService.getOrCreate(
-            name = brandName,
-            normalizedName = normalizedBrand,
-            companyId = null,
-            source = BrandSource.USER
+        jdPreprocessRequestService.request(
+            brandName = brandName,
+            positionHint = positionName,
+            rawText = rawText
         )
-
-        // 2️⃣ Position 확보
-        val normalizedPosition = Normalizer.normalizePosition(positionName)
-
-        val position = positionFacadeService.getOrCreate(
-            name = positionName,
-            normalizedName = normalizedPosition,
-            description = null
-        )
-
-        val snapshot = snapshotFacadeService.createIfNotExists(
-            brandId = brand.id,
-            positionId = position.id,
-            rawText = rawText,
-            sourceUrl = null,
-            sourceType = JobSourceType.TEXT
-        )
-
-        val llmResult = try {
-            summaryLlm.summarizeJobDescription(
-                brandName = brand.name,
-                position = position.name,
-                jdText = rawText
-            )
-        } catch (e: Exception) {
-            log.error(
-                "[JobSummary] LLM call failed | snapshotId={}, message={}",
-                snapshot.id,
-                e.message,
-                e
-            )
-            throw e
-        }
-
-        // 3️⃣ JobSummary 저장
-        jobSummaryWriteService.save(
-            snapshot = snapshot,
-            brand = brand,
-            position = position,
-            llmResult = llmResult
-        )
-
     }
 }

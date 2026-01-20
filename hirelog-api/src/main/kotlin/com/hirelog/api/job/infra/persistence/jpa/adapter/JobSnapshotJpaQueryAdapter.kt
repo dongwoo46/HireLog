@@ -2,7 +2,7 @@ package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.snapshot.view.JobSnapshotView
-import com.hirelog.api.job.infra.persistence.jpa.mapper.toView
+import com.hirelog.api.job.infra.persistence.jpa.mapper.toSnapshopView
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSnapshotJpaRepository
 import org.springframework.stereotype.Repository
 
@@ -33,7 +33,7 @@ class JobSnapshotJpaQueryAdapter(
         snapshotId: Long
     ): JobSnapshotView? {
         return repository.findById(snapshotId)
-            .map { it.toView() }
+            .map { it.toSnapshopView() }
             .orElse(null)
     }
 
@@ -47,7 +47,7 @@ class JobSnapshotJpaQueryAdapter(
         canonicalHash: String
     ): JobSnapshotView? {
         return repository.findByContentHash(canonicalHash)
-            ?.toView()
+            ?.toSnapshopView()
     }
 
     /**
@@ -65,7 +65,7 @@ class JobSnapshotJpaQueryAdapter(
                 brandId,
                 positionId
             )
-            .map { it.toView() }
+            .map { it.toSnapshopView() }
     }
 
     /**
@@ -83,6 +83,6 @@ class JobSnapshotJpaQueryAdapter(
                 brandId,
                 positionId
             )
-            ?.toView()
+            ?.toSnapshopView()
     }
 }

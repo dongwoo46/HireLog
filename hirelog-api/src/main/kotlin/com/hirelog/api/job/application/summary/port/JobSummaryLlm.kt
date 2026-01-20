@@ -1,5 +1,7 @@
 package com.hirelog.api.job.application.summary.port
 
+import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+
 /**
  * JD 요약용 LLM 포트
  *

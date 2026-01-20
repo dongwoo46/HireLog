@@ -1,43 +1,44 @@
-package com.hirelog.api.job.application.snapshot.query
+package com.hirelog.api.job.application.snapshot.port
 
-import com.hirelog.api.job.domain.JobSnapshot
+import com.hirelog.api.job.application.snapshot.view.JobSnapshotView
 
 /**
  * JobSnapshot 조회 Port
  *
  * 책임:
- * - JobSnapshot 조회 유스케이스 정의
- * - 조회 결과는 Domain(Entity) 기준
+ * - Snapshot 조회 유스케이스 정의
+ * - 반환 타입은 Read Model(View)로 고정
  */
 interface JobSnapshotQuery {
 
     /**
-     * 콘텐츠 해시 기준 조회
+     * Snapshot 단건 조회
      */
-    fun findByContentHash(contentHash: String): JobSnapshot?
+    fun getSnapshot(snapshotId: Long): JobSnapshotView?
 
     /**
-     * ID 기준 조회
-     */
-    fun findById(snapshotId: Long): JobSnapshot?
-
-    /**
-     * 브랜드 + 포지션 기준 최신 JobSnapshot 조회
+     * canonicalHash 기준 Snapshot 조회
      *
-     * 최신(latest)의 정의:
-     * - createdAt DESC 기준
-     * - 가장 최근에 생성된 Snapshot
+     * 용도:
+     * - 중복 판정
      */
-    fun findLatestByBrandAndPosition(
-        brandId: Long,
-        positionId: Long
-    ): JobSnapshot?
+    fun getSnapshotByCanonicalHash(
+        canonicalHash: String
+    ): JobSnapshotView?
 
     /**
-     * 브랜드 + 포지션 기준 전체 Snapshot 조회
+     * 브랜드 + 포지션 기준 Snapshot 목록 조회
      */
-    fun findAllByBrandAndPosition(
+    fun listSnapshotsForPosition(
         brandId: Long,
         positionId: Long
-    ): List<JobSnapshot>
+    ): List<JobSnapshotView>
+
+    /**
+     * 브랜드 + 포지션 기준 최신 Snapshot 조회
+     */
+    fun getLatestSnapshotForPosition(
+        brandId: Long,
+        positionId: Long
+    ): JobSnapshotView?
 }

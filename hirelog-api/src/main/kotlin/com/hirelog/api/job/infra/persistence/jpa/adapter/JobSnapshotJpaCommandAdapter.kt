@@ -4,7 +4,6 @@ import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.domain.JobSnapshot
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSnapshotJpaRepository
 import org.springframework.stereotype.Component
-import org.springframework.stereotype.Repository
 
 /**
  * JobSnapshot JPA Command Adapter
@@ -17,7 +16,7 @@ import org.springframework.stereotype.Repository
  * - 트랜잭션 경계는 ApplicationService에서만 관리
  */
 @Component
-class JobSnapshotJpaCommand(
+class JobSnapshotJpaCommandAdapter(
     private val repository: JobSnapshotJpaRepository
 ) : JobSnapshotCommand {
 

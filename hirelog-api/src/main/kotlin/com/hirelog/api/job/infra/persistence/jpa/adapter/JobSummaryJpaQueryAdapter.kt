@@ -3,6 +3,7 @@ package com.hirelog.api.job.infra.persistence.jpa.adapter
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.view.JobSummaryView
+import com.hirelog.api.job.infra.persistence.jpa.mapper.summary.toSummaryView
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSummaryJpaQueryDslRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
@@ -10,39 +11,48 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 /**
- * JobSummary 조회 JPA Adapter
+ * JobSummary JPA Query Adapter
  *
  * 책임:
  * - JobSummaryQuery Port 구현
- * - QueryDSL 기반 검색 수행
+ * - QueryDSL 기반 조회 수행
  *
  * 설계 원칙:
- * - Entity는 외부로 노출하지 않는다
- * - 조회 조건은 유스케이스 모델(condition)로 받는다
+ * - Entity는 절대 외부로 노출하지 않는다
+ * - 조회 조건은 유스케이스 모델(JobSummarySearchCondition)로 받는다
+ * - 조회 결과는 Read Model(View)로만 반환한다
  */
 @Component
-class JobSummaryJpaQuery(
+class JobSummaryJpaQueryAdapter(
     private val queryDslRepository: JobSummaryJpaQueryDslRepository
 ) : JobSummaryQuery {
 
+    /**
+     * JobSummary 검색
+     *
+     * 흐름:
+     * 1. QueryDSL Repository를 통해 Entity 조회
+     * 2. Entity → View 변환 (Mapper 사용)
+     * 3. Page<View> 형태로 반환
+     */
     override fun search(
         condition: JobSummarySearchCondition,
         pageable: Pageable
     ): Page<JobSummaryView> {
-
-        // 1️⃣ QueryDSL 조회
-        val entityPage = queryDslRepository.search(
+        // 1️⃣ QueryDSL 기반 Entity 조회
+        val projectionPage = queryDslRepository.search(
             brandId = condition.brandId,
             positionId = condition.positionId,
             keyword = condition.keyword,
             pageable = pageable
         )
 
-        // 2️⃣ Entity → View 변환
+        // 2️⃣ Entity → Read Model(View) 변환 후 반환
         return PageImpl(
-            entityPage.content.map { it.toView() }, // ✅ 핵심
+            projectionPage.content.map { it.toSummaryView() }, // ✅ Projection → View
             pageable,
-            entityPage.totalElements
+            projectionPage.totalElements
         )
     }
+
 }

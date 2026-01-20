@@ -77,7 +77,7 @@ class GeminiInfraConfig(
         geminiClient: GeminiClient,
         responseParser: GeminiResponseParser
     ): JobSummaryLlm =
-        GeminiJobSummaryClient(
+        GeminiJobSummaryLlm(
             geminiClient = geminiClient,
             responseParser = responseParser
         )

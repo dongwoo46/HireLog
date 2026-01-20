@@ -1,24 +1,19 @@
-package com.hirelog.api.job.application.snapshot.command
-
+package com.hirelog.api.job.application.snapshot.port
 import com.hirelog.api.job.domain.JobSnapshot
-import com.hirelog.api.job.domain.JobSourceType
 
-/**
- * JobSnapshot 생성 Command
- *
- * 책임:
- * - Snapshot 생성만 담당
- * - 중복 정책은 ApplicationService에서 결정
- */
 interface JobSnapshotCommand {
 
-    fun create(
-        brandId: Long,
-        companyId: Long?,
-        positionId: Long,
-        sourceType: JobSourceType,
-        sourceUrl: String?,
-        rawText: String,
-        contentHash: String
-    ): JobSnapshot
+    /**
+     * JobSnapshot 기록
+     *
+     * 책임:
+     * - Snapshot 영속화
+     * - 생성 규칙은 Domain에서 보장
+     *
+     * 반환:
+     * - 생성된 Snapshot 식별자
+     */
+    fun record(
+        snapshot: JobSnapshot
+    ): Long
 }
