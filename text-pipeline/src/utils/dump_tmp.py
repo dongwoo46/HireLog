@@ -4,9 +4,9 @@ import numpy as np
 
 
 # dump_tmp.py
-# 위치: text-pipeline/src/utils/dump_tmp.py
+# 위치: process-pipeline/src/utils/dump_tmp.py
 
-# 프로젝트 루트: text-pipeline
+# 프로젝트 루트: process-pipeline
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # ✅ 우리가 원하는 정확한 경로

@@ -4,7 +4,6 @@ import cv2
 
 UPSCALE_FACTOR = 2.0
 
-
 def preprocess_image(image_path: str):
     """
     PaddleOCR 기반 JD OCR을 위한 이미지 전처리 함수.
@@ -28,12 +27,6 @@ def preprocess_image(image_path: str):
         raise ValueError(f"Failed to load image: {image_path}")
 
     # JD의 작은 폰트 보조용 업스케일
-    image = cv2.resize(
-        image,
-        None,
-        fx=UPSCALE_FACTOR,
-        fy=UPSCALE_FACTOR,
-        interpolation=cv2.INTER_CUBIC
-    )
+    image = cv2.resize(image, None, fx=UPSCALE_FACTOR, fy=UPSCALE_FACTOR, interpolation=cv2.INTER_CUBIC)
 
     return image

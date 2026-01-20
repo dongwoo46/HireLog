@@ -1,8 +1,8 @@
-from preprocess.core_prerocess.input_normalizer import normalize_input_text
-from preprocess.core_prerocess.noise_filter import remove_ui_noise
-from preprocess.core_prerocess.line_segmenter import segment_lines
-from preprocess.core_prerocess.bullet_normalizer import normalize_bullets
-from preprocess.core_prerocess.text_damage_guard import guard_text_damage
+from preprocess.core_preprocess.input_normalizer import normalize_input_text
+from preprocess.core_preprocess.noise_filter import remove_ui_noise
+from preprocess.core_preprocess.line_segmenter import segment_lines
+from preprocess.core_preprocess.bullet_normalizer import normalize_bullets
+from preprocess.core_preprocess.text_damage_guard import guard_text_damage
 from common.noise.loader import load_noise_keywords
 
 

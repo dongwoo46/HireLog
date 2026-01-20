@@ -10,8 +10,19 @@ JD Preprocessing Debug Runner (BASE INPUT MODE)
 - 섹션 분리가 제대로 되는지
 - 리스트 / semantic zone이 의도대로 나뉘는지
 """
+import sys
+from pathlib import Path
 
-from preprocess.core_prerocess.core_preprocessor import CorePreprocessor
+# ==================================================
+# 프로젝트 루트 / src 경로 강제 등록
+# ==================================================
+ROOT_DIR = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT_DIR / "src"
+
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from preprocess.core_preprocess.core_preprocessor import CorePreprocessor
 from preprocess.structural_preprocess.structural_preprocessor import StructuralPreprocessor
 from preprocess.semantic.semantic_preprocessor import apply_semantic_lite
 from preprocess.semantic.section_filter import filter_irrelevant_sections
