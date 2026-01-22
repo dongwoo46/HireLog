@@ -24,8 +24,6 @@ class JdStreamKeys:
     # PREPROCESS RESULT (Python → Spring)
     # ==================================================
 
-    # TEXT 전처리 결과
-    PREPROCESS_TEXT_RESPONSE = "jd:preprocess:text:response:stream"
+    # TEXT,OCR,URL 전처리 결과
+    PREPROCESS_RESPONSE = "jd:preprocess:response:stream"
 
-    # OCR 전처리 결과
-    PREPROCESS_OCR_RESPONSE = "jd:preprocess:ocr:response:stream"

@@ -1,6 +1,7 @@
 # src/preprocess/worker/base_preprocess_worker.py
 
 import logging
+import json
 
 from outputs.jd_preprocess_output import JdPreprocessOutput
 from infra.redis.stream_publisher import RedisStreamPublisher
@@ -32,16 +33,44 @@ class BaseJdPreprocessWorker:
             self,
             *,
             output: JdPreprocessOutput,
-            stream_key: str,   # 🔥 호출자가 결정
+            stream_key: str,
     ) -> str:
         """
         전처리 결과 publish
 
-        :param output: 전처리 결과 DTO
-        :param stream_key: publish 대상 Stream Key
-        :return: Redis entry id
+        책임:
+        - Output DTO → Stream Message 변환
+        - metadata / payload 경계 유지
         """
 
+        # ==================================================
+        # Payload (비즈니스 데이터)
+        # ==================================================
+        payload = {
+            # 🔥 canonical_text 제거
+            # 🔥 canonical_map JSON 직렬화
+            "canonicalMap": json.dumps(
+                output.canonical_map,
+                ensure_ascii=False
+            ),
+            "source": output.source,
+        }
+
+        # ==================================================
+        # Recruitment Period (존재하는 경우만 포함)
+        # ==================================================
+        if output.recruitment_period_type is not None:
+            payload["recruitmentPeriodType"] = output.recruitment_period_type
+
+        if output.recruitment_open_date is not None:
+            payload["recruitmentOpenDate"] = output.recruitment_open_date
+
+        if output.recruitment_close_date is not None:
+            payload["recruitmentCloseDate"] = output.recruitment_close_date
+
+        # ==================================================
+        # Stream Message 직렬화
+        # ==================================================
         message = RedisStreamSerializer.serialize(
             metadata={
                 "type": output.type,
@@ -51,10 +80,7 @@ class BaseJdPreprocessWorker:
                 "createdAt": str(output.created_at),
                 "messageVersion": output.message_version,
             },
-            payload={
-                "canonicalText": output.canonical_text,
-                "source": output.source,
-            },
+            payload=payload,
         )
 
         entry_id = self.publisher.publish(

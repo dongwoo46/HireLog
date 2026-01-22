@@ -27,4 +27,6 @@ interface BrandPositionQuery {
         brandId: Long,
         positionId: Long
     ): BrandPosition?
+
+    fun findById(id: Long): BrandPosition?
 }
