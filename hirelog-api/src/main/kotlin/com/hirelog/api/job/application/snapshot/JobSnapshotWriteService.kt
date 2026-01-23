@@ -1,47 +1,100 @@
 package com.hirelog.api.job.application.snapshot
 
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
+import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
+import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.domain.JobSnapshot
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 /**
- * JobSnapshot 기록 유스케이스 Service
+ * JobSnapshot Write Application Service
  *
  * 책임:
- * - JobSnapshot 결과를 영속화한다
- * - canonicalHash 유일성은 DB 제약으로 보장한다
+ * - JD 원문 Snapshot 생성
+ * - 분석 완료 후 Brand / Position 연결
  *
  * 설계 원칙:
- * - 이 단계에서는 중복을 판단하지 않는다
- * - 정합성 위반은 DB 예외를 도메인 예외로 변환한다
+ * - Snapshot은 "수집 로그"이므로 중복 여부와 무관하게 생성 시도
+ * - 중복 판정 정책은 상위 정책(JdIntakePolicy)에서 결정
+ * - 이 Service는 Domain 생성 + 상태 변경 흐름만 담당
  */
 @Service
 class JobSnapshotWriteService(
-    private val snapshotCommand: JobSnapshotCommand
+    private val snapshotCommand: JobSnapshotCommand,
+    private val snapshotQuery: JobSnapshotQuery
 ) {
 
     /**
-     * JobSnapshot 기록
+     * JD 원문 Snapshot 기록
      *
      * 정책:
-     * - canonicalHash는 전역적으로 유일해야 한다
-     * - DB unique constraint 위반 시 중복으로 간주한다
+     * - Snapshot 생성 자체는 항상 시도한다
+     * - canonicalHash 유일성은 DB 제약조건으로 보장
      *
-     * @return 생성된 JobSnapshot ID
+     * 예외:
+     * - 동일 canonicalHash가 이미 존재할 경우 EntityAlreadyExistsException 발생
      */
     @Transactional
-    fun record(snapshot: JobSnapshot): Long {
+    fun record(command: JobSnapshotCreateCommand): Long {
         return try {
+            val snapshot = JobSnapshot.create(
+                sourceType = command.sourceType,
+                sourceUrl = command.sourceUrl,
+                rawText = command.rawText,
+                contentHash = command.contentHash,
+                openedDate = command.openedDate,
+                closedDate = command.closedDate
+            )
+
             snapshotCommand.record(snapshot)
         } catch (ex: DataIntegrityViolationException) {
             throw EntityAlreadyExistsException(
                 entityName = "JobSnapshot",
-                identifier = "canonicalHash=${snapshot.contentHash}",
+                identifier = "canonicalHash",
                 cause = ex
             )
         }
+    }
+
+    /**
+     * 분석 완료 후 Brand / Position 연결
+     *
+     * 규칙:
+     * - Snapshot 생성 이후 단 한 번만 호출 가능
+     * - 상태 변경 검증은 Domain(Entity)에서 수행
+     */
+    @Transactional
+    fun attachBrandAndPosition(
+        snapshotId: Long,
+        brandId: Long,
+        positionId: Long
+    ) {
+        /**
+         * Command 전용 Entity 로딩
+         *
+         * 주의:
+         * - 조회(View) 목적이 아님
+         * - 상태 변경을 위한 최소 로딩
+         */
+        val snapshot = snapshotQuery.loadSnapshot(snapshotId)
+
+        /**
+         * Domain 규칙에 따른 상태 변경
+         *
+         * 예:
+         * - 이미 brandId/positionId가 설정되어 있으면 예외 발생
+         */
+        snapshot.attachAnalysisResult(
+            brandId = brandId,
+            positionId = positionId
+        )
+
+        /**
+         * 변경된 상태 영속화
+         */
+        snapshotCommand.update(snapshot)
     }
 }

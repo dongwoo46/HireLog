@@ -1,6 +1,7 @@
-package com.hirelog.api.brandposition.application.command
+package com.hirelog.api.brandposition.application
 
-import com.hirelog.api.brandposition.application.query.BrandPositionQuery
+import com.hirelog.api.brandposition.application.port.BrandPositionCommand
+import com.hirelog.api.brandposition.application.port.BrandPositionQuery
 import com.hirelog.api.brandposition.domain.BrandPosition
 import com.hirelog.api.brandposition.domain.BrandPositionSource
 import com.hirelog.api.common.exception.EntityAlreadyExistsException

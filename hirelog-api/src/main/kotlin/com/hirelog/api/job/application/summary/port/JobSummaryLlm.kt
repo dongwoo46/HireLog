@@ -15,7 +15,7 @@ interface JobSummaryLlm {
 
     fun summarizeJobDescription(
         brandName: String,
-        position: String,
-        jdText: String
+        positionName: String,
+        canonicalText: String
     ): JobSummaryLlmResult
 }

@@ -2,29 +2,18 @@ package com.hirelog.api.job.domain
 
 import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
+import java.security.MessageDigest
+import java.time.LocalDate
 
-/**
- * Job Description 스냅샷 엔티티
- *
- * 역할:
- * - 특정 시점에 수집된 JD 원문을 그대로 보존
- * - 이후 변경/삭제 없이 히스토리로만 관리
- *
- * 설계 의도:
- * - 동일 브랜드 + 포지션이라도 시점/내용이 다르면 다른 Snapshot
- * - 중복 판단은 contentHash 기준으로만 수행
- */
 @Entity
 @Table(
     name = "job_snapshot",
     indexes = [
         Index(name = "idx_job_snapshot_brand_id", columnList = "brand_id"),
-        Index(name = "idx_job_snapshot_company_id", columnList = "company_id"),
         Index(name = "idx_job_snapshot_position_id", columnList = "position_id"),
         Index(
             name = "uk_job_snapshot_content_hash",
             columnList = "content_hash",
-            unique = true
         )
     ]
 )
@@ -35,59 +24,53 @@ class JobSnapshot protected constructor(
     val id: Long = 0L,
 
     /**
-     * 채용 브랜드 식별자
-     * JD 관점에서의 주체
+     * 분석 완료 후 연결되는 브랜드 ID
      */
-    @Column(name = "brand_id", nullable = false, updatable = false)
-    val brandId: Long,
+    @Column(name = "brand_id", updatable = false)
+    var brandId: Long? = null,
 
     /**
-     * 법적 회사 식별자
-     * 분석/정합성 용도로만 사용
+     * 분석 완료 후 연결되는 포지션 ID
      */
-    @Column(name = "company_id", updatable = false)
-    val companyId: Long? = null,
+    @Column(name = "position_id", updatable = false)
+    var positionId: Long? = null,
 
-    /**
-     * 브랜드 기준 포지션 식별자
-     */
-    @Column(name = "position_id", nullable = false, updatable = false)
-    val positionId: Long,
-
-    /**
-     * JD 수집 소스 타입
-     * (URL / OCR / API 등)
-     */
     @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false, updatable = false)
     val sourceType: JobSourceType,
 
-    /**
-     * JD 원본 URL
-     * URL 기반 수집이 아닌 경우 null 허용
-     */
     @Column(name = "source_url", length = 1000, updatable = false)
     val sourceUrl: String? = null,
 
     /**
-     * JD 원문 텍스트
-     *
-     * 주의:
-     * - 절대 수정되지 않는다
-     * - 후처리/정제는 별도 파이프라인 책임
+     * JD 원문
      */
     @Lob
     @Column(name = "raw_text", nullable = false, updatable = false)
     val rawText: String,
 
     /**
-     * 중복 판별용 해시
+     * 채용 지원 시작일
      *
-     * 생성 규칙:
-     * - brandId + positionId + canonicalText
+     * - 중복 판정의 1차 기준
+     * - 시스템이 판단한 값
+     */
+    @Column(name = "opened_date", updatable = false, nullable = true)
+    val openedDate: LocalDate?,
+
+    /**
+     * 채용 지원 마감일
      *
-     * 제약:
-     * - 전역 유니크
+     * - null이면 상시채용 또는 미정
+     */
+    @Column(name = "closed_date", updatable = false, nullable = true)
+    val closedDate: LocalDate?,
+
+    /**
+     * JD 내용 기반 해시 (SHA-256)
+     *
+     * - rawText 기반
+     * - 중복 판단의 유일 기준
      */
     @Column(name = "content_hash", nullable = false, length = 64, updatable = false)
     val contentHash: String
@@ -95,31 +78,59 @@ class JobSnapshot protected constructor(
 ) : BaseEntity() {
 
     companion object {
+
         /**
-         * JobSnapshot 생성 전용 팩토리 메서드
+         * JD 수집 직후 Snapshot 생성
          *
-         * 목적:
-         * - 생성 규칙을 한 곳으로 집중
-         * - 향후 hash 생성 로직 변경 대비
+         * 규칙:
+         * - contentHash는 rawText 기반 SHA-256으로 생성
+         * - brand / position은 아직 연결되지 않음
          */
         fun create(
-            brandId: Long,
-            companyId: Long?,
-            positionId: Long,
             sourceType: JobSourceType,
             sourceUrl: String?,
             rawText: String,
-            contentHash: String
+            contentHash: String,
+            openedDate: LocalDate?,
+            closedDate: LocalDate?
         ): JobSnapshot {
+
             return JobSnapshot(
-                brandId = brandId,
-                companyId = companyId,
-                positionId = positionId,
                 sourceType = sourceType,
                 sourceUrl = sourceUrl,
                 rawText = rawText,
-                contentHash = contentHash
+                contentHash = contentHash,
+                openedDate = openedDate,
+                closedDate = closedDate
             )
         }
+
+        /**
+         * SHA-256 해시 생성
+         *
+         * 도메인 내부 전용
+         */
+        private fun sha256(text: String): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hashBytes = digest.digest(text.toByteArray(Charsets.UTF_8))
+            return hashBytes.joinToString("") { "%02x".format(it) }
+        }
+    }
+
+    /**
+     * 분석 완료 후 브랜드 / 포지션 연결
+     *
+     * 규칙:
+     * - 단 한 번만 호출 가능
+     */
+    fun attachAnalysisResult(
+        brandId: Long,
+        positionId: Long
+    ) {
+        require(this.brandId == null && this.positionId == null) {
+            "Snapshot already linked to brand/position"
+        }
+        this.brandId = brandId
+        this.positionId = positionId
     }
 }

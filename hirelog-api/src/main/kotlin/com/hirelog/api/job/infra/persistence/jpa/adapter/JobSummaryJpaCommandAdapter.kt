@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component
  * - JPA 저장만 수행
  */
 @Component
-class JobSummaryJpaCommand(
+class JobSummaryJpaCommandAdapter(
     private val repository: JobSummaryJpaRepository
 ) : JobSummaryCommand {
 

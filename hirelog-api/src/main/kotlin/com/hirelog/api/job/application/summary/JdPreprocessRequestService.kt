@@ -3,6 +3,7 @@ package com.hirelog.api.job.application.preprocess
 import com.hirelog.api.common.infra.redis.messaging.RedisStreamPublisher
 import com.hirelog.api.common.infra.redis.messaging.RedisStreamSerializer
 import com.hirelog.api.jd.application.messaging.JdStreamKeys
+import com.hirelog.api.job.domain.JobSourceType
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -22,14 +23,15 @@ class JdPreprocessRequestService(
     private val redisStreamPublisher: RedisStreamPublisher
 ) {
 
-    fun request(
+    fun requestSummary(
         brandName: String,
-        positionHint: String,
-        rawText: String
+        positionName: String,
+        rawText: String,
+        source: JobSourceType
     ): String {
 
         require(brandName.isNotBlank()) { "brandName must not be blank" }
-        require(positionHint.isNotBlank()) { "positionHint must not be blank" }
+        require(positionName.isNotBlank()) { "positionHint must not be blank" }
         require(rawText.isNotBlank()) { "rawText must not be blank" }
 
         val requestId = UUID.randomUUID().toString()
@@ -39,15 +41,20 @@ class JdPreprocessRequestService(
                 "type" to JdMessageType.JD_PREPROCESS_REQUEST.name,
                 "requestId" to requestId,
                 "brandName" to brandName,
-                "positionHint" to positionHint
+                "positionName" to positionName,
+
+                // 메시지 메타
+                "createdAt" to System.currentTimeMillis().toString(),
+                "messageVersion" to "v1"
             ),
             payload = mapOf(
-                "text" to rawText
+                "text" to rawText,
+                "source" to source.name
             )
         )
 
         redisStreamPublisher.publish(
-            streamKey = JdStreamKeys.PREPROCESS,
+            streamKey = JdStreamKeys.PREPROCESS_TEXT_REQUEST,
             message = message
         )
 

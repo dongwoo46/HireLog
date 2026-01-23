@@ -45,4 +45,12 @@ interface JobSnapshotJpaRepository : JpaRepository<JobSnapshot, Long> {
         brandId: Long,
         positionId: Long
     ): List<JobSnapshot>
+
+    /**
+     * URL 기준 Snapshot Entity 조회
+     *
+     * Command 흐름 전용
+     */
+    fun findAllBySourceUrl(url: String): List<JobSnapshot>
+
 }

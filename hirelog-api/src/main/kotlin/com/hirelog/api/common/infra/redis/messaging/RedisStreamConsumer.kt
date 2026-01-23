@@ -1,4 +1,4 @@
-package com.yourpackage.common.infra.redis.messaging
+package com.hirelog.api.common.infra.redis.messaging
 
 import org.springframework.data.redis.connection.stream.*
 import org.springframework.data.redis.core.StringRedisTemplate

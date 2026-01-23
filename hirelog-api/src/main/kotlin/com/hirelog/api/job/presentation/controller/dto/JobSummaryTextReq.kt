@@ -1,5 +1,6 @@
 package com.hirelog.api.job.presentation.controller.dto
 
+import com.hirelog.api.job.domain.JobSourceType
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 
@@ -14,5 +15,5 @@ data class JobSummaryTextReq(
     val positionName: String,
 
     @field:NotBlank(message = "jdText는 비어 있을 수 없습니다")
-    val jdText: String
+    val jdText: String,
 )

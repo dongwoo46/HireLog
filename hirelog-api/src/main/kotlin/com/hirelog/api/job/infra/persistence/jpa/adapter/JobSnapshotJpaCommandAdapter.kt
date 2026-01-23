@@ -28,4 +28,15 @@ class JobSnapshotJpaCommandAdapter(
     override fun record(snapshot: JobSnapshot): Long {
         return repository.save(snapshot).id
     }
+
+    /**
+     * JobSnapshot 상태 변경 반영
+     *
+     * 전제:
+     * - snapshot은 이미 식별자(id)를 가진 영속 대상
+     * - brandId / positionId 설정은 Domain에서 이미 검증됨
+     */
+    override fun update(snapshot: JobSnapshot) {
+        repository.save(snapshot)
+    }
 }

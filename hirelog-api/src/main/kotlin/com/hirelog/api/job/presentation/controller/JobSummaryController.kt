@@ -1,9 +1,11 @@
 package com.hirelog.api.job.presentation.controller
 
-import com.hirelog.api.job.application.summary.facade.JobSummaryFacadeService
+import com.hirelog.api.job.application.preprocess.JdPreprocessRequestService
+import com.hirelog.api.job.application.summary.facade.JobSummaryGenerationFacadeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.view.JobSummaryView
+import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryTextReq
 import jakarta.validation.Valid
 import org.springframework.data.domain.PageRequest
@@ -14,9 +16,10 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/job-summary")
 class JobSummaryController(
     private val jobSummaryQuery: JobSummaryQuery,
-    private val jobSummaryFacadeService: JobSummaryFacadeService
+    private val jobSummaryFacadeService: JobSummaryGenerationFacadeService,
+    private val jdPreprocessRequestService: JdPreprocessRequestService,
 
-) {
+    ) {
 
     /**
      * JobSummary 최신 1건 조회
@@ -70,10 +73,11 @@ class JobSummaryController(
         @Valid @RequestBody request: JobSummaryTextReq
     ): ResponseEntity<Void> {
 
-        jobSummaryFacadeService.requestSummary(
+        jdPreprocessRequestService.requestSummary(
             brandName = request.brandName,
             positionName = request.positionName,
-            rawText = request.jdText
+            rawText = request.jdText,
+            source = JobSourceType.TEXT
         )
 
         return ResponseEntity.ok().build()

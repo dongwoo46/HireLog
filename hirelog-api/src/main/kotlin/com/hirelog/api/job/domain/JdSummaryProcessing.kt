@@ -1,89 +1,143 @@
 package com.hirelog.api.job.domain
 
+import com.hirelog.api.common.jpa.BaseEntity
+import jakarta.persistence.*
+import java.util.UUID
+
 /**
- * JD 요약 처리 상태 정의
+ * JdSummaryProcessing
  *
  * 역할:
- * - JD 요약 파이프라인의 현재 처리 위치 표현
- * - 비동기 처리 분기 기준
- * - 운영 / 모니터링 / 재시도 판단 기준
+ * - 실제 요약 대상 JD의 처리 상태 기록
+ * - 실패 복구 / 운영 모니터링 기준점
  *
- * 설계 원칙:
- * - 상태는 "무엇을 하고 있는가"만 표현
- * - 실패 원인의 상세는 errorCode / errorMessage로 관리
+ * 정책:
+ * - 중복 JD도 운영 추적 목적이라면 Processing을 생성할 수 있음
  */
-enum class JdSummaryProcessingStatus {
+@Entity
+@Table(name = "jd_summary_processing")
+class JdSummaryProcessing protected constructor(
+
+    @Id
+    val id: UUID,
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    var status: JdSummaryProcessingStatus = JdSummaryProcessingStatus.RECEIVED,
 
     /**
-     * 처리 엔트리 생성됨
+     * 중복 판정 사유
      *
-     * - 요청 수신 완료
-     * - 아직 어떤 처리도 시작되지 않은 상태
+     * - status == DUPLICATE 인 경우에만 의미 있음
      */
-    CREATED,
+    @Column(length = 50)
+    var duplicateReason: String? = null,
 
     /**
-     * 전처리 진행 중
+     * 실패 원인 코드
      *
-     * - Python 전처리 워커로 요청 발행됨
-     * - canonical text / hash 생성 대기
+     * - status == FAILED 인 경우에만 의미 있음
      */
-    PREPROCESSING,
+    var errorCode: String? = null,
 
     /**
-     * 전처리 완료
+     * 실패 상세 메시지
      *
-     * - canonical text / hash 생성 완료
-     * - 중복 판정 및 snapshot 생성 가능
+     * - status == FAILED 인 경우에만 의미 있음
      */
-    PREPROCESSED,
+    var errorMessage: String? = null
+
+) : BaseEntity() {
+
+    companion object {
+
+        /**
+         * Processing 생성
+         *
+         * 규칙:
+         * - 최초 상태는 RECEIVED
+         */
+        fun create(id: UUID): JdSummaryProcessing =
+            JdSummaryProcessing(
+                id = id,
+                status = JdSummaryProcessingStatus.RECEIVED
+            )
+    }
 
     /**
-     * 중복 JD로 판정됨
+     * 중복 JD로 처리 종료
      *
-     * - canonical hash 기준 중복
-     * - 파이프라인 정상 종료 (비정상 아님)
+     * 규칙:
+     * - RECEIVED 상태에서만 가능
+     * - duplicateReason 필수
+     * - 실패 관련 필드는 초기화
      */
-    DUPLICATE,
+    fun markDuplicate(reason: String) {
+        require(status == JdSummaryProcessingStatus.RECEIVED) {
+            "Invalid state transition: $status -> DUPLICATE"
+        }
+
+        status = JdSummaryProcessingStatus.DUPLICATE
+        duplicateReason = reason
+
+        // 다른 상태의 잔여 데이터 제거
+        errorCode = null
+        errorMessage = null
+    }
 
     /**
-     * 요약 가능 상태
-     *
-     * - 중복 아님이 확정됨
-     * - LLM 호출 가능
+     * 요약 처리 시작
      */
-    READY_FOR_SUMMARY,
+    fun markSummarizing() {
+        require(status == JdSummaryProcessingStatus.RECEIVED) {
+            "Invalid state transition: $status -> SUMMARIZING"
+        }
 
-    /**
-     * 요약 진행 중
-     *
-     * - LLM 호출 요청 발행됨
-     * - 결과 수신 대기
-     */
-    SUMMARIZING,
+        status = JdSummaryProcessingStatus.SUMMARIZING
+    }
 
     /**
      * 처리 완료
      *
-     * - 요약 결과 저장 완료
-     * - 파이프라인 정상 종료
+     * 규칙:
+     * - SUMMARIZING 상태에서만 가능
+     * - 모든 에러/중복 정보는 제거
      */
-    COMPLETED,
+    fun markCompleted() {
+        require(status == JdSummaryProcessingStatus.SUMMARIZING) {
+            "Invalid state transition: $status -> COMPLETED"
+        }
+
+        status = JdSummaryProcessingStatus.COMPLETED
+
+        duplicateReason = null
+        errorCode = null
+        errorMessage = null
+    }
 
     /**
-     * 전처리 단계 실패
+     * 실패 처리
      *
-     * - Python 전처리 오류
-     * - 타임아웃 / 파싱 실패 / 내부 에러 등
+     * 규칙:
+     * - RECEIVED 또는 SUMMARIZING 상태에서 가능
+     * - errorCode / errorMessage 필수
+     * - 중복 관련 정보는 제거
      */
-    FAILED_PREPROCESS,
+    fun markFailed(
+        errorCode: String,
+        errorMessage: String
+    ) {
+        require(
+            status == JdSummaryProcessingStatus.RECEIVED ||
+                    status == JdSummaryProcessingStatus.SUMMARIZING
+        ) {
+            "Invalid state transition: $status -> FAILED"
+        }
 
-    /**
-     * 요약 단계 실패
-     *
-     * - LLM 호출 실패
-     * - 응답 파싱 실패
-     * - 비용 / 쿼터 / 네트워크 문제 등
-     */
-    FAILED_SUMMARY
+        status = JdSummaryProcessingStatus.FAILED
+        this.errorCode = errorCode
+        this.errorMessage = errorMessage
+
+        duplicateReason = null
+    }
 }

@@ -1,4 +1,4 @@
-package com.hirelog.api.brandposition.application.command
+package com.hirelog.api.brandposition.application.port
 
 import com.hirelog.api.brandposition.domain.BrandPosition
 
