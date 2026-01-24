@@ -2,16 +2,21 @@ package com.hirelog.api.job.application.summary.facade
 
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brandposition.application.BrandPositionWriteService
+import com.hirelog.api.common.logging.log
+import com.hirelog.api.common.exception.DuplicateJobSnapshotException
+import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.common.exception.GeminiCallException
+import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
-import com.hirelog.api.job.application.messaging.JobSummaryPreprocessResponseMessage
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
-import com.hirelog.api.job.application.summary.JdIntakePolicy
+import com.hirelog.api.job.application.intake.JdIntakePolicy
+import com.hirelog.api.job.application.intake.model.DuplicateDecision
+import com.hirelog.api.job.application.messaging.JdPreprocessResponseMessage
 import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
-import com.hirelog.api.job.domain.JobSnapshot
-import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.position.application.query.PositionQuery
 import org.springframework.stereotype.Service
 
 /**
@@ -34,6 +39,7 @@ class JobSummaryGenerationFacadeService(
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val snapshotQuery: JobSnapshotQuery,
+    private val positionQuery: PositionQuery,
 
     ) {
 
@@ -41,7 +47,7 @@ class JobSummaryGenerationFacadeService(
      * 전처리 결과 기반 JD 요약 파이프라인 진입점
      */
     fun generateFromPreprocessResult(
-        message: JobSummaryPreprocessResponseMessage
+        message: JdPreprocessResponseMessage
     ) {
 
         /**
@@ -57,31 +63,21 @@ class JobSummaryGenerationFacadeService(
 
         try {
 
-            /**
-             *  1. canonicalHash 계산 (정책 책임)
-             *
-             * message.canonicalText 기반 hash로 매핑
-             */
-            val contentHash =
-                jdIntakePolicy.calculateCanonicalHash(
-                    canonicalText = message.canonicalText,
-                )
-
-             /**
-             * 2. JD 자체 중복 판정 (LLM 이전, Fast-Path)
-             * snapshot에 contentHash 중복 체크 후 바로 제외
-             *
-             * 결과:
-             * - 중복이면 Processing만 DUPLICATE로 종료
-             * - Snapshot은 이미 저장됨
-             */
-            if (snapshotQuery.getSnapshotByContentHash(contentHash)!=null) {
-                processingWriteService.markDuplicate(
+            // 0️⃣ 유효성 판정
+            if (!jdIntakePolicy.isValidJd(message)) {
+                processingWriteService.markFailed(
                     processingId = processing.id,
-                    reason = "HASH_DUPLICATE"
+                    errorCode = "INVALID_INPUT",
+                    errorMessage = "JD 유효성 검증 실패: 최소 요건 미충족"
                 )
                 return
             }
+
+            // 1️⃣ Hash / SimHash / CoreText 생성
+            val hashes = jdIntakePolicy.generateIntakeHashes(message.canonicalMap)
+
+            // 2️⃣ 중복 판단
+            val decision = jdIntakePolicy.decideDuplicate(message, hashes)
 
             /**
              * 3. Snapshot 기록 (무조건 수행)
@@ -92,11 +88,14 @@ class JobSummaryGenerationFacadeService(
                 JobSnapshotCreateCommand(
                     sourceType = message.source,
                     sourceUrl = message.sourceUrl,
-                    rawText = message.canonicalText,
-                    contentHash = contentHash,
+                    canonicalMap = message.canonicalMap,
+                    coreText = hashes.coreText,
+                    recruitmentPeriodType = message.recruitmentPeriodType,
                     openedDate = message.openedDate,
-                    closedDate = message.closedDate
-              )
+                    closedDate = message.closedDate,
+                    canonicalHash = hashes.canonicalHash,
+                    simHash = hashes.simHash
+                )
             )
 
             /**
@@ -105,18 +104,10 @@ class JobSummaryGenerationFacadeService(
              *   4-3. 의심후보의 각 필드 요소들(핵심업무,필수역량,기술스택,우대사항)과 message.cononicalText의 유사도 체크 후 일정 수치 이상이면 중복으로 판정
              *   4-4. 의심후보가 없거나 유사도 일정 수치 이하일때 통과
              */
-            var suspectSnapshots: List<JobSnapshot> = emptyList()
-
-            if (message.source == JobSourceType.URL && message.sourceUrl != null) {
-                suspectSnapshots = snapshotQuery.loadSnapshotsByUrl(message.sourceUrl)
-            }
-
-            // 2. 날짜 기준 의심 후보 (openedDate 또는 closedDate 중 하나라도 있으면)
-            if (message.openedDate != null || message.closedDate != null) {
-                suspectSnapshots = suspectSnapshots + snapshotQuery.loadSnapshotsByDateRange(
-                    openedDate = message.openedDate,
-                    closedDate = message.closedDate
-                )
+            // 4️⃣ 중복이면 종료
+            if (decision != DuplicateDecision.NOT_DUPLICATE) {
+                processingWriteService.markDuplicate(processing.id, decision.name)
+                return
             }
 
             /**
@@ -134,12 +125,43 @@ class JobSummaryGenerationFacadeService(
              * - 요약 텍스트
              * - 경력/기술스택 등
              */
+            /**
+             * 6️⃣ LLM 요청을 통해 summarize 시도
+             *
+             * 책임:
+             * - LLM 호출 자체는 비동기 / 무트랜잭션
+             * - 포맷 변환은 어댑터 내부에서 처리
+             */
+            val positionCandidates = positionQuery.findActive().map { it.name }
+
             val llmResult =
                 llmClient.summarizeJobDescription(
                     brandName = message.brandName,
                     positionName = message.positionName,
-                    canonicalText = message.canonicalText
+                    positionCandidates = positionCandidates,
+                    canonicalMap = message.canonicalMap
                 )
+
+            log.info(
+                "[LLM Result] requestId={}, provider={}, " +
+                        "brandName={}, positionName={}, " +
+                        "careerType={}, careerYears={}, " +
+                        "summary={}, responsibilities={}, " +
+                        "requiredQualifications={}, preferredQualifications={}, " +
+                        "techStack={}, recruitmentProcess={}",
+                message.requestId,
+                llmResult.llmProvider,
+                llmResult.brandName,
+                llmResult.positionName,
+                llmResult.careerType,
+                llmResult.careerYears,
+                llmResult.summary,
+                llmResult.responsibilities,
+                llmResult.requiredQualifications,
+                llmResult.preferredQualifications,
+                llmResult.techStack,
+                llmResult.recruitmentProcess
+            )
 
 //
 //            /**
@@ -202,7 +224,18 @@ class JobSummaryGenerationFacadeService(
              * - Snapshot은 이미 저장됨
              * - Processing에 실패 원인 기록
              */
-            processingWriteService.markFailed(processing.id, errorCode = "404", errorMessage = e.message ?: "Unknown error")
+            val errorCode = when (e) {
+                is GeminiCallException -> "LLM_CALL_FAILED"
+                is GeminiParseException -> "LLM_PARSE_FAILED"
+                is DuplicateJobSnapshotException -> "SNAPSHOT_DUPLICATE"
+                is EntityNotFoundException -> "ENTITY_NOT_FOUND"
+                else -> "UNKNOWN_ERROR"
+            }
+            processingWriteService.markFailed(
+                processingId = processing.id,
+                errorCode = errorCode,
+                errorMessage = e.message ?: "Unknown error"
+            )
             throw e
         }
     }

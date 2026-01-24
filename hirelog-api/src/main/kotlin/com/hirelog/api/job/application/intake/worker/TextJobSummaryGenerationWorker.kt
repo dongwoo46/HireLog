@@ -1,9 +1,9 @@
-package com.hirelog.api.job.application.summary
+package com.hirelog.api.job.application.intake.worker
 
 import com.hirelog.api.common.infra.redis.messaging.RedisStreamConsumer
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.jd.application.messaging.JdStreamKeys
-import com.hirelog.api.job.application.messaging.toJobSummaryPreprocessResponseMessage
+import com.hirelog.api.job.application.messaging.mapper.JdPreprocessResponseMessageMapper
 import com.hirelog.api.job.application.summary.facade.JobSummaryGenerationFacadeService
 import org.springframework.stereotype.Component
 
@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component
 @Component
 class TextJobSummaryGenerationWorker(
     private val redisConsumer: RedisStreamConsumer,
+    private val messageMapper: JdPreprocessResponseMessageMapper,
     private val jobSummaryFacadeService: JobSummaryGenerationFacadeService
 ) {
 
@@ -32,6 +33,14 @@ class TextJobSummaryGenerationWorker(
      * Application bootstrap 시 1회 호출
      */
     fun startConsuming() {
+
+        log.info(
+            "[JD_SUMMARY_WORKER] startConsuming called, streamKey={}, group={}, consumer={}",
+            JdStreamKeys.PREPROCESS_RESPONSE,
+            "jd-summary-generation-group",
+            "jd-summary-consumer-${System.getenv("HOSTNAME") ?: "local"}"
+        )
+
         redisConsumer.consume(
             streamKey = JdStreamKeys.PREPROCESS_RESPONSE,
             group = "jd-summary-generation-group",
@@ -45,15 +54,18 @@ class TextJobSummaryGenerationWorker(
      * 단일 메시지 처리
      */
     private fun handle(message: Map<String, String>) {
-        val preprocessMessage = message.toJobSummaryPreprocessResponseMessage()
+        log.info("======[JD_SUMMARY_CONSUME]======")
+
+        // 1️⃣ Raw 메시지 → 계약 DTO
+        val preprocessMessage = messageMapper.from(message)
 
         log.info(
-            "[JD_SUMMARY_CONSUME] requestId={} source={} textLength={}",
+            "[JD_SUMMARY_CONSUME] requestId={} source={}",
             preprocessMessage.requestId,
-            preprocessMessage.source,
-            preprocessMessage.canonicalText.length
+            preprocessMessage.source
         )
 
+        // 2️⃣ 유스케이스 실행
         jobSummaryFacadeService.generateFromPreprocessResult(
             preprocessMessage
         )

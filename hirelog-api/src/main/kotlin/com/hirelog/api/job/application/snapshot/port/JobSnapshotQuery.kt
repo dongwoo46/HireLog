@@ -41,7 +41,7 @@ interface JobSnapshotQuery {
      * - 입력 중복 판정
      * - 동일 JD 여부 확인
      */
-    fun getSnapshotByContentHash(
+    fun getSnapshotByCanonicalHash(
         canonicalHash: String
     ): JobSnapshotView?
 
@@ -100,5 +100,16 @@ interface JobSnapshotQuery {
     fun loadSnapshotsByDateRange(
         openedDate: LocalDate?,
         closedDate: LocalDate?
+    ): List<JobSnapshot>
+
+    /**
+     * pg_trgm 기반 유사도 조회
+     *
+     * @param coreText 입력 JD 핵심 텍스트
+     * @param threshold similarity 임계치 (0.0 ~ 1.0)
+     */
+    fun findSimilarByCoreText(
+        coreText: String,
+        threshold: Double
     ): List<JobSnapshot>
 }

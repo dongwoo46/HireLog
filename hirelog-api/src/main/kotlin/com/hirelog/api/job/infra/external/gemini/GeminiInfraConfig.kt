@@ -3,6 +3,7 @@ package com.hirelog.api.job.infrastructure.external.gemini
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.config.properties.GeminiProperties
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
+import com.hirelog.api.job.infra.external.gemini.JobSummaryLlmResultAssembler
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -26,14 +27,7 @@ class GeminiInfraConfig(
 ) {
 
     /**
-     * Gemini API 호출용 HTTP Client Bean
-     *
-     * 역할:
-     * - Gemini API 전용 WebClient를 GeminiClient에 주입
-     *
-     * 주의:
-     * - WebClient 생성 로직은 GeminiWebClientConfig에 존재한다
-     * - 이 메서드는 생성된 WebClient를 "조립"만 한다
+     * Gemini API 전용 Client
      */
     @Bean
     fun geminiClient(
@@ -45,15 +39,11 @@ class GeminiInfraConfig(
         )
 
     /**
-     * Gemini 응답 파서 Bean
+     * Gemini 응답 Raw 파서
      *
-     * 역할:
-     * - Gemini API 응답(JSON/Markdown)을
-     *   JobSummaryLlmResult로 변환한다
-     *
-     * 설계 의도:
-     * - 파싱 로직을 Client에서 분리
-     * - 응답 포맷 변경 시 수정 지점을 한 곳으로 집중
+     * 책임:
+     * - Markdown 제거
+     * - JSON → JobSummaryLlmRawResult
      */
     @Bean
     fun geminiResponseParser(
@@ -62,23 +52,34 @@ class GeminiInfraConfig(
         GeminiResponseParser(objectMapper)
 
     /**
-     * JobSummaryLlm Port 구현체 Bean
+     * Raw → Result 변환기
      *
-     * 역할:
-     * - JobSummaryLlm 인터페이스에 대해
-     *   Gemini 기반 구현체를 연결한다
+     * 책임:
+     * - enum 변환
+     * - 날짜 파싱
+     * - 필수 필드 검증
+     * - LLM Provider 주입
+     */
+    @Bean
+    fun jobSummaryLlmResultAssembler(): JobSummaryLlmResultAssembler =
+        JobSummaryLlmResultAssembler()
+
+    /**
+     * JobSummaryLlm Port 구현체
      *
-     * 핵심:
-     * - Application 계층은 JobSummaryLlm만 의존한다
-     * - GeminiJobSummaryClient는 이 Config를 통해서만 노출된다
+     * 🔥 핵심:
+     * - Application 계층은 이 Bean만 의존
+     * - Gemini 구현 상세는 여기서 완전히 숨김
      */
     @Bean
     fun jobSummaryLlm(
         geminiClient: GeminiClient,
-        responseParser: GeminiResponseParser
+        responseParser: GeminiResponseParser,
+        assembler: JobSummaryLlmResultAssembler
     ): JobSummaryLlm =
         GeminiJobSummaryLlm(
             geminiClient = geminiClient,
-            responseParser = responseParser
+            responseParser = responseParser,
+            assembler = assembler
         )
 }

@@ -1,87 +1,91 @@
 package com.hirelog.api.job.infrastructure.external.gemini
 
+import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+import com.hirelog.api.job.infra.external.gemini.JobSummaryLlmResultAssembler
+import com.hirelog.api.job.intake.similarity.CanonicalTextNormalizer
 
 /**
  * Gemini 기반 JD 요약 LLM Adapter
  *
  * 책임:
- * - JobSummaryLlm Port 구현
- * - Gemini API를 이용한 JD 요약 수행
+ * - JobSummaryLlm Port 구현체
+ * - Gemini API 호출 및 응답 처리
  *
  * 설계 원칙:
- * - Application 계층에는 LLM 구현 세부를 노출하지 않는다
- * - Gemini 관련 로직은 이 클래스 내부로 완전히 캡슐화한다
- * - Prompt 생성 / API 호출 / 응답 파싱 책임을 명확히 분리한다
+ * - 외부 LLM 응답은 신뢰하지 않는다
+ * - raw 응답 파싱과 도메인 모델 조립을 분리한다
+ * - LLM Provider 정보는 시스템에서 주입한다
  */
 class GeminiJobSummaryLlm(
     private val geminiClient: GeminiClient,
-    private val responseParser: GeminiResponseParser
+    private val responseParser: GeminiResponseParser,
+    private val assembler: JobSummaryLlmResultAssembler
 ) : JobSummaryLlm {
 
     /**
-     * Job Description을 Gemini LLM을 통해 요약한다.
+     * Job Description을 Gemini LLM으로 요약한다.
      *
      * 처리 흐름:
-     * 1. JD 요약 전용 프롬프트 생성
-     * 2. Gemini API 호출을 통해 raw 응답 획득
-     * 3. 응답을 공통 LLM 결과 모델로 파싱
+     * 1. JD 요약 프롬프트 생성
+     * 2. Gemini API 호출 → raw 텍스트 획득
+     * 3. raw 텍스트를 JobSummaryLlmResult로 파싱
      *
      * 주의:
-     * - 이 메서드는 외부 API 호출을 포함한다
-     * - 반드시 트랜잭션 외부에서 호출되어야 한다
-     *
-     * @param brandName 채용 브랜드명 (프롬프트 컨텍스트)
-     * @param position 포지션명 (프롬프트 컨텍스트)
-     * @param jdText JD 원문 텍스트
-     * @return 구조화된 JD 요약 결과
+     * - 외부 API 호출이 포함되므로 트랜잭션 외부에서 실행되어야 한다
      */
     override fun summarizeJobDescription(
         brandName: String,
-        position: String,
-        jdText: String
+        positionName: String,
+        positionCandidates: List<String>,
+        canonicalMap: Map<String, List<String>>
     ): JobSummaryLlmResult {
 
-        // JD 요약 전용 프롬프트 생성
+        // 1️⃣ canonicalMap → LLM 입력용 텍스트 변환
+        val jdText = CanonicalTextNormalizer.toCanonicalText(canonicalMap)
+
+        // 2️⃣ JD 요약 프롬프트 생성
         val prompt = GeminiPromptBuilder.buildJobSummaryPrompt(
             brandName = brandName,
-            position = position,
+            positionName = positionName,
+            positionCandidates = positionCandidates,
             jdText = jdText
         )
 
-        // Gemini API 호출을 통해 raw 응답 획득
-        // 1️⃣ Gemini API 호출
-        val raw = try {
+        // 2️⃣ Gemini API 호출 → raw 텍스트
+        val rawText = try {
             geminiClient.generateContent(prompt)
         } catch (ex: Exception) {
-
-            // 🔥 로그에만 상세 컨텍스트 기록
             log.error(
                 "Gemini API call failed. brand={}, position={}",
                 brandName,
-                position,
+                positionName,
                 ex
             )
-
             throw GeminiCallException(ex)
         }
 
-        // Gemini 응답을 공통 LLM 결과 모델로 파싱
-        return try {
-            responseParser.parseJobSummary(raw)
+        // 3️⃣ raw 텍스트 → RawResult
+        val rawResult = try {
+            responseParser.parseRawJobSummary(rawText)
         } catch (ex: Exception) {
-            // 🔥 파싱 실패도 로그만
             log.error(
-                "Gemini response parse failed. brand={}, position={}",
+                "Gemini raw parsing failed. brand={}, position={}",
                 brandName,
-                position,
+                positionName,
                 ex
             )
             throw GeminiParseException(ex)
         }
+
+        // 4️⃣ RawResult → 시스템 책임 모델 조립
+        return assembler.assemble(
+            raw = rawResult,
+            provider = LlmProvider.GEMINI
+        )
     }
 }

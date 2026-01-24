@@ -2,36 +2,14 @@ spring:
   application:
     name: hirelog
 
+  profiles:
+    active: local
+
   config:
     import: optional:file:.env[.properties]
 
-  datasource:
-    url: jdbc:postgresql://localhost:5432/hirelog
-    username: postgres
-    password: 1234
-    driver-class-name: org.postgresql.Driver
-
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-
   jpa:
     open-in-view: false
-    hibernate:
-      ddl-auto: create   # ⭐ create → update (최소 수정)
-    properties:
-      hibernate:
-        format_sql: true
-        show_sql: false
-
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      timeout: 3s
 
 # LLM 공통 설정 (핵심)
 llm:
@@ -53,3 +31,8 @@ logging:
 server:
   servlet:
     context-path: /api
+
+hirelog:
+  worker:
+    job-summary:
+      enabled: false

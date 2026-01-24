@@ -2,8 +2,11 @@ package com.hirelog.api.job.domain
 
 import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
-import java.security.MessageDigest
 import java.time.LocalDate
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
+import io.lettuce.core.json.JsonType
+import org.hibernate.annotations.Type
 
 @Entity
 @Table(
@@ -35,85 +38,152 @@ class JobSnapshot protected constructor(
     @Column(name = "position_id", updatable = false)
     var positionId: Long? = null,
 
+    /**
+     * 입력 소스 유형 (TEXT / OCR / URL)
+     */
     @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false, updatable = false)
     val sourceType: JobSourceType,
 
+    /**
+     * URL 입력일 경우 원본 URL
+     */
     @Column(name = "source_url", length = 1000, updatable = false)
     val sourceUrl: String? = null,
 
     /**
-     * JD 원문
+     * 전처리된 JD 섹션 구조
+     *
+     * 예:
+     * - responsibilities
+     * - requirements
+     * - techStack
+     * - preferred
+     *
+     * 용도:
+     * - 중복 판정
+     * - JD 변화 추적
+     * - 정책 기반 분석
      */
-    @Lob
-    @Column(name = "raw_text", nullable = false, updatable = false)
-    val rawText: String,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(
+        name = "canonical_sections",
+        columnDefinition = "jsonb",
+        nullable = false,
+        updatable = false
+    )
+    val canonicalSections: Map<String, List<String>>,
+
+    /**
+     * pg_trgm 비교용 핵심 텍스트
+     *
+     * 구성:
+     * - responsibilities
+     * - requirements
+     * - preferred
+     * - process (low weight)
+     *
+     * 주의:
+     * - 파생 데이터
+     * - 단독 의미 없음
+     */
+    @Column(
+        name = "core_text",
+        columnDefinition = "text",
+        nullable = false,
+        updatable = false
+    )
+    val coreText: String,
+
+    /**
+     * 채용 기간 유형
+     *
+     * - FIXED / OPEN_ENDED / UNKNOWN
+     * - 날짜 값과 불일치할 수 있음
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recruitment_period_type", nullable = false, updatable = false)
+    val recruitmentPeriodType: RecruitmentPeriodType,
 
     /**
      * 채용 지원 시작일
      *
-     * - 중복 판정의 1차 기준
-     * - 시스템이 판단한 값
+     * - FIXED 인 경우 필수
+     * - 그 외에는 null 가능
      */
-    @Column(name = "opened_date", updatable = false, nullable = true)
+    @Column(name = "opened_date", updatable = false)
     val openedDate: LocalDate?,
 
     /**
      * 채용 지원 마감일
      *
-     * - null이면 상시채용 또는 미정
+     * - 상시채용 / 미정일 경우 null
      */
-    @Column(name = "closed_date", updatable = false, nullable = true)
+    @Column(name = "closed_date", updatable = false)
     val closedDate: LocalDate?,
 
     /**
-     * JD 내용 기반 해시 (SHA-256)
+     * 완전 동일 JD 식별자
      *
-     * - rawText 기반
-     * - 중복 판단의 유일 기준
+     * 생성 기준:
+     * - canonicalSections → deterministic flatten → SHA-256
+     *
+     * 용도:
+     * - Fast-path 중복 제거
+     * - DB unique constraint
      */
-    @Column(name = "content_hash", nullable = false, length = 64, updatable = false)
-    val contentHash: String
+    @Column(
+        name = "canonical_hash",
+        nullable = false,
+        length = 64,
+        updatable = false
+    )
+    val canonicalHash: String,
+
+    /**
+     * 의미적 유사성 판정용 해시 (SimHash)
+     *
+     * 생성 기준:
+     * - canonicalSections → weighted tokenization → SimHash
+     *
+     * 용도:
+     * - LLM 이전 의미적 중복 판정
+     * - threshold 기반 비교
+     */
+    @Column(
+        name = "sim_hash",
+        nullable = false,
+        updatable = false
+    )
+    val simHash: Long
 
 ) : BaseEntity() {
 
     companion object {
 
-        /**
-         * JD 수집 직후 Snapshot 생성
-         *
-         * 규칙:
-         * - contentHash는 rawText 기반 SHA-256으로 생성
-         * - brand / position은 아직 연결되지 않음
-         */
         fun create(
             sourceType: JobSourceType,
             sourceUrl: String?,
-            rawText: String,
-            contentHash: String,
+            canonicalSections: Map<String, List<String>>,
+            coreText: String,
+            recruitmentPeriodType: RecruitmentPeriodType,
             openedDate: LocalDate?,
-            closedDate: LocalDate?
+            closedDate: LocalDate?,
+            canonicalHash: String,
+            simHash: Long
         ): JobSnapshot {
 
             return JobSnapshot(
                 sourceType = sourceType,
                 sourceUrl = sourceUrl,
-                rawText = rawText,
-                contentHash = contentHash,
+                canonicalSections = canonicalSections,
+                coreText = coreText,
+                recruitmentPeriodType = recruitmentPeriodType,
                 openedDate = openedDate,
-                closedDate = closedDate
+                closedDate = closedDate,
+                canonicalHash = canonicalHash,
+                simHash = simHash
             )
-        }
-
-        /**
-         * SHA-256 해시 생성
-         *
-         * 도메인 내부 전용
-         */
-        private fun sha256(text: String): String {
-            val digest = MessageDigest.getInstance("SHA-256")
-            val hashBytes = digest.digest(text.toByteArray(Charsets.UTF_8))
-            return hashBytes.joinToString("") { "%02x".format(it) }
         }
     }
 

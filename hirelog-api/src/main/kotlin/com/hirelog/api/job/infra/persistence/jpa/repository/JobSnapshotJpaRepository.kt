@@ -21,7 +21,7 @@ interface JobSnapshotJpaRepository : JpaRepository<JobSnapshot, Long> {
      * 사용 목적:
      * - Snapshot 중복 판정
      */
-    fun findByContentHash(contentHash: String): JobSnapshot?
+    fun findByCanonicalHash(canonicalHash: String): JobSnapshot?
 
     /**
      * 브랜드 + 포지션 기준 최신 Snapshot 1건 조회

@@ -13,13 +13,13 @@ import org.springframework.transaction.annotation.Transactional
  * JobSnapshot Write Application Service
  *
  * 책임:
- * - JD 원문 Snapshot 생성
+ * - JD Snapshot 생성
  * - 분석 완료 후 Brand / Position 연결
  *
  * 설계 원칙:
- * - Snapshot은 "수집 로그"이므로 중복 여부와 무관하게 생성 시도
- * - 중복 판정 정책은 상위 정책(JdIntakePolicy)에서 결정
- * - 이 Service는 Domain 생성 + 상태 변경 흐름만 담당
+ * - Snapshot은 "수집 로그" 성격의 Aggregate
+ * - 중복 여부 판단은 상위 정책(JdIntakePolicy)에서 수행
+ * - 본 Service는 Domain 생성 및 상태 변경만 담당
  */
 @Service
 class JobSnapshotWriteService(
@@ -28,32 +28,37 @@ class JobSnapshotWriteService(
 ) {
 
     /**
-     * JD 원문 Snapshot 기록
+     * JD Snapshot 기록
      *
      * 정책:
-     * - Snapshot 생성 자체는 항상 시도한다
-     * - canonicalHash 유일성은 DB 제약조건으로 보장
+     * - Snapshot 생성 시도는 항상 수행
+     * - contentHash 유일성은 DB 제약조건으로 보장
      *
      * 예외:
-     * - 동일 canonicalHash가 이미 존재할 경우 EntityAlreadyExistsException 발생
+     * - 동일 contentHash 존재 시 EntityAlreadyExistsException 발생
      */
     @Transactional
     fun record(command: JobSnapshotCreateCommand): Long {
         return try {
+
             val snapshot = JobSnapshot.create(
                 sourceType = command.sourceType,
                 sourceUrl = command.sourceUrl,
-                rawText = command.rawText,
-                contentHash = command.contentHash,
+                canonicalSections = command.canonicalMap,
+                recruitmentPeriodType = command.recruitmentPeriodType,
                 openedDate = command.openedDate,
-                closedDate = command.closedDate
+                closedDate = command.closedDate,
+                canonicalHash = command.canonicalHash,
+                simHash = command.simHash,
+                coreText = command.coreText
             )
 
             snapshotCommand.record(snapshot)
+
         } catch (ex: DataIntegrityViolationException) {
             throw EntityAlreadyExistsException(
                 entityName = "JobSnapshot",
-                identifier = "canonicalHash",
+                identifier = "contentHash",
                 cause = ex
             )
         }
@@ -72,20 +77,18 @@ class JobSnapshotWriteService(
         brandId: Long,
         positionId: Long
     ) {
+
         /**
-         * Command 전용 Entity 로딩
+         * 상태 변경을 위한 Command 전용 로딩
          *
          * 주의:
-         * - 조회(View) 목적이 아님
-         * - 상태 변경을 위한 최소 로딩
+         * - 조회(View) 목적 아님
+         * - Aggregate 상태 변경을 위한 최소 로딩
          */
         val snapshot = snapshotQuery.loadSnapshot(snapshotId)
 
         /**
          * Domain 규칙에 따른 상태 변경
-         *
-         * 예:
-         * - 이미 brandId/positionId가 설정되어 있으면 예외 발생
          */
         snapshot.attachAnalysisResult(
             brandId = brandId,

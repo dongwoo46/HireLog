@@ -16,6 +16,7 @@ interface JobSummaryLlm {
     fun summarizeJobDescription(
         brandName: String,
         positionName: String,
-        canonicalText: String
+        positionCandidates: List<String>,
+        canonicalMap: Map<String, List<String>>
     ): JobSummaryLlmResult
 }

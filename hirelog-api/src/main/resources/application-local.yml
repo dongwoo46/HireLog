@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hirelog
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: false          # ❌ local은 Flyway 안 씀
+
+  jpa:
+    hibernate:
+      ddl-auto: create # ⭐ local 핵심
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+hirelog:
+  worker:
+    job-summary:
+      enabled: true

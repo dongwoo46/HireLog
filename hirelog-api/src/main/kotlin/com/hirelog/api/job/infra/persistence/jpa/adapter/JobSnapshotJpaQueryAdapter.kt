@@ -6,6 +6,7 @@ import com.hirelog.api.job.domain.JobSnapshot
 import com.hirelog.api.job.infra.persistence.jpa.mapper.toSnapshotView
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSnapshotJpaQueryDslRepository
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSnapshotJpaRepository
+import jakarta.persistence.EntityManager
 import org.springframework.stereotype.Repository
 import java.time.LocalDate
 
@@ -23,8 +24,31 @@ import java.time.LocalDate
 @Repository
 class JobSnapshotJpaQueryAdapter(
     private val repository: JobSnapshotJpaRepository,
-    private val queryDslRepository: JobSnapshotJpaQueryDslRepository
+    private val queryDslRepository: JobSnapshotJpaQueryDslRepository,
+    private val entityManager: EntityManager
 ) : JobSnapshotQuery {
+
+
+    override fun findSimilarByCoreText(
+        coreText: String,
+        threshold: Double
+    ): List<JobSnapshot> {
+
+        val sql = """
+            SELECT *
+            FROM job_snapshot
+            WHERE similarity(core_text, :coreText) >= :threshold
+            ORDER BY similarity(core_text, :coreText) DESC
+            LIMIT 10
+        """.trimIndent()
+
+        return entityManager
+            .createNativeQuery(sql, JobSnapshot::class.java)
+            .setParameter("coreText", coreText)
+            .setParameter("threshold", threshold)
+            .resultList
+            .map { it as JobSnapshot }
+    }
 
     /**
      * Snapshot 단건 조회 (View 반환)
@@ -38,10 +62,10 @@ class JobSnapshotJpaQueryAdapter(
     /**
      * canonicalHash 기준 Snapshot 조회 (View 반환)
      */
-    override fun getSnapshotByContentHash(
-        contentHash: String
+    override fun getSnapshotByCanonicalHash(
+        canonicalHash: String
     ): JobSnapshotView? {
-        return repository.findByContentHash(contentHash)
+        return repository.findByCanonicalHash(canonicalHash)
             ?.toSnapshotView()
     }
 

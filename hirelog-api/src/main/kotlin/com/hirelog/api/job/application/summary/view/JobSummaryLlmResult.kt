@@ -2,67 +2,49 @@ package com.hirelog.api.job.application.summary.view
 
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.job.domain.CareerType
-import com.hirelog.api.job.domain.EmploymentType
-import com.hirelog.api.job.domain.WorkStyle
-import java.time.LocalDate
 
 /**
- * LLM 요약 결과 공통 모델
+ * JobSummaryLlmResult
  *
- * 역할:
- * - 채용 공고(JD)를 LLM이 해석한 구조화 결과 표현
- * - 도메인 판단, 저장, 통계의 기준 데이터
+ * 🔹 LLM 요약 결과 최종 도메인 모델
+ *
+ * 책임:
+ * - 시스템이 신뢰하는 JD 요약 결과 표현
+ * - JobSummary 엔티티 생성의 직접 입력값
+ *
+ * 생성 규칙:
+ * - JobSummaryLlmRawResult → Assembler를 통해서만 생성
+ * - Jackson 직접 파싱 ❌
  */
 data class JobSummaryLlmResult(
 
-    // 커리어 구분 (신입 / 경력 / 무관 등)
+    // 사용된 LLM Provider (시스템 주입)
+    val llmProvider: LlmProvider,
+
+    // 커리어 구분 (UNKNOWN 포함)
     val careerType: CareerType,
 
-    // 요구 경력 연차 (명시되지 않으면 null)
+    // 요구 경력 연차 (추출 실패 시 null)
     val careerYears: Int?,
 
-    // JD 전체를 한 문단으로 요약한 핵심 설명
+    // JD 핵심 요약 (필수)
     val summary: String,
 
-    // 주요 업무 내용 요약
+    // 주요 업무 요약 (필수)
     val responsibilities: String,
 
-    // 필수 자격 요건 요약
+    // 필수 자격 요건 요약 (필수)
     val requiredQualifications: String,
 
-    // 우대 사항 요약
+    // 우대 사항
     val preferredQualifications: String?,
 
-    // 기술 스택 요약
+    // 기술 스택 요약 (자유 텍스트)
     val techStack: String?,
 
     // 채용 절차 요약
     val recruitmentProcess: String?,
 
-    // 고용 형태 (정규직 / 계약직 / 인턴 등)
-    val employmentType: EmploymentType?,
-
-    // 근무 지역 정보 (정규화 전 원문 기반)
-    val workLocation: String?,
-
-    // 근무 방식 (상주 / 재택 / 혼합)
-    val workStyle: WorkStyle?,
-
-    // 연봉 또는 보상 조건 요약
-    val compensation: String?,
-
-    // 복지 및 혜택 요약
-    val benefits: String?,
-
-    // 공고 시작일 (추출 가능할 경우)
-    val openingDate: LocalDate?,
-
-    // 공고 마감일 (추출 가능할 경우)
-    val closingDate: LocalDate?,
-
-    // 회사 또는 팀에 대한 간단한 소개
-    val companyDescription: String?,
-
-    // 요약에 사용된 LLM 제공자 식별자
-    val llmProvider: LlmProvider
+    val brandName: String,
+    val positionName: String
 )

@@ -1,6 +1,8 @@
 package com.hirelog.api.job.application.snapshot.view
 
 import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.RecruitmentPeriodType
+import java.time.LocalDate
 
 /**
  * JobSnapshot 조회 결과 View
@@ -16,50 +18,30 @@ import com.hirelog.api.job.domain.JobSourceType
  */
 data class JobSnapshotView(
 
-    /**
-     * Snapshot 식별자
-     */
     val id: Long,
 
-    /**
-     * 분석 완료 후 연결되는 브랜드 ID
-     *
-     * - 분석 전에는 null
-     */
     val brandId: Long?,
-
-    /**
-     * 분석 완료 후 연결되는 포지션 ID
-     *
-     * - 분석 전에는 null
-     */
     val positionId: Long?,
 
-    /**
-     * JD 수집 소스 타입
-     */
     val sourceType: JobSourceType,
-
-    /**
-     * JD 원본 URL
-     *
-     * - OCR / 수동 입력 등에서는 null
-     */
     val sourceUrl: String?,
 
     /**
-     * JD 원문 텍스트
+     * 전처리된 JD 구조
      *
-     * - 최초 수집 원본 그대로
+     * - responsibilities
+     * - requirements
+     * - preferred
+     * - techStack
      */
-    val rawText: String,
+    val canonicalSections: Map<String, List<String>>,
+
+    val recruitmentPeriodType: RecruitmentPeriodType,
+    val openedDate: LocalDate?,
+    val closedDate: LocalDate?,
 
     /**
-     * JD 내용 기반 해시
-     *
-     * 용도:
-     * - 운영 추적
-     * - 중복 분석 보조
+     * Fast-path 중복 판정용
      */
-    val contentHash: String
+//    val contentHash: String,
 )

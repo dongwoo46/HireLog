@@ -33,7 +33,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
 	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
+	implementation("org.flywaydb:flyway-core")
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
+
 
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
