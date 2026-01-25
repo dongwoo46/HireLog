@@ -2,29 +2,37 @@ package com.hirelog.api.job.domain
 
 import com.hirelog.api.common.jpa.BaseEntity
 import jakarta.persistence.*
+import java.time.LocalDate
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
+import io.lettuce.core.json.JsonType
+import org.hibernate.annotations.Type
 
-/**
- * Job Description 스냅샷 엔티티
- *
- * 역할:
- * - 특정 시점에 수집된 JD 원문을 그대로 보존
- * - 이후 변경/삭제 없이 히스토리로만 관리
- *
- * 설계 의도:
- * - 동일 브랜드 + 포지션이라도 시점/내용이 다르면 다른 Snapshot
- * - 중복 판단은 contentHash 기준으로만 수행
- */
 @Entity
 @Table(
     name = "job_snapshot",
     indexes = [
-        Index(name = "idx_job_snapshot_brand_id", columnList = "brand_id"),
-        Index(name = "idx_job_snapshot_company_id", columnList = "company_id"),
-        Index(name = "idx_job_snapshot_position_id", columnList = "position_id"),
+        // 조회용 FK 인덱스
         Index(
-            name = "uk_job_snapshot_content_hash",
-            columnList = "content_hash",
+            name = "idx_job_snapshot_brand_id",
+            columnList = "brand_id"
+        ),
+        Index(
+            name = "idx_job_snapshot_position_id",
+            columnList = "position_id"
+        ),
+
+        // 완전 동일 JD 중복 방지 (핵심)
+        Index(
+            name = "uk_job_snapshot_canonical_hash",
+            columnList = "canonical_hash",
             unique = true
+        ),
+
+        // 유사도 판정 보조 인덱스
+        Index(
+            name = "idx_job_snapshot_sim_hash",
+            columnList = "sim_hash"
         )
     ]
 )
@@ -35,91 +43,180 @@ class JobSnapshot protected constructor(
     val id: Long = 0L,
 
     /**
-     * 채용 브랜드 식별자
-     * JD 관점에서의 주체
+     * 분석 완료 후 연결되는 브랜드 ID
      */
-    @Column(name = "brand_id", nullable = false, updatable = false)
-    val brandId: Long,
+    @Column(name = "brand_id", updatable = false)
+    var brandId: Long? = null,
 
     /**
-     * 법적 회사 식별자
-     * 분석/정합성 용도로만 사용
+     * 분석 완료 후 연결되는 포지션 ID
      */
-    @Column(name = "company_id", updatable = false)
-    val companyId: Long? = null,
+    @Column(name = "position_id", updatable = false)
+    var positionId: Long? = null,
 
     /**
-     * 브랜드 기준 포지션 식별자
-     */
-    @Column(name = "position_id", nullable = false, updatable = false)
-    val positionId: Long,
-
-    /**
-     * JD 수집 소스 타입
-     * (URL / OCR / API 등)
+     * 입력 소스 유형 (TEXT / OCR / URL)
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false, updatable = false)
     val sourceType: JobSourceType,
 
     /**
-     * JD 원본 URL
-     * URL 기반 수집이 아닌 경우 null 허용
+     * URL 입력일 경우 원본 URL
      */
     @Column(name = "source_url", length = 1000, updatable = false)
     val sourceUrl: String? = null,
 
     /**
-     * JD 원문 텍스트
+     * 전처리된 JD 섹션 구조
      *
-     * 주의:
-     * - 절대 수정되지 않는다
-     * - 후처리/정제는 별도 파이프라인 책임
+     * 예:
+     * - responsibilities
+     * - requirements
+     * - techStack
+     * - preferred
+     *
+     * 용도:
+     * - 중복 판정
+     * - JD 변화 추적
+     * - 정책 기반 분석
      */
-    @Lob
-    @Column(name = "raw_text", nullable = false, updatable = false)
-    val rawText: String,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(
+        name = "canonical_sections",
+        columnDefinition = "jsonb",
+        nullable = false,
+        updatable = false
+    )
+    val canonicalSections: Map<String, List<String>>,
 
     /**
-     * 중복 판별용 해시
+     * pg_trgm 비교용 핵심 텍스트
      *
-     * 생성 규칙:
-     * - brandId + positionId + canonicalText
+     * 구성:
+     * - responsibilities
+     * - requirements
+     * - preferred
+     * - process (low weight)
      *
-     * 제약:
-     * - 전역 유니크
+     * 주의:
+     * - 파생 데이터
+     * - 단독 의미 없음
      */
-    @Column(name = "content_hash", nullable = false, length = 64, updatable = false)
-    val contentHash: String
+    @Column(
+        name = "core_text",
+        columnDefinition = "text",
+        nullable = false,
+        updatable = false
+    )
+    val coreText: String,
+
+    /**
+     * 채용 기간 유형
+     *
+     * - FIXED / OPEN_ENDED / UNKNOWN
+     * - 날짜 값과 불일치할 수 있음
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recruitment_period_type", nullable = false, updatable = false)
+    val recruitmentPeriodType: RecruitmentPeriodType,
+
+    /**
+     * 채용 지원 시작일
+     *
+     * - FIXED 인 경우 필수
+     * - 그 외에는 null 가능
+     */
+    @Column(name = "opened_date", updatable = false)
+    val openedDate: LocalDate?,
+
+    /**
+     * 채용 지원 마감일
+     *
+     * - 상시채용 / 미정일 경우 null
+     */
+    @Column(name = "closed_date", updatable = false)
+    val closedDate: LocalDate?,
+
+    /**
+     * 완전 동일 JD 식별자
+     *
+     * 생성 기준:
+     * - canonicalSections → deterministic flatten → SHA-256
+     *
+     * 용도:
+     * - Fast-path 중복 제거
+     * - DB unique constraint
+     */
+    @Column(
+        name = "canonical_hash",
+        nullable = false,
+        length = 64,
+        updatable = false
+    )
+    val canonicalHash: String,
+
+    /**
+     * 의미적 유사성 판정용 해시 (SimHash)
+     *
+     * 생성 기준:
+     * - canonicalSections → weighted tokenization → SimHash
+     *
+     * 용도:
+     * - LLM 이전 의미적 중복 판정
+     * - threshold 기반 비교
+     */
+    @Column(
+        name = "sim_hash",
+        nullable = false,
+        updatable = false
+    )
+    val simHash: Long
 
 ) : BaseEntity() {
 
     companion object {
-        /**
-         * JobSnapshot 생성 전용 팩토리 메서드
-         *
-         * 목적:
-         * - 생성 규칙을 한 곳으로 집중
-         * - 향후 hash 생성 로직 변경 대비
-         */
+
         fun create(
-            brandId: Long,
-            companyId: Long?,
-            positionId: Long,
             sourceType: JobSourceType,
             sourceUrl: String?,
-            rawText: String,
-            contentHash: String
+            canonicalSections: Map<String, List<String>>,
+            coreText: String,
+            recruitmentPeriodType: RecruitmentPeriodType,
+            openedDate: LocalDate?,
+            closedDate: LocalDate?,
+            canonicalHash: String,
+            simHash: Long
         ): JobSnapshot {
+
             return JobSnapshot(
-                brandId = brandId,
-                companyId = companyId,
-                positionId = positionId,
                 sourceType = sourceType,
                 sourceUrl = sourceUrl,
-                rawText = rawText,
-                contentHash = contentHash
+                canonicalSections = canonicalSections,
+                coreText = coreText,
+                recruitmentPeriodType = recruitmentPeriodType,
+                openedDate = openedDate,
+                closedDate = closedDate,
+                canonicalHash = canonicalHash,
+                simHash = simHash
             )
         }
+    }
+
+    /**
+     * 분석 완료 후 브랜드 / 포지션 연결
+     *
+     * 규칙:
+     * - 단 한 번만 호출 가능
+     */
+    fun attachAnalysisResult(
+        brandId: Long,
+        positionId: Long
+    ) {
+        require(this.brandId == null && this.positionId == null) {
+            "Snapshot already linked to brand/position"
+        }
+        this.brandId = brandId
+        this.positionId = positionId
     }
 }

@@ -9,9 +9,9 @@ package com.hirelog.api.common.exception
  * - Gemini 서버 오류
  *
  * 사용 원칙:
- * - 사용자 메시지 ❌
- * - 로그/모니터링 전용
- * - HTTP 레이어에서는 502 Bad Gateway로 매핑
+ * - Worker 컨텍스트에서 발생 (REST 경로 아님)
+ * - Facade에서 catch → Processing 상태 LLM_CALL_FAILED로 기록
+ * - RedisStreamConsumer에서 로깅 후 ACK 미수행
  */
 class GeminiCallException(
     cause: Throwable

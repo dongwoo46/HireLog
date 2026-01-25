@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://prod-db:5432/hirelog_prod
+    username: hirelog
+    password: ${DB_PASSWORD}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false   # ⭐ 중요
+    validate-on-migrate: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+hirelog:
+  worker:
+    job-summary:
+      enabled: true

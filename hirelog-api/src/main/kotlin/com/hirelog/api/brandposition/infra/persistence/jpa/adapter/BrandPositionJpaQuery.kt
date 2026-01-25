@@ -1,8 +1,9 @@
 package com.hirelog.api.brandposition.infra.persistence.jpa.adapter
 
-import com.hirelog.api.brandposition.application.query.BrandPositionQuery
+import com.hirelog.api.brandposition.application.port.BrandPositionQuery
 import com.hirelog.api.brandposition.domain.BrandPosition
 import com.hirelog.api.brandposition.infra.persistence.jpa.repository.BrandPositionJpaRepository
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 
 /**
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component
  *
  * 역할:
  * - BrandPositionQuery Port의 JPA 구현체
- * - 조회 전용 책임만 수행
+ * - 조회 전용 책임 수행
  */
 @Component
 class BrandPositionJpaQuery(
@@ -25,4 +26,7 @@ class BrandPositionJpaQuery(
         positionId: Long
     ): BrandPosition? =
         repository.findByBrandIdAndPositionId(brandId, positionId)
+
+    override fun findById(id: Long): BrandPosition? =
+        repository.findByIdOrNull(id)
 }

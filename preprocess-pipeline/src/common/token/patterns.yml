@@ -1,0 +1,18 @@
+# common/token/token_patterns.yml
+
+gRPC:
+  - grpc
+  - qrpc
+  - gprc
+  - g rp c
+  - g-rpc
+
+GraphQL:
+  - graphql
+  - graphq1
+  - graphqI
+
+OpenAI:
+  - openai
+  - openal
+  - opena1

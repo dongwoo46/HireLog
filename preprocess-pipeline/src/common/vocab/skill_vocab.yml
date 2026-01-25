@@ -1,0 +1,270 @@
+language:
+  - java
+  - kotlin
+  - python
+  - go
+  - golang
+  - javascript
+  - typescript
+  - scala
+  - ruby
+  - rust
+  - php
+  - c
+  - c++
+  - cpp
+  - csharp
+  - c#
+  - swift
+  - objective-c
+  - dart
+  - r
+  - matlab
+  - sql
+
+backend_framework:
+  - spring
+  - spring boot
+  - spring batch
+  - spring security
+  - django
+  - fastapi
+  - flask
+  - nestjs
+  - express
+
+frontend_framework:
+  - react
+  - vue
+  - angular
+  - next.js
+  - nextjs
+  - svelte
+  - nuxt.js
+  - nuxtjs
+  - gatsby
+  - remix
+
+database:
+  - mysql
+  - postgresql
+  - mongodb
+  - redis
+  - elasticsearch
+  - opensearch
+  - oracle
+  - dynamodb
+  - sql server
+  - sqlserver
+  - mariadb
+  - cassandra
+  - couchdb
+  - neo4j
+  - firebase
+  - firestore
+  - sqlite
+  - hbase
+  - influxdb
+  - clickhouse
+  - snowflake
+  - bigquery
+  - vector db
+
+infra:
+  - nginx
+  - apache
+  - tomcat
+  - docker
+  - kubernetes
+  - helm
+  - terraform
+  - ansible
+
+messaging:
+  - kafka
+  - rabbitmq
+  - sqs
+  - pubsub
+
+cloud:
+  - aws
+  - gcp
+  - azure
+  - ec2
+  - s3
+  - rds
+  - lambda
+  - ecs
+  - eks
+  - cloudfront
+  - cloudwatch
+  - iam
+  - vpc
+  - route53
+  - cloudformation
+  - compute engine
+  - cloud storage
+  - cloud functions
+  - app engine
+  - bigtable
+  - cloud sql
+  - cloud run
+  - azure functions
+  - azure app service
+  - azure sql
+  - azure storage
+  - azure ad
+  - active directory
+  - office 365
+  - microsoft 365
+
+api:
+  - rest
+  - graphql
+  - grpc
+  - websocket
+
+architecture:
+  - msa
+  - microservice
+  - event-driven
+  - ddd
+  - tdd
+
+data:
+  - spark
+  - hadoop
+  - airflow
+  - flink
+
+ai:
+  - ai
+  - ml
+  - machine learning
+  - deep learning
+  - dl
+  - llm
+  - nlp
+  - natural language processing
+  - computer vision
+  - cv
+  - tensorflow
+  - pytorch
+  - keras
+  - scikit-learn
+  - sklearn
+
+mobile:
+  - react native
+  - flutter
+  - swift
+  - kotlin
+  - ios
+  - android
+  - xamarin
+  - ionic
+  - cordova
+  - unity
+
+design:
+  - figma
+  - adobe photoshop
+  - photoshop
+  - ps
+  - adobe illustrator
+  - illustrator
+  - adobe xd
+  - xd
+  - sketch
+  - invision
+  - zeplin
+  - adobe indesign
+  - indesign
+  - adobe premiere
+  - premiere
+  - adobe after effects
+  - after effects
+  - ae
+  - adobe creative suite
+  - creative suite
+  - canva
+  - procreate
+
+microsoft:
+  - excel
+  - powerpoint
+  - ppt
+  - word
+  - outlook
+  - teams
+  - sharepoint
+  - onedrive
+  - power bi
+  - powerbi
+  - power apps
+  - power automate
+  - azure devops
+  - visual studio
+  - vs code
+  - vscode
+  - .net
+  - dotnet
+  - asp.net
+  - aspnet
+
+testing:
+  - jest
+  - mocha
+  - chai
+  - cypress
+  - selenium
+  - playwright
+  - puppeteer
+  - junit
+  - pytest
+  - unittest
+  - testng
+  - rspec
+  - jasmine
+  - karma
+  - vitest
+
+cms:
+  - wordpress
+  - drupal
+  - joomla
+  - shopify
+  - magento
+  - woocommerce
+  - contentful
+  - strapi
+  - sanity
+
+analytics:
+  - tableau
+  - power bi
+  - powerbi
+  - google analytics
+  - ga
+  - mixpanel
+  - amplitude
+  - segment
+  - looker
+  - metabase
+  - qlik
+  - splunk
+
+collaboration:
+  - jira
+  - confluence
+  - slack
+  - trello
+  - asana
+  - notion
+  - github
+  - gitlab
+  - bitbucket
+  - jenkins
+  - circleci
+  - github actions
+  - gitlab ci

@@ -4,6 +4,7 @@ import com.hirelog.api.common.config.properties.GeminiProperties
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 
 /**
  * Gemini API HTTP Client
@@ -25,24 +26,18 @@ class GeminiClient(
 ) {
 
     /**
-     * Gemini API를 호출하여 프롬프트에 대한 응답 텍스트를 생성한다.
+     * Gemini API를 비동기 호출하여 프롬프트에 대한 응답 텍스트를 반환한다.
      *
      * 처리 흐름:
      * 1. Gemini API 요구 스펙에 맞는 request body 구성
      * 2. 모델명 및 API Key를 포함한 POST 요청 전송
-     * 3. 네트워크 타임아웃 적용
-     * 4. 응답 JSON에서 최종 텍스트 추출
-     *
-     * 주의:
-     * - 이 메서드는 blocking 방식으로 동작한다
-     * - 반드시 트랜잭션 외부에서 호출되어야 한다
+     * 3. Mono → CompletableFuture 변환 (NIO 스레드에서 실행, 호출 스레드 비차단)
      *
      * @param prompt Gemini에 전달할 입력 프롬프트
-     * @return Gemini가 생성한 응답 텍스트
+     * @return 응답 텍스트를 담은 CompletableFuture
      */
-    fun generateContent(prompt: String): String {
+    fun generateContentAsync(prompt: String): CompletableFuture<String> {
 
-        // Gemini API 요청 스펙에 맞춘 request body 구성
         val requestBody = mapOf(
             "contents" to listOf(
                 mapOf(
@@ -53,27 +48,19 @@ class GeminiClient(
             )
         )
 
-        // Gemini API 호출 및 응답 수신
-        val response = webClient.post()
+        return webClient.post()
             .uri {
                 it.path("/models/{model}:generateContent")
-                    // Gemini API 인증용 API Key
                     .queryParam("key", geminiProperties.apiKey)
-                    // 호출할 Gemini 모델명 바인딩
                     .build(geminiProperties.model)
             }
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(requestBody)
             .retrieve()
-            // Gemini 응답을 Map 형태로 수신 (구조적 파싱은 별도 처리)
             .bodyToMono(Map::class.java)
-            // 네트워크 지연에 대비한 타임아웃 설정
             .timeout(Duration.ofSeconds(30))
-            // 현재 구조에서는 동기 처리
-            .block()
-
-        // 응답 JSON에서 최종 텍스트 추출
-        return extractText(response)
+            .map { response -> extractText(response) }
+            .toFuture()
     }
 
     /**

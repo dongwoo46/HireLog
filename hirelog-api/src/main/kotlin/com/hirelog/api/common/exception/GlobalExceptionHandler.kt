@@ -1,5 +1,6 @@
 package com.hirelog.api.common.exception
 
+import com.hirelog.api.common.logging.log
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -10,47 +11,6 @@ import java.time.Instant
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
-    @ExceptionHandler(GeminiParseException::class)
-    fun handleGeminiParse(
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-
-        val status = HttpStatus.BAD_GATEWAY
-
-        return ResponseEntity.status(status).body(
-            ErrorResponse(
-                timestamp = Instant.now(),
-                status = status.value(),
-                error = status.reasonPhrase,
-                path = request.requestURI
-            )
-        )
-    }
-
-    @ExceptionHandler(DuplicateJobSnapshotException::class)
-    fun handleDuplicateJobSnapshot(
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-
-        val status = HttpStatus.CONFLICT
-
-        return ResponseEntity.status(status).body(
-            ErrorResponse(
-                timestamp = Instant.now(),
-                status = status.value(),
-                error = status.reasonPhrase,
-                path = request.requestURI
-            )
-        )
-    }
-
-
-    /**
-     * 공통 Entity Not Found 처리
-     *
-     * - 모든 도메인의 필수 엔티티 조회 실패
-     * - REST API 기준 404 Not Found
-     */
     @ExceptionHandler(EntityNotFoundException::class)
     fun handleEntityNotFound(
         ex: EntityNotFoundException,
@@ -59,11 +19,17 @@ class GlobalExceptionHandler {
 
         val status = HttpStatus.NOT_FOUND
 
+        log.warn(
+            "[ENTITY_NOT_FOUND] path={} message={}",
+            request.requestURI,
+            ex.message
+        )
+
         return ResponseEntity.status(status).body(
             ErrorResponse(
                 timestamp = Instant.now(),
                 status = status.value(),
-                error = ex.message ?: status.reasonPhrase,
+                error = status.reasonPhrase,
                 path = request.requestURI
             )
         )
@@ -77,23 +43,36 @@ class GlobalExceptionHandler {
 
         val status = HttpStatus.CONFLICT
 
+        log.warn(
+            "[ENTITY_ALREADY_EXISTS] path={} message={}",
+            request.requestURI,
+            ex.message
+        )
+
         return ResponseEntity.status(status).body(
             ErrorResponse(
                 timestamp = Instant.now(),
                 status = status.value(),
-                error = ex.message ?: status.reasonPhrase,
+                error = status.reasonPhrase,
                 path = request.requestURI
             )
         )
     }
 
-
-    @ExceptionHandler(GeminiCallException::class)
-    fun handleGeminiCall(
+    @ExceptionHandler(Exception::class)
+    fun handleUnexpected(
+        ex: Exception,
         request: HttpServletRequest
     ): ResponseEntity<ErrorResponse> {
 
-        val status = HttpStatus.BAD_GATEWAY
+        val status = HttpStatus.INTERNAL_SERVER_ERROR
+
+        log.error(
+            "[UNHANDLED_EXCEPTION] path={} exception={}",
+            request.requestURI,
+            ex.message,
+            ex
+        )
 
         return ResponseEntity.status(status).body(
             ErrorResponse(

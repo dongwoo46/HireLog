@@ -107,22 +107,34 @@ class JobSummary protected constructor(
      * JD 전체 요약
      * 3~5줄 분량
      */
-    @Lob
-    @Column(name = "summary_text", nullable = false, updatable = false)
+    @Column(
+        name = "summary_text",
+        nullable = false,
+        updatable = false,
+        columnDefinition = "TEXT"
+    )
     val summaryText: String,
 
     /**
      * 핵심 역할 / 담당 업무 요약
      */
-    @Lob
-    @Column(name = "responsibilities", nullable = false, updatable = false)
+    @Column(
+        name = "responsibilities",
+        nullable = false,
+        updatable = false,
+        columnDefinition = "TEXT"
+    )
     val responsibilities: String,
 
     /**
      * 필수 자격 요건
      */
-    @Lob
-    @Column(name = "required_qualifications", nullable = false, updatable = false)
+    @Column(
+        name = "required_qualifications",
+        nullable = false,
+        updatable = false,
+        columnDefinition = "TEXT"
+    )
     val requiredQualifications: String,
 
     /**
@@ -151,14 +163,14 @@ class JobSummary protected constructor(
      * (GEMINI / OPENAI / OPENSEARCH)
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "llm_provider", nullable = false, length = 20, updatable = false)
+    @Column(name = "llm_provider", nullable = false, length = 30, updatable = false)
     val llmProvider: LlmProvider,
 
     /**
      * 요약 생성에 사용된 LLM 모델
      * Provider에 따라 null 가능
      */
-    @Column(name = "llm_model", nullable = false, length = 20, updatable = false)
+    @Column(name = "llm_model", nullable = false, length = 30, updatable = false)
     val llmModel: String
 
 

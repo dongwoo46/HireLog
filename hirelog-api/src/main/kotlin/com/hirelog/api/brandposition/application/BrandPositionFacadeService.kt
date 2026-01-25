@@ -1,8 +1,8 @@
 package com.hirelog.api.brandposition.facade
 
+import com.hirelog.api.brandposition.application.BrandPositionWriteService
 import com.hirelog.api.brandposition.domain.BrandPosition
 import com.hirelog.api.brandposition.domain.BrandPositionSource
-import com.hirelog.api.brandposition.service.BrandPositionWriteService
 import org.springframework.stereotype.Service
 
 /**

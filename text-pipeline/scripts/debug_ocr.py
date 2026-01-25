@@ -1,6 +1,3 @@
-import sys
-from pathlib import Path
-from ocr.structure.header_grouping import extract_sections_by_header
 
 """
 OCR + JD 파이프라인 디버그 실행 스크립트
@@ -24,12 +21,15 @@ OCR + JD 파이프라인 디버그 실행 스크립트
 # 프로젝트 경로 설정
 # --------------------------------------------------
 
-# 현재 파일 기준으로 프로젝트 루트 디렉토리 계산
-ROOT_DIR = Path(__file__).resolve().parents[1]
+import sys
+from pathlib import Path
 
-# src 디렉토리를 Python import 경로에 추가
-# → scripts/ 에서 실행해도 src/ 모듈들이 정상 import 되게 하기 위함
+# ==================================================
+# 프로젝트 루트 / src 경로 설정 (무조건 import 전에)
+# ==================================================
+ROOT_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT_DIR / "src"
+
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
@@ -41,6 +41,7 @@ if str(SRC_DIR) not in sys.path:
 # OCR 전용 파이프라인
 # - 이미지 → 텍스트(lines + rawText) 변환 담당
 from inputs.ocr_input import process_ocr_input
+from ocr.structure.header_grouping import extract_sections_by_header
 
 
 def main():

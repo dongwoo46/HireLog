@@ -22,6 +22,7 @@ repositories {
 }
 
 dependencies {
+	implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-xml")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -33,7 +34,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
 	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
+	implementation("org.flywaydb:flyway-core")
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
+
 
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -43,6 +46,7 @@ dependencies {
 }
 
 kotlin {
+	jvmToolchain(21)
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")
 	}
