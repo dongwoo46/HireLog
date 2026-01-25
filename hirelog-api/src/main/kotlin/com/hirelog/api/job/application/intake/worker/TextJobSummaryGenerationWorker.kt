@@ -45,6 +45,7 @@ class TextJobSummaryGenerationWorker(
         private const val MAX_LLM_CONCURRENCY = 4
         private const val PIPELINE_THREAD_POOL_SIZE = 4
         private const val SHUTDOWN_TIMEOUT_SECONDS = 60L
+        private const val CONSUMER_GROUP = "jd-summary-generation-group"
     }
 
     private val running = AtomicBoolean(true)
@@ -54,17 +55,35 @@ class TextJobSummaryGenerationWorker(
     private val mdcPipelineExecutor = MdcExecutor(pipelineExecutor)
 
     fun startConsuming() {
+        val streamKey = JdStreamKeys.PREPROCESS_RESPONSE
+        val group = CONSUMER_GROUP
+        val consumer = "jd-summary-consumer-${System.getenv("HOSTNAME") ?: "local"}"
+
         log.info(
             "[JD_SUMMARY_WORKER] startConsuming called, streamKey={}, group={}, maxConcurrency={}",
-            JdStreamKeys.PREPROCESS_RESPONSE,
-            "jd-summary-generation-group",
+            streamKey,
+            group,
             MAX_LLM_CONCURRENCY
         )
 
+        // Pending Sweep: 앱 재시작 시 미처리된 메시지 복구
+        val sweptCount = redisConsumer.sweepPendingMessages(
+            streamKey = streamKey,
+            group = group,
+            consumer = consumer
+        ) { recordId, rawMessage ->
+            dispatch(recordId, rawMessage)
+        }
+
+        if (sweptCount > 0) {
+            log.info("[JD_SUMMARY_WORKER] Pending sweep completed, processed={}", sweptCount)
+        }
+
+        // 정상 소비 시작
         redisConsumer.consume(
-            streamKey = JdStreamKeys.PREPROCESS_RESPONSE,
-            group = "jd-summary-generation-group",
-            consumer = "jd-summary-consumer-${System.getenv("HOSTNAME") ?: "local"}"
+            streamKey = streamKey,
+            group = group,
+            consumer = consumer
         ) { recordId, rawMessage ->
             dispatch(recordId, rawMessage)
         }

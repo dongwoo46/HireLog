@@ -19,7 +19,6 @@ interface JobSummaryLlm {
         brandName: String,
         positionName: String,
         positionCandidates: List<String>,
-        categoryCandidates: List<String>,
         canonicalMap: Map<String, List<String>>
     ): CompletableFuture<JobSummaryLlmResult>
 }

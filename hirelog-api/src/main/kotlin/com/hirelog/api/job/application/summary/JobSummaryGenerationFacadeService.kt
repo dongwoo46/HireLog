@@ -16,15 +16,15 @@ import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.position.application.PositionCategoryWriteService
-import com.hirelog.api.position.application.PositionWriteService
-import com.hirelog.api.position.application.port.PositionCategoryQuery
 import com.hirelog.api.position.application.port.PositionQuery
+import com.hirelog.api.position.application.query.PositionView
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * JD 요약 비동기 파이프라인 오케스트레이터
@@ -56,10 +56,12 @@ class JobSummaryGenerationFacadeService(
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
-    private val positionWriteService: PositionWriteService,
-    private val positionCategoryQuery: PositionCategoryQuery,
-    private val positionCategoryWriteService: PositionCategoryWriteService,
 ) {
+
+    companion object {
+        private const val LLM_TIMEOUT_SECONDS = 45L
+        private const val UNKNOWN_POSITION_NAME = "UNKNOWN"
+    }
 
     /**
      * 비동기 JD 요약 파이프라인 진입점
@@ -86,7 +88,6 @@ class JobSummaryGenerationFacadeService(
         // LLM 호출 전 게이트 역할: 유효하지 않거나 중복인 메시지를 조기 종결한다.
         val snapshotId: Long
         val positionCandidates: List<String>
-        val categoryCandidates: List<String>
 
         try {
             // 최소 요건(섹션 수, 텍스트 길이) 미충족 시 조기 종결
@@ -129,9 +130,8 @@ class JobSummaryGenerationFacadeService(
             // LLM 요약 진입 상태 기록 (RECEIVED → SUMMARIZING)
             processingWriteService.markSummarizing(processing.id)
 
-            // LLM 프롬프트에 전달할 후보 목록 조회
+            // LLM 프롬프트에 전달할 Position 후보 목록 조회
             positionCandidates = positionQuery.findActive().map { it.name }
-            categoryCandidates = positionCategoryQuery.findActive().map { it.name }
 
         } catch (e: Exception) {
             // Pre-LLM 인프라 장애 시 실패 기록 후 정상 종결 (ACK 대상)
@@ -147,9 +147,9 @@ class JobSummaryGenerationFacadeService(
             brandName = message.brandName,
             positionName = message.positionName,
             positionCandidates = positionCandidates,
-            categoryCandidates = categoryCandidates,
             canonicalMap = message.canonicalMap
         )
+            .orTimeout(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             // ── Post-LLM Phase ──────────────────────────────────────────────
             // postProcessExecutor에서 실행: NIO 스레드에서 JPA/DB 작업 방지.
             // LLM 결과 기반 도메인 객체 생성 및 영속화.
@@ -198,27 +198,21 @@ class JobSummaryGenerationFacadeService(
             source = BrandSource.INFERRED
         )
 
-        // PositionCategory 확보: LLM이 분류한 직무 카테고리로 조회 또는 생성
-        val positionCategory = positionCategoryWriteService.createIfAbsent(
-            name = llmResult.positionCategoryName
-        )
-
-        // ── [LOG] Position getOrCreate 진입 전 ─────────────────────
-        log.info(
-            "[POSITION_GET_OR_CREATE_BEFORE] requestId={}, processingId={}, snapshotId={}, positionName={},  thread={}",
-            message.requestId,
-            processingId,
-            snapshotId,
-            llmResult.positionName,
-            Thread.currentThread().name
-        )
-
-        // Position 확보: LLM이 매핑한 표준 포지션명으로 조회 또는 CANDIDATE 상태 생성
-        val position = positionWriteService.getOrCreate(
-            name = llmResult.positionName,
-            positionCategory = positionCategory,
-            normalizedName = Normalizer.normalizePosition(llmResult.positionName)
-        )
+        // Position 조회: LLM이 선택한 표준 포지션명으로 조회
+        val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
+        val position: PositionView = positionQuery.findByNormalizedName(normalizedPositionName)
+            ?: run {
+                log.warn(
+                    "[POSITION_NOT_FOUND] requestId={}, processingId={}, llmPositionName={}, normalizedName={}, fallback={}",
+                    message.requestId,
+                    processingId,
+                    llmResult.positionName,
+                    normalizedPositionName,
+                    UNKNOWN_POSITION_NAME
+                )
+                positionQuery.findByNormalizedName(Normalizer.normalizePosition(UNKNOWN_POSITION_NAME))
+                    ?: throw IllegalStateException("UNKNOWN position not found in database")
+            }
 
         // BrandPosition 연결: Brand-Position 매핑 (displayName = 회사 내부 포지션명)
         brandPositionWriteService.getOrCreate(
@@ -233,7 +227,8 @@ class JobSummaryGenerationFacadeService(
         summaryWriteService.save(
             snapshotId = snapshotId,
             brand = brand,
-            position = position,
+            positionId = position.id,
+            positionName = position.name,
             llmResult = llmResult
         )
     }
@@ -257,6 +252,7 @@ class JobSummaryGenerationFacadeService(
         val errorCode = when (cause) {
             is GeminiCallException -> "LLM_CALL_FAILED"
             is GeminiParseException -> "LLM_PARSE_FAILED"
+            is TimeoutException -> "LLM_TIMEOUT"
             else -> "FAILED_AT_$phase"
         }
         val rootCause = generateSequence<Throwable>(cause) { it.cause }.last()

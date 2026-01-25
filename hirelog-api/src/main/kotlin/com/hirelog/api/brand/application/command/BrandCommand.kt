@@ -1,6 +1,8 @@
 package com.hirelog.api.brand.application.command
 
 import com.hirelog.api.brand.domain.Brand
+import com.hirelog.api.brand.domain.BrandSource
+import com.hirelog.api.common.domain.VerificationStatus
 
 /**
  * Brand Write Port
@@ -22,4 +24,20 @@ interface BrandCommand {
      * - JPA Dirty Checking 기반
      */
     fun save(brand: Brand): Brand
+
+    /**
+     * Brand INSERT with ON CONFLICT DO NOTHING
+     *
+     * 동시성 안전한 Brand 생성:
+     * - normalized_name 중복 시 아무 작업도 하지 않음
+     * - 반환값: 영향 받은 row 수 (0 = 중복, 1 = 신규)
+     */
+    fun insertIgnoreDuplicate(
+        name: String,
+        normalizedName: String,
+        companyId: Long?,
+        verificationStatus: VerificationStatus,
+        source: BrandSource,
+        isActive: Boolean
+    ): Int
 }

@@ -35,6 +35,5 @@ data class JobSummaryLlmRawResult(
 
     val brandName: String?,
     val positionName: String?,
-    val positionCategoryName: String?,
     val brandPositionName: String?
 )

@@ -35,6 +35,8 @@ class RedisStreamConsumer(
 
     companion object {
         private const val RETRY_BACKOFF_MS = 3_000L
+        private const val PENDING_SWEEP_MIN_IDLE_MS = 60_000L  // 1분 이상 idle인 메시지만 claim
+        private const val PENDING_SWEEP_BATCH_SIZE = 100
     }
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -115,6 +117,120 @@ class RedisStreamConsumer(
                 }
             }
         }
+    }
+
+    /**
+     * Pending 메시지 복구 (앱 재시작 시 호출)
+     *
+     * 정책:
+     * - minIdleTime 이상 처리되지 않은 pending 메시지를 claim하여 재처리
+     * - 동기적으로 처리 완료까지 대기 (startConsuming 전에 호출)
+     * - 실패한 메시지는 XPENDING에 남아 다음 sweep 대상이 됨
+     *
+     * @return 처리된 메시지 수
+     */
+    fun sweepPendingMessages(
+        streamKey: String,
+        group: String,
+        consumer: String,
+        handler: (recordId: String, message: Map<String, String>) -> CompletableFuture<Void>
+    ): Int {
+        createGroupIfAbsent(streamKey, group)
+
+        val pendingSummary = redisTemplate.opsForStream<String, String>()
+            .pending(streamKey, group)
+
+        val totalPending = pendingSummary?.totalPendingMessages ?: 0L
+        if (totalPending == 0L) {
+            log.info("[PENDING_SWEEP] No pending messages. stream={} group={}", streamKey, group)
+            return 0
+        }
+
+        log.info(
+            "[PENDING_SWEEP_START] stream={} group={} totalPending={}",
+            streamKey, group, totalPending
+        )
+
+        var processedCount = 0
+        val minIdleTime = Duration.ofMillis(PENDING_SWEEP_MIN_IDLE_MS)
+
+        // Pending 메시지 목록 조회
+        val pendingMessages = redisTemplate.opsForStream<String, String>()
+            .pending(
+                streamKey,
+                Consumer.from(group, consumer),
+                org.springframework.data.domain.Range.unbounded(),
+                PENDING_SWEEP_BATCH_SIZE.toLong()
+            )
+
+        if (pendingMessages.isNullOrEmpty()) {
+            log.info("[PENDING_SWEEP] No claimable pending messages for this consumer. stream={} group={}", streamKey, group)
+            return 0
+        }
+
+        for (pending in pendingMessages) {
+            // idle time 체크
+            if (pending.idleTimeMs < PENDING_SWEEP_MIN_IDLE_MS) {
+                log.debug(
+                    "[PENDING_SWEEP_SKIP] Message not idle enough. recordId={} idleTimeMs={}",
+                    pending.idAsString, pending.idleTimeMs
+                )
+                continue
+            }
+
+            try {
+                // XCLAIM으로 소유권 획득 + 메시지 내용 가져오기
+                val claimedRecords = redisTemplate.opsForStream<String, String>()
+                    .claim(
+                        streamKey,
+                        group,
+                        consumer,
+                        minIdleTime,
+                        RecordId.of(pending.idAsString)
+                    )
+
+                if (claimedRecords.isNullOrEmpty()) {
+                    log.warn("[PENDING_SWEEP_CLAIM_EMPTY] recordId={}", pending.idAsString)
+                    continue
+                }
+
+                val record = claimedRecords[0]
+                log.info(
+                    "[PENDING_SWEEP_CLAIMED] recordId={} deliveryCount={}",
+                    record.id.value, pending.totalDeliveryCount
+                )
+
+                // 핸들러로 처리 (동기 대기)
+                val future = handler(record.id.value, record.value)
+                future.whenComplete { _, ex ->
+                    if (ex == null) {
+                        redisTemplate.opsForStream<String, String>()
+                            .acknowledge(streamKey, group, record.id)
+                        log.info("[PENDING_SWEEP_ACK] recordId={}", record.id.value)
+                    } else {
+                        log.warn(
+                            "[PENDING_SWEEP_FAILED] recordId={} reason={}",
+                            record.id.value, ex.message
+                        )
+                    }
+                }.join()  // 동기 대기
+
+                processedCount++
+
+            } catch (ex: Exception) {
+                log.error(
+                    "[PENDING_SWEEP_ERROR] recordId={} error={}",
+                    pending.idAsString, ex.message, ex
+                )
+            }
+        }
+
+        log.info(
+            "[PENDING_SWEEP_COMPLETE] stream={} group={} processed={}",
+            streamKey, group, processedCount
+        )
+
+        return processedCount
     }
 
     private fun createGroupIfAbsent(streamKey: String, group: String) {

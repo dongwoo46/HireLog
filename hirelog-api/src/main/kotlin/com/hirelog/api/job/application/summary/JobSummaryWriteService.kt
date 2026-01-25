@@ -6,7 +6,6 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSummary
-import com.hirelog.api.position.domain.Position
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -35,7 +34,8 @@ class JobSummaryWriteService(
     fun save(
         snapshotId: Long,
         brand: Brand,
-        position: Position,
+        positionId: Long,
+        positionName: String,
         llmResult: JobSummaryLlmResult
     ): JobSummary {
         // ── [LOG] JobSummary 생성 직전 전체 필드 덤프 ─────────────────────
@@ -57,7 +57,7 @@ class JobSummaryWriteService(
         """.trimIndent(),
             snapshotId,
             brand.id, brand.name,
-            position.id, position.name,
+            positionId, positionName,
             llmResult.careerType, llmResult.careerYears,
             llmResult.summary,
             llmResult.responsibilities,
@@ -74,8 +74,8 @@ class JobSummaryWriteService(
             brandName = brand.name,
             companyId = null,
             companyName = null,
-            positionId = position.id,
-            positionName = position.name,
+            positionId = positionId,
+            positionName = positionName,
 
             careerType = llmResult.careerType,
             careerYears = llmResult.careerYears,

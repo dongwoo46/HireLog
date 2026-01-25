@@ -208,3 +208,32 @@ VALUES
     ('Finance Manager', 'finance_manager', 'ACTIVE',
      (SELECT id FROM position_category WHERE normalized_name='finance_accounting'),
      now(), now(), 0);
+
+
+-- 기본 카테고리 (예: GENERAL)
+INSERT INTO position_category (name, normalized_name, created_at, updated_at)
+VALUES ('GENERAL', 'general', now(), now())
+    ON CONFLICT (normalized_name) DO NOTHING;
+
+INSERT INTO position (
+    name,
+    normalized_name,
+    status,
+    category_id,
+    description,
+    created_at,
+    updated_at,
+    version
+)
+SELECT
+    'UNKNOWN',
+    'unknown',
+    'ACTIVE',
+    pc.id,
+    'LLM 매핑 실패 시 fallback 포지션',
+    now(),
+    now(),
+    0
+FROM position_category pc
+WHERE pc.normalized_name = 'general'
+    ON CONFLICT (normalized_name) DO NOTHING;

@@ -47,8 +47,6 @@ class JobSummaryLlmResultAssembler {
             recruitmentProcess = raw.recruitmentProcess,
             brandName = raw.brandName ?: throw IllegalStateException("brandName missing"),
             positionName = raw.positionName ?: throw IllegalStateException("positionName missing"),
-            positionCategoryName = raw.positionCategoryName
-                ?: throw IllegalStateException("positionCategoryName missing"),
             brandPositionName = raw.brandPositionName
         )
     }
