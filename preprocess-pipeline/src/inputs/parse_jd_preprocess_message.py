@@ -9,7 +9,6 @@ def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
     - 메시지 계약 검증
     - 필수 필드 검증
     """
-
     values = message["values"]
 
     # ---- metadata ----
@@ -34,25 +33,41 @@ def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
 
     # ---- payload ----
     source = values.get("payload.source")
-    if source not in ("TEXT", "IMAGE"):
+    if source not in ("TEXT", "IMAGE", "URL"):
         raise ValueError(f"Invalid source: {source}")
 
     text = values.get("payload.text")
-    image_url = values.get("payload.imageUrl")
+    
+    # [Fix] Redis Stream message might contain 'payload.images' as a string or list.
+    # User confirmed the key is 'payload.images'.
+    raw_images = values.get("payload.images")
+    images = []
+    if raw_images:
+        if isinstance(raw_images, str):
+            # If it's a string, treat as single path
+            images = [raw_images]
+        elif isinstance(raw_images, list):
+            images = raw_images
+
+    url = values.get("payload.sourceUrl") or values.get("payload.url")
 
     if source == "TEXT" and not text:
         raise ValueError("payload.text is required when source=TEXT")
 
-    if source == "IMAGE" and not image_url:
-        raise ValueError("payload.imageUrl is required when source=IMAGE")
+    if source == "IMAGE" and not images:
+        raise ValueError("payload.images is required when source=IMAGE")
+
+    if source == "URL" and not url:
+        raise ValueError("payload.sourceUrl is required when source=URL")
 
     return JdPreprocessInput(
         request_id=request_id,
         brand_name=brand_name,
         position_name=position_name,
         source=source,
-        created_at=int(created_at),      # ✅ 여기
-        message_version=message_version, # ✅ 여기
+        created_at=int(created_at),
+        message_version=message_version,
         text=text,
-        image_url=image_url,
+        images=images,
+        url=url,
     )

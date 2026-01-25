@@ -2,20 +2,21 @@ package com.hirelog.api.job.application.summary
 
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.Brand
-import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.brandposition.application.BrandPositionWriteService
-import com.hirelog.api.common.domain.VerificationStatus
 import com.hirelog.api.job.application.intake.JdIntakePolicy
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
-import com.hirelog.api.job.application.intake.model.JdIntakeHashes
+import com.hirelog.api.job.application.intake.model.IntakeHashes
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.messaging.JdPreprocessResponseMessage
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
+import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.CareerType
 import com.hirelog.api.job.domain.JdSummaryProcessing
 import com.hirelog.api.job.domain.JdSummaryProcessingStatus
+import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.RecruitmentPeriodType
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.query.PositionView
@@ -34,17 +35,18 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 @ExtendWith(MockKExtension::class)
-class JobSummaryGenerationFacadeServiceTest {
+class SummaryGenerationFacadeServiceTest {
 
     @MockK
     lateinit var processingWriteService: JdSummaryProcessingWriteService
 
     @MockK
     lateinit var snapshotWriteService: JobSnapshotWriteService
+
+    @MockK
+    lateinit var snapshotQuery: JobSnapshotQuery
 
     @MockK
     lateinit var jdIntakePolicy: JdIntakePolicy
@@ -64,14 +66,15 @@ class JobSummaryGenerationFacadeServiceTest {
     @MockK
     lateinit var positionQuery: PositionQuery
 
-    private lateinit var facadeService: JobSummaryGenerationFacadeService
+    private lateinit var facadeService: SummaryGenerationFacadeService
     private val testExecutor = Executors.newSingleThreadExecutor()
 
     @BeforeEach
     fun setUp() {
-        facadeService = JobSummaryGenerationFacadeService(
+        facadeService = SummaryGenerationFacadeService(
             processingWriteService = processingWriteService,
             snapshotWriteService = snapshotWriteService,
+            snapshotQuery = snapshotQuery,
             jdIntakePolicy = jdIntakePolicy,
             llmClient = llmClient,
             summaryWriteService = summaryWriteService,
@@ -85,12 +88,13 @@ class JobSummaryGenerationFacadeServiceTest {
         every { this@mockk.requestId } returns requestId
         every { brandName } returns "테스트회사"
         every { positionName } returns "백엔드 개발자"
-        every { source } returns "MANUAL"
+        every { source } returns JobSourceType.TEXT
         every { sourceUrl } returns "https://example.com"
         every { canonicalMap } returns mapOf("responsibilities" to listOf("API 개발"))
-        every { recruitmentPeriodType } returns null
+        every { recruitmentPeriodType } returns RecruitmentPeriodType.UNKNOWN
         every { openedDate } returns null
         every { closedDate } returns null
+        every { skills } returns emptyList()
     }
 
     private fun createTestProcessing(id: UUID = UUID.randomUUID()) = mockk<JdSummaryProcessing> {
@@ -140,7 +144,7 @@ class JobSummaryGenerationFacadeServiceTest {
             // given
             val message = createTestMessage()
             val processing = createTestProcessing()
-            val hashes = JdIntakeHashes(
+            val hashes = IntakeHashes(
                 canonicalHash = "hash123",
                 simHash = 12345L,
                 coreText = "core text"
@@ -177,7 +181,7 @@ class JobSummaryGenerationFacadeServiceTest {
             val message = createTestMessage()
             val processing = createTestProcessing()
             val processingId = processing.id
-            val hashes = JdIntakeHashes("hash", 123L, "core")
+            val hashes = IntakeHashes("hash", 123L, "core")
 
             every { processingWriteService.startProcessing(any()) } returns processing
             every { jdIntakePolicy.isValidJd(any()) } returns true
@@ -214,7 +218,7 @@ class JobSummaryGenerationFacadeServiceTest {
             // given
             val message = createTestMessage()
             val processing = createTestProcessing()
-            val hashes = JdIntakeHashes("hash", 123L, "core")
+            val hashes = IntakeHashes("hash", 123L, "core")
             val llmResult = createTestLlmResult()
             val positionView = createTestPositionView()
             val brand = createTestBrand()
@@ -250,7 +254,7 @@ class JobSummaryGenerationFacadeServiceTest {
             // given
             val message = createTestMessage()
             val processing = createTestProcessing()
-            val hashes = JdIntakeHashes("hash", 123L, "core")
+            val hashes = IntakeHashes("hash", 123L, "core")
             val llmResult = createTestLlmResult()
             val unknownPosition = createTestPositionView(id = 999L, name = "UNKNOWN", normalizedName = "unknown")
             val brand = createTestBrand()
@@ -288,7 +292,7 @@ class JobSummaryGenerationFacadeServiceTest {
             // given
             val message = createTestMessage()
             val processing = createTestProcessing()
-            val hashes = JdIntakeHashes("hash", 123L, "core")
+            val hashes = IntakeHashes("hash", 123L, "core")
             val llmResult = createTestLlmResult()
             val brand = createTestBrand()
 

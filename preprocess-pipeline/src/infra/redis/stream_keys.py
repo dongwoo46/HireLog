@@ -20,6 +20,9 @@ class JdStreamKeys:
     # OCR 기반 JD 전처리 요청
     PREPROCESS_OCR_REQUEST = "jd:preprocess:ocr:request:stream"
 
+    # URL 기반 JD 전처리 요청 (추가)
+    PREPROCESS_URL_REQUEST = "jd:preprocess:url:request:stream"
+
     # ==================================================
     # PREPROCESS RESULT (Python → Spring)
     # ==================================================

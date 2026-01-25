@@ -17,11 +17,12 @@ class JdPreprocessInput:
     request_id: str
     brand_name: str
     position_name: str
-    source: str              # ✅ 추가 (TEXT / IMAGE)
+    source: str              # ✅ 추가 (TEXT / IMAGE / URL)
 
     created_at: int
     message_version: str
 
     # ---- payload ----
     text: Optional[str] = None
-    image_url: Optional[str] = None   # ✅ 추가
+    images: Optional[list] = None
+    url: Optional[str] = None          # ✅ 추가

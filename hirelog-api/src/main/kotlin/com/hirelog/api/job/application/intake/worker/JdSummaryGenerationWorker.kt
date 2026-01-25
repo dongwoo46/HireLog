@@ -3,9 +3,9 @@ package com.hirelog.api.job.application.intake.worker
 import com.hirelog.api.common.async.MdcExecutor
 import com.hirelog.api.common.infra.redis.messaging.RedisStreamConsumer
 import com.hirelog.api.common.logging.log
-import com.hirelog.api.jd.application.messaging.JdStreamKeys
+import com.hirelog.api.job.application.messaging.JdStreamKeys
 import com.hirelog.api.job.application.messaging.mapper.JdPreprocessResponseMessageMapper
-import com.hirelog.api.job.application.summary.JobSummaryGenerationFacadeService
+import com.hirelog.api.job.application.summary.SummaryGenerationFacadeService
 import jakarta.annotation.PreDestroy
 import org.slf4j.MDC
 import org.springframework.stereotype.Component
@@ -17,10 +17,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * TextJobSummaryGenerationWorker
+ * JdSummaryGenerationWorker
  *
  * 책임:
- * - JD 전처리 결과 Stream 소비 트리거
+ * - JD 전처리 결과 Stream 소비 (TEXT/OCR/URL 공통)
  * - 메시지 → 계약 DTO 변환
  * - 비동기 파이프라인 디스패치 + 동시성 제어
  *
@@ -29,16 +29,17 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   → Consumer 스레드가 semaphore.acquire()에서 blocking = 자연스러운 배압
  * - pipelineExecutor: Pre-LLM/Post-LLM 단계 실행용 스레드 풀
  * - MdcExecutor: pipelineExecutor를 래핑하여 MDC 전파 보장
+ * - N개 Consumer: 병렬 메시지 처리 (CONSUMER_COUNT)
  *
  * Graceful Shutdown:
  * - 새 메시지 소비 중단 (running = false)
  * - in-flight 파이프라인 완료 대기 (awaitTermination)
  */
 @Component
-class TextJobSummaryGenerationWorker(
+class JdSummaryGenerationWorker(
     private val redisConsumer: RedisStreamConsumer,
     private val messageMapper: JdPreprocessResponseMessageMapper,
-    private val jobSummaryFacadeService: JobSummaryGenerationFacadeService
+    private val jobSummaryFacadeService: SummaryGenerationFacadeService
 ) {
 
     companion object {
@@ -46,6 +47,7 @@ class TextJobSummaryGenerationWorker(
         private const val PIPELINE_THREAD_POOL_SIZE = 4
         private const val SHUTDOWN_TIMEOUT_SECONDS = 60L
         private const val CONSUMER_GROUP = "jd-summary-generation-group"
+        private const val CONSUMER_COUNT = 3
     }
 
     private val running = AtomicBoolean(true)
@@ -57,35 +59,46 @@ class TextJobSummaryGenerationWorker(
     fun startConsuming() {
         val streamKey = JdStreamKeys.PREPROCESS_RESPONSE
         val group = CONSUMER_GROUP
-        val consumer = "jd-summary-consumer-${System.getenv("HOSTNAME") ?: "local"}"
+        val hostname = System.getenv("HOSTNAME") ?: "local"
 
         log.info(
-            "[JD_SUMMARY_WORKER] startConsuming called, streamKey={}, group={}, maxConcurrency={}",
+            "[JD_SUMMARY_WORKER] startConsuming called, streamKey={}, group={}, consumerCount={}, maxConcurrency={}",
             streamKey,
             group,
+            CONSUMER_COUNT,
             MAX_LLM_CONCURRENCY
         )
 
-        // Pending Sweep: 앱 재시작 시 미처리된 메시지 복구
-        val sweptCount = redisConsumer.sweepPendingMessages(
-            streamKey = streamKey,
-            group = group,
-            consumer = consumer
-        ) { recordId, rawMessage ->
-            dispatch(recordId, rawMessage)
-        }
+        // N개 Consumer 시작
+        repeat(CONSUMER_COUNT) { index ->
+            val consumerName = "jd-summary-consumer-$hostname-$index"
 
-        if (sweptCount > 0) {
-            log.info("[JD_SUMMARY_WORKER] Pending sweep completed, processed={}", sweptCount)
-        }
+            // Pending Sweep: 앱 재시작 시 미처리된 메시지 복구
+            val sweptCount = redisConsumer.sweepPendingMessages(
+                streamKey = streamKey,
+                group = group,
+                consumer = consumerName
+            ) { recordId, rawMessage ->
+                dispatch(recordId, rawMessage)
+            }
 
-        // 정상 소비 시작
-        redisConsumer.consume(
-            streamKey = streamKey,
-            group = group,
-            consumer = consumer
-        ) { recordId, rawMessage ->
-            dispatch(recordId, rawMessage)
+            if (sweptCount > 0) {
+                log.info(
+                    "[JD_SUMMARY_WORKER] Pending sweep completed, consumer={}, processed={}",
+                    consumerName, sweptCount
+                )
+            }
+
+            // 정상 소비 시작 (각 Consumer는 RedisStreamConsumer 내부에서 별도 스레드로 동작)
+            redisConsumer.consume(
+                streamKey = streamKey,
+                group = group,
+                consumer = consumerName
+            ) { recordId, rawMessage ->
+                dispatch(recordId, rawMessage)
+            }
+
+            log.info("[JD_SUMMARY_WORKER] Consumer started, consumer={}", consumerName)
         }
     }
 

@@ -40,7 +40,14 @@ def is_ocr_header_line(line: dict) -> bool:
     if not any(kw in text_lower for kw in header_keywords):
         return False
 
-    # 6️⃣ 시각적 보강 조건
+    if text.startswith(("·", "-", "•", "*")):
+        return False
+
+    # 숫자 시작 라인 차단 (목차/순서 방어)
+    if text[0].isdigit():
+        return False
+
+        # 6️⃣ 시각적 보강 조건
     if _visual_header_signal(line):
         return True
 

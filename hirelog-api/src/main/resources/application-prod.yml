@@ -17,3 +17,8 @@ hirelog:
   worker:
     job-summary:
       enabled: true
+
+# application-prod.yml
+app:
+  storage:
+    base-dir: /data/hirelog/storage

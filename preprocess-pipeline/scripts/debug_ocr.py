@@ -57,7 +57,8 @@ def main():
     # --------------------------------------------------
     # 테스트할 이미지 경로
     # --------------------------------------------------
-    image_path = "data/raw/sample2.png"
+    # [Mod] List support test
+    image_paths = ["data/raw/image.png"] 
 
     # ==================================================
     # 1️⃣ OCR 파이프라인 실행
@@ -65,7 +66,7 @@ def main():
     # 이 단계의 책임:
     # - 이미지를 텍스트로 "복원"
     # - JD인지 아닌지는 여기서 판단하지 않음
-    ocr_result = process_ocr_input(image_path)
+    ocr_result = process_ocr_input(image_paths)
 
     # --------------------------------------------------
     # OCR 결과 출력 (디버그용)

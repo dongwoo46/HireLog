@@ -14,6 +14,7 @@ from normalize.token_normalizer import normalize_token
 from common.vocab.loader import load_jd_vocab
 from ocr.garbled_korean import is_garbled_korean
 from common.section.loader import load_jd_meta_keywords
+from common.section.loader import load_header_keywords
 
 def is_korean_sentence(text: str) -> bool:
     """
@@ -52,6 +53,9 @@ def postprocess_ocr_lines(lines: list[dict]) -> list[dict]:
     # JD 메타 키워드 (전형절차, 인터뷰)
     meta_keywords = load_jd_meta_keywords()
 
+    # 헤더 키워드 로딩
+    header_keywords = load_header_keywords()   # ✅ 한 번만 로드
+
     # JD와 무관한 라인 제거
     # (푸터, 전형절차 안내 등 명백한 노이즈만 제거)
     filtered = filter_ocr_noise_lines(lines, noise_keywords)
@@ -60,14 +64,25 @@ def postprocess_ocr_lines(lines: list[dict]) -> list[dict]:
     for line in filtered:
         text = line.get("text", "")
         section = line.get("section")
-        # 1️⃣ OCR 깨진 한글 제거
-        if is_garbled_korean(text):
-            continue
+        # print(f"\n--- [LINE START] ---")
+        # print(f"text = '{text}'")
 
         text_lower = text.lower()
 
+        # 0️⃣ 헤더 키워드면 무조건 보존
+        if text_lower in header_keywords:
+            # print("✅ KEEP: header keyword")
+            processed.append(line)
+            continue
+
+        # 1️⃣ OCR 깨진 한글 제거
+        if is_garbled_korean(text):
+            # print("❌ DROP: is_garbled_korean")
+            continue
+
         # 2️⃣ JD 메타 정보 보호 (전형절차, 고용형태 등)
         if any(k in text_lower for k in meta_keywords):
+            # print("✅ KEEP: meta keyword")
             processed.append(line)
             continue
 
@@ -78,6 +93,7 @@ def postprocess_ocr_lines(lines: list[dict]) -> list[dict]:
 
         # 3️⃣ 기술/영문 토큰만 정규화
         tokens = text.split()
+        # print(f"tokens = {tokens}")
         new_tokens: list[str] = []
 
         for token in tokens:
@@ -89,6 +105,7 @@ def postprocess_ocr_lines(lines: list[dict]) -> list[dict]:
 
             # garbage 토큰은 제거
             if normalized is None:
+                # print(f"  - DROP TOKEN '{token}'")
                 continue
 
             new_tokens.append(normalized)
@@ -96,13 +113,16 @@ def postprocess_ocr_lines(lines: list[dict]) -> list[dict]:
         # 4️⃣ 토큰 결과가 비어도 라인 전체는 유지
         # (의미 있는 라인이 사라지는 것을 방지)
         if not new_tokens:
+            # print("⚠️ KEEP: empty tokens, keeping original")
             processed.append(line)
             continue
+        
+        new_text = " ".join(new_tokens)
 
         # 5️⃣ 정규화된 토큰으로 텍스트 교체
         processed.append({
             **line,
-            "text": " ".join(new_tokens)
+            "text": new_text
         })
 
     # 이 단계에서는 구조화(build_sections) 하지 않음

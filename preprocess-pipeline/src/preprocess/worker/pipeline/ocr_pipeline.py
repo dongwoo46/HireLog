@@ -1,76 +1,87 @@
 from inputs.jd_preprocess_input import JdPreprocessInput
-from preprocess.worker.pipeline.text_preprocess_pipeline import TextPreprocessPipeline
-
 from ocr.pipeline import process_ocr_input
+from ocr.structure.header_grouping import extract_sections_by_header
+from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
+from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
+from preprocess.adapter.ocr_section_adapter import adapt_ocr_sections_to_sections
 
 
 class OcrPipeline:
     """
     IMAGE 기반 JD 전처리 파이프라인
 
-    역할:
-    - OCR 파이프라인 호출
-    - OCR 결과를 JD 입력으로 변환
-    - TextPreprocessPipeline에 위임
-
-    주의:
-    - OCR 로직은 절대 여기서 구현하지 않는다
-    - 이 클래스는 '조립 테스트 / 운영 연결용'이다
+    핵심 전략:
+    - OCR 단계에서 '구조'를 이미 확보한다
+    - Core / Structural 단계는 절대 재실행하지 않는다
+    - CanonicalSectionPipeline만 재사용한다
     """
 
     def __init__(self):
-        self.text_pipeline = TextPreprocessPipeline()
+        self.canonical = CanonicalSectionPipeline()
+        self.metadata = MetadataPreprocessor()
 
     def process(self, input: JdPreprocessInput) -> dict:
-        """
-        OCR → JD 전처리 전체 흐름 실행
-        """
+        if not input.images:
+            raise ValueError("images is required for OcrPipeline")
 
-        print("[OcrPipeline] start")
+        # 1️⃣ OCR 실행
+        ocr_result = process_ocr_input(input.images)
 
-        if not input.image_url:
-            raise ValueError("image_url is required for OcrPipeline")
-
-        # ==================================================
-        # 1️⃣ OCR 파이프라인 실행
-        # ==================================================
-        ocr_result = process_ocr_input(input.image_url)
-
-        # OCR 실패 시: 여기서 끊어도 되고, fallback 정책 가능
         if ocr_result["status"] == "FAIL":
             raise RuntimeError("OCR failed: confidence too low")
 
-        # ==================================================
-        # 2️⃣ JD 입력 구성
-        # ==================================================
-        # 우선순위:
-        # 1) lines (구조 보존)
-        # 2) rawText fallback
+        # 2️⃣ Header 기반 구조화 (OCR 전용)
+        raw_sections = extract_sections_by_header(ocr_result["lines"])
 
-        if ocr_result.get("lines"):
-            jd_text = "\n".join(ocr_result["lines"])
-        else:
-            jd_text = ocr_result.get("rawText", "")
+        # JD 구조화 결과 출력
+        print("\nJD STRUCTURED SECTIONS")
+        print("======================")
 
-        jd_input = JdPreprocessInput(
-            text=jd_text,
-            image_url=input.image_url,
-            source=input.source
+        if not raw_sections:
+            print("(no sections detected)")
+            return
+
+        for header, lines in raw_sections.items():
+            print(f"\n[{header}]")
+
+            if not lines:
+                print("  (empty)")
+                continue
+
+            for text in lines:
+                print(f"  - {text}")
+
+        if not raw_sections:
+            return {
+                "ocr": {
+                    "status": ocr_result["status"],
+                    "confidence": ocr_result["confidence"],
+                    "rawText": ocr_result["rawText"],
+                },
+                "canonical_map": {},
+                "document_meta": {
+                    "error": "NO_SECTIONS_DETECTED"
+                }
+            }
+
+        # 3️⃣ OCR → Section 도메인 객체로 변환
+        sections = adapt_ocr_sections_to_sections(raw_sections)
+
+        # 4️⃣ Metadata (OCR 원본 기준)
+        document_meta = self.metadata.process(
+            [line["text"] for line in ocr_result["lines"] if line.get("text")]
         )
 
-        # ==================================================
-        # 3️⃣ 기존 Text JD 파이프라인에 위임
-        # ==================================================
-        jd_result = self.text_pipeline.process(jd_input)
+        # 5️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
+        canonical_map = self.canonical.process(sections)
 
-        # ==================================================
-        # 4️⃣ OCR 메타 정보 포함해서 반환
-        # ==================================================
+        # 6️⃣ 최종 결과
         return {
             "ocr": {
                 "status": ocr_result["status"],
                 "confidence": ocr_result["confidence"],
                 "rawText": ocr_result["rawText"],
             },
-            "jd": jd_result
+            "canonical_map": canonical_map,
+            "document_meta": document_meta,
         }

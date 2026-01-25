@@ -9,7 +9,7 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
-
+import org.springframework.data.domain.Range
 /**
  * Redis Stream Consumer
  *
@@ -159,21 +159,25 @@ class RedisStreamConsumer(
             .pending(
                 streamKey,
                 Consumer.from(group, consumer),
-                org.springframework.data.domain.Range.unbounded(),
+                Range.closed("-", "+"), // org.springframework.data.domain.Range 사용
                 PENDING_SWEEP_BATCH_SIZE.toLong()
             )
 
-        if (pendingMessages.isNullOrEmpty()) {
+        // pendingMessages 자체가 null일 가능성까지 고려할 때
+        if (pendingMessages?.isEmpty != false) {
             log.info("[PENDING_SWEEP] No claimable pending messages for this consumer. stream={} group={}", streamKey, group)
-            return 0
+            return 0;
         }
 
         for (pending in pendingMessages) {
             // idle time 체크
-            if (pending.idleTimeMs < PENDING_SWEEP_MIN_IDLE_MS) {
+            val idleMs = pending.elapsedTimeSinceLastDelivery.toMillis()
+
+            if (idleMs < PENDING_SWEEP_MIN_IDLE_MS) {
                 log.debug(
                     "[PENDING_SWEEP_SKIP] Message not idle enough. recordId={} idleTimeMs={}",
-                    pending.idAsString, pending.idleTimeMs
+                    pending.idAsString,
+                    idleMs
                 )
                 continue
             }

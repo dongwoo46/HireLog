@@ -49,7 +49,7 @@ class RedisStreamConsumerTest {
                 every { totalPendingMessages } returns 0L
             }
 
-            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } just Runs
+            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } returns "OK"
             every { streamOps.pending(testStreamKey, testGroup) } returns pendingSummary
 
             // when
@@ -73,10 +73,15 @@ class RedisStreamConsumerTest {
 
             val pendingMessage = mockk<PendingMessage> {
                 every { idAsString } returns "1234567890-0"
-                every { idleTimeMs } returns 30_000L  // 30초 (최소 60초 필요)
+                every { elapsedTimeSinceLastDelivery } returns Duration.ofMillis(30_000L)  // 30초 (최소 60초 필요)
             }
 
-            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } just Runs
+            val pendingMessages = mockk<PendingMessages> {
+                every { isEmpty } returns false
+                every { iterator() } returns mutableListOf(pendingMessage).iterator()
+            }
+
+            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } returns "OK"
             every { streamOps.pending(testStreamKey, testGroup) } returns pendingSummary
             every {
                 streamOps.pending(
@@ -85,7 +90,7 @@ class RedisStreamConsumerTest {
                     any<Range<String>>(),
                     any<Long>()
                 )
-            } returns listOf(pendingMessage)
+            } returns pendingMessages
 
             // when
             val result = consumer.sweepPendingMessages(
@@ -109,8 +114,13 @@ class RedisStreamConsumerTest {
 
             val pendingMessage = mockk<PendingMessage> {
                 every { idAsString } returns "1234567890-0"
-                every { idleTimeMs } returns 120_000L  // 2분 (최소 60초 필요)
+                every { elapsedTimeSinceLastDelivery } returns Duration.ofMillis(120_000L)  // 2분 (최소 60초 필요)
                 every { totalDeliveryCount } returns 2L
+            }
+
+            val pendingMessages = mockk<PendingMessages> {
+                every { isEmpty } returns false
+                every { iterator() } returns mutableListOf(pendingMessage).iterator()
             }
 
             val recordId = RecordId.of("1234567890-0")
@@ -119,7 +129,7 @@ class RedisStreamConsumerTest {
                 every { value } returns mapOf("data" to "test")
             }
 
-            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } just Runs
+            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } returns "OK"
             every { streamOps.pending(testStreamKey, testGroup) } returns pendingSummary
             every {
                 streamOps.pending(
@@ -128,7 +138,7 @@ class RedisStreamConsumerTest {
                     any<Range<String>>(),
                     any<Long>()
                 )
-            } returns listOf(pendingMessage)
+            } returns pendingMessages
             every {
                 streamOps.claim(
                     testStreamKey,
@@ -170,8 +180,13 @@ class RedisStreamConsumerTest {
 
             val pendingMessage = mockk<PendingMessage> {
                 every { idAsString } returns "1234567890-0"
-                every { idleTimeMs } returns 120_000L
+                every { elapsedTimeSinceLastDelivery } returns Duration.ofMillis(120_000L)
                 every { totalDeliveryCount } returns 1L
+            }
+
+            val pendingMessages = mockk<PendingMessages> {
+                every { isEmpty } returns false
+                every { iterator() } returns mutableListOf(pendingMessage).iterator()
             }
 
             val recordId = RecordId.of("1234567890-0")
@@ -180,7 +195,7 @@ class RedisStreamConsumerTest {
                 every { value } returns mapOf("data" to "test")
             }
 
-            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } just Runs
+            every { streamOps.createGroup(any(), any<ReadOffset>(), any()) } returns "OK"
             every { streamOps.pending(testStreamKey, testGroup) } returns pendingSummary
             every {
                 streamOps.pending(
@@ -189,7 +204,7 @@ class RedisStreamConsumerTest {
                     any<Range<String>>(),
                     any<Long>()
                 )
-            } returns listOf(pendingMessage)
+            } returns pendingMessages
             every {
                 streamOps.claim(
                     testStreamKey,
@@ -222,7 +237,7 @@ class RedisStreamConsumerTest {
                 every { totalPendingMessages } returns 0L
             }
 
-            every { streamOps.createGroup(testStreamKey, ReadOffset.from("0-0"), testGroup) } just Runs
+            every { streamOps.createGroup(testStreamKey, ReadOffset.from("0-0"), testGroup) } returns "OK"
             every { streamOps.pending(testStreamKey, testGroup) } returns pendingSummary
 
             // when

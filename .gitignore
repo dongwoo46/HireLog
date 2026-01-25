@@ -11,6 +11,7 @@ opensearch_data/
 *.iml
 .vscode/
 .intellij/
+/storage/
 
 # ===============================
 # Frontend

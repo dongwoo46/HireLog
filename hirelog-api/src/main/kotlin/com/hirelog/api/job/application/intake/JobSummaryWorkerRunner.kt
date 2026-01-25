@@ -2,10 +2,9 @@ package com.hirelog.api.job.application.intake
 
 import com.hirelog.api.common.config.properties.HirelogWorkerProperties
 import com.hirelog.api.common.logging.log
-import com.hirelog.api.job.application.intake.worker.TextJobSummaryGenerationWorker
+import com.hirelog.api.job.application.intake.worker.JdSummaryGenerationWorker
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
-import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 
 /**
@@ -20,7 +19,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class JobSummaryWorkerRunner(
-    private val worker: TextJobSummaryGenerationWorker,
+    private val worker: JdSummaryGenerationWorker,
     private val workerProperties: HirelogWorkerProperties
 ) : ApplicationRunner {
 

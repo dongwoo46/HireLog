@@ -17,28 +17,24 @@ JD_HEADER_KEYWORDS = {
 # =========================
 KOREAN_PARTICLE_PATTERN = re.compile(
     r"(은|는|이|가|을|를|의|에|에서|로|으로|와|과|도|만|"
-    r"하다|되다|있다|없다|이다|하고|이며|입니다|합니다|"
-    r"된|할|한|등|및|적)"
+    r"부터|까지|마다|조차|밖에|"  # 보조사
+    r"하다|되다|있다|없다|이다|하고|이며|입니다|합니다|"  # 서술격/동사
+    r"된|할|한|등|및|적)"  # 관형사형 어미 + 접속사
 )
 
-# =========================
 # 명백한 OCR 깨짐 패턴
-# =========================
 GARBLED_PATTERNS = [
-    re.compile(r"[가-힣][A-Z][가-힣]"),        # 위Y거로우로
-    re.compile(r"[가-힣]{1,2}[*\(\)]+[가-힣]"), # 글(*자
-    re.compile(r"[ㄱ-ㅎㅏ-ㅣ]{2,}"),           # ㅇㅆ, ㄱㅏ
+    # 단, 영어 단어가 완성형이면 제외 (Community등, API개발 같은 경우)
+    re.compile(r"[가-힣][A-Z][가-힣][A-Z][가-힣]"),  # 더 엄격하게: 한A한A한 패턴만
+    re.compile(r"[가-힣]{1,2}[*]+[가-힣]"),  # 글*자 (괄호는 정상일 수 있음)
+    re.compile(r"[ㄱ-ㅎㅏ-ㅣ]{2,}"),        # ㅇㅆ, ㄱㅏ
 ]
 
 
 def is_garbled_korean(text: str) -> bool:
     """
     OCR로 깨진 한국어 노이즈 판별
-
-    True  → 제거 대상
-    False → 유지 대상
     """
-
     if not text:
         return True
 
@@ -48,50 +44,44 @@ def is_garbled_korean(text: str) -> bool:
 
     compact = text.replace(" ", "").lower()
 
-    # =========================
     # 0️⃣ JD 헤더 / 메타는 무조건 보호
-    # =========================
     for kw in JD_HEADER_KEYWORDS:
         if kw.replace(" ", "").lower() in compact:
+            print(f"    [garbled_check] PASS: header keyword '{kw}'")
             return False
 
-    # =========================
     # 1️⃣ 명백한 깨짐 패턴
-    # =========================
     for pattern in GARBLED_PATTERNS:
         if pattern.search(text):
+            print(f"    [garbled_check] FAIL: garbled pattern")
             return True
 
-    # =========================
     # 2️⃣ 한글 비율 계산
-    # =========================
     korean_chars = sum(1 for c in text if '가' <= c <= '힣')
     total_chars = len(text)
 
     if korean_chars == 0:
-        # 영문 전용은 여기서 판단하지 않음
+        print(f"    [garbled_check] PASS: no korean chars")
         return False
 
     korean_ratio = korean_chars / total_chars
+    print(f"    [garbled_check] len={len(text)}, korean_chars={korean_chars}, ratio={korean_ratio:.2f}")
 
-    # =========================
     # 3️⃣ 짧은 텍스트 (≤ 12자)
-    # =========================
     if len(text) <= 12:
-        # 한글 위주인데 조사/어미 없음 → 깨진 확률 높음
         if korean_ratio > 0.9 and not KOREAN_PARTICLE_PATTERN.search(text):
+            print(f"    [garbled_check] FAIL: short text, high korean ratio, no particles")
             return True
 
-        # 한글 + 대문자 1글자 섞임
         upper_count = sum(1 for c in text if c.isupper())
         if korean_ratio >= 0.7 and upper_count == 1:
+            print(f"    [garbled_check] FAIL: short text, 1 uppercase")
             return True
 
-    # =========================
     # 4️⃣ 중간 길이 (13 ~ 30자)
-    # =========================
     elif 13 <= len(text) <= 30:
         if korean_ratio > 0.8 and not KOREAN_PARTICLE_PATTERN.search(text):
+            print(f"    [garbled_check] FAIL: medium text, high ratio, no particles")
             return True
 
         special_chars = sum(
@@ -99,13 +89,21 @@ def is_garbled_korean(text: str) -> bool:
             if not (c.isalnum() or c.isspace() or c in ":-,.()/▶")
         )
         if special_chars / total_chars > 0.3:
+            print(f"    [garbled_check] FAIL: too many special chars ({special_chars}/{total_chars})")
             return True
 
-    # =========================
-    # 5️⃣ 긴 텍스트 (31자 이상)
-    # =========================
+    # ⭐ 5️⃣ 긴 텍스트 (31자 이상)
     else:
-        if korean_ratio > 0.7 and not KOREAN_PARTICLE_PATTERN.search(text):
+        if korean_chars >= 50:
+            print(f"    [garbled_check] PASS: long text with many korean chars")
+            return False
+        
+        has_particles = KOREAN_PARTICLE_PATTERN.search(text)
+        print(f"    [garbled_check] has_particles={bool(has_particles)}")
+        
+        if korean_ratio > 0.9 and not has_particles:
+            print(f"    [garbled_check] FAIL: long text, very high ratio, no particles")
             return True
 
+    print(f"    [garbled_check] PASS: default")
     return False

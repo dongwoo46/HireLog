@@ -14,7 +14,9 @@ import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingW
 import com.hirelog.api.job.application.messaging.JdPreprocessResponseMessage
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
+import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
+import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.query.PositionView
@@ -47,9 +49,10 @@ import java.util.concurrent.TimeoutException
  * - 예외 완료: 인프라 장애 (DB 불가 등) → Consumer가 ACK하지 않음 → XPENDING 재처리
  */
 @Service
-class JobSummaryGenerationFacadeService(
+class SummaryGenerationFacadeService(
     private val processingWriteService: JdSummaryProcessingWriteService,
     private val snapshotWriteService: JobSnapshotWriteService,
+    private val snapshotQuery: JobSnapshotQuery,
     private val jdIntakePolicy: JdIntakePolicy,
     private val llmClient: JobSummaryLlm,
     private val summaryWriteService: JobSummaryWriteService,
@@ -90,6 +93,7 @@ class JobSummaryGenerationFacadeService(
         val positionCandidates: List<String>
 
         try {
+            log.warn(message.toString())
             // 최소 요건(섹션 수, 텍스트 길이) 미충족 시 조기 종결
             if (!jdIntakePolicy.isValidJd(message)) {
                 processingWriteService.markFailed(
@@ -98,6 +102,19 @@ class JobSummaryGenerationFacadeService(
                     errorMessage = "JD 유효성 검증 실패: 최소 요건 미충족"
                 )
                 return CompletableFuture.completedFuture(null)
+            }
+
+            // URL 소스인 경우 URL 기반 중복 체크 (해시 기반 체크보다 먼저 수행)
+            if (message.source == JobSourceType.URL && !message.sourceUrl.isNullOrBlank()) {
+                val existingSnapshots = snapshotQuery.loadSnapshotsByUrl(message.sourceUrl)
+                if (existingSnapshots.isNotEmpty()) {
+                    log.info(
+                        "[JD_SUMMARY_URL_DUPLICATE] requestId={}, url={}, existingSnapshotCount={}",
+                        message.requestId, message.sourceUrl, existingSnapshots.size
+                    )
+                    processingWriteService.markDuplicate(processing.id, "URL_DUPLICATE")
+                    return CompletableFuture.completedFuture(null)
+                }
             }
 
             // canonicalMap 기반 해시 생성 (canonicalHash, simHash, coreText)

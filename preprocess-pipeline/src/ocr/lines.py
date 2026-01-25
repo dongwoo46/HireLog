@@ -1,47 +1,27 @@
 """
 PaddleOCR raw 결과를 line 단위 구조로 정규화하는 모듈
 
-용도:
-- PaddleOCR의 line-level 결과를
-  JD 파이프라인에서 공통으로 사용하는 line 포맷으로 변환
-- 이후 normalize / quality filter / JD 후처리의 기준 입력 생성
+책임:
+- OCR line 결과를 JD 파이프라인 표준 line 포맷으로 변환
+- JD 도메인 기준으로 "같은 bullet 내부 줄바꿈"만 병합
 """
 
-ROW_TOLERANCE = 5  # 픽셀 단위, 실험으로 조정
+import re
+
+ROW_TOLERANCE = 5          # 시각적 정렬용
+MAX_Y_GAP = 25             # 같은 bullet 내 줄바꿈 허용 범위
+HEIGHT_SIMILAR_RATIO = 0.8 # 스타일 동일성 보조 기준
+
 
 def _sort_key(line):
     x, y, *_ = line["bbox"]
     return (y // ROW_TOLERANCE, x)
 
+
 def build_lines(raw):
     """
-    PaddleOCR raw 결과를 line 단위 구조로 변환한다.
-
-    입력:
-    - raw: run_ocr()에서 반환된 PaddleOCR raw 리스트
-      [
-        {
-          text: str,
-          confidence: float,   # 0~100
-          box: [[x,y], ...],   # 4-point polygon
-          height: float        # 글자 크기 추정값
-        }
-      ]
-
-    출력:
-    - [
-        {
-          text: str,                  # 한 줄의 텍스트
-          confidence_avg: float,      # 줄 confidence (PaddleOCR score)
-          confidence_min: float,      # 동일 line이므로 avg와 동일
-          low_conf_ratio: float,      # 동일 line이므로 0 또는 1
-          bbox: (x, y, w, h),         # line bounding box
-          token_count: int,           # 공백 기준 토큰 수
-          height: float               # 글자 크기 추정값
-        }
-      ]
+    PaddleOCR raw 결과 → JD 파이프라인용 line 리스트 변환
     """
-
     lines = []
 
     for item in raw:
@@ -53,43 +33,26 @@ def build_lines(raw):
         box = item["box"]
         height = item["height"]
 
-        # PaddleOCR는 이미 line 단위 결과이므로
-        # confidence 통계는 단순화한다.
-        confidence_avg = score
-        confidence_min = score
-        low_conf_ratio = 1.0 if score < 60 else 0.0
-
-        # polygon box를 axis-aligned bbox로 변환
         bbox = _calculate_bbox_from_polygon(box)
 
         lines.append({
             "text": text,
-            "confidence_avg": confidence_avg,
-            "confidence_min": confidence_min,
-            "low_conf_ratio": low_conf_ratio,
+            "confidence_avg": score,
+            "confidence_min": score,
+            "low_conf_ratio": 1.0 if score < 60 else 0.0,
             "bbox": bbox,
             "token_count": len(text.split()),
-            "height": height
+            "height": height,
         })
 
-    # 시각적 위 → 아래 순서를 보장하기 위해 y 좌표 기준 정렬
+    # 시각적 위 → 아래 정렬
     lines.sort(key=_sort_key)
 
-    return lines
+    # JD 도메인 기준 줄 병합
+    return merge_wrapped_lines(lines)
 
 
 def _calculate_bbox_from_polygon(box):
-    """
-    PaddleOCR polygon bounding box를
-    axis-aligned bounding box로 변환한다.
-
-    입력:
-    - box: [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
-
-    출력:
-    - (x, y, w, h)
-    """
-
     xs = [p[0] for p in box]
     ys = [p[1] for p in box]
 
@@ -99,3 +62,129 @@ def _calculate_bbox_from_polygon(box):
     h = max(ys) - y
 
     return (x, y, w, h)
+
+
+# ============================================================
+# JD 전용 병합 로직
+# ============================================================
+
+def merge_wrapped_lines(lines: list[dict]) -> list[dict]:
+    """
+    JD bullet 내부에서 줄바꿈으로 분리된 라인만 병합
+    """
+    if not lines:
+        return []
+
+    merged: list[dict] = []
+    buffer = lines[0].copy()
+
+    for current in lines[1:]:
+        if _should_merge(buffer, current):
+            _merge_into_buffer(buffer, current)
+        else:
+            merged.append(buffer)
+            buffer = current.copy()
+
+    merged.append(buffer)
+    return merged
+
+
+def _should_merge(prev: dict, curr: dict) -> bool:
+    """
+    병합 여부 판단 (JD 기준)
+    """
+    prev_text = prev["text"].strip()
+    curr_text = curr["text"].strip()
+
+    # 1. 이전 줄이 bullet이 아니면 병합 금지
+    if not _is_bullet(prev_text):
+        return False
+
+    # 2. 다음 줄이 bullet이면 새로운 항목 → 병합 금지
+    if _is_bullet(curr_text):
+        return False
+
+    # 3. y 간격이 너무 크면 다른 문단
+    prev_y = prev["bbox"][1]
+    curr_y = curr["bbox"][1]
+    if curr_y - prev_y > MAX_Y_GAP:
+        return False
+
+    # 4. 글자 크기 스타일이 너무 다르면 병합 금지
+    prev_h = prev.get("height", 0)
+    curr_h = curr.get("height", 0)
+    if prev_h and curr_h:
+        ratio = min(prev_h, curr_h) / max(prev_h, curr_h)
+        if ratio < HEIGHT_SIMILAR_RATIO:
+            return False
+
+    # 5. 다음 줄이 continuation 형태인지 확인
+    return _is_continuation_line(curr_text)
+
+
+def _merge_into_buffer(buffer: dict, current: dict):
+    """
+    current line을 buffer에 병합
+    """
+    buffer["text"] = buffer["text"].rstrip() + current["text"].lstrip()
+
+    # bbox 확장
+    x1 = min(buffer["bbox"][0], current["bbox"][0])
+    y1 = min(buffer["bbox"][1], current["bbox"][1])
+    x2 = max(buffer["bbox"][0] + buffer["bbox"][2],
+             current["bbox"][0] + current["bbox"][2])
+    y2 = max(buffer["bbox"][1] + buffer["bbox"][3],
+             current["bbox"][1] + current["bbox"][3])
+
+    buffer["bbox"] = (x1, y1, x2 - x1, y2 - y1)
+
+    # confidence 보수적 갱신
+    buffer["confidence_avg"] = (
+        buffer["confidence_avg"] + current["confidence_avg"]
+    ) / 2
+    buffer["confidence_min"] = min(
+        buffer["confidence_min"], current["confidence_min"]
+    )
+
+    buffer["token_count"] = len(buffer["text"].split())
+
+
+# ============================================================
+# 판단 유틸
+# ============================================================
+
+def _is_bullet(text: str) -> bool:
+    """
+    bullet / 번호 항목 여부
+    """
+    if not text:
+        return False
+
+    bullets = ('·', '-', '•', '※', '○', '●', '□', '■', '▪', '▫')
+    if text.startswith(bullets):
+        return True
+
+    return bool(re.match(
+        r'^(\d+[\.\)]|[가-힣][\.\)]|\(\d+\)|\([가-힣]\))\s?',
+        text
+    ))
+
+
+def _is_continuation_line(text: str) -> bool:
+    """
+    bullet 내부 continuation 줄 판단
+    """
+    if not text:
+        return False
+
+    # JD OCR에서 자주 나오는 잘림 패턴
+    prefixes = (
+        '의', '를', '을', '로', '으로', '및', '서,', '며',
+        '고 ', '드 ', '서 ', '와 ', '과 '
+    )
+
+    if text.startswith(prefixes):
+        return True
+
+    # 한글 조사로 시작
+    return bool(re.match(r'^[가-힣]{1,2}\s', text))

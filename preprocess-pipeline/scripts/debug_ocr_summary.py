@@ -16,6 +16,8 @@ from infra.redis.stream_consumer import RedisStreamConsumer
 from infra.redis.stream_keys import JdStreamKeys
 from preprocess.worker.jd_preprocess_ocr_worker import JdPreprocessOcrWorker
 from inputs.parse_jd_preprocess_message import parse_jd_preprocess_message
+import json
+from dataclasses import asdict
 
 logger = logging.getLogger(__name__)
 
@@ -59,16 +61,8 @@ def main():
             # ==================================================
             output = worker.process(input)
 
-            canonical_text = output.canonical_text
-
-            logger.info(
-                "[JD_OCR_PREPROCESS_DONE] requestId=%s entryId=%s canonicalLength=%d\n%s",
-                input.request_id,
-                entry_id,
-                len(canonical_text),
-                canonical_text,
-            )
-
+            print("[DEBUG] JdPreprocessOutput (asdict):")
+            print(json.dumps(asdict(output), ensure_ascii=False, indent=2))
             # ==================================================
             # 3️⃣ 성공 시 ACK
             # ==================================================

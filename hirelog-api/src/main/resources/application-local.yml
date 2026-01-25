@@ -25,3 +25,7 @@ hirelog:
   worker:
     job-summary:
       enabled: true
+
+app:
+  storage:
+    base-dir: C:/Users/dw/Desktop/HireLog/storage

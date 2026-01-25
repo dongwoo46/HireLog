@@ -22,11 +22,24 @@ def is_text_header_candidate(line: str, next_line: str | None) -> bool:
 
     # 1️⃣ 정책 키워드 (가장 확실)
     header_keywords = load_header_keywords()
+    # 1️⃣ 완전 일치 헤더
     if lowered in header_keywords:
         return True
 
+    # 2️⃣ 부분 일치 헤더
+    for keyword in header_keywords:
+        if keyword in lowered:
+            return True
+
+    # 1-2️⃣ 대괄호 / 꺾쇠 괄호
+    if (
+        (stripped.startswith("[") and stripped.endswith("]")) or
+        (stripped.startswith("<") and stripped.endswith(">"))
+    ):
+        return True
+
     # 너무 길면 본문
-    if len(stripped) > 30:
+    if len(stripped) > 80:
         return False
 
     # 괄호 포함 → 제목일 확률 낮음

@@ -1,4 +1,4 @@
-package com.hirelog.api.jd.application.messaging
+package com.hirelog.api.job.application.messaging
 
 /**
  * JD 비동기 처리용 Stream Key 정의
@@ -42,6 +42,15 @@ object JdStreamKeys {
     const val PREPROCESS_OCR_REQUEST =
         "jd:preprocess:ocr:request:stream"
 
+    /**
+     * URL 기반 JD 전처리 요청
+     *
+     * 용도:
+     * - URL 크롤링 + 파싱
+     * - 파싱 결과를 TEXT 전처리 파이프라인으로 연결
+     */
+    const val PREPROCESS_URL_REQUEST =
+        "jd:preprocess:url:request:stream"
 
     // ==================================================
     // PREPROCESS RESULT (Python → Spring)
