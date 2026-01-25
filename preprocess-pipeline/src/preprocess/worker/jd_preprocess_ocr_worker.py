@@ -51,6 +51,15 @@ class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
             )
 
             # ==================================================
+            # 2.5️⃣ Skills 추출 (읽기 전용)
+            # ==================================================
+            skill_set = (
+                document_meta.skill_set
+                if document_meta and document_meta.skill_set
+                else None
+            )
+
+            # ==================================================
             # 3️⃣ Output DTO 구성
             # ==================================================
             output = JdPreprocessOutput(
@@ -69,6 +78,7 @@ class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
                 recruitment_period_type=period.period_type if period else None,
                 recruitment_open_date=period.open_date if period else None,
                 recruitment_close_date=period.close_date if period else None,
+                skills=skill_set.skills if skill_set else None,
             )
 
             # ==================================================

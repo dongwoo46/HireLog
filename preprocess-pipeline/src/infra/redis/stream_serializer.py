@@ -29,10 +29,18 @@ class RedisStreamSerializer:
 
         message: dict[str, str] = {}
 
+        # ===============================
+        # Meta 영역
+        # ===============================
         for k, v in metadata.items():
             message[f"meta.{k}"] = str(v)
 
+        # ===============================
+        # Payload 영역
+        # ===============================
         for k, v in payload.items():
-            message[f"payload.{k}"] = str(v)
+            message[f"payload.{k}"] = (
+                v if isinstance(v, str) else str(v)
+            )
 
         return message

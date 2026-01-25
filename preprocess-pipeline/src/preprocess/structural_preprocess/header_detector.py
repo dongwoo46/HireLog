@@ -30,6 +30,11 @@ def is_text_header_candidate(line: str, next_line: str | None) -> bool:
         return False
 
     # 괄호 포함 → 제목일 확률 낮음
+    # 1️⃣ 대괄호로 감싼 단독 라인은 강한 header 시그널
+    if stripped.startswith("[") and stripped.endswith("]"):
+        return True
+    
+    # 2️⃣ 소괄호 포함 → 부연 설명일 가능성 높음
     if "(" in stripped or ")" in stripped:
         return False
 

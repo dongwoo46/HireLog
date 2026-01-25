@@ -9,6 +9,7 @@ Metadata Preprocessor
 
 from .document_meta import DocumentMeta
 from .date_meta import extract_recruitment_period
+from .skill_meta import extract_skill_set
 
 
 class MetadataPreprocessor:
@@ -23,7 +24,9 @@ class MetadataPreprocessor:
 
     def process(self, lines: list[str]) -> DocumentMeta:
         recruitment_period = extract_recruitment_period(lines)
+        skill_set = extract_skill_set(lines)
 
         return DocumentMeta(
-            recruitment_period=recruitment_period
+            recruitment_period=recruitment_period,
+            skill_set=skill_set
         )

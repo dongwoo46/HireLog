@@ -8,10 +8,12 @@ Document-level Metadata Container
 
 from dataclasses import dataclass
 from .date_meta import RecruitmentPeriodMeta
+from .skill_meta import SkillSetMeta
 
 
 @dataclass
 class DocumentMeta:
     recruitment_period: RecruitmentPeriodMeta
+    skill_set: SkillSetMeta
 
 

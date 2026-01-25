@@ -34,3 +34,8 @@ class JdPreprocessOutput:
     recruitment_period_type: str|None = None
     recruitment_open_date:  str|None= None
     recruitment_close_date: str|None = None
+
+    # ==================================================
+    # Skills
+    # ==================================================
+    skills: list[str] = None

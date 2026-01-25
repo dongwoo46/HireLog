@@ -31,6 +31,22 @@ typescript:
   - type-script
   - typescriptlang
 
+c++:
+  - cpp
+  - cplusplus
+
+c#:
+  - csharp
+  - dotnet
+  - c-sharp
+
+swift:
+  - swiftui
+  - swiftlang
+
+dart:
+  - dartlang
+
 # =========================
 # Backend Frameworks
 # =========================
@@ -93,6 +109,15 @@ angular:
   - angularjs
   - angular-js
 
+next.js:
+  - nextjs
+  - next-js
+  - nextjsframework
+
+nuxt.js:
+  - nuxtjs
+  - nuxt-js
+
 # =========================
 # Databases
 # =========================
@@ -123,6 +148,41 @@ elasticsearch:
 
 opensearch:
   - open-search
+
+sql server:
+  - mssql
+  - ms-sql
+  - sqlserver
+  - microsoft sql server
+
+mariadb:
+  - maria-db
+
+cassandra:
+  - apache cassandra
+
+couchdb:
+  - couch-db
+
+neo4j:
+  - neo-4j
+
+firebase:
+  - firebase-realtime
+  - firebase-auth
+
+firestore:
+  - cloud firestore
+
+sqlite:
+  - sqlite3
+
+bigquery:
+  - google bigquery
+  - big-query
+
+snowflake:
+  - snowflake-db
 
 # =========================
 # Message / Streaming
@@ -198,6 +258,276 @@ gcp:
 
 azure:
   - microsoft-azure
+  - azure-cloud
+
+office 365:
+  - office365
+  - o365
+  - ms office 365
+
+microsoft 365:
+  - m365
+  - ms365
+  - microsoft365
+
+active directory:
+  - ad
+  - active-directory
+  - azure ad
+
+# =========================
+# Mobile
+# =========================
+react native:
+  - react-native
+  - rn
+
+flutter:
+  - flutter-dart
+
+ios:
+  - iphone
+  - ipad
+  - apple ios
+
+android:
+  - android-sdk
+  - android-studio
+
+# =========================
+# Design Tools
+# =========================
+figma:
+  - figma-design
+
+adobe photoshop:
+  - photoshop
+  - ps
+  - adobe-ps
+
+adobe illustrator:
+  - illustrator
+  - adobe-ai
+
+adobe xd:
+  - xd
+  - adobe-xd
+
+adobe indesign:
+  - indesign
+  - id
+  - adobe-id
+
+adobe premiere:
+  - premiere
+  - pr
+  - adobe-pr
+
+adobe after effects:
+  - after effects
+  - ae
+  - adobe-ae
+
+adobe creative suite:
+  - creative suite
+  - adobe cs
+  - cs
+
+# =========================
+# Microsoft
+# =========================
+excel:
+  - ms excel
+  - microsoft excel
+
+powerpoint:
+  - ppt
+  - ms powerpoint
+  - microsoft powerpoint
+
+word:
+  - ms word
+  - microsoft word
+
+outlook:
+  - ms outlook
+  - microsoft outlook
+
+teams:
+  - ms teams
+  - microsoft teams
+
+sharepoint:
+  - ms sharepoint
+  - microsoft sharepoint
+
+onedrive:
+  - ms onedrive
+  - microsoft onedrive
+
+power bi:
+  - powerbi
+  - power-bi
+  - ms power bi
+
+power apps:
+  - powerapps
+  - ms power apps
+
+power automate:
+  - powerautomate
+  - ms power automate
+  - flow
+
+azure devops:
+  - azure-devops
+  - ado
+  - vsts
+
+visual studio:
+  - vs
+  - visualstudio
+
+vs code:
+  - vscode
+  - visual studio code
+
+.net:
+  - dotnet
+  - dot-net
+
+asp.net:
+  - aspnet
+  - asp-dotnet
+
+# =========================
+# Testing
+# =========================
+jest:
+  - jestjs
+
+cypress:
+  - cypress-io
+
+selenium:
+  - selenium-webdriver
+
+playwright:
+  - playwright-test
+
+puppeteer:
+  - puppeteer-js
+
+junit:
+  - junit5
+  - junit4
+
+pytest:
+  - py-test
+
+testng:
+  - test-ng
+
+rspec:
+  - rspec-ruby
+
+jasmine:
+  - jasminejs
+
+vitest:
+  - vitest-js
+
+# =========================
+# CMS
+# =========================
+wordpress:
+  - wp
+  - wordpress-cms
+
+drupal:
+  - drupal-cms
+
+shopify:
+  - shopify-store
+
+magento:
+  - magento-commerce
+
+woocommerce:
+  - woo-commerce
+
+contentful:
+  - contentful-cms
+
+strapi:
+  - strapi-cms
+
+# =========================
+# Analytics
+# =========================
+tableau:
+  - tableau-desktop
+
+google analytics:
+  - ga
+  - google-analytics
+
+mixpanel:
+  - mixpanel-analytics
+
+amplitude:
+  - amplitude-analytics
+
+looker:
+  - looker-studio
+
+metabase:
+  - metabase-bi
+
+# =========================
+# Collaboration
+# =========================
+jira:
+  - atlassian jira
+
+confluence:
+  - atlassian confluence
+
+slack:
+  - slack-workspace
+
+trello:
+  - trello-board
+
+asana:
+  - asana-project
+
+notion:
+  - notion-workspace
+
+github:
+  - github-actions
+  - gh
+
+gitlab:
+  - gitlab-ci
+
+bitbucket:
+  - bitbucket-pipelines
+
+jenkins:
+  - jenkins-ci
+
+circleci:
+  - circle-ci
+
+github actions:
+  - github-actions
+  - gh-actions
+
+gitlab ci:
+  - gitlab-ci
+  - gitlab-cicd
 
 # =========================
 # API / Protocol
