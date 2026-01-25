@@ -1,33 +1,50 @@
-package com.hirelog.api.job.application.summary.facade
+package com.hirelog.api.job.application.summary
 
 import com.hirelog.api.brand.application.command.BrandWriteService
+import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.brandposition.application.BrandPositionWriteService
-import com.hirelog.api.common.logging.log
-import com.hirelog.api.common.exception.DuplicateJobSnapshotException
-import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.brandposition.domain.BrandPositionSource
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
-import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
-import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
-import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
-import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
+import com.hirelog.api.common.logging.log
+import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.job.application.intake.JdIntakePolicy
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
+import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.messaging.JdPreprocessResponseMessage
-import com.hirelog.api.job.application.summary.JobSummaryWriteService
+import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
+import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
-import com.hirelog.api.position.application.query.PositionQuery
+import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+import com.hirelog.api.position.application.PositionCategoryWriteService
+import com.hirelog.api.position.application.PositionWriteService
+import com.hirelog.api.position.application.port.PositionCategoryQuery
+import com.hirelog.api.position.application.port.PositionQuery
 import org.springframework.stereotype.Service
+import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.Executor
 
 /**
- * JobSummaryGenerationFacadeService
+ * JD 요약 비동기 파이프라인 오케스트레이터
  *
- * 책임:
- * - JD 요약 파이프라인 전체 흐름 오케스트레이션
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ 파이프라인 3단계                                                         │
+ * │                                                                         │
+ * │ [Pre-LLM]  호출 스레드(pipelineExecutor)에서 동기 실행                     │
+ * │  → 유효성 검증 → 해시 생성 → 중복 판정 → 스냅샷 기록 → 상태 전이          │
+ * │                                                                         │
+ * │ [LLM]  NIO 스레드에서 비동기 실행 (WebClient, 호출 스레드 비차단)          │
+ * │  → Gemini API 호출 → 응답 파싱 → 도메인 모델 조립                        │
+ * │                                                                         │
+ * │ [Post-LLM]  postProcessExecutor에서 실행 (NIO 스레드 오염 방지)           │
+ * │  → Brand/Position/Summary 저장 → 완료 상태 전이                          │
+ * └─────────────────────────────────────────────────────────────────────────┘
  *
- * 설계 원칙:
- * - Facade는 "순서 + 분기 + 상태 전이 호출"만 담당
- * - 실제 저장 / 상태 변경은 각각의 WriteService로 위임
+ * Future 완료 의미:
+ * - 정상 완료(null): 메시지 처리 완결 (성공/비즈니스 실패 모두 포함) → Consumer가 ACK
+ * - 예외 완료: 인프라 장애 (DB 불가 등) → Consumer가 ACK하지 않음 → XPENDING 재처리
  */
 @Service
 class JobSummaryGenerationFacadeService(
@@ -38,53 +55,64 @@ class JobSummaryGenerationFacadeService(
     private val summaryWriteService: JobSummaryWriteService,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
-    private val snapshotQuery: JobSnapshotQuery,
     private val positionQuery: PositionQuery,
-
-    ) {
+    private val positionWriteService: PositionWriteService,
+    private val positionCategoryQuery: PositionCategoryQuery,
+    private val positionCategoryWriteService: PositionCategoryWriteService,
+) {
 
     /**
-     * 전처리 결과 기반 JD 요약 파이프라인 진입점
+     * 비동기 JD 요약 파이프라인 진입점
+     *
+     * 이 메서드가 반환하는 CompletableFuture의 완료 시점이
+     * Redis Stream ACK의 실행 시점을 결정한다.
+     *
+     * @param message 전처리 결과 메시지 (Redis Stream에서 수신)
+     * @param postProcessExecutor Post-LLM DB 작업 실행용 Executor (MDC 전파 보장 필수)
      */
-    fun generateFromPreprocessResult(
-        message: JdPreprocessResponseMessage
-    ) {
+    fun generateAsync(
+        message: JdPreprocessResponseMessage,
+        postProcessExecutor: Executor
+    ): CompletableFuture<Void> {
 
-        /**
-         * 0️⃣ JobSummaryProcessing 생성 (항상 최초)
-         *
-         * 이유:
-         * - 모든 요청은 반드시 처리 이력을 가져야 함
-         * - Snapshot만 저장되고 추적 불가능해지는 상황 방지
-         */
+        log.info("[JD_SUMMARY_PIPELINE_START] requestId={}", message.requestId)
+        // Processing 레코드 생성: 모든 요청에 대한 추적 이력 보장
         val processing = processingWriteService.startProcessing(
             requestId = message.requestId
         )
 
-        try {
+        // ── Pre-LLM Phase ───────────────────────────────────────────────────
+        // 호출 스레드(pipelineExecutor)에서 동기 실행.
+        // LLM 호출 전 게이트 역할: 유효하지 않거나 중복인 메시지를 조기 종결한다.
+        val snapshotId: Long
+        val positionCandidates: List<String>
+        val categoryCandidates: List<String>
 
-            // 0️⃣ 유효성 판정
+        try {
+            // 최소 요건(섹션 수, 텍스트 길이) 미충족 시 조기 종결
             if (!jdIntakePolicy.isValidJd(message)) {
                 processingWriteService.markFailed(
                     processingId = processing.id,
                     errorCode = "INVALID_INPUT",
                     errorMessage = "JD 유효성 검증 실패: 최소 요건 미충족"
                 )
-                return
+                return CompletableFuture.completedFuture(null)
             }
 
-            // 1️⃣ Hash / SimHash / CoreText 생성
+            // canonicalMap 기반 해시 생성 (canonicalHash, simHash, coreText)
             val hashes = jdIntakePolicy.generateIntakeHashes(message.canonicalMap)
 
-            // 2️⃣ 중복 판단
+            // 해시 기반 중복 판정 (정확 일치 / 유사도 기반)
             val decision = jdIntakePolicy.decideDuplicate(message, hashes)
 
-            /**
-             * 3. Snapshot 기록 (무조건 수행)
-             * - 수집 로그 성격
-             * - 중복 여부와 무관
-             */
-            val snapshotId = snapshotWriteService.record(
+            // 중복이면 LLM 호출 없이 종결
+            if (decision != DuplicateDecision.NOT_DUPLICATE) {
+                processingWriteService.markDuplicate(processing.id, decision.name)
+                return CompletableFuture.completedFuture(null)
+            }
+
+            // 스냅샷은 중복 여부와 무관하게 항상 기록 (수집 로그 성격)
+            snapshotId = snapshotWriteService.record(
                 JobSnapshotCreateCommand(
                     sourceType = message.source,
                     sourceUrl = message.sourceUrl,
@@ -98,145 +126,159 @@ class JobSummaryGenerationFacadeService(
                 )
             )
 
-            /**
-             *   4-1. message.source가 url일때 sourceUrl인 snapshot 의심후보
-             *   4-2. message.cononicalText에 snapshot의 공고 시작 날짜 끝나는 날짜로 필터링하여 의심후보 등록
-             *   4-3. 의심후보의 각 필드 요소들(핵심업무,필수역량,기술스택,우대사항)과 message.cononicalText의 유사도 체크 후 일정 수치 이상이면 중복으로 판정
-             *   4-4. 의심후보가 없거나 유사도 일정 수치 이하일때 통과
-             */
-            // 4️⃣ 중복이면 종료
-            if (decision != DuplicateDecision.NOT_DUPLICATE) {
-                processingWriteService.markDuplicate(processing.id, decision.name)
-                return
-            }
-
-            /**
-             * 5. 요약 단계 진입 상태 기록
-             */
+            // LLM 요약 진입 상태 기록 (RECEIVED → SUMMARIZING)
             processingWriteService.markSummarizing(processing.id)
 
-            /**
-             * 6. llm 요청을 통해 summarize 시도
-             *
-             * llm호출 비동기 (트랜잭션x)
-             * * 결과:
-             * - 브랜드명 추정
-             * - 포지션명 추정
-             * - 요약 텍스트
-             * - 경력/기술스택 등
-             */
-            /**
-             * 6️⃣ LLM 요청을 통해 summarize 시도
-             *
-             * 책임:
-             * - LLM 호출 자체는 비동기 / 무트랜잭션
-             * - 포맷 변환은 어댑터 내부에서 처리
-             */
-            val positionCandidates = positionQuery.findActive().map { it.name }
-
-            val llmResult =
-                llmClient.summarizeJobDescription(
-                    brandName = message.brandName,
-                    positionName = message.positionName,
-                    positionCandidates = positionCandidates,
-                    canonicalMap = message.canonicalMap
-                )
-
-            log.info(
-                "[LLM Result] requestId={}, provider={}, " +
-                        "brandName={}, positionName={}, " +
-                        "careerType={}, careerYears={}, " +
-                        "summary={}, responsibilities={}, " +
-                        "requiredQualifications={}, preferredQualifications={}, " +
-                        "techStack={}, recruitmentProcess={}",
-                message.requestId,
-                llmResult.llmProvider,
-                llmResult.brandName,
-                llmResult.positionName,
-                llmResult.careerType,
-                llmResult.careerYears,
-                llmResult.summary,
-                llmResult.responsibilities,
-                llmResult.requiredQualifications,
-                llmResult.preferredQualifications,
-                llmResult.techStack,
-                llmResult.recruitmentProcess
-            )
-
-//
-//            /**
-//             * 6️⃣ 요약 결과 중복 판정 (의미적 중복)
-//             *
-//             * 채용공고 시간이 null 이라면 상시채용
-//             * 요약결과  brandName, positonName 유사도 체크 후 일정 수치 이상이면 중복으로 판정
-//             */
-//            if (jdIntakePolicy.isDuplicateSummary(llmResult)) {
-//                processingWriteService.markDuplicate(
-//                    processingId = processing.id,
-//                    reason = "SEMANTIC_DUPLICATE"
-//                )
-//                return
-//            }
-//
-//            /**
-//             * 7️⃣ Brand / Position / BrandPosition 도메인 생성
-//             *
-//             * 생성 실패시 예외 발생 processing FAILED 처리
-//             *
-//             * 책임:
-//             * - 여러 Aggregate 조합
-//             * - Facade 레벨에서만 수행
-//             */
-//            val brand =
-//                brandWriteService.getOrCreate(llmResult.brand)
-//
-//            val position =
-//                brandPositionWriteService.getOrCreate(
-//                    brandId = brand.id,
-//                    positionName = llmResult.position
-//                )
-//
-//            val brandPosition = brandPositionWriteService.create()
-//
-//            /**
-//             * 8️⃣ JobSummary 저장 (도메인 생성 책임)
-//             *
-//             * 조건:
-//             * - 모든 중복 판정 통과
-//             */
-//            summaryWriteService.save(
-//                snapshotId = snapshotId,
-//                brand = brand,
-//                position = position,
-//                llmResult = llmResult
-//            )
-//
-//            /**
-//             * 9️⃣ Processing 완료 상태 기록
-//             */
-//            processingWriteService.markCompleted(processing.id)
+            // LLM 프롬프트에 전달할 후보 목록 조회
+            positionCandidates = positionQuery.findActive().map { it.name }
+            categoryCandidates = positionCategoryQuery.findActive().map { it.name }
 
         } catch (e: Exception) {
-            /**
-             * ❌ 실패 상태 기록
-             *
-             * 정책:
-             * - Snapshot은 이미 저장됨
-             * - Processing에 실패 원인 기록
-             */
-            val errorCode = when (e) {
-                is GeminiCallException -> "LLM_CALL_FAILED"
-                is GeminiParseException -> "LLM_PARSE_FAILED"
-                is DuplicateJobSnapshotException -> "SNAPSHOT_DUPLICATE"
-                is EntityNotFoundException -> "ENTITY_NOT_FOUND"
-                else -> "UNKNOWN_ERROR"
-            }
-            processingWriteService.markFailed(
-                processingId = processing.id,
-                errorCode = errorCode,
-                errorMessage = e.message ?: "Unknown error"
-            )
-            throw e
+            // Pre-LLM 인프라 장애 시 실패 기록 후 정상 종결 (ACK 대상)
+            handleFailure(processing.id, e, message.requestId, "PRE_LLM")
+            return CompletableFuture.completedFuture(null)
         }
+
+        // ── LLM Phase ───────────────────────────────────────────────────────
+        // WebClient Mono → CompletableFuture 변환.
+        // 이 시점에서 호출 스레드(pipelineExecutor)는 즉시 반환된다.
+        // 실제 HTTP I/O는 Netty NIO 스레드에서 비동기 처리된다.
+        return llmClient.summarizeJobDescriptionAsync(
+            brandName = message.brandName,
+            positionName = message.positionName,
+            positionCandidates = positionCandidates,
+            categoryCandidates = categoryCandidates,
+            canonicalMap = message.canonicalMap
+        )
+            // ── Post-LLM Phase ──────────────────────────────────────────────
+            // postProcessExecutor에서 실행: NIO 스레드에서 JPA/DB 작업 방지.
+            // LLM 결과 기반 도메인 객체 생성 및 영속화.
+            .thenAcceptAsync({ llmResult ->
+                log.info(
+                    "[JD_SUMMARY_LLM_SUCCESS] processingId={}, llmResult={}",
+                    processing.id,
+                    llmResult
+                )
+                executePostLlmPhase(snapshotId, llmResult, processing.id, message)
+                processingWriteService.markCompleted(processing.id)
+
+                log.info(
+                    "[JD_SUMMARY_COMPLETED] requestId={}, processingId={}",
+                    message.requestId, processing.id
+                )
+            }, postProcessExecutor)
+
+            // ── 에러 종결 ───────────────────────────────────────────────────
+            // LLM 호출 실패 또는 Post-LLM DB 실패 모두 이 블록에서 종결.
+            // postProcessExecutor에서 실행: markFailed가 DB 접근하므로 NIO 스레드 불가.
+            // null 반환 → Future 정상 완료로 전환 → Consumer가 ACK 수행.
+            .exceptionallyAsync({ ex ->
+                handleFailure(processing.id, ex, message.requestId, "LLM_OR_POST_LLM")
+                null
+            }, postProcessExecutor)
     }
+
+    /**
+     * Post-LLM Phase: LLM 결과를 기반으로 도메인 객체를 생성/연결하고 요약을 저장한다.
+     *
+     * 실행 스레드: postProcessExecutor (MdcExecutor 래핑)
+     * 트랜잭션: 각 WriteService가 자체 @Transactional을 보유 (Facade 무트랜잭션)
+     */
+    private fun executePostLlmPhase(
+        snapshotId: Long,
+        llmResult: JobSummaryLlmResult,
+        processingId: UUID,
+        message: JdPreprocessResponseMessage
+    ) {
+        // Brand 확보: LLM이 판정한 회사명으로 조회 또는 신규 생성
+        val brand = brandWriteService.getOrCreate(
+            name = llmResult.brandName,
+            normalizedName = Normalizer.normalizeBrand(llmResult.brandName),
+            companyId = null,
+            source = BrandSource.INFERRED
+        )
+
+        // PositionCategory 확보: LLM이 분류한 직무 카테고리로 조회 또는 생성
+        val positionCategory = positionCategoryWriteService.createIfAbsent(
+            name = llmResult.positionCategoryName
+        )
+
+        // ── [LOG] Position getOrCreate 진입 전 ─────────────────────
+        log.info(
+            "[POSITION_GET_OR_CREATE_BEFORE] requestId={}, processingId={}, snapshotId={}, positionName={},  thread={}",
+            message.requestId,
+            processingId,
+            snapshotId,
+            llmResult.positionName,
+            Thread.currentThread().name
+        )
+
+        // Position 확보: LLM이 매핑한 표준 포지션명으로 조회 또는 CANDIDATE 상태 생성
+        val position = positionWriteService.getOrCreate(
+            name = llmResult.positionName,
+            positionCategory = positionCategory,
+            normalizedName = Normalizer.normalizePosition(llmResult.positionName)
+        )
+
+        // BrandPosition 연결: Brand-Position 매핑 (displayName = 회사 내부 포지션명)
+        brandPositionWriteService.getOrCreate(
+            brandId = brand.id,
+            positionId = position.id,
+//            displayName = llmResult.brandPositionName,
+            displayName = message.positionName,
+            source = BrandPositionSource.LLM
+        )
+
+        // JobSummary 영속화: 스냅샷 + Brand + Position + LLM 요약 결과 결합
+        summaryWriteService.save(
+            snapshotId = snapshotId,
+            brand = brand,
+            position = position,
+            llmResult = llmResult
+        )
+    }
+
+    /**
+     * 파이프라인 실패를 종결한다.
+     *
+     * CompletableFuture 체인에서 발생한 예외는 CompletionException으로 래핑되므로
+     * 원인 예외를 unwrap한 뒤 에러 코드를 분류한다.
+     *
+     * 호출 후 Processing 상태: FAILED (이후 상태 전이 불가)
+     */
+    private fun handleFailure(
+        processingId: UUID,
+        throwable: Throwable,
+        requestId: String,
+        phase: String
+    ) {
+        val cause = unwrap(throwable)
+
+        val errorCode = when (cause) {
+            is GeminiCallException -> "LLM_CALL_FAILED"
+            is GeminiParseException -> "LLM_PARSE_FAILED"
+            else -> "FAILED_AT_$phase"
+        }
+        val rootCause = generateSequence<Throwable>(cause) { it.cause }.last()
+        val errorMessage = "[${cause.javaClass.simpleName}] ${rootCause.message ?: "Unknown error"}"
+
+        log.error(
+            "[JD_SUMMARY_FAILED] requestId={}, processingId={}, phase={}, errorCode={}, message={}",
+            requestId, processingId, phase, errorCode, errorMessage, cause
+        )
+
+        processingWriteService.markFailed(
+            processingId = processingId,
+            errorCode = errorCode,
+            errorMessage = errorMessage
+        )
+    }
+
+    /**
+     * CompletionException 언래핑.
+     * CompletableFuture 체인에서 발생한 예외는 CompletionException으로 감싸지므로
+     * 실제 원인 예외를 추출해야 정확한 에러 분류가 가능하다.
+     */
+    private fun unwrap(ex: Throwable): Throwable =
+        if (ex is CompletionException) ex.cause ?: ex else ex
 }

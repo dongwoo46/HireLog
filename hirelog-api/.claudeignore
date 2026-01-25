@@ -1,0 +1,27 @@
+# .claudeignore
+
+node_modules/
+dist/
+build/
+out/
+coverage/
+logs/
+.tmp/
+.cache/
+
+.git/
+.gitignore
+
+*.log
+*.lock
+*.zip
+*.tar
+*.gz
+
+.env
+.env.*
+.idea
+.vscode/
+.DS_Store
+gradle/
+

@@ -34,10 +34,9 @@ class JdSummaryProcessing protected constructor(
     var duplicateReason: String? = null,
 
     /**
-     * 실패 원인 코드
-     *
-     * - status == FAILED 인 경우에만 의미 있음
+     * 실패 원인 코드 (기계 판별용)
      */
+    @Column(nullable = true, length = 100)
     var errorCode: String? = null,
 
     /**
@@ -45,11 +44,15 @@ class JdSummaryProcessing protected constructor(
      *
      * - status == FAILED 인 경우에만 의미 있음
      */
+    @Lob
+    @Column(columnDefinition = "text")
     var errorMessage: String? = null
 
 ) : BaseEntity() {
 
     companion object {
+
+        private const val ERROR_MESSAGE_MAX_LENGTH = 1000
 
         /**
          * Processing 생성
@@ -136,7 +139,7 @@ class JdSummaryProcessing protected constructor(
 
         status = JdSummaryProcessingStatus.FAILED
         this.errorCode = errorCode
-        this.errorMessage = errorMessage
+        this.errorMessage = errorMessage.take(ERROR_MESSAGE_MAX_LENGTH)
 
         duplicateReason = null
     }

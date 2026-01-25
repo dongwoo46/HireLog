@@ -1,6 +1,6 @@
 package com.hirelog.api.position.infra.persistence.jpa.adapter
 
-import com.hirelog.api.position.application.command.PositionCommand
+import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.domain.Position
 import com.hirelog.api.position.infra.persistence.jpa.repository.PositionJpaRepository
 import org.springframework.stereotype.Component
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component
  * - 영속화만 수행
  */
 @Component
-class PositionJpaCommand(
+class PositionJpaCommandAdapter(
     private val repository: PositionJpaRepository
 ) : PositionCommand {
 

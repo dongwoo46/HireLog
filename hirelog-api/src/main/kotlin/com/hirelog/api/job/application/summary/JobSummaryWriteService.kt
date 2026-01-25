@@ -2,10 +2,10 @@ package com.hirelog.api.job.application.summary
 
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.common.config.properties.LlmProperties
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSummary
-import com.hirelog.api.job.domain.JobSnapshot
 import com.hirelog.api.position.domain.Position
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -33,17 +33,46 @@ class JobSummaryWriteService(
      */
     @Transactional
     fun save(
-        snapshot: JobSnapshot,
+        snapshotId: Long,
         brand: Brand,
         position: Position,
         llmResult: JobSummaryLlmResult
     ): JobSummary {
-        // 1️⃣ Domain 객체 생성
+        // ── [LOG] JobSummary 생성 직전 전체 필드 덤프 ─────────────────────
+        log.info(
+            """
+        [JOB_SUMMARY_CREATE]
+        snapshotId={}
+        brandId={}, brandName='{}'
+        positionId={}, positionName='{}'
+        careerType={}, careerYears={}
+        summaryTextLength={}
+        responsibilitiesLength={}
+        requiredQualificationsLength={}
+        preferredQualificationsLength={}
+        techStackLength={}
+        recruitmentProcessLength={}
+        llmProvider='{}'
+        llmModel='{}'
+        """.trimIndent(),
+            snapshotId,
+            brand.id, brand.name,
+            position.id, position.name,
+            llmResult.careerType, llmResult.careerYears,
+            llmResult.summary,
+            llmResult.responsibilities,
+            llmResult.requiredQualifications,
+            llmResult.preferredQualifications,
+            llmResult.techStack,
+            llmResult.recruitmentProcess,
+            llmProperties.provider,
+            llmProperties.model
+        )
         val summary = JobSummary.create(
-            jobSnapshotId = snapshot.id,
+            jobSnapshotId = snapshotId,
             brandId = brand.id,
             brandName = brand.name,
-            companyId = null,       // Brand-centric 모델 유지
+            companyId = null,
             companyName = null,
             positionId = position.id,
             positionName = position.name,
@@ -62,7 +91,6 @@ class JobSummaryWriteService(
             llmModel = llmProperties.model
         )
 
-        // 2️⃣ 저장
         return summaryCommand.save(summary)
     }
 }

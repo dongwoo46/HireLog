@@ -46,5 +46,7 @@ data class JobSummaryLlmResult(
     val recruitmentProcess: String?,
 
     val brandName: String,
-    val positionName: String
+    val positionName: String,
+    val positionCategoryName: String,
+    val brandPositionName: String?
 )

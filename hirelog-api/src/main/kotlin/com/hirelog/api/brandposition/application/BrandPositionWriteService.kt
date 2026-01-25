@@ -27,6 +27,42 @@ class BrandPositionWriteService(
 ) {
 
     /**
+     * BrandPosition 확보
+     *
+     * 정책:
+     * - (brandId, positionId) 기준 단일 BrandPosition 보장
+     * - 존재하면 반환
+     * - 없으면 CANDIDATE 상태로 신규 생성
+     * - 동시성은 DB unique + 재조회로 해결
+     */
+    @Transactional
+    fun getOrCreate(
+        brandId: Long,
+        positionId: Long,
+        displayName: String?,
+        source: BrandPositionSource
+    ): BrandPosition {
+
+        brandPositionQuery.findByBrandIdAndPositionId(brandId, positionId)?.let {
+            return it
+        }
+
+        val brandPosition = BrandPosition.create(
+            brandId = brandId,
+            positionId = positionId,
+            displayName = displayName,
+            source = source
+        )
+
+        return try {
+            brandPositionCommand.save(brandPosition)
+        } catch (ex: org.springframework.dao.DataIntegrityViolationException) {
+            brandPositionQuery.findByBrandIdAndPositionId(brandId, positionId)
+                ?: throw ex
+        }
+    }
+
+    /**
      * BrandPosition 생성
      *
      * 정책:

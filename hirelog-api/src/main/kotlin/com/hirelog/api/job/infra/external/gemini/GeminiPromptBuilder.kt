@@ -17,8 +17,27 @@ object GeminiPromptBuilder {
         brandName: String,
         positionName: String,
         positionCandidates: List<String>,
+        categoryCandidates: List<String>,
         jdText: String
     ): String {
+        val categoryCandidatesSection = if (categoryCandidates.isEmpty()) {
+            """
+            - No category candidates are available
+            - Return null for positionCategoryName
+            """.trimIndent()
+        } else {
+            """
+            - Select ONE category name from the candidate list below
+            - The output positionCategoryName MUST exactly match one of the provided candidates
+            - Choose the category that best represents the job's functional domain
+            - Do NOT paraphrase, extend, or modify candidate values
+            - If no candidate clearly matches, return null
+
+            positionCategoryName candidates:
+            ${categoryCandidates.joinToString(prefix = "[\"", postfix = "\"]", separator = "\", \"")}
+            """.trimIndent()
+        }
+
         val positionCandidatesSection = if (positionCandidates.isEmpty()) {
             """
             - No position candidates are available
@@ -60,9 +79,9 @@ object GeminiPromptBuilder {
             [Mandatory Output Rules]
             ==============================
             - The following fields MUST always be present in the output JSON:
-              brandName, positionName, careerType, careerYears,
-              summary, responsibilities, requiredQualifications,
-              preferredQualifications, techStack, recruitmentProcess
+              brandName, positionName, positionCategoryName, brandPositionName,
+              careerType, careerYears, summary, responsibilities,
+              requiredQualifications, preferredQualifications, techStack, recruitmentProcess
             - These fields may be null, but MUST NOT be omitted
 
             ==============================
@@ -83,6 +102,22 @@ object GeminiPromptBuilder {
             - You MAY override the reference position name only if the JD clearly indicates a different role
             - Do NOT create new position names
             $positionCandidatesSection
+
+            ==============================
+            [Position Category Name Selection Rules]
+            ==============================
+            - positionCategoryName represents the functional domain of the position
+            - Base your decision on the overall job domain, responsibilities, and industry context
+            $categoryCandidatesSection
+
+            ==============================
+            [Brand Position Name Rules]
+            ==============================
+            - brandPositionName is the position title as used internally by the company in the JD
+            - This is different from positionName (which is a standardized market-common name)
+            - Extract the exact role title as written in the JD (e.g., "차세대 Cloud API 개발", "서버 개발자 (결제팀)")
+            - Do NOT normalize or generalize this value
+            - If no specific internal title is found, return null
 
             ==============================
             [Career Type Rules]
@@ -118,6 +153,8 @@ object GeminiPromptBuilder {
             {
               "brandName": string | null,
               "positionName": string | null,
+              "positionCategoryName": string | null,
+              "brandPositionName": string | null,
               "careerType": "신입" | "경력" | "무관" | null,
               "careerYears": string | null,
               "summary": string | null,
@@ -134,6 +171,8 @@ object GeminiPromptBuilder {
             {
               "brandName": "토스",
               "positionName": "Backend Engineer",
+              "positionCategoryName": "IT / Software",
+              "brandPositionName": "서버 개발자 (결제플랫폼팀)",
               "careerType": "경력",
               "careerYears": "3년 이상",
               "summary": "토스 결제 플랫폼의 백엔드 시스템을 설계하고 운영하는 역할입니다. 대규모 트래픽 환경에서 안정적인 결제 서비스를 구현합니다.",

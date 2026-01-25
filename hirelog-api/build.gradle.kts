@@ -22,6 +22,7 @@ repositories {
 }
 
 dependencies {
+	implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-xml")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-security")

@@ -1,7 +1,7 @@
 package com.hirelog.api.job.presentation.controller
 
 import com.hirelog.api.job.application.preprocess.JdPreprocessRequestService
-import com.hirelog.api.job.application.summary.facade.JobSummaryGenerationFacadeService
+import com.hirelog.api.job.application.summary.JobSummaryGenerationFacadeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.view.JobSummaryView

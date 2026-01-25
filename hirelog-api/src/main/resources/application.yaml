@@ -36,3 +36,8 @@ hirelog:
   worker:
     job-summary:
       enabled: false
+worknet:
+  api:
+    key: ${WORKNET_API_KEY}
+    base-url: ${WORKNET_API_BASE_URL}
+    timeout-ms: 5000

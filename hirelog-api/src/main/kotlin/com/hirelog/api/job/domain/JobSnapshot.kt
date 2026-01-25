@@ -12,11 +12,27 @@ import org.hibernate.annotations.Type
 @Table(
     name = "job_snapshot",
     indexes = [
-        Index(name = "idx_job_snapshot_brand_id", columnList = "brand_id"),
-        Index(name = "idx_job_snapshot_position_id", columnList = "position_id"),
+        // 조회용 FK 인덱스
         Index(
-            name = "uk_job_snapshot_content_hash",
-            columnList = "content_hash",
+            name = "idx_job_snapshot_brand_id",
+            columnList = "brand_id"
+        ),
+        Index(
+            name = "idx_job_snapshot_position_id",
+            columnList = "position_id"
+        ),
+
+        // 완전 동일 JD 중복 방지 (핵심)
+        Index(
+            name = "uk_job_snapshot_canonical_hash",
+            columnList = "canonical_hash",
+            unique = true
+        ),
+
+        // 유사도 판정 보조 인덱스
+        Index(
+            name = "idx_job_snapshot_sim_hash",
+            columnList = "sim_hash"
         )
     ]
 )

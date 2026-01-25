@@ -1,6 +1,6 @@
-package com.hirelog.api.position.application.query
+package com.hirelog.api.position.application.port
 
-import com.hirelog.api.position.domain.Position
+import com.hirelog.api.position.application.query.PositionView
 
 /**
  * Position Read Port
@@ -14,15 +14,15 @@ interface PositionQuery {
     /**
      * ID 기준 조회
      */
-    fun findById(positionId: Long): Position?
+    fun findById(id: Long): PositionView?
 
     /**
      * normalizedName 기준 조회
      */
-    fun findByNormalizedName(normalizedName: String): Position?
+    fun findByNormalizedName(normalizedName: String): PositionView?
 
     /**
      * 활성 Position 목록 조회
      */
-    fun findActive(): List<Position>
+    fun findActive(): List<PositionView>
 }
