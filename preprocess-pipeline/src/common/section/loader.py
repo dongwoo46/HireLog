@@ -6,6 +6,16 @@ DEFAULT_SECTION_KEYWORDS_PATH = (Path(__file__).parent / "section_keywords.yml")
 DEFAULT_META_KEYWORDS_PATH = Path(__file__).parent / "jd_meta_keywords.yml"
 DEFAULT_HEADER_KEYWORDS_PATH = Path(__file__).parent / "header_keywords.yml"
 
+
+def clear_keyword_cache():
+    """
+    모든 키워드 캐시를 클리어한다.
+    yml 파일 수정 후 반영이 필요할 때 사용.
+    """
+    load_section_keywords.cache_clear()
+    load_jd_meta_keywords.cache_clear()
+    load_header_keywords.cache_clear()
+
 @lru_cache(maxsize=1)
 def load_section_keywords(
         path: Path = DEFAULT_SECTION_KEYWORDS_PATH,
