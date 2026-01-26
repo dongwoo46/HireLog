@@ -66,8 +66,8 @@ def process_ocr_input(image_input: str | list[str]):
     # 평균 Confidence 계산
     final_confidence = sum(confidences) / len(confidences) if confidences else 0.0
     
-    # 최종 Status 판정
-    final_status = classify_confidence(final_confidence)
+    # 최종 Status 판정 (Enum → str 변환)
+    final_status = classify_confidence(final_confidence).value
 
     return {
         "rawText": final_raw_text,     # 사람이 읽는 용도 (페이지 구분됨)
@@ -160,8 +160,8 @@ def _process_single_image(image_path: str) -> dict:
     # 6. 최종 rawText 생성
     raw_text = build_raw_text(ocr_lines)
 
-    # 7. OCR 품질 상태 분류
-    status = classify_confidence(ocr_result["confidence"])
+    # 7. OCR 품질 상태 분류 (Enum → str 변환)
+    status = classify_confidence(ocr_result["confidence"]).value
 
     return {
         "rawText": raw_text,     # 사람이 읽는 용도

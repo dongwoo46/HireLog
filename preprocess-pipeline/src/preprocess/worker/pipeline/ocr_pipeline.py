@@ -33,24 +33,6 @@ class OcrPipeline:
         # 2️⃣ Header 기반 구조화 (OCR 전용)
         raw_sections = extract_sections_by_header(ocr_result["lines"])
 
-        # JD 구조화 결과 출력
-        print("\nJD STRUCTURED SECTIONS")
-        print("======================")
-
-        if not raw_sections:
-            print("(no sections detected)")
-            return
-
-        for header, lines in raw_sections.items():
-            print(f"\n[{header}]")
-
-            if not lines:
-                print("  (empty)")
-                continue
-
-            for text in lines:
-                print(f"  - {text}")
-
         if not raw_sections:
             return {
                 "ocr": {

@@ -72,6 +72,10 @@ class RedisStreamConsumer:
             block=self.block_ms,
         )
 
+        # timeout 또는 빈 결과 처리
+        if not streams:
+            return []
+
         messages = []
 
         for _, records in streams:
@@ -80,6 +84,58 @@ class RedisStreamConsumer:
                     "id": record_id,
                     "values": values,
                 })
+
+        return messages
+
+    def read_pending(self, min_idle_ms: int = 300000, count: int = 10) -> List[Dict[str, Any]]:
+        """
+        Pending 메시지 조회 및 소유권 획득 (XPENDING + XCLAIM)
+
+        Args:
+            min_idle_ms: 최소 idle 시간 (기본 5분 = 300,000ms)
+            count: 조회할 최대 메시지 수
+
+        Returns:
+            XCLAIM으로 획득한 메시지 리스트
+        """
+        # 1. XPENDING으로 pending 메시지 ID 조회
+        pending_info = self.redis.xpending_range(
+            name=self.stream_key,
+            groupname=self.group,
+            min="-",
+            max="+",
+            count=count,
+            idle=min_idle_ms,
+        )
+
+        if not pending_info:
+            return []
+
+        # 2. pending 메시지 ID 추출
+        message_ids = [info["message_id"] for info in pending_info]
+
+        if not message_ids:
+            return []
+
+        # 3. XCLAIM으로 소유권 획득
+        claimed = self.redis.xclaim(
+            name=self.stream_key,
+            groupname=self.group,
+            consumername=self.consumer_name,
+            min_idle_time=min_idle_ms,
+            message_ids=message_ids,
+        )
+
+        if not claimed:
+            return []
+
+        # 4. 결과 변환
+        messages = []
+        for record_id, values in claimed:
+            messages.append({
+                "id": record_id,
+                "values": values,
+            })
 
         return messages
 

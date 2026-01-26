@@ -36,14 +36,41 @@ class BaseJdPreprocessWorker:
     # Internal Utils
     # ==================================================
 
-    def _normalize_date(self, date_str: str) -> str:
+    def _normalize_date(self, date_str: str) -> str | None:
         """
         날짜 문자열 정규화
 
         Python → Spring 계약:
-        - yyyy.MM.dd  → yyyy-MM-dd (ISO-8601)
+        - yyyy.MM.dd, yyyy-MM-dd, yyyy/MM/dd → yyyy-MM-dd (ISO-8601)
+
+        지원 포맷:
+        - 2024.01.15
+        - 2024-01-15
+        - 2024/01/15
+
+        Returns:
+            정규화된 날짜 문자열 또는 파싱 실패 시 None
         """
-        return datetime.strptime(date_str, "%Y.%m.%d").date().isoformat()
+        if not date_str:
+            return None
+
+        date_formats = [
+            "%Y.%m.%d",
+            "%Y-%m-%d",
+            "%Y/%m/%d",
+        ]
+
+        for fmt in date_formats:
+            try:
+                return datetime.strptime(date_str, fmt).date().isoformat()
+            except ValueError:
+                continue
+
+        logger.warning(
+            "[DATE_NORMALIZE_FAILED] date_str=%s (supported: yyyy.MM.dd, yyyy-MM-dd, yyyy/MM/dd)",
+            date_str
+        )
+        return None
 
     # ==================================================
     # Publish
@@ -83,14 +110,14 @@ class BaseJdPreprocessWorker:
             payload["recruitmentPeriodType"] = output.recruitment_period_type
 
         if output.recruitment_open_date is not None:
-            payload["recruitmentOpenDate"] = self._normalize_date(
-                output.recruitment_open_date
-            )
+            normalized_open = self._normalize_date(output.recruitment_open_date)
+            if normalized_open:
+                payload["recruitmentOpenDate"] = normalized_open
 
         if output.recruitment_close_date is not None:
-            payload["recruitmentCloseDate"] = self._normalize_date(
-                output.recruitment_close_date
-            )
+            normalized_close = self._normalize_date(output.recruitment_close_date)
+            if normalized_close:
+                payload["recruitmentCloseDate"] = normalized_close
 
         # ==================================================
         # Skills (존재하는 경우만 포함)

@@ -38,4 +38,4 @@ class JdPreprocessOutput:
     # ==================================================
     # Skills
     # ==================================================
-    skills: list[str] = None
+    skills: list[str] | None = None

@@ -27,13 +27,13 @@ class JdPreprocessUrlWorker(BaseJdPreprocessWorker):
     def process(self, input: JdPreprocessInput) -> JdPreprocessOutput:
         try:
             # ==================================================
-            # 1️⃣ URL Pipeline 실행
+            # 1️⃣ URL Pipeline 실행 (OCR 방식 새 파이프라인)
             # ==================================================
             result = self.pipeline.process(input)
-            
-            jd_result = result["jd"]
-            canonical_map = jd_result["canonical_map"]
-            document_meta = jd_result.get("document_meta")
+
+            # 새 파이프라인은 직접 canonical_map, document_meta 반환
+            canonical_map = result.get("canonical_map", {})
+            document_meta = result.get("document_meta")
 
             # ==================================================
             # 2️⃣ Meta Data 추출

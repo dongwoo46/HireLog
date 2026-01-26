@@ -26,28 +26,27 @@ def is_text_header_candidate(line: str, next_line: str | None) -> bool:
     if lowered in header_keywords:
         return True
 
-    # 2️⃣ 부분 일치 헤더
+    # 2️⃣ 부분 일치 헤더 (대괄호 안 내용도 매칭)
+    # "[주요업무]" → "주요업무" in "[주요업무]" → True
     for keyword in header_keywords:
         if keyword in lowered:
             return True
 
-    # 1-2️⃣ 대괄호 / 꺾쇠 괄호
+    # 3️⃣ 대괄호 / 꺾쇠 괄호 → 대분류(container)로 취급, header 아님
+    # 단, 위에서 header_keywords 매칭되면 이미 True 반환됨
+    # 예: [포지션 상세] → header_keywords에 없음 → 대분류 (header 아님)
+    # 예: [주요업무] → header_keywords에 "주요업무" 있음 → 위에서 True 반환
     if (
         (stripped.startswith("[") and stripped.endswith("]")) or
         (stripped.startswith("<") and stripped.endswith(">"))
     ):
-        return True
+        return False  # 대분류는 header 아님
 
     # 너무 길면 본문
     if len(stripped) > 80:
         return False
 
-    # 괄호 포함 → 제목일 확률 낮음
-    # 1️⃣ 대괄호로 감싼 단독 라인은 강한 header 시그널
-    if stripped.startswith("[") and stripped.endswith("]"):
-        return True
-    
-    # 2️⃣ 소괄호 포함 → 부연 설명일 가능성 높음
+    # 소괄호 포함 → 부연 설명일 가능성 높음
     if "(" in stripped or ")" in stripped:
         return False
 

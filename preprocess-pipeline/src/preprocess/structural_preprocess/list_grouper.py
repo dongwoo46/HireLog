@@ -1,4 +1,5 @@
 import re
+from dataclasses import replace
 from .section_builder import Section
 
 # bullet 형태의 라인을 감지하기 위한 정규식
@@ -18,6 +19,7 @@ def group_lists(section: Section) -> Section:
     - 연속된 bullet 라인만 하나의 리스트로 묶는다
     - bullet이 아닌 라인은 lines에 그대로 유지한다
     - 의미 해석 / 요건 분류는 절대 수행하지 않는다
+    - immutable 방식으로 새 Section 객체 반환
     """
 
     # 최종 bullet 리스트 묶음
@@ -51,8 +53,5 @@ def group_lists(section: Section) -> Section:
     if current_list:
         lists.append(current_list)
 
-    # Section 객체를 in-place로 갱신
-    section.lines = new_lines
-    section.lists = lists
-
-    return section
+    # immutable 방식: dataclasses.replace로 새 객체 반환
+    return replace(section, lines=new_lines, lists=lists)

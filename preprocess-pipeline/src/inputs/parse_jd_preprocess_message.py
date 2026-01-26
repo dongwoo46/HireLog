@@ -1,6 +1,11 @@
 from inputs.jd_preprocess_input import JdPreprocessInput
 
 
+class MessageParseError(ValueError):
+    """메시지 파싱 오류"""
+    pass
+
+
 def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
     """
     Redis Stream 메시지를 JD 전처리 입력 DTO로 변환
@@ -8,8 +13,17 @@ def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
     책임:
     - 메시지 계약 검증
     - 필수 필드 검증
+
+    Raises:
+        MessageParseError: 필수 필드 누락 또는 형식 오류
     """
+    if not message or "values" not in message:
+        raise MessageParseError("Invalid message format: 'values' key is required")
+
     values = message["values"]
+
+    if not isinstance(values, dict):
+        raise MessageParseError("Invalid message format: 'values' must be a dict")
 
     # ---- metadata ----
     message_type = values.get("type")
@@ -20,16 +34,22 @@ def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
     message_version = values.get("messageVersion")
 
     if message_type != "JD_PREPROCESS_REQUEST":
-        raise ValueError(f"Unsupported message type: {message_type}")
+        raise MessageParseError(f"Unsupported message type: {message_type}")
 
     if not request_id:
-        raise ValueError("requestId is required")
+        raise MessageParseError("Required field missing: requestId")
 
-    if not brand_name or not position_name:
-        raise ValueError("brandName and positionName are required")
+    if not brand_name:
+        raise MessageParseError("Required field missing: brandName")
 
-    if not created_at or not message_version:
-        raise ValueError("createdAt and messageVersion are required")
+    if not position_name:
+        raise MessageParseError("Required field missing: positionName")
+
+    if not created_at:
+        raise MessageParseError("Required field missing: createdAt")
+
+    if not message_version:
+        raise MessageParseError("Required field missing: messageVersion")
 
     # ---- payload ----
     source = values.get("payload.source")
@@ -60,12 +80,20 @@ def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
     if source == "URL" and not url:
         raise ValueError("payload.sourceUrl is required when source=URL")
 
+    # createdAt 타입 변환 (int 또는 int로 변환 가능한 문자열)
+    try:
+        created_at_int = int(created_at)
+    except (TypeError, ValueError) as e:
+        raise MessageParseError(
+            f"Invalid createdAt format: '{created_at}' is not convertible to int"
+        ) from e
+
     return JdPreprocessInput(
         request_id=request_id,
         brand_name=brand_name,
         position_name=position_name,
         source=source,
-        created_at=int(created_at),
+        created_at=created_at_int,
         message_version=message_version,
         text=text,
         images=images,

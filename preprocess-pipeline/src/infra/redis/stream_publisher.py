@@ -5,10 +5,6 @@ import logging
 from .redis_client import RedisClient
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,   # 🔥 INFO 이상 전부 출력
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-)
 
 class RedisStreamPublisher:
     """

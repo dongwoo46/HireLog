@@ -1,22 +1,32 @@
+import os
 import requests
 import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+# 기본 timeout (환경 변수로 오버라이드 가능)
+DEFAULT_URL_FETCH_TIMEOUT = 10
+
+
 class UrlFetcher:
     """
     URL Content Fetcher
-    
+
     책임:
     - URL 요청 및 HTML 텍스트 반환
     - 정적(Requests) vs 동적(JS) 분기 처리 (기반 마련)
+
+    설정:
+    - timeout: 환경 변수 URL_FETCH_TIMEOUT 또는 생성자 파라미터
     """
 
-    def __init__(self, timeout: int = 10):
-        self.timeout = timeout
+    def __init__(self, timeout: int | None = None):
+        self.timeout = timeout or int(
+            os.environ.get("URL_FETCH_TIMEOUT", str(DEFAULT_URL_FETCH_TIMEOUT))
+        )
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
     def fetch(self, url: str) -> str:
