@@ -1,4 +1,7 @@
 spring:
+  http:
+    client:
+      factory: http_components
   datasource:
     url: jdbc:postgresql://localhost:5432/hirelog
     username: postgres
@@ -25,6 +28,13 @@ hirelog:
   worker:
     job-summary:
       enabled: true
+
+opensearch:
+  host: localhost
+  port: 9200
+  scheme: http
+  username:
+  password: admin
 
 app:
   storage:

@@ -13,6 +13,13 @@ spring:
     hibernate:
       ddl-auto: validate
 
+opensearch:
+  host: ${OPENSEARCH_HOST}
+  port: 9200
+  scheme: https
+  username: ${OPENSEARCH_USERNAME}
+  password: ${OPENSEARCH_PASSWORD}
+
 hirelog:
   worker:
     job-summary:

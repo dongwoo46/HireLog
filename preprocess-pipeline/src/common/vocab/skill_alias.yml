@@ -109,11 +109,6 @@ angular:
   - angularjs
   - angular-js
 
-next.js:
-  - nextjs
-  - next-js
-  - nextjsframework
-
 nuxt.js:
   - nuxtjs
   - nuxt-js
@@ -239,6 +234,7 @@ apache:
 aws:
   - amazon-web-services
   - aws-cloud
+  - AWS
 
 ec2:
   - aws-ec2
@@ -607,3 +603,16 @@ llm:
 
 rag:
   - retrieval-augmented-generation
+  - RAG
+
+chatgpt:
+  - chatGPT
+  - gpt
+  - GPT
+
+Gemini:
+  - gemini
+
+npl:
+  - NLP
+  - natural language processing

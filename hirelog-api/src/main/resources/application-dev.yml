@@ -32,6 +32,13 @@ spring:
       port: 6379
       timeout: 3s
 
+opensearch:
+  host: localhost
+  port: 9200
+  scheme: https
+  username: admin
+  password: ${OPENSEARCH_PASSWORD}
+
 hirelog:
   worker:
     job-summary:

@@ -130,6 +130,10 @@ architecture:
   - event-driven
   - ddd
   - tdd
+  - DDD
+  - TDD
+  - MSA
+
 
 data:
   - spark
@@ -145,7 +149,6 @@ ai:
   - dl
   - llm
   - nlp
-  - natural language processing
   - computer vision
   - cv
   - tensorflow
@@ -153,6 +156,10 @@ ai:
   - keras
   - scikit-learn
   - sklearn
+  - claude
+  - rag
+  - chatgpt
+  - Gemini
 
 mobile:
   - react native
