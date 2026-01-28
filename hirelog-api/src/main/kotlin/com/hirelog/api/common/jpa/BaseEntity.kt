@@ -22,13 +22,26 @@ abstract class BaseEntity {
     var version: Long = 0
         protected set
 
+    /**
+     * 생성 시각
+     *
+     * 규칙:
+     * - INSERT 시 Hibernate가 반드시 세팅
+     * - 엔티티 외부에서는 null 불가
+     */
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    var createdAt: LocalDateTime? = null
+    lateinit var createdAt: LocalDateTime
         protected set
 
+    /**
+     * 수정 시각
+     *
+     * 규칙:
+     * - UPDATE 시 Hibernate가 반드시 세팅
+     */
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: LocalDateTime? = null
+    lateinit var updatedAt: LocalDateTime
         protected set
 }

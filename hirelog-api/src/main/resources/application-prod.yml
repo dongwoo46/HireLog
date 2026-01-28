@@ -1,4 +1,12 @@
 spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: https://api.hirelog.com/login/oauth2/code/google
+          kakao:
+            redirect-uri: https://api.hirelog.com/login/oauth2/code/kakao
   datasource:
     url: jdbc:postgresql://prod-db:5432/hirelog_prod
     username: hirelog

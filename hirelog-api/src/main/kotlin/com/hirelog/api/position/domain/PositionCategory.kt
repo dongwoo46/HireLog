@@ -18,7 +18,7 @@ import jakarta.persistence.*
         )
     ]
 )
-class PositionCategory private constructor(
+class PositionCategory protected constructor(
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

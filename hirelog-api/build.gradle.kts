@@ -40,9 +40,13 @@ dependencies {
 	// OpenSearch Java Client (버전 명시 필수)
 	implementation("org.opensearch.client:opensearch-java:2.13.0")
 	implementation("org.opensearch.client:opensearch-rest-client:2.13.0")
-
 	implementation("com.fasterxml.jackson.core:jackson-databind")
 
+	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+	implementation("io.jsonwebtoken:jjwt-api:0.12.5")
+	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
+	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")

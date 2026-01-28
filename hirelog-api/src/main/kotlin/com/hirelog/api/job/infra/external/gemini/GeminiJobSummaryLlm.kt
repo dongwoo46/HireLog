@@ -6,6 +6,7 @@ import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+import com.hirelog.api.job.infra.external.gemini.GeminiResponseParser
 import com.hirelog.api.job.infra.external.gemini.JobSummaryLlmResultAssembler
 import com.hirelog.api.job.intake.similarity.CanonicalTextNormalizer
 import java.util.concurrent.CompletableFuture
