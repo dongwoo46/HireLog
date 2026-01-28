@@ -1,6 +1,6 @@
 package com.hirelog.api.brandposition.domain
 
-import com.hirelog.api.common.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.BaseEntity
 import jakarta.persistence.*
 import java.time.LocalDateTime
 

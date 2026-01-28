@@ -1,4 +1,4 @@
-package com.hirelog.api.common.jpa
+package com.hirelog.api.common.infra.jpa
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import jakarta.persistence.AttributeConverter

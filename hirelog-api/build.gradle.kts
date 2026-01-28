@@ -42,6 +42,9 @@ dependencies {
 	implementation("org.opensearch.client:opensearch-rest-client:2.13.0")
 	implementation("com.fasterxml.jackson.core:jackson-databind")
 
+	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:postgresql")
+
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 	implementation("io.jsonwebtoken:jjwt-api:0.12.5")

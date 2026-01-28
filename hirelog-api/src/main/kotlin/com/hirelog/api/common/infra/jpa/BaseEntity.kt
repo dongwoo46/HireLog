@@ -1,4 +1,4 @@
-package com.hirelog.api.common.jpa
+package com.hirelog.api.common.infra.jpa
 
 import jakarta.persistence.Column
 import jakarta.persistence.MappedSuperclass

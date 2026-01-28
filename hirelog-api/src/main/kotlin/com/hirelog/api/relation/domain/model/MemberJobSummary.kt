@@ -1,6 +1,6 @@
 package com.hirelog.api.relation.domain.model
 
-import com.hirelog.api.common.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.BaseEntity
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import jakarta.persistence.*
 
