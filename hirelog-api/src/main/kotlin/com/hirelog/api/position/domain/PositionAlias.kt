@@ -56,7 +56,7 @@ import jakarta.persistence.*
         )
     ]
 )
-class PositionAlias private constructor(
+class PositionAlias protected constructor(
 
     /**
      * 내부 식별자

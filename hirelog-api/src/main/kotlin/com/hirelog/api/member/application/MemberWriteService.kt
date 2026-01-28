@@ -1,0 +1,127 @@
+package com.hirelog.api.member.application
+
+import com.hirelog.api.auth.domain.OAuthUser
+import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.member.application.port.MemberCommand
+import com.hirelog.api.member.application.port.MemberQuery
+import com.hirelog.api.member.domain.Member
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+
+/**
+ * Member Write Application Service
+ *
+ * 책임:
+ * - Member 쓰기 유스케이스 전담
+ * - 트랜잭션 경계 정의
+ * - 도메인 상태 변경 트리거
+ */
+@Service
+class MemberWriteService(
+    private val memberCommand: MemberCommand,
+    private val memberQuery: MemberQuery,
+) {
+
+    /**
+     * 기존 회원 + OAuth 계정 연결
+     */
+    @Transactional
+    fun bindOAuthAccount(
+        email: String,
+        oAuthUser: OAuthUser,
+    ): Member {
+        val member = memberQuery.findByEmail(email)
+            ?: throw EntityNotFoundException(
+                entityName = "Member",
+                identifier = email
+            )
+
+        member.linkOAuthAccount(
+            provider = oAuthUser.provider,
+            providerUserId = oAuthUser.providerUserId,
+        )
+
+        return member
+    }
+
+    /**
+     * 신규 회원 가입 + OAuth 계정 연결
+     */
+    @Transactional
+    fun signupWithOAuth(
+        email: String,
+        username: String,
+        oAuthUser: OAuthUser,
+        currentPositionId: Long? = null,
+        careerYears: Int? = null,
+        summary: String? = null,
+    ): Member {
+        if (memberQuery.existByUsername(username)) {
+            throw IllegalArgumentException("이미 사용 중인 username 입니다.")
+        }
+
+        val member = Member.createByOAuth(
+            email = email,
+            username = username,
+            provider = oAuthUser.provider,
+            providerUserId = oAuthUser.providerUserId,
+            currentPositionId = currentPositionId,
+            careerYears = careerYears,
+            summary = summary,
+        )
+
+        return memberCommand.save(member)
+    }
+
+    /**
+     * 표시 이름 변경
+     */
+    @Transactional
+    fun updateDisplayName(memberId: Long, displayName: String) {
+        val member = getRequired(memberId)
+        member.updateDisplayName(displayName)
+    }
+
+    /**
+     * 프로필 수정
+     */
+    @Transactional
+    fun updateProfile(
+        memberId: Long,
+        currentPositionId: Long?,
+        careerYears: Int?,
+        summary: String?,
+    ) {
+        val member = getRequired(memberId)
+        member.updateProfile(
+            currentPositionId = currentPositionId,
+            careerYears = careerYears,
+            summary = summary,
+        )
+    }
+
+    /**
+     * 계정 정지
+     */
+    @Transactional
+    fun suspend(memberId: Long) {
+        val member = getRequired(memberId)
+        member.suspend()
+    }
+
+    /**
+     * 계정 탈퇴 (논리 삭제)
+     */
+    @Transactional
+    fun delete(memberId: Long) {
+        val member = getRequired(memberId)
+        member.softDelete()
+    }
+
+    private fun getRequired(memberId: Long): Member =
+        memberQuery.findById(memberId)
+            ?: throw EntityNotFoundException(
+                entityName = "Member",
+                identifier = memberId
+            )
+}

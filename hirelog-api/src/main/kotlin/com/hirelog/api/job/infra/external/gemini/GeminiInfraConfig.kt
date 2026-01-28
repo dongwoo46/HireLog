@@ -3,6 +3,7 @@ package com.hirelog.api.job.infrastructure.external.gemini
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.config.properties.GeminiProperties
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
+import com.hirelog.api.job.infra.external.gemini.GeminiResponseParser
 import com.hirelog.api.job.infra.external.gemini.JobSummaryLlmResultAssembler
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean

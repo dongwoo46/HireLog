@@ -1,10 +1,15 @@
-package com.yourpackage.common.infra.redis.messaging
+package com.hirelog.api.common.infra.redis
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.hirelog.api.common.config.properties.RedisProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.redis.connection.RedisConnectionFactory
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
+import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.core.StringRedisTemplate
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
 import org.springframework.data.redis.serializer.StringRedisSerializer
 
 /**
@@ -20,7 +25,9 @@ import org.springframework.data.redis.serializer.StringRedisSerializer
  * - 도메인 의미 ❌
  */
 @Configuration
-class RedisConfig {
+class RedisConfig(
+    private val redisProperties: RedisProperties
+) {
 
     /**
      * Redis 연결 팩토리
@@ -31,8 +38,33 @@ class RedisConfig {
      */
     @Bean
     fun redisConnectionFactory(): RedisConnectionFactory {
-        return LettuceConnectionFactory()
+        return LettuceConnectionFactory(
+            redisProperties.host,
+            redisProperties.port
+        )
     }
+
+    /* =========================
+     * Redis ObjectMapper (핵심)
+     * ========================= */
+
+    /**
+     * Redis 전용 ObjectMapper
+     * * 보완사항:
+     * - JavaTimeModule 추가 (Instant, LocalDateTime 처리용)
+     * - DefaultTyping 설정 (JSON에 클래스 정보를 포함하여 역직렬화 오류 방지)
+     */
+    @Bean
+    fun redisObjectMapper(): ObjectMapper =
+        ObjectMapper()
+            .registerModule(KotlinModule.Builder().build())
+            .registerModule(com.fasterxml.jackson.datatype.jsr310.JavaTimeModule()) // 날짜 모듈 추가
+            .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .activateDefaultTyping(
+                com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL,
+                com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY
+            )
 
     /**
      * Redis 전용
@@ -54,6 +86,31 @@ class RedisConfig {
         template.valueSerializer = StringRedisSerializer()
         template.hashKeySerializer = StringRedisSerializer()
         template.hashValueSerializer = StringRedisSerializer()
+
+        template.afterPropertiesSet()
+        return template
+    }
+
+    /**
+     * 객체(Any) 저장을 위한 템플릿 수정
+     * * 수정사항:
+     * - GenericJackson2JsonRedisSerializer 생성 시 redisObjectMapper()를 주입함
+     */
+    @Bean
+    fun redisTemplate(
+        connectionFactory: RedisConnectionFactory,
+        redisObjectMapper: ObjectMapper // 위에서 정의한 빈 주입
+    ): RedisTemplate<String, Any> {
+        val template = RedisTemplate<String, Any>()
+        template.setConnectionFactory(connectionFactory)
+
+        // 중요: 커스텀 ObjectMapper가 적용된 Serializer 사용
+        val serializer = GenericJackson2JsonRedisSerializer(redisObjectMapper)
+
+        template.keySerializer = StringRedisSerializer()
+        template.valueSerializer = serializer
+        template.hashKeySerializer = StringRedisSerializer()
+        template.hashValueSerializer = serializer
 
         template.afterPropertiesSet()
         return template

@@ -1,4 +1,12 @@
 spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: http://localhost:8080/login/oauth2/code/google
+          kakao:
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
   http:
     client:
       factory: http_components

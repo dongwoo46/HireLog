@@ -1,4 +1,4 @@
-package com.hirelog.api.job.infrastructure.external.gemini
+package com.hirelog.api.job.infra.external.gemini
 
 import JobSummaryLlmRawResult
 import com.fasterxml.jackson.core.JsonProcessingException

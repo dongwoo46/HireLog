@@ -53,7 +53,7 @@ import jakarta.persistence.*
         )
     ]
 )
-class Position private constructor(
+class Position protected constructor(
 
     /**
      * 내부 식별자
