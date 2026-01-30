@@ -1,6 +1,7 @@
 package com.hirelog.api.job.infra.kafka.publisher
 
 import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
+import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Component
 
@@ -16,7 +17,7 @@ class JdPreprocessUrlRequestPublisher(
 ) {
 
     companion object {
-        private const val TOPIC = "jd.preprocess.url.request"
+        private const val TOPIC = JdKafkaTopics.PREPROCESS_URL_REQUEST
     }
 
     fun publish(message: JdPreprocessRequestMessage) {

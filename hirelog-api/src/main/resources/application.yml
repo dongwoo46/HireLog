@@ -1,6 +1,6 @@
 spring:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}  # 'kafka:9092'를 'localhost:9092'로 변경
+    bootstrap-servers: localhost:19092  # 'kafka:9092'를 'localhost:9092'로 변경
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -17,6 +17,8 @@ spring:
       auto-offset-reset: earliest
       properties:
         spring.json.trusted.packages: "*"
+        spring.json.type.mapping: jdPreprocessRequest:com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
+
   security:
     oauth2:
       client:
@@ -74,7 +76,6 @@ logging:
     root: INFO
     org.hibernate.SQL: INFO
     com.hirelog.api: DEBUG
-    org.springframework.security: DEBUG
 
 server:
   tomcat:

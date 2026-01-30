@@ -1,4 +1,4 @@
-package com.hirelog.api.job.application.summary.pipeline
+package com.hirelog.api.job.application.summary
 
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.Brand
@@ -10,8 +10,8 @@ import com.hirelog.api.job.application.intake.model.IntakeHashes
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
-import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
+import com.hirelog.api.job.application.summary.pipeline.SummaryGenerationPipeline
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.*
@@ -21,6 +21,7 @@ import com.hirelog.api.position.domain.PositionStatus
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -30,7 +31,6 @@ import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import kotlin.test.assertEquals
 
 @ExtendWith(MockKExtension::class)
 class SummaryGenerationPipelineTest {

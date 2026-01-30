@@ -1,10 +1,9 @@
 package com.hirelog.api.job.application.intake
 
-import com.hirelog.api.common.infra.redis.messaging.RedisStreamPublisher
-import com.hirelog.api.common.infra.redis.messaging.RedisStreamSerializer
 import com.hirelog.api.common.logging.log
-import com.hirelog.api.job.infra.redis.JdStreamKeys
+import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
 import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.infra.kafka.publisher.JdPreprocessUrlRequestPublisher
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -12,15 +11,16 @@ import java.util.UUID
  * URL 기반 JD 수집 서비스
  *
  * 책임:
- * - URL 전처리 요청 메시지 발행
+ * - URL 전처리 요청 Kafka 이벤트 발행
  *
  * 비책임:
- * - URL 크롤링/파싱 ❌ (Python에서 수행)
- * - 중복 판단 ❌ (Facade에서 수행)
+ * - URL 크롤링/파싱 ❌ (Python Worker)
+ * - 중복 판단 ❌
+ * - 요약 처리 ❌
  */
 @Service
 class UrlJdIntakeService(
-    private val redisStreamPublisher: RedisStreamPublisher
+    private val jdPreprocessUrlRequestPublisher: JdPreprocessUrlRequestPublisher
 ) {
 
     /**
@@ -29,45 +29,46 @@ class UrlJdIntakeService(
      * @param brandName 브랜드명
      * @param positionName 포지션명
      * @param url 채용공고 URL
-     * @return requestId
+     * @return requestId (Correlation ID)
      */
     fun requestUrlSummary(
         brandName: String,
         positionName: String,
         url: String
     ): String {
+
+        // === 입력 검증 ===
         require(brandName.isNotBlank()) { "brandName must not be blank" }
         require(positionName.isNotBlank()) { "positionName must not be blank" }
         require(url.isNotBlank()) { "url must not be blank" }
         require(isValidUrl(url)) { "Invalid URL format: $url" }
 
+        // === 식별자 생성 ===
+        val eventId = UUID.randomUUID().toString()
         val requestId = UUID.randomUUID().toString()
 
         log.info(
             "[URL_INTAKE] requestId={}, brandName={}, positionName={}, url={}",
-            requestId, brandName, positionName, url
+            requestId,
+            brandName,
+            positionName,
+            url
         )
 
-        // Redis Stream 메시지 발행
-        val message = RedisStreamSerializer.serialize(
-            metadata = mapOf(
-                "type" to JdMessageType.JD_PREPROCESS_REQUEST.name,
-                "requestId" to requestId,
-                "brandName" to brandName,
-                "positionName" to positionName,
-                "createdAt" to System.currentTimeMillis().toString(),
-                "messageVersion" to "v1"
-            ),
-            payload = mapOf(
-                "source" to JobSourceType.URL.name,
-                "sourceUrl" to url
-            )
+        // === Kafka Event 생성 ===
+        val message = JdPreprocessRequestMessage(
+            eventId = eventId,
+            requestId = requestId,
+            occurredAt = System.currentTimeMillis(),
+            version = "v1",
+            brandName = brandName,
+            positionName = positionName,
+            source = JobSourceType.URL,
+            text = url
         )
 
-        redisStreamPublisher.publish(
-            streamKey = JdStreamKeys.PREPROCESS_URL_REQUEST,
-            message = message
-        )
+        // === Kafka 발행 (URL Request Topic) ===
+        jdPreprocessUrlRequestPublisher.publish(message)
 
         return requestId
     }

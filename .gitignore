@@ -12,10 +12,10 @@ opensearch_data/
 .vscode/
 .intellij/
 /storage/
-./kafka-data/
-kafka-data/
-./storage
+kafka_data/
+**/kafka_data/
 
+./storage
 # ===============================
 # Frontend
 # ===============================

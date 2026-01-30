@@ -2,13 +2,12 @@ package com.hirelog.api.job.presentation.controller
 
 import com.hirelog.api.job.application.intake.OcrJdIntakeService
 import com.hirelog.api.job.application.intake.UrlJdIntakeService
-import com.hirelog.api.job.application.preprocess.JdPreprocessRequestService
+import com.hirelog.api.job.application.intake.TextJdIntakeService
 import com.hirelog.api.job.application.summary.SummaryGenerationFacadeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryOcrReq
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryTextReq
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryUrlReq
 import jakarta.validation.Valid
@@ -18,11 +17,11 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
 @RestController
-@RequestMapping("/job-summary")
+@RequestMapping("/api/job-summary")
 class JobSummaryController(
     private val jobSummaryQuery: JobSummaryQuery,
     private val jobSummaryFacadeService: SummaryGenerationFacadeService,
-    private val jdPreprocessRequestService: JdPreprocessRequestService,
+    private val jdPreprocessRequestService: TextJdIntakeService,
     private val ocrJdIntakeService: OcrJdIntakeService,
     private val urlJdIntakeService: UrlJdIntakeService
 ) {

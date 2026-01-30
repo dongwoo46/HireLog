@@ -54,15 +54,14 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
 	runtimeOnly("org.postgresql:postgresql")
-	testImplementation("junit:junit:4.13.2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("io.mockk:mockk:1.13.13")
 	testImplementation("com.ninja-squad:springmockk:4.0.2")
 	testImplementation("org.springframework.kafka:spring-kafka-test")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-	testImplementation("org.testcontainers:testcontainers")
+	testImplementation("org.testcontainers:testcontainers:2.0.0") // 또는 최신 버전
+	testImplementation("org.testcontainers:postgresql:2.0.0")
+	testImplementation("org.testcontainers:junit-jupiter:2.0.0")
 
 }
 
@@ -82,3 +81,4 @@ allOpen {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
