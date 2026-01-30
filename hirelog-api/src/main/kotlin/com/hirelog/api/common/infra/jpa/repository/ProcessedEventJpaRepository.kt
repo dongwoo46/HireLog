@@ -1,7 +1,7 @@
 package com.hirelog.api.common.infra.jpa.repository
 
-import com.hirelog.api.common.infra.jpa.ProcessedEventJpaEntity
-import com.hirelog.api.common.infra.jpa.ProcessedEventJpaId
+import com.hirelog.api.common.infra.jpa.entity.ProcessedEventJpaEntity
+import com.hirelog.api.common.infra.jpa.entity.ProcessedEventJpaId
 import org.springframework.data.jpa.repository.JpaRepository
 
 /**

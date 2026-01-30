@@ -3,9 +3,10 @@ package com.hirelog.api.job.application.intake.worker
 import com.hirelog.api.common.async.MdcExecutor
 import com.hirelog.api.common.infra.redis.messaging.RedisStreamConsumer
 import com.hirelog.api.common.logging.log
-import com.hirelog.api.job.application.messaging.JdStreamKeys
 import com.hirelog.api.job.application.messaging.mapper.JdPreprocessResponseMessageMapper
-import com.hirelog.api.job.application.summary.SummaryGenerationFacadeService
+import com.hirelog.api.job.application.summary.RedisSummaryGenerationFacade
+import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
+import com.hirelog.api.job.infra.redis.JdStreamKeys
 import jakarta.annotation.PreDestroy
 import org.slf4j.MDC
 import org.springframework.stereotype.Component
@@ -21,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * 책임:
  * - JD 전처리 결과 Stream 소비 (TEXT/OCR/URL 공통)
- * - 메시지 → 계약 DTO 변환
+ * - 메시지 → Application Command 변환
  * - 비동기 파이프라인 디스패치 + 동시성 제어
  *
  * 동시성 설계:
@@ -39,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class JdSummaryGenerationWorker(
     private val redisConsumer: RedisStreamConsumer,
     private val messageMapper: JdPreprocessResponseMessageMapper,
-    private val jobSummaryFacadeService: SummaryGenerationFacadeService
+    private val summaryGenerationFacade: RedisSummaryGenerationFacade
 ) {
 
     companion object {
@@ -69,12 +70,10 @@ class JdSummaryGenerationWorker(
             MAX_LLM_CONCURRENCY
         )
 
-        // N개 Consumer 시작
         repeat(CONSUMER_COUNT) { index ->
             val consumerName = "jd-summary-consumer-$hostname-$index"
 
-            // Pending Sweep: 앱 재시작 시 미처리된 메시지 복구
-            val sweptCount = redisConsumer.sweepPendingMessages(
+            redisConsumer.sweepPendingMessages(
                 streamKey = streamKey,
                 group = group,
                 consumer = consumerName
@@ -82,14 +81,6 @@ class JdSummaryGenerationWorker(
                 dispatch(recordId, rawMessage)
             }
 
-            if (sweptCount > 0) {
-                log.info(
-                    "[JD_SUMMARY_WORKER] Pending sweep completed, consumer={}, processed={}",
-                    consumerName, sweptCount
-                )
-            }
-
-            // 정상 소비 시작 (각 Consumer는 RedisStreamConsumer 내부에서 별도 스레드로 동작)
             redisConsumer.consume(
                 streamKey = streamKey,
                 group = group,
@@ -104,16 +95,6 @@ class JdSummaryGenerationWorker(
 
     /**
      * 메시지 디스패치
-     *
-     * 처리 흐름:
-     * 1. Semaphore acquire (backpressure: Consumer 스레드 blocking)
-     * 2. MDC에 requestId 설정 (MdcExecutor가 비동기 스레드로 전파)
-     * 3. pipelineExecutor에서 Facade 비동기 파이프라인 시작
-     * 4. 완료 시 semaphore release
-     *
-     * 반환된 Future의 의미:
-     * - 정상 완료: 파이프라인 전체 처리 완결 (성공 또는 비즈니스 실패 모두 포함)
-     * - 예외 완료: 인프라 장애 (DB 불가 등) → Consumer가 ACK하지 않음
      */
     private fun dispatch(
         recordId: String,
@@ -131,24 +112,39 @@ class JdSummaryGenerationWorker(
         val preprocessMessage = messageMapper.from(rawMessage)
         MDC.put("requestId", preprocessMessage.requestId)
 
+        // Message → Application Command 변환
+        val command =
+            JobSummaryGenerateCommand(
+                requestId = preprocessMessage.requestId,
+                brandName = preprocessMessage.brandName,
+                positionName = preprocessMessage.positionName,
+                source = preprocessMessage.source,
+                sourceUrl = preprocessMessage.sourceUrl,
+                canonicalMap = preprocessMessage.canonicalMap,
+                recruitmentPeriodType = preprocessMessage.recruitmentPeriodType,
+                openedDate = preprocessMessage.openedDate,
+                closedDate = preprocessMessage.closedDate,
+                skills = preprocessMessage.skills,
+                occurredAt = System.currentTimeMillis()
+            )
+
         log.info(
             "[JD_SUMMARY_DISPATCH] recordId={}, requestId={}, source={}",
-            recordId, preprocessMessage.requestId, preprocessMessage.source
+            recordId,
+            command.requestId,
+            command.source
         )
 
-        return CompletableFuture.completedFuture(preprocessMessage)
-            .thenComposeAsync(
-                { message ->
-                    jobSummaryFacadeService.generateAsync(message, mdcPipelineExecutor)
-                },
-                mdcPipelineExecutor
-            )
+        return summaryGenerationFacade
+            .process(command, mdcPipelineExecutor)
             .whenComplete { _, ex ->
                 semaphore.release()
                 if (ex != null) {
                     log.error(
                         "[JD_SUMMARY_PIPELINE_FATAL] recordId={}, requestId={}",
-                        recordId, preprocessMessage.requestId, ex
+                        recordId,
+                        command.requestId,
+                        ex
                     )
                 }
                 MDC.clear()
@@ -163,10 +159,6 @@ class JdSummaryGenerationWorker(
         pipelineExecutor.shutdown()
         try {
             if (!pipelineExecutor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                log.warn(
-                    "[JD_SUMMARY_WORKER_SHUTDOWN] Pipeline executor did not terminate within {}s, forcing shutdown",
-                    SHUTDOWN_TIMEOUT_SECONDS
-                )
                 pipelineExecutor.shutdownNow()
             }
         } catch (e: InterruptedException) {

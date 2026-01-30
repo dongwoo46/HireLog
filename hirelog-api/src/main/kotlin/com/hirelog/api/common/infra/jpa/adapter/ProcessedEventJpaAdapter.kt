@@ -2,10 +2,10 @@ package com.hirelog.api.common.infra.jpa.adapter
 
 import com.hirelog.api.common.application.processed.ProcessedEventCommand
 import com.hirelog.api.common.application.processed.ProcessedEventQuery
-import com.hirelog.api.common.domain.ProcessedEvent
-import com.hirelog.api.common.domain.ProcessedEventId
-import com.hirelog.api.common.infra.jpa.ProcessedEventJpaEntity
-import com.hirelog.api.common.infra.jpa.ProcessedEventJpaId
+import com.hirelog.api.common.domain.process.ProcessedEvent
+import com.hirelog.api.common.domain.process.ProcessedEventId
+import com.hirelog.api.common.infra.jpa.entity.ProcessedEventJpaEntity
+import com.hirelog.api.common.infra.jpa.entity.ProcessedEventJpaId
 import com.hirelog.api.common.infra.jpa.repository.ProcessedEventJpaRepository
 import org.springframework.stereotype.Component
 

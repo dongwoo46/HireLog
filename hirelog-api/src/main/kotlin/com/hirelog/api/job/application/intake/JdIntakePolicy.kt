@@ -3,7 +3,6 @@ package com.hirelog.api.job.application.intake
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.intake.model.IntakeHashes
 import com.hirelog.api.job.application.intake.model.JdIntakeInput
-import com.hirelog.api.job.application.messaging.JdPreprocessResponseMessage
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.JobSnapshot
@@ -12,6 +11,7 @@ import com.hirelog.api.job.intake.similarity.SimHashCalculator
 import com.hirelog.api.job.intake.similarity.SimHashSimilarity
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
+import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 
 /**
  * JdIntakePolicy
@@ -52,7 +52,7 @@ class JdIntakePolicy(
     }
 
     fun decideDuplicate(
-        message: JdPreprocessResponseMessage,
+        command: JobSummaryGenerateCommand,
         hashes: IntakeHashes
     ): DuplicateDecision {
 
@@ -62,7 +62,7 @@ class JdIntakePolicy(
         }
 
         // 2️⃣ 의심 후보 수집
-        val suspects = collectSuspectSnapshots(message)
+        val suspects = collectSuspectSnapshots(command)
         if (suspects.isEmpty()) {
             return DuplicateDecision.NOT_DUPLICATE
         }
@@ -156,21 +156,21 @@ class JdIntakePolicy(
      * - 오직 의심 후보 수집만 담당
      */
     private fun collectSuspectSnapshots(
-        message: JdPreprocessResponseMessage
+        command: JobSummaryGenerateCommand
     ): List<JobSnapshot> {
 
         val result = mutableSetOf<JobSnapshot>()
 
         // 4-1. URL 기준 의심 후보
-        if (message.source == JobSourceType.URL && message.sourceUrl != null) {
-            result += snapshotQuery.loadSnapshotsByUrl(message.sourceUrl)
+        if (command.source == JobSourceType.URL && command.sourceUrl != null) {
+            result += snapshotQuery.loadSnapshotsByUrl(command.sourceUrl)
         }
 
         // 4-2. 날짜 기준 의심 후보
-        if (message.openedDate != null || message.closedDate != null) {
+        if (command.openedDate != null || command.closedDate != null) {
             result += snapshotQuery.loadSnapshotsByDateRange(
-                openedDate = message.openedDate,
-                closedDate = message.closedDate
+                openedDate = command.openedDate,
+                closedDate = command.closedDate
             )
         }
 
@@ -192,17 +192,17 @@ class JdIntakePolicy(
      * - false면 요약/중복/저장 파이프라인 진입 ❌
      * - true면 다음 단계 진행
      */
-    fun isValidJd(message: JdPreprocessResponseMessage): Boolean {
+    fun isValidJd(command: JobSummaryGenerateCommand): Boolean {
 
-        val canonicalText = flattenCanonicalText(message.canonicalMap)
+        val canonicalText = flattenCanonicalText(command.canonicalMap)
 
         if (canonicalText.isBlank()) return false
         if (canonicalText.length < 300) return false
 
         // 필수 섹션 최소 요건
-        if (message.canonicalMap["responsibilities"].isNullOrEmpty()) return false
-        if (message.canonicalMap["requirements"].isNullOrEmpty()) return false
-        if (message.canonicalMap["preferred"].isNullOrEmpty()) return false
+        if (command.canonicalMap["responsibilities"].isNullOrEmpty()) return false
+        if (command.canonicalMap["requirements"].isNullOrEmpty()) return false
+        if (command.canonicalMap["preferred"].isNullOrEmpty()) return false
 
         return true
     }
@@ -269,10 +269,10 @@ class JdIntakePolicy(
      *   "도메인 규칙"은 포함하지 않는다
      */
     fun toIntakeInput(
-        message: JdPreprocessResponseMessage
+        command: JobSummaryGenerateCommand
     ): JdIntakeInput {
 
-        val map = message.canonicalMap
+        val map = command.canonicalMap
 
         return JdIntakeInput(
 
@@ -280,14 +280,14 @@ class JdIntakePolicy(
             responsibilityTexts = map["responsibilities"].orEmpty(),
             preferredTexts = map["preferred"].orEmpty(),
 
-            openedDate = message.openedDate,
-            closedDate = message.closedDate,
-            recruitmentType = message.recruitmentPeriodType,
+            openedDate = command.openedDate,
+            closedDate = command.closedDate,
+            recruitmentType = command.recruitmentPeriodType,
 
-            source = message.source,
-            sourceUrl = message.sourceUrl,
+            source = command.source,
+            sourceUrl = command.sourceUrl,
 
-            skills = message.skills,
+            skills = command.skills,
             process = map["process"].orEmpty()
         )
     }

@@ -1,6 +1,6 @@
 package com.hirelog.api.common.application.processed
 
-import com.hirelog.api.common.domain.ProcessedEvent
+import com.hirelog.api.common.domain.process.ProcessedEvent
 
 /**
  * ProcessedEventCommand

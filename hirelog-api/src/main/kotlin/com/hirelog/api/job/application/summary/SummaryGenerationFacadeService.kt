@@ -15,6 +15,7 @@ import com.hirelog.api.job.application.messaging.JdPreprocessResponseMessage
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
+import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
@@ -76,7 +77,7 @@ class SummaryGenerationFacadeService(
      * @param postProcessExecutor Post-LLM DB 작업 실행용 Executor (MDC 전파 보장 필수)
      */
     fun generateAsync(
-        message: JdPreprocessResponseMessage,
+        message: JobSummaryGenerateCommand,
         postProcessExecutor: Executor
     ): CompletableFuture<Void> {
 
@@ -205,7 +206,7 @@ class SummaryGenerationFacadeService(
         snapshotId: Long,
         llmResult: JobSummaryLlmResult,
         processingId: UUID,
-        message: JdPreprocessResponseMessage
+        message: JobSummaryGenerateCommand
     ) {
         // Brand 확보: LLM이 판정한 회사명으로 조회 또는 신규 생성
         val brand = brandWriteService.getOrCreate(

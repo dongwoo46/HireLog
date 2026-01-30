@@ -1,6 +1,5 @@
 package com.hirelog.api.auth.infra.jwt
 
-import com.hirelog.api.common.config.properties.JwtProperties
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys

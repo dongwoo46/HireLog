@@ -1,6 +1,6 @@
 package com.hirelog.api.brand.domain
 
-import com.hirelog.api.common.infra.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import com.hirelog.api.common.domain.VerificationStatus
 import jakarta.persistence.*
 

@@ -4,7 +4,7 @@ import com.hirelog.api.common.infra.redis.messaging.RedisStreamPublisher
 import com.hirelog.api.common.infra.redis.messaging.RedisStreamSerializer
 import com.hirelog.api.common.infra.storage.FileStorageService
 import com.hirelog.api.common.logging.log
-import com.hirelog.api.job.application.messaging.JdStreamKeys
+import com.hirelog.api.job.infra.redis.JdStreamKeys
 import com.hirelog.api.job.domain.JobSourceType
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile

@@ -1,10 +1,10 @@
 plugins {
-	kotlin("jvm") version "1.9.25"
-	kotlin("plugin.spring") version "1.9.25"
-	id("org.springframework.boot") version "3.5.9"
+	id("org.springframework.boot") version "3.5.10" // 4.0.2 대신 이걸 쓰세요. 훠얼씬 안정적입니다.
 	id("io.spring.dependency-management") version "1.1.7"
-	kotlin("plugin.jpa") version "1.9.25"
-	kotlin("kapt") version "1.9.25"
+	kotlin("jvm") version "1.9.24"
+	kotlin("plugin.spring") version "1.9.24"
+	kotlin("plugin.jpa") version "1.9.24"
+	kotlin("kapt") version "1.9.24"
 }
 
 group = "com.hirelog"
@@ -33,6 +33,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-redis")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
+	implementation("org.springframework.kafka:spring-kafka")
+
 	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
 	implementation("org.flywaydb:flyway-core")
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
@@ -52,12 +54,16 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
 	runtimeOnly("org.postgresql:postgresql")
+	testImplementation("junit:junit:4.13.2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("io.mockk:mockk:1.13.13")
 	testImplementation("com.ninja-squad:springmockk:4.0.2")
+	testImplementation("org.springframework.kafka:spring-kafka-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	testImplementation("org.testcontainers:testcontainers")
+
 }
 
 kotlin {

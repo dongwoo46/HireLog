@@ -14,8 +14,7 @@ opensearch_data/
 /storage/
 ./kafka-data/
 kafka-data/
-.kafka-data/
-
+./storage
 
 # ===============================
 # Frontend

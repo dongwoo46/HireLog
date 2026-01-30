@@ -1,9 +1,9 @@
 package com.hirelog.api.job.infra.external.gemini
 
-import JobSummaryLlmRawResult
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.exception.GeminiParseException
+import com.hirelog.api.job.application.summary.view.JobSummaryLlmRawResult
 
 /**
  * Gemini 응답 파서

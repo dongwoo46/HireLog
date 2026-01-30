@@ -1,7 +1,7 @@
 package com.hirelog.api.member.domain
 
 import com.hirelog.api.auth.domain.OAuth2Provider
-import com.hirelog.api.common.infra.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import jakarta.persistence.*
 
 /**
