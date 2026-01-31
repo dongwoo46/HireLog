@@ -77,4 +77,5 @@ class SignupController(
         val memberId = signupFacadeService.completeSignup(signupToken, request, response)
         return ResponseEntity.ok(memberId)
     }
+
 }

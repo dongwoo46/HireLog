@@ -15,7 +15,7 @@ sys.path.append(
 from infra.redis.redis_client import RedisClient
 from infra.redis.stream_consumer import RedisStreamConsumer
 from infra.redis.stream_keys import JdStreamKeys
-from preprocess.worker.jd_preprocess_text_worker import JdPreprocessTextWorker
+from preprocess.worker.redis.jd_preprocess_text_worker import JdPreprocessTextWorker
 from inputs.parse_jd_preprocess_message import parse_jd_preprocess_message
 
 logger = logging.getLogger(__name__)

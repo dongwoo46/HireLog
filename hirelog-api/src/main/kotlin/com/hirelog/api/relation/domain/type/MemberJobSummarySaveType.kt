@@ -3,22 +3,13 @@ package com.hirelog.api.relation.domain.type
 enum class MemberJobSummarySaveType {
 
     /**
-     * 즐겨찾기
+     * 단순 저장 (기본값)
      */
-    FAVORITE,
+    SAVED,
 
     /**
-     * 지원 예정
+     * 지원 의사가 있는 JD
      */
-    APPLY,
-
-    /**
-     * 다른 JD와 비교용
-     */
-    COMPARE,
-
-    /**
-     * 아카이브 (나중에 다시 보기)
-     */
-    ARCHIVE
+    APPLY
 }
+

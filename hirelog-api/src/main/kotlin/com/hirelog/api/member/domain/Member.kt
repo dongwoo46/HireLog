@@ -1,7 +1,7 @@
 package com.hirelog.api.member.domain
 
 import com.hirelog.api.auth.domain.OAuth2Provider
-import com.hirelog.api.common.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import jakarta.persistence.*
 
 /**
@@ -62,7 +62,7 @@ class Member protected constructor(
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    var role: MemberRole = MemberRole.BASIC
+    var role: MemberRole = MemberRole.USER
         protected set
 
     /**

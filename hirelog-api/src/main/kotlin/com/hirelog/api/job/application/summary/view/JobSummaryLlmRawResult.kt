@@ -1,3 +1,5 @@
+package com.hirelog.api.job.application.summary.view
+
 /**
  * JobSummaryLlmRawResult
  *

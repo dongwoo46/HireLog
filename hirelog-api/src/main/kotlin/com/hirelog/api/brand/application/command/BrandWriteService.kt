@@ -5,6 +5,7 @@ import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.common.domain.VerificationStatus
 import com.hirelog.api.common.exception.EntityNotFoundException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -32,8 +33,8 @@ class BrandWriteService(
      * 정책:
      * - normalizedName 기준 단일 Brand 보장
      * - 존재하면 반환
-     * - 없으면 생성 (ON CONFLICT DO NOTHING)
-     * - JPA 세션 오염 없이 동시성 안전
+     * - 없으면 생성
+     * - 동시성 충돌 시 DB 예외 → 재조회
      */
     @Transactional
     fun getOrCreate(
@@ -43,24 +44,26 @@ class BrandWriteService(
         source: BrandSource
     ): Brand {
 
-        // 1. 빠른 조회
+        // 1. 선 조회
         brandQuery.findByNormalizedName(normalizedName)?.let {
             return it
         }
 
-        // 2. INSERT ... ON CONFLICT DO NOTHING (동시성 안전)
-        brandCommand.insertIgnoreDuplicate(
-            name = name,
-            normalizedName = normalizedName,
-            companyId = companyId,
-            verificationStatus = VerificationStatus.UNVERIFIED,
-            source = source,
-            isActive = true
-        )
-
-        // 3. 재조회 (ON CONFLICT로 insert 안 됐을 수 있음)
-        return brandQuery.findByNormalizedName(normalizedName)
-            ?: throw IllegalStateException("Brand insert failed unexpectedly: normalizedName=$normalizedName")
+        // 2. 생성 시도
+        return try {
+            brandCommand.save(
+                Brand.create(
+                    name = name,
+                    normalizedName = normalizedName,
+                    companyId = companyId,
+                    source = source,
+                )
+            )
+        } catch (e: DataIntegrityViolationException) {
+            // 3. 동시성 충돌 → 이미 생성됨
+            brandQuery.findByNormalizedName(normalizedName)
+                ?: throw e
+        }
     }
 
     /**

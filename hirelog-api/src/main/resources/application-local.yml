@@ -1,4 +1,7 @@
 spring:
+  kafka:
+    admin:
+      auto-create: true # 운영환경에서는 false로 설정
   security:
     oauth2:
       client:

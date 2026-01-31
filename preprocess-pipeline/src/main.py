@@ -19,7 +19,7 @@ import time
 import uuid
 from typing import List
 
-from config import (
+from infra.config.redis_config import (
     load_redis_config,
     load_worker_config,
     load_stream_config,

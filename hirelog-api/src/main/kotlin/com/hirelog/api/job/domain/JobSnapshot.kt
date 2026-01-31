@@ -1,12 +1,10 @@
 package com.hirelog.api.job.domain
 
-import com.hirelog.api.common.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import jakarta.persistence.*
 import java.time.LocalDate
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import io.lettuce.core.json.JsonType
-import org.hibernate.annotations.Type
 
 @Entity
 @Table(

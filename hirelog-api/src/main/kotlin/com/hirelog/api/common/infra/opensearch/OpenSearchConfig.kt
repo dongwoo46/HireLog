@@ -1,6 +1,5 @@
 package com.hirelog.api.common.infra.opensearch
 
-import com.hirelog.api.common.config.properties.OpenSearchProperties
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.json.jackson.JacksonJsonpMapper
 import org.opensearch.client.transport.rest_client.RestClientTransport

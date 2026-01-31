@@ -3,14 +3,14 @@ package com.hirelog.api.common.infra.opensearch
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch.core.IndexRequest
 import org.opensearch.client.opensearch.core.SearchRequest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 data class TestDocument @JsonCreator constructor(
     @JsonProperty("id")
