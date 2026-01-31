@@ -38,9 +38,6 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 )
 
-from inputs.jd_preprocess_input import JdPreprocessInput
-from outputs.jd_preprocess_output import JdPreprocessOutput
-
 # 캐시 클리어 (yml 파일 수정 반영 위해)
 from common.section.loader import clear_keyword_cache, load_header_keywords
 clear_keyword_cache()
@@ -411,7 +408,7 @@ def run_consumer_mode():
     from infra.redis.redis_client import RedisClient
     from infra.redis.stream_consumer import RedisStreamConsumer
     from infra.redis.stream_keys import JdStreamKeys
-    from preprocess.worker.jd_preprocess_url_worker import JdPreprocessUrlWorker
+    from preprocess.worker.redis.jd_preprocess_url_worker import JdPreprocessUrlWorker
     from inputs.parse_jd_preprocess_message import parse_jd_preprocess_message
 
     redis_client = RedisClient()

@@ -1,48 +1,42 @@
-# src/preprocess/worker/jd_preprocess_ocr_worker.py
-
 import logging
 import time
 
 from infra.redis.stream_keys import JdStreamKeys
 from inputs.jd_preprocess_input import JdPreprocessInput
 from outputs.jd_preprocess_output import JdPreprocessOutput
-from preprocess.worker.pipeline.ocr_pipeline import OcrPipeline
-from preprocess.worker.base_jd_preprocess_worker import BaseJdPreprocessWorker
+from preprocess.worker.pipeline.url_pipeline import UrlPipeline
+from preprocess.worker.redis.base_jd_preprocess_worker import BaseJdPreprocessWorker
 
 logger = logging.getLogger(__name__)
 
 
-class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
+class JdPreprocessUrlWorker(BaseJdPreprocessWorker):
     """
-    OCR 기반 JD 전처리 Worker
+    URL 기반 JD 전처리 Worker
 
-    역할:
-    - OCR 수행
-    - Pipeline 실행
+    책임:
+    - URL Preprocess 파이프라인 실행
     - 결과 DTO 매핑
     - Redis Stream 발행
-
-    주의:
-    - TEXT 워커와 출력 계약은 100% 동일해야 한다
     """
 
     def __init__(self):
         super().__init__()
-        logger.info("[OCR_WORKER_INIT] initializing OCR pipeline")
-        self.pipeline = OcrPipeline()
+        self.pipeline = UrlPipeline()
 
     def process(self, input: JdPreprocessInput) -> JdPreprocessOutput:
         try:
             # ==================================================
-            # 1️⃣ OCR + Preprocess Pipeline 실행
+            # 1️⃣ URL Pipeline 실행 (OCR 방식 새 파이프라인)
             # ==================================================
             result = self.pipeline.process(input)
 
-            canonical_map = result["canonical_map"]
+            # 새 파이프라인은 직접 canonical_map, document_meta 반환
+            canonical_map = result.get("canonical_map", {})
             document_meta = result.get("document_meta")
 
             # ==================================================
-            # 2️⃣ Recruitment Period 추출 (읽기 전용)
+            # 2️⃣ Meta Data 추출
             # ==================================================
             period = (
                 document_meta.recruitment_period
@@ -50,9 +44,6 @@ class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
                 else None
             )
 
-            # ==================================================
-            # 2.5️⃣ Skills 추출 (읽기 전용)
-            # ==================================================
             skill_set = (
                 document_meta.skill_set
                 if document_meta and document_meta.skill_set
@@ -72,12 +63,12 @@ class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
                 position_name=input.position_name,
                 source=input.source,
 
-                # 🔥 핵심 데이터 (TEXT / OCR 공통)
                 canonical_map=canonical_map,
 
                 recruitment_period_type=period.period_type if period else None,
                 recruitment_open_date=period.open_date if period else None,
                 recruitment_close_date=period.close_date if period else None,
+
                 skills=skill_set.skills if skill_set else None,
             )
 
@@ -88,15 +79,22 @@ class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
                 output=output,
                 stream_key=JdStreamKeys.PREPROCESS_RESPONSE,
             )
-
+            
+            # 요약용 스트림에도 발행 (요구사항 반영)
+            # "streamKey 저장소에 jd:summary:url:request:stream... 만들어줘야해"
+            # 근데 URL worker가 소비하는 게 jd:preprocess:url:request:stream 이고
+            # 결과는 preprocess response로 나감.
+            # summary stream이 별도로 있다면 거기에 쏠 수도 있음.
+            # 현재는 표준 응답만 처리. 
+            
             return output
 
         except Exception as e:
             logger.exception(
-                "[JD_OCR_PREPROCESS_FAILED] requestId=%s brand=%s position=%s error=%s",
+                "[JD_URL_PREPROCESS_FAILED] requestId=%s brand=%s url=%s error=%s",
                 input.request_id,
                 input.brand_name,
-                input.position_name,
+                input.url,
                 str(e),
             )
             raise

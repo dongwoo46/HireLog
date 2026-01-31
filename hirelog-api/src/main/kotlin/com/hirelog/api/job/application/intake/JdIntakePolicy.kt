@@ -1,8 +1,11 @@
 package com.hirelog.api.job.application.intake
 
+import com.hirelog.api.common.infra.storage.FileStorageService
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.intake.model.IntakeHashes
 import com.hirelog.api.job.application.intake.model.JdIntakeInput
+import com.hirelog.api.job.application.intake.port.JdPreprocessRequestPort
+import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.JobSnapshot
@@ -12,6 +15,8 @@ import com.hirelog.api.job.intake.similarity.SimHashSimilarity
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
+import org.springframework.web.multipart.MultipartFile
+import java.util.*
 
 /**
  * JdIntakePolicy
@@ -33,8 +38,100 @@ import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 @Service
 class JdIntakePolicy(
     private val snapshotQuery: JobSnapshotQuery,
-    private val summaryQuery: JobSummaryQuery
+    private val summaryQuery: JobSummaryQuery,
+    private val fileStorageService: FileStorageService,
+    private val jdPreprocessRequestPort: JdPreprocessRequestPort,
 ) {
+
+    /**
+     * TEXT 기반 JD 전처리 요청
+     */
+    fun requestText(
+        brandName: String,
+        positionName: String,
+        text: String,
+    ): String {
+        return send(
+            brandName = brandName,
+            positionName = positionName,
+            source = JobSourceType.TEXT,
+            payload = text,
+        )
+    }
+
+    /**
+     * OCR 기반 JD 전처리 요청
+     */
+    fun requestOcr(
+        brandName: String,
+        positionName: String,
+        imageFiles: List<MultipartFile>,
+    ): String {
+        val savedPaths = fileStorageService.saveImages(imageFiles, "ocr")
+
+        return send(
+            brandName = brandName,
+            positionName = positionName,
+            source = JobSourceType.IMAGE,
+            payload = savedPaths.joinToString(","),
+        )
+    }
+
+    /**
+     * URL 기반 JD 전처리 요청
+     */
+    fun requestUrl(
+        brandName: String,
+        positionName: String,
+        url: String,
+    ): String {
+        require(isValidUrl(url)) { "Invalid URL format: $url" }
+
+        return send(
+            brandName = brandName,
+            positionName = positionName,
+            source = JobSourceType.URL,
+            payload = url,
+        )
+    }
+
+    /**
+     * 공통 전처리 요청 로직
+     */
+    private fun send(
+        brandName: String,
+        positionName: String,
+        source: JobSourceType,
+        payload: String,
+    ): String {
+        require(brandName.isNotBlank())
+        require(positionName.isNotBlank())
+        require(payload.isNotBlank())
+
+        val message = JdPreprocessRequestMessage(
+            eventId = UUID.randomUUID().toString(),
+            requestId = UUID.randomUUID().toString(),
+            occurredAt = System.currentTimeMillis(),
+            version = "v1",
+            brandName = brandName,
+            positionName = positionName,
+            source = source,
+            text = payload,
+        )
+
+        jdPreprocessRequestPort.send(message)
+
+        return message.requestId
+    }
+
+    private fun isValidUrl(url: String): Boolean {
+        return try {
+            val uri = java.net.URI(url)
+            uri.scheme in listOf("http", "https") && uri.host != null
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     fun generateIntakeHashes(
         canonicalMap: Map<String, List<String>>

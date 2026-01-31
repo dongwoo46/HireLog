@@ -5,7 +5,7 @@ import com.hirelog.api.common.domain.process.ProcessedEventId
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.messaging.JdPreprocessResponseEvent
 import com.hirelog.api.job.application.messaging.JdPreprocessResponseEventMapper
-import com.hirelog.api.job.application.summary.KafkaSummaryGenerationFacade
+import com.hirelog.api.job.application.summary.JobSummaryHandler
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component
 class JdPreprocessResponseConsumer(
     private val processedEventService: ProcessedEventService,
     private val responseEventMapper: JdPreprocessResponseEventMapper,
-    private val summaryFacadeService: KafkaSummaryGenerationFacade
+    private val jobSummaryHandler: JobSummaryHandler
 ) {
 
     companion object {
@@ -61,7 +61,7 @@ class JdPreprocessResponseConsumer(
         val message = responseEventMapper.toSummaryCommand(event)
 
         // === 3️⃣ 비동기 파이프라인 실행 ===
-        summaryFacadeService
+        jobSummaryHandler
             .process(message)
             .whenComplete { _, ex ->
                 if (ex == null) {

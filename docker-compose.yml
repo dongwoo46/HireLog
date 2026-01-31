@@ -76,20 +76,12 @@ services:
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
 
-      # ❗ 단일 listener만 사용
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:19092
-
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
       # === Listener (핵심) ===
-      # KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092
-      # KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
-      # KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      # KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      # KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
 
       # === 중요: Offsets Topic 설정 ===
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -108,3 +100,25 @@ services:
 
     volumes:
       - ./kafka_data:/var/lib/kafka/data
+  debezium:
+    image: debezium/connect:2.6
+    container_name: debezium_hirelog
+    restart: unless-stopped
+    ports:
+      - '8083:8083'
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: hirelog-debezium
+
+      CONFIG_STORAGE_TOPIC: hirelog_debezium_config
+      OFFSET_STORAGE_TOPIC: hirelog_debezium_offset
+      STATUS_STORAGE_TOPIC: hirelog_debezium_status
+
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+
+      TZ: Asia/Seoul
+    depends_on:
+      - kafka
+      - postgres

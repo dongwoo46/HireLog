@@ -1,13 +1,12 @@
 # src/worker/base_worker.py
 
 import logging
-import signal
 import threading
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
 from infra.redis.stream_consumer import RedisStreamConsumer
-from config import WorkerConfig
+from infra.config.redis_config import WorkerConfig
 
 logger = logging.getLogger(__name__)
 

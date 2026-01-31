@@ -10,16 +10,4 @@ import java.util.*
 interface OutboxEventJpaRepository :
     JpaRepository<OutboxEventJpaEntity, UUID> {
 
-        //
-    @Query(
-        """
-        select e
-        from OutboxEventJpaEntity e
-        where e.status = :status
-        order by e.createdAt asc
-        """
-    )
-    fun findByStatusOrderByCreatedAt(
-        @Param("status") status: OutboxStatus
-    ): List<OutboxEventJpaEntity>
 }

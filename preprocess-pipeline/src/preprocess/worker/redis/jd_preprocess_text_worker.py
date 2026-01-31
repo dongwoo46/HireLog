@@ -7,7 +7,7 @@ from infra.redis.stream_keys import JdStreamKeys
 from inputs.jd_preprocess_input import JdPreprocessInput
 from outputs.jd_preprocess_output import JdPreprocessOutput
 from preprocess.worker.pipeline.text_preprocess_pipeline import TextPreprocessPipeline
-from preprocess.worker.base_jd_preprocess_worker import BaseJdPreprocessWorker
+from preprocess.worker.redis.base_jd_preprocess_worker import BaseJdPreprocessWorker
 
 logger = logging.getLogger(__name__)
 

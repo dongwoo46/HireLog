@@ -17,6 +17,5 @@ interface OutboxEventCommand {
 
     fun save(event: OutboxEvent)
 
-    fun markPublished(eventId: UUID)
 }
 

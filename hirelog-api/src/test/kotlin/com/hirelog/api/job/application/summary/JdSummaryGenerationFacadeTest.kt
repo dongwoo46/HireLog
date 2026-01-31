@@ -3,6 +3,7 @@ package com.hirelog.api.job.application.summary
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brandposition.application.BrandPositionWriteService
+import com.hirelog.api.common.application.outbox.OutboxEventWriteService
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.job.application.intake.JdIntakePolicy
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
@@ -11,7 +12,7 @@ import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingW
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import com.hirelog.api.job.application.summary.pipeline.SummaryGenerationPipeline
+import com.hirelog.api.job.application.summary.pipeline.JdSummaryGenerationFacade
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.*
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 @ExtendWith(MockKExtension::class)
-class SummaryGenerationPipelineTest {
+class JdSummaryGenerationFacadeTest {
 
     @MockK lateinit var processingWriteService: JdSummaryProcessingWriteService
     @MockK lateinit var snapshotWriteService: JobSnapshotWriteService
@@ -44,12 +45,13 @@ class SummaryGenerationPipelineTest {
     @MockK lateinit var brandWriteService: BrandWriteService
     @MockK lateinit var brandPositionWriteService: BrandPositionWriteService
     @MockK lateinit var positionQuery: PositionQuery
+    @MockK lateinit var outboxEventWriteService: OutboxEventWriteService
 
-    private lateinit var pipeline: SummaryGenerationPipeline
+    private lateinit var pipeline: JdSummaryGenerationFacade
 
     @BeforeEach
     fun setUp() {
-        pipeline = SummaryGenerationPipeline(
+        pipeline = JdSummaryGenerationFacade(
             processingWriteService = processingWriteService,
             snapshotWriteService = snapshotWriteService,
             snapshotQuery = snapshotQuery,
@@ -58,7 +60,8 @@ class SummaryGenerationPipelineTest {
             summaryWriteService = summaryWriteService,
             brandWriteService = brandWriteService,
             brandPositionWriteService = brandPositionWriteService,
-            positionQuery = positionQuery
+            positionQuery = positionQuery,
+            outboxEventWriteService = outboxEventWriteService
         )
     }
 

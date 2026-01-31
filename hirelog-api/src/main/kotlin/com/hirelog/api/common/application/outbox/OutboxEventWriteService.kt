@@ -33,15 +33,4 @@ class OutboxEventWriteService(
         outboxEventCommand.save(event)
     }
 
-    /**
-     * Outbox 이벤트 발행 완료 처리
-     *
-     * 사용 위치:
-     * - Polling Publisher
-     * - CDC 후처리 보조 로직
-     */
-    @Transactional
-    fun markPublished(eventId: UUID) {
-        outboxEventCommand.markPublished(eventId)
-    }
 }

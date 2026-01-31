@@ -1,13 +1,9 @@
 package com.hirelog.api.job.presentation.controller
 
-import com.hirelog.api.job.application.intake.OcrJdIntakeService
-import com.hirelog.api.job.application.intake.UrlJdIntakeService
-import com.hirelog.api.job.application.intake.TextJdIntakeService
-import com.hirelog.api.job.application.summary.SummaryGenerationFacadeService
+import com.hirelog.api.job.application.intake.JdIntakeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.view.JobSummaryView
-import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryTextReq
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryUrlReq
 import jakarta.validation.Valid
@@ -20,10 +16,7 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/api/job-summary")
 class JobSummaryController(
     private val jobSummaryQuery: JobSummaryQuery,
-    private val jobSummaryFacadeService: SummaryGenerationFacadeService,
-    private val jdPreprocessRequestService: TextJdIntakeService,
-    private val ocrJdIntakeService: OcrJdIntakeService,
-    private val urlJdIntakeService: UrlJdIntakeService
+    private val jdIntakeService: JdIntakeService
 ) {
 
     /**
@@ -74,15 +67,14 @@ class JobSummaryController(
      * - LLM 벤더는 내부 구현
      */
     @PostMapping("/text")
-    fun requestSummary(
+    fun requestTextSummary(
         @Valid @RequestBody request: JobSummaryTextReq
     ): ResponseEntity<Void> {
 
-        jdPreprocessRequestService.requestSummary(
+        jdIntakeService.requestText(
             brandName = request.brandName,
             positionName = request.positionName,
-            rawText = request.jdText,
-            source = JobSourceType.TEXT
+            text = request.jdText,
         )
 
         return ResponseEntity.ok().build()
@@ -102,7 +94,7 @@ class JobSummaryController(
         @RequestParam("images") images: List<MultipartFile>
     ): ResponseEntity<Map<String, String>> {
 
-        val requestId = ocrJdIntakeService.requestOcrSummary(
+        val requestId = jdIntakeService.requestOcr(
             brandName = brandName,
             positionName = positionName,
             imageFiles = images
@@ -123,7 +115,7 @@ class JobSummaryController(
         @Valid @RequestBody request: JobSummaryUrlReq
     ): ResponseEntity<Map<String, String>> {
 
-        val requestId = urlJdIntakeService.requestUrlSummary(
+        val requestId = jdIntakeService.requestUrl(
             brandName = request.brandName,
             positionName = request.positionName,
             url = request.url

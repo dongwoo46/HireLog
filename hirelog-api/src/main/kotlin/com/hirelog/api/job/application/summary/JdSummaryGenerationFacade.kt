@@ -1,9 +1,14 @@
 package com.hirelog.api.job.application.summary.pipeline
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.brandposition.application.BrandPositionWriteService
 import com.hirelog.api.brandposition.domain.BrandPositionSource
+import com.hirelog.api.common.application.outbox.OutboxEventWriteService
+import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
@@ -19,9 +24,11 @@ import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.JobSummary
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.query.PositionView
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -39,7 +46,7 @@ import java.util.concurrent.TimeoutException
  * - Application Command만 입력으로 받는다
  */
 @Service
-class SummaryGenerationPipeline(
+class JdSummaryGenerationFacade(
     private val processingWriteService: JdSummaryProcessingWriteService,
     private val snapshotWriteService: JobSnapshotWriteService,
     private val snapshotQuery: JobSnapshotQuery,
@@ -49,6 +56,7 @@ class SummaryGenerationPipeline(
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
+    private val outboxEventWriteService: OutboxEventWriteService
 ) {
 
     companion object {
@@ -142,6 +150,7 @@ class SummaryGenerationPipeline(
             .thenAccept { llmResult ->
                 executePostLlm(snapshotId, llmResult, processing.id, command)
                 processingWriteService.markCompleted(processing.id)
+
             }
             .exceptionally { ex ->
                 handleFailure(processing.id, ex, command.requestId, "LLM_OR_POST_LLM")
@@ -181,12 +190,21 @@ class SummaryGenerationPipeline(
             source = BrandPositionSource.LLM
         )
 
-        summaryWriteService.save(
+        val summary = summaryWriteService.save(
             snapshotId = snapshotId,
             brand = brand,
             positionId = position.id,
             positionName = position.name,
             llmResult = llmResult
+        )
+
+        outboxEventWriteService.append(
+            OutboxEvent.occurred(
+                aggregateType = "JOB_SUMMARY",
+                aggregateId = summary.id.toString(),
+                eventType = "JOB_SUMMARY_GENERATED",
+                payload = buildEventPayload(summary, snapshotId, brand.id, position.id, command.requestId)
+            )
         )
     }
 
@@ -216,4 +234,29 @@ class SummaryGenerationPipeline(
 
     private fun unwrap(ex: Throwable): Throwable =
         if (ex is CompletionException) ex.cause ?: ex else ex
+
+    private fun buildEventPayload(
+        summary: JobSummary,
+        snapshotId: Long,
+        brandId: Long,
+        positionId: Long,
+        requestId: String
+    ): String {
+        // JSON 직렬화 (Jackson 사용 예시)
+        return objectMapper.writeValueAsString(
+            mapOf(
+                "summaryId" to summary.id,
+                "snapshotId" to snapshotId,
+                "brandId" to brandId,
+                "positionId" to positionId,
+                "requestId" to requestId,
+                "occurredAt" to LocalDateTime.now()
+            )
+        )
+    }
+
+    private val objectMapper = ObjectMapper().apply {
+        registerKotlinModule()
+        disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+    }
 }
