@@ -1,6 +1,6 @@
 package com.hirelog.api.relation.domain.model
 
-import com.hirelog.api.common.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import jakarta.persistence.*
 
@@ -54,7 +54,7 @@ class MemberJobSummary(
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "save_type", nullable = false, length = 20)
-    var saveType: MemberJobSummarySaveType = MemberJobSummarySaveType.FAVORITE,
+    var saveType: MemberJobSummarySaveType = MemberJobSummarySaveType.SAVED,
 
     /**
      * 사용자 메모
@@ -77,7 +77,7 @@ class MemberJobSummary(
         fun create(
             memberId: Long,
             jobSummaryId: Long,
-            saveType: MemberJobSummarySaveType = MemberJobSummarySaveType.FAVORITE,
+            saveType: MemberJobSummarySaveType = MemberJobSummarySaveType.SAVED,
             memo: String? = null
         ): MemberJobSummary {
             return MemberJobSummary(

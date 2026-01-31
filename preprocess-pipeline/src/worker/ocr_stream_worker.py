@@ -6,8 +6,8 @@ from typing import Any, Dict
 from worker.base_worker import BaseWorker
 from infra.redis.stream_consumer import RedisStreamConsumer
 from inputs.parse_jd_preprocess_message import parse_jd_preprocess_message, MessageParseError
-from preprocess.worker.jd_preprocess_ocr_worker import JdPreprocessOcrWorker
-from config import WorkerConfig
+from preprocess.worker.redis.jd_preprocess_ocr_worker import JdPreprocessOcrWorker
+from infra.config.redis_config import WorkerConfig
 
 logger = logging.getLogger(__name__)
 

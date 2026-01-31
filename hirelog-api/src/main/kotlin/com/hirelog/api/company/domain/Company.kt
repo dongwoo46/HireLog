@@ -1,7 +1,7 @@
 package com.hirelog.api.company.domain
 
-import com.hirelog.api.common.jpa.BaseEntity
-import com.hirelog.api.common.jpa.StringListJsonConverter
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.common.infra.jpa.StringListJsonConverter
 import com.hirelog.api.common.domain.VerificationStatus
 import jakarta.persistence.*
 

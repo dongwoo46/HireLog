@@ -1,14 +1,11 @@
 package com.hirelog.api.job.presentation.controller
 
-import com.hirelog.api.job.application.intake.OcrJdIntakeService
-import com.hirelog.api.job.application.intake.UrlJdIntakeService
-import com.hirelog.api.job.application.preprocess.JdPreprocessRequestService
-import com.hirelog.api.job.application.summary.SummaryGenerationFacadeService
+import com.hirelog.api.common.config.security.AuthenticatedMember
+import com.hirelog.api.common.config.security.CurrentUser
+import com.hirelog.api.job.application.intake.JdIntakeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.view.JobSummaryView
-import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryOcrReq
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryTextReq
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryUrlReq
 import jakarta.validation.Valid
@@ -18,13 +15,10 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
 @RestController
-@RequestMapping("/job-summary")
+@RequestMapping("/api/job-summary")
 class JobSummaryController(
     private val jobSummaryQuery: JobSummaryQuery,
-    private val jobSummaryFacadeService: SummaryGenerationFacadeService,
-    private val jdPreprocessRequestService: JdPreprocessRequestService,
-    private val ocrJdIntakeService: OcrJdIntakeService,
-    private val urlJdIntakeService: UrlJdIntakeService
+    private val jdIntakeService: JdIntakeService
 ) {
 
     /**
@@ -75,15 +69,15 @@ class JobSummaryController(
      * - LLM 벤더는 내부 구현
      */
     @PostMapping("/text")
-    fun requestSummary(
-        @Valid @RequestBody request: JobSummaryTextReq
+    fun requestTextSummary(
+        @Valid @RequestBody request: JobSummaryTextReq,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Void> {
 
-        jdPreprocessRequestService.requestSummary(
+        jdIntakeService.requestText(
             brandName = request.brandName,
             positionName = request.positionName,
-            rawText = request.jdText,
-            source = JobSourceType.TEXT
+            text = request.jdText,
         )
 
         return ResponseEntity.ok().build()
@@ -100,13 +94,14 @@ class JobSummaryController(
     fun requestOcrSummary(
         @RequestParam("brandName") brandName: String,
         @RequestParam("positionName") positionName: String,
-        @RequestParam("images") images: List<MultipartFile>
+        @RequestParam("images") images: List<MultipartFile>,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
-        val requestId = ocrJdIntakeService.requestOcrSummary(
+        val requestId = jdIntakeService.requestOcr(
             brandName = brandName,
             positionName = positionName,
-            imageFiles = images
+            imageFiles = images,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))
@@ -121,13 +116,14 @@ class JobSummaryController(
      */
     @PostMapping("/url")
     fun requestUrlSummary(
-        @Valid @RequestBody request: JobSummaryUrlReq
+        @Valid @RequestBody request: JobSummaryUrlReq,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
-        val requestId = urlJdIntakeService.requestUrlSummary(
+        val requestId = jdIntakeService.requestUrl(
             brandName = request.brandName,
             positionName = request.positionName,
-            url = request.url
+            url = request.url,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))

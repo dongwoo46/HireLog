@@ -1,10 +1,10 @@
 plugins {
-	kotlin("jvm") version "1.9.25"
-	kotlin("plugin.spring") version "1.9.25"
-	id("org.springframework.boot") version "3.5.9"
+	id("org.springframework.boot") version "3.5.10" // 4.0.2 대신 이걸 쓰세요. 훠얼씬 안정적입니다.
 	id("io.spring.dependency-management") version "1.1.7"
-	kotlin("plugin.jpa") version "1.9.25"
-	kotlin("kapt") version "1.9.25"
+	kotlin("jvm") version "1.9.24"
+	kotlin("plugin.spring") version "1.9.24"
+	kotlin("plugin.jpa") version "1.9.24"
+	kotlin("kapt") version "1.9.24"
 }
 
 group = "com.hirelog"
@@ -33,6 +33,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-redis")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
+	implementation("org.springframework.kafka:spring-kafka")
+
 	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
 	implementation("org.flywaydb:flyway-core")
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
@@ -42,6 +44,9 @@ dependencies {
 	implementation("org.opensearch.client:opensearch-rest-client:2.13.0")
 	implementation("com.fasterxml.jackson.core:jackson-databind")
 
+	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:postgresql")
+
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 	implementation("io.jsonwebtoken:jjwt-api:0.12.5")
@@ -50,11 +55,14 @@ dependencies {
 
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("io.mockk:mockk:1.13.13")
 	testImplementation("com.ninja-squad:springmockk:4.0.2")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	testImplementation("org.springframework.kafka:spring-kafka-test")
+	testImplementation("org.testcontainers:testcontainers:2.0.0") // 또는 최신 버전
+	testImplementation("org.testcontainers:postgresql:2.0.0")
+	testImplementation("org.testcontainers:junit-jupiter:2.0.0")
+
 }
 
 kotlin {
@@ -73,3 +81,4 @@ allOpen {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+

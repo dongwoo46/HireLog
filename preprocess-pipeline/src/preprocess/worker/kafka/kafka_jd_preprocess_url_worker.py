@@ -1,0 +1,98 @@
+# src/preprocess/worker/kafka/kafka_jd_preprocess_url_worker.py
+
+import logging
+
+from inputs.kafka_jd_preprocess_input import KafkaJdPreprocessInput
+from outputs.kafka_jd_preprocess_output import KafkaJdPreprocessOutput
+from preprocess.worker.kafka.kafka_base_jd_preprocess_worker import KafkaBaseJdPreprocessWorker
+from preprocess.worker.pipeline.url_pipeline import UrlPipeline
+from infra.kafka.kafka_producer import KafkaStreamProducer
+
+logger = logging.getLogger(__name__)
+
+
+class KafkaJdPreprocessUrlWorker(KafkaBaseJdPreprocessWorker):
+    """
+    Kafka 기반 URL JD 전처리 Worker
+
+    책임:
+    - URL Fetch + 전처리 파이프라인 실행
+    - 전처리 결과를 Kafka Event DTO로 변환
+    - Kafka로 결과 발행
+
+    비책임:
+    - Kafka 메시지 소비
+    - 메시지 파싱
+    - commit / retry 판단
+    """
+
+    def __init__(self, kafka_producer: KafkaStreamProducer, result_topic: str):
+        super().__init__(kafka_producer, result_topic)
+        self.pipeline = UrlPipeline()
+        logger.info("[KAFKA_URL_WORKER_INIT] URL pipeline initialized")
+
+    def process(self, input: KafkaJdPreprocessInput) -> KafkaJdPreprocessOutput:
+        """
+        URL JD 전처리 실행
+
+        규칙:
+        - Kafka publish 실패 시 예외 발생
+        - 예외는 상위 Consumer가 재처리 판단
+        """
+
+        # ==================================================
+        # 1️⃣ URL Pipeline 실행
+        # ==================================================
+        result = self.pipeline.process(input)
+
+        canonical_map = result.get("canonical_map", {})
+        document_meta = result.get("document_meta")
+
+        # ==================================================
+        # 2️⃣ Recruitment Period 추출 (읽기 전용)
+        # ==================================================
+        period = (
+            document_meta.recruitment_period
+            if document_meta and document_meta.recruitment_period
+            else None
+        )
+
+        # ==================================================
+        # 3️⃣ Skills 추출 (읽기 전용)
+        # ==================================================
+        skill_set = (
+            document_meta.skill_set
+            if document_meta and document_meta.skill_set
+            else None
+        )
+
+        # ==================================================
+        # 4️⃣ Kafka Event DTO 생성
+        # ==================================================
+        output = KafkaJdPreprocessOutput.from_domain(
+            request_id=input.request_id,
+            brand_name=input.brand_name,
+            position_name=input.position_name,
+            source=input.source,
+            canonical_map=canonical_map,
+            # Recruitment Info (날짜는 ISO 8601로 정규화)
+            recruitment_period_type=period.period_type if period else None,
+            opened_date=self._normalize_date(period.open_date) if period else None,
+            closed_date=self._normalize_date(period.close_date) if period else None,
+            skills=skill_set.skills if skill_set else None,
+            source_url=input.url,  # URL 소스는 source_url 포함
+        )
+
+        # ==================================================
+        # 5️⃣ Kafka로 결과 발행
+        # ==================================================
+        self._publish_result(output)
+
+        logger.info(
+            "[KAFKA_JD_URL_PREPROCESS_SUCCESS] requestId=%s brand=%s url=%s",
+            input.request_id,
+            input.brand_name,
+            input.url,
+        )
+
+        return output

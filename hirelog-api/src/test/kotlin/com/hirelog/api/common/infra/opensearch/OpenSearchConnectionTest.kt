@@ -1,10 +1,10 @@
 package com.hirelog.api.common.infra.opensearch
 
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import kotlin.test.assertTrue
 
 @SpringBootTest
 class OpenSearchConnectionTest {

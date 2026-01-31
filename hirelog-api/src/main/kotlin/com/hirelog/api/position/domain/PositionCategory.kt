@@ -1,6 +1,6 @@
 package com.hirelog.api.position.domain
 
-import com.hirelog.api.common.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import jakarta.persistence.*
 
 @Entity

@@ -2,6 +2,7 @@ package com.hirelog.api.auth.infra.jwt
 
 import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.logging.log
+import com.hirelog.api.member.domain.MemberRole
 import io.jsonwebtoken.Claims
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -55,7 +56,8 @@ class JwtAuthenticationFilter(
      */
     private fun createAuthentication(claims: Claims): UsernamePasswordAuthenticationToken {
         val memberId = claims.subject.toLong()
-        val role = claims["role"] as String
+        val roleString = claims["role"] as String
+        val role = MemberRole.valueOf(roleString)
 
         val principal = AuthenticatedMember(
             memberId = memberId,
@@ -65,7 +67,7 @@ class JwtAuthenticationFilter(
         return UsernamePasswordAuthenticationToken(
             principal,
             null,
-            listOf(SimpleGrantedAuthority(role))
+            listOf(SimpleGrantedAuthority(roleString))
         )
     }
 

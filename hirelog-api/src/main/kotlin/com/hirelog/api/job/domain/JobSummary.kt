@@ -1,7 +1,7 @@
 package com.hirelog.api.job.domain
 
 import com.hirelog.api.common.domain.LlmProvider
-import com.hirelog.api.common.jpa.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import jakarta.persistence.*
 
 /**

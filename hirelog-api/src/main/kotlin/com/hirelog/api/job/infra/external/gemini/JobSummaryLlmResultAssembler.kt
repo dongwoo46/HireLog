@@ -1,7 +1,7 @@
 package com.hirelog.api.job.infra.external.gemini
 
-import JobSummaryLlmRawResult
 import com.hirelog.api.common.domain.LlmProvider
+import com.hirelog.api.job.application.summary.view.JobSummaryLlmRawResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.CareerType
 

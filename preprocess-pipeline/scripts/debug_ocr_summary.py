@@ -14,7 +14,7 @@ sys.path.append(
 from infra.redis.redis_client import RedisClient
 from infra.redis.stream_consumer import RedisStreamConsumer
 from infra.redis.stream_keys import JdStreamKeys
-from preprocess.worker.jd_preprocess_ocr_worker import JdPreprocessOcrWorker
+from preprocess.worker.redis.jd_preprocess_ocr_worker import JdPreprocessOcrWorker
 from inputs.parse_jd_preprocess_message import parse_jd_preprocess_message
 import json
 from dataclasses import asdict
