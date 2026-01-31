@@ -75,10 +75,10 @@ class KafkaJdPreprocessTextWorker(KafkaBaseJdPreprocessWorker):
             source=input.source,
             canonical_map=canonical_map,
 
-            # Recruitment Info
+            # Recruitment Info (날짜는 ISO 8601로 정규화)
             recruitment_period_type=period.period_type if period else None,
-            opened_date=period.open_date if period else None,
-            closed_date=period.close_date if period else None,
+            opened_date=self._normalize_date(period.open_date) if period else None,
+            closed_date=self._normalize_date(period.close_date) if period else None,
 
             # Skills
             skills=skill_set.skills if skill_set else None,
@@ -89,11 +89,9 @@ class KafkaJdPreprocessTextWorker(KafkaBaseJdPreprocessWorker):
 
         # ==================================================
         # 5️⃣ Kafka로 결과 발행
-        # - 실패 시 예외 발생 (필수)
+        # - 실패 시 예외 발생 (상위 Consumer가 재처리 판단)
         # ==================================================
-        success = self._publish_result(output)
-        if not success:
-            raise Exception("Kafka publish failed")
+        self._publish_result(output)
 
         logger.info(
             "[KAFKA_JD_TEXT_PREPROCESS_SUCCESS] requestId=%s brand=%s position=%s",

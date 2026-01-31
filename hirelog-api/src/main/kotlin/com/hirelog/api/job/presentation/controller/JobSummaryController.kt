@@ -1,5 +1,7 @@
 package com.hirelog.api.job.presentation.controller
 
+import com.hirelog.api.common.config.security.AuthenticatedMember
+import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.job.application.intake.JdIntakeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
@@ -68,7 +70,8 @@ class JobSummaryController(
      */
     @PostMapping("/text")
     fun requestTextSummary(
-        @Valid @RequestBody request: JobSummaryTextReq
+        @Valid @RequestBody request: JobSummaryTextReq,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Void> {
 
         jdIntakeService.requestText(
@@ -91,13 +94,14 @@ class JobSummaryController(
     fun requestOcrSummary(
         @RequestParam("brandName") brandName: String,
         @RequestParam("positionName") positionName: String,
-        @RequestParam("images") images: List<MultipartFile>
+        @RequestParam("images") images: List<MultipartFile>,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
         val requestId = jdIntakeService.requestOcr(
             brandName = brandName,
             positionName = positionName,
-            imageFiles = images
+            imageFiles = images,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))
@@ -112,13 +116,14 @@ class JobSummaryController(
      */
     @PostMapping("/url")
     fun requestUrlSummary(
-        @Valid @RequestBody request: JobSummaryUrlReq
+        @Valid @RequestBody request: JobSummaryUrlReq,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
         val requestId = jdIntakeService.requestUrl(
             brandName = request.brandName,
             positionName = request.positionName,
-            url = request.url
+            url = request.url,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))

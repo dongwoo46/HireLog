@@ -27,6 +27,7 @@ import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.domain.JobSummary
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.query.PositionView
+import com.hirelog.api.relation.application.jobsummary.command.MemberJobSummaryWriteService
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 import java.util.UUID
@@ -56,7 +57,8 @@ class JdSummaryGenerationFacade(
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
-    private val outboxEventWriteService: OutboxEventWriteService
+    private val outboxEventWriteService: OutboxEventWriteService,
+    private val memberJobSummaryWriteService: MemberJobSummaryWriteService
 ) {
 
     companion object {

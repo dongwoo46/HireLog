@@ -1,5 +1,7 @@
 package com.hirelog.api.common.config.security
 
+import com.hirelog.api.member.domain.MemberRole
+
 /**
  * 인증된 사용자 정보
  *
@@ -9,5 +11,5 @@ package com.hirelog.api.common.config.security
  */
 data class AuthenticatedMember(
     val memberId: Long,
-    val role: String
+    val role: MemberRole
 )

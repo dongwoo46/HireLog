@@ -62,7 +62,7 @@ class Member protected constructor(
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    var role: MemberRole = MemberRole.BASIC
+    var role: MemberRole = MemberRole.USER
         protected set
 
     /**

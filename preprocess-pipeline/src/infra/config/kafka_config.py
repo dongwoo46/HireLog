@@ -30,7 +30,7 @@ class WorkerConfig:
 def load_kafka_config() -> KafkaConfig:
     """Kafka 설정 로드"""
     return KafkaConfig(
-        bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+        bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:19092"),
         text_topic=os.getenv("KAFKA_TEXT_TOPIC", "jd.preprocess.text.request"),
         ocr_topic=os.getenv("KAFKA_OCR_TOPIC", "jd.preprocess.ocr.request"),
         url_topic=os.getenv("KAFKA_URL_TOPIC", "jd.preprocess.url.request"),

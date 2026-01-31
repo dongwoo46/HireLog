@@ -3,7 +3,7 @@
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, List, Any
 from datetime import date
-from preprocess.domain.job_source import JobSource
+from domain.job_source import JobSource
 
 
 @dataclass
@@ -105,8 +105,8 @@ class KafkaJdPreprocessOutput:
             source: JobSource,
             canonical_map: Dict[str, List[str]],
             recruitment_period_type: Optional[str] = None,
-            opened_date: Optional[date] = None,
-            closed_date: Optional[date] = None,
+            opened_date: Optional[str] = None,
+            closed_date: Optional[str] = None,
             skills: Optional[List[str]] = None,
             source_url: Optional[str] = None,
     ) -> 'KafkaJdPreprocessOutput':
@@ -120,8 +120,8 @@ class KafkaJdPreprocessOutput:
             source: 소스 타입
             canonical_map: 정규화된 JD 맵
             recruitment_period_type: 채용 기간 타입
-            opened_date: 채용 시작일 (date 객체)
-            closed_date: 채용 종료일 (date 객체)
+            opened_date: 채용 시작일 (ISO 8601 문자열)
+            closed_date: 채용 종료일 (ISO 8601 문자열)
             skills: 추출된 기술 스택
             source_url: 원본 URL (URL 소스인 경우)
 
@@ -154,8 +154,8 @@ class KafkaJdPreprocessOutput:
 
             # Recruitment Info
             recruitment_period_type=recruitment_period_type,
-            opened_date=opened_date.isoformat() if opened_date else None,
-            closed_date=closed_date.isoformat() if closed_date else None,
+            opened_date=opened_date,
+            closed_date=closed_date,
 
             # Skills
             skills=skills or [],

@@ -72,8 +72,9 @@ class KafkaBaseJdPreprocessWorker(ABC):
         Kafka 결과 발행
 
         계약:
-        - produce 실패 가능성이 감지되면 예외 발생
-        - 성공/재처리 판단은 Consumer 레벨 책임
+        - produce 실패 시 예외 발생 (호출자가 재처리 판단)
+        - 예외 없이 완료 = 성공
+        - 반환값 없음 (void)
         """
         message = output.to_dict()
         key = output.request_id
@@ -84,19 +85,15 @@ class KafkaBaseJdPreprocessWorker(ABC):
             output.request_id,
             output.brand_name,
             output.position_name,
-            output.source,
+            output.source.value if hasattr(output.source, 'value') else output.source,
         )
 
         try:
             self.producer.publish(
                 topic=self.result_topic,
-                value=message,
+                message=message,
                 key=key,
             )
-
-            # 이벤트 루프에 delivery 이벤트 전달 (논블로킹)
-            self.producer.poll(0)
-
         except Exception as e:
             logger.error(
                 "[JD_PREPROCESS_PUBLISH_FAILED] requestId=%s error=%s",

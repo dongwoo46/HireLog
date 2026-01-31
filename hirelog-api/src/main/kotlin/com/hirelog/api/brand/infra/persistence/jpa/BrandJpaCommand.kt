@@ -28,25 +28,5 @@ class BrandJpaCommand(
         return brandRepository.save(brand)
     }
 
-    /**
-     * Brand INSERT with ON CONFLICT DO NOTHING
-     */
-    override fun insertIgnoreDuplicate(
-        name: String,
-        normalizedName: String,
-        companyId: Long?,
-        verificationStatus: VerificationStatus,
-        source: BrandSource,
-        isActive: Boolean
-    ): Int {
-        return brandRepository.insertIgnoreDuplicate(
-            name = name,
-            normalizedName = normalizedName,
-            companyId = companyId,
-            verificationStatus = verificationStatus.name,
-            source = source.name,
-            isActive = isActive
-        )
-    }
 }
 

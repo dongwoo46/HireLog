@@ -98,8 +98,8 @@ services:
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       TZ: Asia/Seoul
 
-    volumes:
-      - ./kafka_data:/var/lib/kafka/data
+    # volumes:
+    # - ./kafka_data:/var/lib/kafka/data
   debezium:
     image: debezium/connect:2.6
     container_name: debezium_hirelog

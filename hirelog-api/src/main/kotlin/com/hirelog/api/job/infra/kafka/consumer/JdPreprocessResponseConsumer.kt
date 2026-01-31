@@ -37,7 +37,7 @@ class JdPreprocessResponseConsumer(
     @KafkaListener(
         topics = ["jd.preprocess.response"],
         groupId = CONSUMER_GROUP,
-        containerFactory = "kafkaListenerContainerFactory"
+        containerFactory = "jdPreprocessResponseListenerContainerFactory"
     )
     fun consume(
         event: JdPreprocessResponseEvent,
