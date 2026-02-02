@@ -1,4 +1,4 @@
-package com.hirelog.api.company.application.query
+package com.hirelog.api.company.application.port
 
 import com.hirelog.api.company.domain.Company
 
@@ -20,4 +20,9 @@ interface CompanyQuery {
      * 정규화된 이름 기준 조회
      */
     fun findByNormalizedName(normalizedName: String): Company?
+
+    /**
+     * 전체 회사명 조회 (LLM 후보 매칭용)
+     */
+    fun findAllNames(): List<String>
 }

@@ -1,6 +1,6 @@
 package com.hirelog.api.company.infra.persistence.jpa.adapter
 
-import com.hirelog.api.company.application.query.CompanyQuery
+import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.company.domain.Company
 import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyJpaRepository
 import org.springframework.stereotype.Component
@@ -22,4 +22,7 @@ class CompanyJpaQuery(
 
     override fun findByNormalizedName(normalizedName: String): Company? =
         companyRepository.findByNormalizedName(normalizedName)
+
+    override fun findAllNames(): List<String> =
+        companyRepository.findAll().map { it.name }
 }

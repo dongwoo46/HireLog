@@ -6,6 +6,7 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSummary
+import com.hirelog.api.job.domain.JobSummaryInsight
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -38,36 +39,29 @@ class JobSummaryWriteService(
         positionName: String,
         llmResult: JobSummaryLlmResult
     ): JobSummary {
-        // ── [LOG] JobSummary 생성 직전 전체 필드 덤프 ─────────────────────
+
         log.info(
-            """
-        [JOB_SUMMARY_CREATE]
-        snapshotId={}
-        brandId={}, brandName='{}'
-        positionId={}, positionName='{}'
-        careerType={}, careerYears={}
-        summaryTextLength={}
-        responsibilitiesLength={}
-        requiredQualificationsLength={}
-        preferredQualificationsLength={}
-        techStackLength={}
-        recruitmentProcessLength={}
-        llmProvider='{}'
-        llmModel='{}'
-        """.trimIndent(),
+            "[JOB_SUMMARY_CREATE] snapshotId={}, brandId={}, brandName='{}', positionId={}, positionName='{}', careerType={}, careerYears={}",
             snapshotId,
             brand.id, brand.name,
             positionId, positionName,
-            llmResult.careerType, llmResult.careerYears,
-            llmResult.summary,
-            llmResult.responsibilities,
-            llmResult.requiredQualifications,
-            llmResult.preferredQualifications,
-            llmResult.techStack,
-            llmResult.recruitmentProcess,
-            llmProperties.provider,
-            llmProperties.model
+            llmResult.careerType, llmResult.careerYears
         )
+
+        // Insight VO 생성
+        val insight = JobSummaryInsight.create(
+            idealCandidate = llmResult.insight.idealCandidate,
+            mustHaveSignals = llmResult.insight.mustHaveSignals,
+            preparationFocus = llmResult.insight.preparationFocus,
+            transferableStrengthsAndGapPlan = llmResult.insight.transferableStrengthsAndGapPlan,
+            proofPointsAndMetrics = llmResult.insight.proofPointsAndMetrics,
+            storyAngles = llmResult.insight.storyAngles,
+            keyChallenges = llmResult.insight.keyChallenges,
+            technicalContext = llmResult.insight.technicalContext,
+            questionsToAsk = llmResult.insight.questionsToAsk,
+            considerations = llmResult.insight.considerations
+        )
+
         val summary = JobSummary.create(
             jobSnapshotId = snapshotId,
             brandId = brand.id,
@@ -76,17 +70,16 @@ class JobSummaryWriteService(
             companyName = null,
             positionId = positionId,
             positionName = positionName,
-
+            brandPositionName = llmResult.brandPositionName,
             careerType = llmResult.careerType,
             careerYears = llmResult.careerYears,
-
             summaryText = llmResult.summary,
             responsibilities = llmResult.responsibilities,
             requiredQualifications = llmResult.requiredQualifications,
             preferredQualifications = llmResult.preferredQualifications,
             techStack = llmResult.techStack,
             recruitmentProcess = llmResult.recruitmentProcess,
-
+            insight = insight,
             llmProvider = llmProperties.provider,
             llmModel = llmProperties.model
         )

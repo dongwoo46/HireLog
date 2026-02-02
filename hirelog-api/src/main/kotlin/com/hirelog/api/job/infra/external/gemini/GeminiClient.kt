@@ -38,19 +38,30 @@ class GeminiClient(
      */
     fun generateContentAsync(prompt: String): CompletableFuture<String> {
 
-        val requestBody = mapOf(
+        // 1. 요청 바디 구성
+        // 변수 타입을 명시적으로 선언하여 타입 추론 에러 해결
+        val requestBody: Map<String, Any> = mapOf(
+            "system_instruction" to mapOf(
+                "parts" to listOf(
+                    mapOf("text" to GeminiPromptBuilder.buildSystemInstruction())
+                )
+            ),
             "contents" to listOf(
                 mapOf(
                     "parts" to listOf(
                         mapOf("text" to prompt)
                     )
                 )
+            ),
+            "generationConfig" to mapOf(
+                "temperature" to 0.2,
+                "responseMimeType" to "application/json"
             )
         )
 
         return webClient.post()
             .uri {
-                it.path("/models/{model}:generateContent")
+                it.path("/v1beta/models/{model}:generateContent")
                     .queryParam("key", geminiProperties.apiKey)
                     .build(geminiProperties.model)
             }

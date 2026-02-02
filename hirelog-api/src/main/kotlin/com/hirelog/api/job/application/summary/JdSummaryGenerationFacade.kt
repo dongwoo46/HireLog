@@ -7,7 +7,11 @@ import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.brandposition.application.BrandPositionWriteService
 import com.hirelog.api.brandposition.domain.BrandPositionSource
+import com.hirelog.api.company.application.CompanyCandidateWriteService
+import com.hirelog.api.company.application.port.CompanyQuery
+import com.hirelog.api.company.domain.CompanyCandidateSource
 import com.hirelog.api.common.application.outbox.OutboxEventWriteService
+import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
@@ -20,7 +24,9 @@ import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.JobSummaryWriteService
+import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
+import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSourceType
@@ -29,7 +35,6 @@ import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.query.PositionView
 import com.hirelog.api.relation.application.jobsummary.command.MemberJobSummaryWriteService
 import org.springframework.stereotype.Service
-import java.time.LocalDateTime
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -58,12 +63,15 @@ class JdSummaryGenerationFacade(
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
     private val outboxEventWriteService: OutboxEventWriteService,
-    private val memberJobSummaryWriteService: MemberJobSummaryWriteService
+    private val memberJobSummaryWriteService: MemberJobSummaryWriteService,
+    private val companyCandidateWriteService: CompanyCandidateWriteService,
+    private val companyQuery: CompanyQuery
 ) {
 
     companion object {
         private const val LLM_TIMEOUT_SECONDS = 45L
         private const val UNKNOWN_POSITION_NAME = "UNKNOWN"
+        private const val LLM_COMPANY_CONFIDENCE_SCORE = 0.7
     }
 
     /**
@@ -82,6 +90,7 @@ class JdSummaryGenerationFacade(
 
         val snapshotId: Long
         val positionCandidates: List<String>
+        val existCompanies: List<String>
 
         // ── Pre-LLM Phase ─────────────────────────────────────────────
         try {
@@ -135,6 +144,9 @@ class JdSummaryGenerationFacade(
             positionCandidates =
                 positionQuery.findActive().map { it.name }
 
+            existCompanies =
+                companyQuery.findAllNames()
+
         } catch (e: Exception) {
             handleFailure(processing.id, e, command.requestId, "PRE_LLM")
             return CompletableFuture.completedFuture(null)
@@ -146,6 +158,7 @@ class JdSummaryGenerationFacade(
                 brandName = command.brandName,
                 positionName = command.positionName,
                 positionCandidates = positionCandidates,
+                existCompanies = existCompanies,
                 canonicalMap = command.canonicalMap
             )
             .orTimeout(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -202,12 +215,51 @@ class JdSummaryGenerationFacade(
 
         outboxEventWriteService.append(
             OutboxEvent.occurred(
-                aggregateType = "JOB_SUMMARY",
+                aggregateType = AggregateType.JOB_SUMMARY,
                 aggregateId = summary.id.toString(),
-                eventType = "JOB_SUMMARY_GENERATED",
-                payload = buildEventPayload(summary, snapshotId, brand.id, position.id, command.requestId)
+                eventType = EventType.CREATED,
+                payload = buildEventPayload(summary)
             )
         )
+
+        // CompanyCandidate 생성 (비필수 - 실패해도 트랜잭션 롤백 안함)
+        tryCreateCompanyCandidate(
+            jdSummaryId = summary.id,
+            brandId = brand.id,
+            companyCandidate = llmResult.companyCandidate
+        )
+    }
+
+    /**
+     * CompanyCandidate 생성 시도
+     *
+     * 정책:
+     * - LLM이 추론한 companyCandidate가 있는 경우에만 생성
+     * - 실패해도 파이프라인 전체에 영향 없음
+     */
+    private fun tryCreateCompanyCandidate(
+        jdSummaryId: Long,
+        brandId: Long,
+        companyCandidate: String?
+    ) {
+        if (companyCandidate.isNullOrBlank()) {
+            return
+        }
+
+        try {
+            companyCandidateWriteService.createCandidate(
+                jdSummaryId = jdSummaryId,
+                brandId = brandId,
+                candidateName = companyCandidate,
+                source = CompanyCandidateSource.LLM,
+                confidenceScore = LLM_COMPANY_CONFIDENCE_SCORE
+            )
+            log.info("[COMPANY_CANDIDATE_CREATED] jdSummaryId={}, brandId={}, companyCandidate={}",
+                jdSummaryId, brandId, companyCandidate)
+        } catch (e: Exception) {
+            log.warn("[COMPANY_CANDIDATE_FAILED] jdSummaryId={}, brandId={}, companyCandidate={}, error={}",
+                jdSummaryId, brandId, companyCandidate, e.message)
+        }
     }
 
     // ── Error Handling ─────────────────────────────────────────────
@@ -237,24 +289,9 @@ class JdSummaryGenerationFacade(
     private fun unwrap(ex: Throwable): Throwable =
         if (ex is CompletionException) ex.cause ?: ex else ex
 
-    private fun buildEventPayload(
-        summary: JobSummary,
-        snapshotId: Long,
-        brandId: Long,
-        positionId: Long,
-        requestId: String
-    ): String {
-        // JSON 직렬화 (Jackson 사용 예시)
-        return objectMapper.writeValueAsString(
-            mapOf(
-                "summaryId" to summary.id,
-                "snapshotId" to snapshotId,
-                "brandId" to brandId,
-                "positionId" to positionId,
-                "requestId" to requestId,
-                "occurredAt" to LocalDateTime.now()
-            )
-        )
+    private fun buildEventPayload(summary: JobSummary): String {
+        val payload = JobSummarySearchPayload.from(summary)
+        return objectMapper.writeValueAsString(payload)
     }
 
     private val objectMapper = ObjectMapper().apply {

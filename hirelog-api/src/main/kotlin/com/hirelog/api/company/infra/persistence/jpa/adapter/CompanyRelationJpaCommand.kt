@@ -1,6 +1,6 @@
 package com.hirelog.api.company.infra.persistence.jpa.adapter
 
-import com.hirelog.api.company.application.command.CompanyRelationCommand
+import com.hirelog.api.company.application.port.CompanyRelationCommand
 import com.hirelog.api.company.domain.CompanyRelation
 import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyRelationJpaRepository
 import org.springframework.stereotype.Component

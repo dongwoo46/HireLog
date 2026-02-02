@@ -5,7 +5,10 @@ import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.job.application.intake.JdIntakeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
+import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
 import com.hirelog.api.job.application.summary.view.JobSummaryView
+import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
+import com.hirelog.api.job.presentation.controller.dto.JobSummarySearchReq
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryTextReq
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryUrlReq
 import jakarta.validation.Valid
@@ -18,8 +21,26 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/api/job-summary")
 class JobSummaryController(
     private val jobSummaryQuery: JobSummaryQuery,
-    private val jdIntakeService: JdIntakeService
+    private val jdIntakeService: JdIntakeService,
+    private val openSearchQuery: JobSummaryOpenSearchQuery
 ) {
+
+    /**
+     * JobSummary OpenSearch 검색
+     *
+     * 검색 기능:
+     * - 키워드 검색 (한글/영어)
+     * - 필터: careerType, brandId, companyId, positionId, techStacks
+     * - 정렬: 최신순, 오래된순, 관련도순
+     * - 페이징
+     */
+    @GetMapping("/search")
+    fun search(request: JobSummarySearchReq): ResponseEntity<JobSummarySearchResult> {
+        val query = request.toQuery()
+        val result = openSearchQuery.search(query)
+        return ResponseEntity.ok(result)
+    }
+
 
     /**
      * JobSummary 최신 1건 조회

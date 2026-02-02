@@ -1,4 +1,4 @@
-package com.hirelog.api.company.application.command
+package com.hirelog.api.company.application.port
 
 import com.hirelog.api.company.domain.Company
 

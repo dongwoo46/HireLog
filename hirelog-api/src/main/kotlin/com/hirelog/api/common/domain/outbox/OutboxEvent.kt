@@ -38,12 +38,38 @@ class OutboxEvent private constructor(
     companion object {
 
         /**
-         * 신규 Outbox 이벤트 생성
+         * 신규 Outbox 이벤트 생성 (enum 사용)
          *
          * - 트랜잭션 안에서 생성됨
          * - "사건이 발생했다"는 사실만 표현
+         * - AggregateType enum으로 타입 안전성 확보
          */
         fun occurred(
+            aggregateType: AggregateType,
+            aggregateId: String,
+            eventType: String,
+            payload: String
+        ): OutboxEvent {
+            return OutboxEvent(
+                id = UUID.randomUUID(),
+                aggregateType = aggregateType.value,
+                aggregateId = aggregateId,
+                eventType = eventType,
+                payload = payload,
+                occurredAt = LocalDateTime.now()
+            )
+        }
+
+        /**
+         * 신규 Outbox 이벤트 생성 (String 사용)
+         *
+         * @deprecated AggregateType enum 사용 권장
+         */
+        @Deprecated(
+            message = "Use occurred(AggregateType, ...) instead",
+            replaceWith = ReplaceWith("occurred(AggregateType.valueOf(aggregateType), aggregateId, eventType, payload)")
+        )
+        fun occurredWithString(
             aggregateType: String,
             aggregateId: String,
             eventType: String,

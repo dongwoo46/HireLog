@@ -84,10 +84,17 @@ class JobSummary protected constructor(
     val positionId: Long,
 
     /**
-     * 포지션명
+     * 포지션명 (시스템 정규화된 이름)
      */
     @Column(name = "position_name", nullable = false, length = 200, updatable = false)
     val positionName: String,
+
+    /**
+     * 브랜드 내부 포지션명 (JD에 명시된 원본)
+     * 예: "서버 개발자 (결제팀)"
+     */
+    @Column(name = "brand_position_name", length = 300, updatable = false)
+    val brandPositionName: String? = null,
 
     /**
      * 채용 경력 유형
@@ -97,15 +104,16 @@ class JobSummary protected constructor(
     val careerType: CareerType,
 
     /**
-     * 최소 경력 연차
-     * - 신입 / 무관 / 미기재 → null
+     * 경력 연차 원문
+     * 예: "3년 이상", "5~7년", "신입"
+     * 미기재 시 null
      */
-    @Column(name = "career_years", updatable = false)
-    val careerYears: Int? = null,
+    @Column(name = "career_years", length = 50, updatable = false)
+    val careerYears: String? = null,
 
     /**
      * JD 전체 요약
-     * 3~5줄 분량
+     * 2~3줄 분량
      */
     @Column(
         name = "summary_text",
@@ -146,7 +154,7 @@ class JobSummary protected constructor(
 
     /**
      * 주요 기술 스택
-     * CSV 또는 자연어 형태
+     * CSV 형태, 정규화된 영문명
      */
     @Column(name = "tech_stack", length = 1000, updatable = false)
     val techStack: String? = null,
@@ -158,9 +166,22 @@ class JobSummary protected constructor(
     @Column(name = "recruitment_process", updatable = false)
     val recruitmentProcess: String? = null,
 
+    // =========================
+    // Insight (Embedded VO)
+    // =========================
+
+    /**
+     * JD 분석 기반 인사이트
+     */
+    @Embedded
+    val insight: JobSummaryInsight,
+
+    // =========================
+    // LLM 메타 정보
+    // =========================
+
     /**
      * 요약 생성에 사용된 LLM Provider
-     * (GEMINI / OPENAI / OPENSEARCH)
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "llm_provider", nullable = false, length = 30, updatable = false)
@@ -168,22 +189,15 @@ class JobSummary protected constructor(
 
     /**
      * 요약 생성에 사용된 LLM 모델
-     * Provider에 따라 null 가능
      */
-    @Column(name = "llm_model", nullable = false, length = 30, updatable = false)
+    @Column(name = "llm_model", nullable = false, length = 50, updatable = false)
     val llmModel: String
-
-
 
 ) : BaseEntity() {
 
     companion object {
         /**
          * JobSummary 생성 전용 팩토리 메서드
-         *
-         * 목적:
-         * - Summary 생성 규칙을 한 곳에 고정
-         * - Snapshot → Summary 변환 책임 명확화
          */
         fun create(
             jobSnapshotId: Long,
@@ -193,14 +207,16 @@ class JobSummary protected constructor(
             companyName: String?,
             positionId: Long,
             positionName: String,
+            brandPositionName: String?,
             careerType: CareerType,
-            careerYears: Int?,
+            careerYears: String?,
             summaryText: String,
             responsibilities: String,
             requiredQualifications: String,
             preferredQualifications: String?,
             techStack: String?,
             recruitmentProcess: String?,
+            insight: JobSummaryInsight,
             llmProvider: LlmProvider,
             llmModel: String
         ): JobSummary {
@@ -212,6 +228,7 @@ class JobSummary protected constructor(
                 companyName = companyName,
                 positionId = positionId,
                 positionName = positionName,
+                brandPositionName = brandPositionName,
                 careerType = careerType,
                 careerYears = careerYears,
                 summaryText = summaryText,
@@ -220,6 +237,7 @@ class JobSummary protected constructor(
                 preferredQualifications = preferredQualifications,
                 techStack = techStack,
                 recruitmentProcess = recruitmentProcess,
+                insight = insight,
                 llmProvider = llmProvider,
                 llmModel = llmModel
             )

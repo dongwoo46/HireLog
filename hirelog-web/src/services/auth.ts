@@ -52,4 +52,30 @@ export const authService = {
       withCredentials: true,
     });
   },
+
+  /**
+   * Access Token 재발급
+   * POST /auth/refresh
+   * Cookie(refresh_token) 사용 (Body 없음)
+   */
+  refreshToken: async (): Promise<{ accessToken: string }> => {
+    const response = await apiClient.post<{ accessToken: string; refreshToken: string }>(
+      '/auth/refresh',
+      {}, // Empty body
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * 로그아웃
+   * POST /auth/logout
+   */
+  logout: async (): Promise<void> => {
+    await apiClient.post('/api/auth/logout', {}, {
+      withCredentials: true,
+    });
+  },
 };
