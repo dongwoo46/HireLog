@@ -1,78 +1,136 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { TbSearch, TbBriefcase, TbClock, TbMapPin } from 'react-icons/tb';
+
+// Mock Data for JDs
+const MOCK_JDS = [
+  {
+    id: 1,
+    title: 'Senior Frontend Developer',
+    company: 'TechCorp Inc.',
+    location: 'Seoul, Korea (Remote)',
+    type: 'Full-time',
+    summary: 'We are looking for an experienced Frontend Developer to lead our web team...',
+    tags: ['React', 'TypeScript', 'Next.js'],
+    postedAt: '2025-02-01',
+  },
+  {
+    id: 2,
+    title: 'Product Designer',
+    company: 'DesignStudio',
+    location: 'Gangnam, Seoul',
+    type: 'Contract',
+    summary: 'Seeking a creative Product Designer to work on our new mobile application...',
+    tags: ['Figma', 'UI/UX', 'Mobile'],
+    postedAt: '2025-01-28',
+  },
+  {
+    id: 3,
+    title: 'Backend Engineer (Java/Kotlin)',
+    company: 'FinService',
+    location: 'Yeouido, Seoul',
+    type: 'Full-time',
+    summary: 'Join our core platform team building high-performance financial systems...',
+    tags: ['Java', 'Spring Boot', 'AWS'],
+    postedAt: '2025-01-25',
+  },
+  {
+    id: 4,
+    title: 'Data Analyst',
+    company: 'CommerceBig',
+    location: 'Pangyo',
+    type: 'Full-time',
+    summary: 'Analyze user behavior data to drive business growth and product improvements...',
+    tags: ['SQL', 'Python', 'Tableau'],
+    postedAt: '2025-01-20',
+  },
+];
 
 const MainPage = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredJDs = MOCK_JDS.filter((jd) =>
+    jd.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    jd.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    jd.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
-    <div className="min-h-screen bg-slate-900 text-white font-sans selection:bg-purple-500 selection:text-white">
-      {/* Navbar */}
-      <nav className="fixed w-full z-50 bg-slate-900/80 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-lg">
-              H
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-              HireLog
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-6">
-            <Link to="/login" className="px-4 py-2 bg-white text-slate-900 rounded-full text-sm font-bold hover:bg-slate-200 transition-all transform hover:scale-105">
-              Log in
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <div className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl mix-blend-screen animate-pulse"></div>
-          <div className="absolute top-40 right-10 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl mix-blend-screen animate-pulse delay-700"></div>
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 text-center">
-          <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-8">
-            Master Your <br/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-              Hiring Process
-            </span>
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      <div className="max-w-5xl mx-auto px-6 pt-32 pb-20">
+        
+        {/* Header / Search Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-3xl font-bold mb-6 text-gray-900">
+            Search Job Descriptions
           </h1>
-          <p className="text-lg lg:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Streamline your recruitment with intelligent tools. Analyze Job Descriptions, track candidates, and make better hiring decisions faster.
-          </p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link 
-              to="/login"
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full font-bold text-lg hover:shadow-lg hover:shadow-blue-500/30 transition-all transform hover:-translate-y-1"
-            >
-              Get Started for Free
-            </Link>
-            <Link 
-              to="/tools/jd-summary"
-              className="w-full sm:w-auto px-8 py-4 bg-slate-800 border border-slate-700 rounded-full font-bold text-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-all"
-            >
-              Try JD Summary
-            </Link>
+          <div className="max-w-2xl mx-auto relative group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <TbSearch className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+            </div>
+            <input
+              type="text"
+              className="block w-full pl-11 pr-4 py-4 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all"
+              placeholder="Search by job title, company, or keywords..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
-      </div>
-      
-      {/* Features Grid */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-20 border-t border-white/5">
-        <div className="grid md:grid-cols-3 gap-8">
-          {[
-            { title: "Smart Analysis", desc: "AI-powered insights for every job description you process." },
-            { title: "Collaborative", desc: "Share notes and ratings with your hiring team seamlessly." },
-            { title: "Organized", desc: "Keep all your hiring data in one secure, accessible place." }
-          ].map((item, i) => (
-            <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors">
-              <h3 className="text-xl font-bold mb-3 text-blue-400">{item.title}</h3>
-              <p className="text-slate-400">{item.desc}</p>
+
+        {/* JD List Section */}
+        <div className="grid gap-4">
+          {filteredJDs.length > 0 ? (
+            filteredJDs.map((jd) => (
+              <div 
+                key={jd.id} 
+                className="bg-white border border-gray-100 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer group"
+                onClick={() => alert(`Navigating to JD: ${jd.title}`)} // Placeholder for navigation
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                      {jd.title}
+                    </h3>
+                    <p className="text-gray-500 font-medium">{jd.company}</p>
+                  </div>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                    {jd.type}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                  <span className="flex items-center gap-1">
+                    <TbMapPin className="w-4 h-4" />
+                    {jd.location}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <TbClock className="w-4 h-4" />
+                    {jd.postedAt}
+                  </span>
+                </div>
+
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  {jd.summary}
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {jd.tags.map(tag => (
+                    <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-dashed border-gray-200">
+              <TbBriefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>No job descriptions found matching "{searchTerm}"</p>
             </div>
-          ))}
+          )}
         </div>
+
       </div>
     </div>
   );

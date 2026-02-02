@@ -19,6 +19,7 @@ java {
 
 repositories {
 	mavenCentral()
+	google()
 }
 
 dependencies {
@@ -34,12 +35,11 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
 	implementation("org.springframework.kafka:spring-kafka")
-
 	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
 	implementation("org.flywaydb:flyway-core")
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
 
-	// OpenSearch Java Client (버전 명시 필수)
+	// OpenSearch Java Client (버전 명시 필수	)
 	implementation("org.opensearch.client:opensearch-java:2.13.0")
 	implementation("org.opensearch.client:opensearch-rest-client:2.13.0")
 	implementation("com.fasterxml.jackson.core:jackson-databind")

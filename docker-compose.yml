@@ -32,7 +32,10 @@ services:
       - ./redis_data:/data
 
   opensearch:
-    image: opensearchproject/opensearch:2.13.0
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: hirelog-opensearch:2.13.0
     container_name: opensearch_hirelog
     restart: unless-stopped
 

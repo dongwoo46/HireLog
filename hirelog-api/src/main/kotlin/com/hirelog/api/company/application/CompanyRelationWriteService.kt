@@ -1,7 +1,8 @@
-package com.hirelog.api.company.application.command
+package com.hirelog.api.company.application
 
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
-import com.hirelog.api.company.application.query.CompanyRelationQuery
+import com.hirelog.api.company.application.port.CompanyRelationCommand
+import com.hirelog.api.company.application.port.CompanyRelationQuery
 import com.hirelog.api.company.domain.CompanyRelation
 import com.hirelog.api.company.domain.CompanyRelationType
 import org.springframework.dao.DataIntegrityViolationException

@@ -35,6 +35,7 @@ class GeminiJobSummaryLlm(
         brandName: String,
         positionName: String,
         positionCandidates: List<String>,
+        existCompanies: List<String>,
         canonicalMap: Map<String, List<String>>
     ): CompletableFuture<JobSummaryLlmResult> {
 
@@ -44,6 +45,7 @@ class GeminiJobSummaryLlm(
             brandName = brandName,
             positionName = positionName,
             positionCandidates = positionCandidates,
+            existCompanies = existCompanies,
             jdText = jdText
         )
 

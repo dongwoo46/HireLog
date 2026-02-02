@@ -1,8 +1,8 @@
 package com.hirelog.api.company.domain
 
-import com.hirelog.api.common.infra.jpa.entity.BaseEntity
-import com.hirelog.api.common.infra.jpa.StringListJsonConverter
 import com.hirelog.api.common.domain.VerificationStatus
+import com.hirelog.api.common.infra.jpa.StringListJsonConverter
+import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import jakarta.persistence.*
 
 @Entity
@@ -16,7 +16,7 @@ import jakarta.persistence.*
         )
     ]
 )
-class Company(
+class Company protected constructor(
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,14 +30,17 @@ class Company(
     val name: String,
 
     /**
-     * 정규화된 회사명
-     * (중복 방지 / 매핑 기준)
+     * 시스템 기준 정규화 회사명
      */
     @Column(name = "normalized_name", nullable = false, length = 200)
     val normalizedName: String,
 
     /**
      * 회사 별칭 목록
+     *
+     * 예:
+     * - "토스"
+     * - "Toss"
      */
     @Column(name = "aliases", columnDefinition = "jsonb", nullable = false)
     @Convert(converter = StringListJsonConverter::class)
@@ -51,6 +54,16 @@ class Company(
     val source: CompanySource,
 
     /**
+     * 외부 시스템 식별자
+     *
+     * 예:
+     * - DART corpCode
+     * - 사업자등록번호
+     */
+    @Column(name = "external_id", length = 100)
+    val externalId: String?,
+
+    /**
      * 회사 검증 상태
      */
     @Enumerated(EnumType.STRING)
@@ -58,51 +71,48 @@ class Company(
     var verificationStatus: VerificationStatus,
 
     /**
-     * 외부 식별자
-     */
-    @Column(name = "external_id", length = 100)
-    val externalId: String? = null,
-
-    /**
      * 사용 여부
      */
     @Column(name = "is_active", nullable = false)
     var isActive: Boolean = true
+
 ) : BaseEntity() {
+
     companion object {
 
         /**
          * Company 생성 팩토리
          *
-         * 역할:
-         * - 회사 생성 정책을 한 곳에 고정
-         * - 초기 상태를 강제
+         * 정책:
+         * - 최초 생성 시 항상 UNVERIFIED
+         * - normalizedName은 내부 규칙으로 생성
          */
         fun create(
             name: String,
-            normalizedName: String,
             aliases: List<String>,
             source: CompanySource,
             externalId: String?
         ): Company {
             return Company(
                 name = name,
-                normalizedName = normalizedName,
+                normalizedName = normalize(name),
                 aliases = aliases,
                 source = source,
-                verificationStatus = VerificationStatus.UNVERIFIED,
                 externalId = externalId,
+                verificationStatus = VerificationStatus.UNVERIFIED,
                 isActive = true
             )
         }
+
+        private fun normalize(value: String): String =
+            value
+                .lowercase()
+                .replace(Regex("[^a-z0-9]+"), "_")
+                .trim('_')
     }
 
     /**
      * 회사 검증 승인
-     *
-     * 역할:
-     * - 검증 상태를 VERIFIED로 전환
-     * - idempotent
      */
     fun verify() {
         if (verificationStatus == VerificationStatus.VERIFIED) return
@@ -111,9 +121,6 @@ class Company(
 
     /**
      * 회사 비활성화
-     *
-     * 역할:
-     * - 논리적 삭제
      */
     fun deactivate() {
         if (!isActive) return

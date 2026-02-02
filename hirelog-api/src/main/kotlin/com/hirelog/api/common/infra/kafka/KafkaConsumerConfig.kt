@@ -61,4 +61,41 @@ class KafkaConsumerConfig(
             setAutoStartup(true)
         }
     }
+
+    /**
+     * String 메시지용 ConsumerFactory
+     * - Debezium CDC Outbox 메시지 소비용
+     */
+    @Bean
+    fun stringConsumerFactory(): ConsumerFactory<String, String> {
+        val props = springKafkaProperties.buildConsumerProperties().toMutableMap()
+
+        return DefaultKafkaConsumerFactory(
+            props,
+            StringDeserializer(),
+            StringDeserializer()
+        )
+    }
+
+    /**
+     * String 메시지용 ListenerContainerFactory
+     * - Debezium CDC Outbox 메시지 소비용
+     * - Manual Ack 모드
+     */
+    @Bean
+    fun stringListenerContainerFactory(
+        stringConsumerFactory: ConsumerFactory<String, String>
+    ): ConcurrentKafkaListenerContainerFactory<String, String> {
+
+        logger.info("Creating stringListenerContainerFactory")
+
+        return ConcurrentKafkaListenerContainerFactory<String, String>().apply {
+            consumerFactory = stringConsumerFactory
+            setBatchListener(false)
+            containerProperties.ackMode = ContainerProperties.AckMode.MANUAL
+            setCommonErrorHandler(DefaultErrorHandler(FixedBackOff(1000L, 3L)))
+            setConcurrency(1)
+            setAutoStartup(true)
+        }
+    }
 }

@@ -8,7 +8,7 @@ data class JobSummaryRes(
     val position: String,
 
     val careerType: CareerType,
-    val careerYears: Int?,
+    val careerYears: String?,
 
     val summary: String,
     val responsibilities: String,

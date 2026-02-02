@@ -6,7 +6,7 @@ import com.hirelog.api.job.domain.CareerType
 /**
  * JobSummaryLlmResult
  *
- * 🔹 LLM 요약 결과 최종 도메인 모델
+ * LLM 요약 결과 최종 도메인 모델
  *
  * 책임:
  * - 시스템이 신뢰하는 JD 요약 결과 표현
@@ -18,34 +18,54 @@ import com.hirelog.api.job.domain.CareerType
  */
 data class JobSummaryLlmResult(
 
-    // 사용된 LLM Provider (시스템 주입)
+    // === 메타 정보 ===
+
     val llmProvider: LlmProvider,
 
-    // 커리어 구분 (UNKNOWN 포함)
-    val careerType: CareerType,
-
-    // 요구 경력 연차 (추출 실패 시 null)
-    val careerYears: Int?,
-
-    // JD 핵심 요약 (필수)
-    val summary: String,
-
-    // 주요 업무 요약 (필수)
-    val responsibilities: String,
-
-    // 필수 자격 요건 요약 (필수)
-    val requiredQualifications: String,
-
-    // 우대 사항
-    val preferredQualifications: String?,
-
-    // 기술 스택 요약 (자유 텍스트)
-    val techStack: String?,
-
-    // 채용 절차 요약
-    val recruitmentProcess: String?,
+    // === 기본 정보 ===
 
     val brandName: String,
     val positionName: String,
-    val brandPositionName: String?
+    val brandPositionName: String?,
+
+    // 추론된 법인명 후보 (예: "토스" → "(주)비바리퍼블리카")
+    // CompanyCandidate 생성에 사용
+    val companyCandidate: String?,
+
+    val careerType: CareerType,
+
+    // 경력 연차 원문 (예: "3년 이상", "5~7년")
+    // null: 미기재 또는 신입/무관
+    val careerYears: String?,
+
+    // === JD 요약 ===
+
+    val summary: String,
+    val responsibilities: String,
+    val requiredQualifications: String,
+    val preferredQualifications: String?,
+    val techStack: String?,
+    val recruitmentProcess: String?,
+
+    // === Insight ===
+
+    val insight: JobSummaryInsightResult
+)
+
+/**
+ * LLM Insight 결과
+ *
+ * 모든 필드는 nullable (LLM이 추출 실패할 수 있음)
+ */
+data class JobSummaryInsightResult(
+    val idealCandidate: String?,
+    val mustHaveSignals: String?,
+    val preparationFocus: String?,
+    val transferableStrengthsAndGapPlan: String?,
+    val proofPointsAndMetrics: String?,
+    val storyAngles: String?,
+    val keyChallenges: String?,
+    val technicalContext: String?,
+    val questionsToAsk: String?,
+    val considerations: String?
 )

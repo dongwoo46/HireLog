@@ -78,7 +78,9 @@ class SecurityConfig(
 
                     // 회원가입 / 인증 관련 API
                     .requestMatchers(
-                        "/api/auth/signup/**"
+                        "/api/auth/signup/**",
+                        "/api/auth/refresh",
+                        "/api/auth/logout"
                     ).permitAll()
                     .anyRequest().authenticated()
             }

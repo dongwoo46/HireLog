@@ -1,7 +1,8 @@
-package com.hirelog.api.company.application.command
+package com.hirelog.api.company.application
 
 import com.hirelog.api.common.exception.EntityNotFoundException
-import com.hirelog.api.company.application.query.CompanyQuery
+import com.hirelog.api.company.application.port.CompanyCommand
+import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.company.domain.Company
 import com.hirelog.api.company.domain.CompanySource
 import org.springframework.dao.DataIntegrityViolationException
@@ -46,7 +47,6 @@ class CompanyWriteService(
 
         val company = Company.create(
             name = name,
-            normalizedName = normalizedName,
             aliases = aliases,
             source = source,
             externalId = externalId

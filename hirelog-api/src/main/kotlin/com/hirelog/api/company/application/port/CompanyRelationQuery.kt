@@ -1,4 +1,4 @@
-package com.hirelog.api.company.application.query
+package com.hirelog.api.company.application.port
 
 import com.hirelog.api.company.domain.CompanyRelation
 
