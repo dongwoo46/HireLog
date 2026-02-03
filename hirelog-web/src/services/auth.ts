@@ -74,7 +74,7 @@ export const authService = {
    * POST /auth/logout
    */
   logout: async (): Promise<void> => {
-    await apiClient.post('/api/auth/logout', {}, {
+    await apiClient.post('/auth/logout', {}, {
       withCredentials: true,
     });
   },

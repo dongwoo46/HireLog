@@ -1,6 +1,7 @@
 package com.hirelog.api.job.domain
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.VersionedEntity
 import jakarta.persistence.*
 import java.util.UUID
 
@@ -48,7 +49,7 @@ class JdSummaryProcessing protected constructor(
     @Column(columnDefinition = "text")
     var errorMessage: String? = null
 
-) : BaseEntity() {
+) : VersionedEntity() {
 
     companion object {
 

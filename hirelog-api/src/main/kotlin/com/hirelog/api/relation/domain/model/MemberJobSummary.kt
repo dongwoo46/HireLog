@@ -47,10 +47,8 @@ class MemberJobSummary(
     /**
      * 저장 목적
      *
-     * FAVORITE : 즐겨찾기
+     * SAVE : 즐겨찾기
      * APPLY    : 지원 예정
-     * COMPARE  : 다른 JD와 비교
-     * ARCHIVE  : 나중에 다시 보기
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "save_type", nullable = false, length = 20)

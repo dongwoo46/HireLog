@@ -91,7 +91,21 @@ class UrlFetcher:
                  logger.info(f"JS Rendering Required: SPA indicator found '{indicator}'")
                  return True
 
-        # 3. 핵심 키워드 체크 (JD 본문이 로드되었는지 확인)
+        # 3. "더보기" 버튼 존재 체크 (숨겨진 콘텐츠 = 클릭 필요 = Playwright 필요)
+        expand_button_patterns = [
+            "상세 정보 더 보기", "상세정보 더보기", "상세정보 더 보기",
+            "더보기", "더 보기", "자세히 보기", "자세히보기",
+            "펼치기", "전체보기", "전체 보기", "내용 더보기", "내용 더 보기",
+            "Show more", "View more", "Read more", "See more", "Expand",
+            "Load more", "See full description", "View full description",
+        ]
+
+        for pattern in expand_button_patterns:
+            if pattern in html:
+                logger.info(f"JS Rendering Required: Expand button pattern found '{pattern}'")
+                return True
+
+        # 4. 핵심 키워드 체크 (JD 본문이 로드되었는지 확인)
         # 통상적인 JD에 있는 단어들이 하나도 없다면 렌더링 안된 것으로 간주
         # (영어/한글 주요 키워드)
         keywords = [
@@ -100,12 +114,12 @@ class UrlFetcher:
             # EN
             "Requirements", "Responsibilities", "Qualifications", "Preferred", "Description", "Benefits", "About the role"
         ]
-        
+
         found_keywords = [k for k in keywords if k in html]
         if not found_keywords:
-            # 키워드가 하나도 없다고 무조건 JS문제는 아니지만(이미지 통짜일수도), 
+            # 키워드가 하나도 없다고 무조건 JS문제는 아니지만(이미지 통짜일수도),
             # 텍스트 파이프라인 관점에서는 '텍스트 없음'으로 간주하고 렌더링 시도해보는 게 맞음.
             logger.info("JS Rendering Required: No JD keywords found in HTML")
             return True
-                
+
         return False

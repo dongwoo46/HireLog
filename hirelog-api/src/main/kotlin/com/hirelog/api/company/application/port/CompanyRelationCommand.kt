@@ -3,14 +3,22 @@ package com.hirelog.api.company.application.port
 import com.hirelog.api.company.domain.CompanyRelation
 
 /**
- * CompanyRelation Write Port
+ * CompanyRelationCommand
  *
  * 책임:
- * - 회사 관계 영속화
+ * - CompanyRelation 쓰기 전용
  */
 interface CompanyRelationCommand {
 
-    fun save(relation: CompanyRelation): CompanyRelation
+    fun save(relation: CompanyRelation)
 
     fun delete(relation: CompanyRelation)
+
+    /**
+     * 수정/삭제 목적 조회
+     *
+     * 특징:
+     * - 비관적 락
+     */
+    fun findById(id: Long): CompanyRelation?
 }

@@ -1,6 +1,7 @@
 package com.hirelog.api.job.application.messaging
 
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
+import com.hirelog.api.job.domain.RecruitmentPeriodTypeMapper
 import org.springframework.stereotype.Component
 
 /**
@@ -28,7 +29,7 @@ class JdPreprocessResponseEventMapper {
             source = event.source,
             sourceUrl = event.sourceUrl,
             canonicalMap = event.canonicalMap,
-            recruitmentPeriodType = event.recruitmentPeriodType,
+            recruitmentPeriodType = RecruitmentPeriodTypeMapper.fromRaw(event.recruitmentPeriodType),
             openedDate = event.openedDate,
             closedDate = event.closedDate,
             skills = event.skills,

@@ -39,12 +39,23 @@ class JdIntakeService(
         positionName: String,
         text: String,
     ): String {
-        return send(
+        require(brandName.isNotBlank()) { "brandName is required" }
+        require(positionName.isNotBlank()) { "positionName is required" }
+        require(text.isNotBlank()) { "text is required" }
+
+        val message = JdPreprocessRequestMessage(
+            eventId = UUID.randomUUID().toString(),
+            requestId = UUID.randomUUID().toString(),
+            occurredAt = System.currentTimeMillis(),
+            version = "v1",
             brandName = brandName,
             positionName = positionName,
             source = JobSourceType.TEXT,
-            payload = text,
+            text = text,
         )
+
+        jdPreprocessRequestPort.send(message)
+        return message.requestId
     }
 
     /**
@@ -55,14 +66,25 @@ class JdIntakeService(
         positionName: String,
         imageFiles: List<MultipartFile>,
     ): String {
+        require(brandName.isNotBlank()) { "brandName is required" }
+        require(positionName.isNotBlank()) { "positionName is required" }
+        require(imageFiles.isNotEmpty()) { "imageFiles is required" }
+
         val savedPaths = fileStorageService.saveImages(imageFiles, "ocr")
 
-        return send(
+        val message = JdPreprocessRequestMessage(
+            eventId = UUID.randomUUID().toString(),
+            requestId = UUID.randomUUID().toString(),
+            occurredAt = System.currentTimeMillis(),
+            version = "v1",
             brandName = brandName,
             positionName = positionName,
             source = JobSourceType.IMAGE,
-            payload = savedPaths.joinToString(","),
+            images = savedPaths,
         )
+
+        jdPreprocessRequestPort.send(message)
+        return message.requestId
     }
 
     /**
@@ -73,28 +95,9 @@ class JdIntakeService(
         positionName: String,
         url: String,
     ): String {
+        require(brandName.isNotBlank()) { "brandName is required" }
+        require(positionName.isNotBlank()) { "positionName is required" }
         require(isValidUrl(url)) { "Invalid URL format: $url" }
-
-        return send(
-            brandName = brandName,
-            positionName = positionName,
-            source = JobSourceType.URL,
-            payload = url,
-        )
-    }
-
-    /**
-     * 공통 전처리 요청 로직
-     */
-    private fun send(
-        brandName: String,
-        positionName: String,
-        source: JobSourceType,
-        payload: String,
-    ): String {
-        require(brandName.isNotBlank())
-        require(positionName.isNotBlank())
-        require(payload.isNotBlank())
 
         val message = JdPreprocessRequestMessage(
             eventId = UUID.randomUUID().toString(),
@@ -103,12 +106,11 @@ class JdIntakeService(
             version = "v1",
             brandName = brandName,
             positionName = positionName,
-            source = source,
-            text = payload,
+            source = JobSourceType.URL,
+            url = url,
         )
 
         jdPreprocessRequestPort.send(message)
-
         return message.requestId
     }
 

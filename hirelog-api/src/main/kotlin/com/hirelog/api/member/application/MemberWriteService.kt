@@ -1,6 +1,7 @@
 package com.hirelog.api.member.application
 
 import com.hirelog.api.auth.domain.OAuthUser
+import com.hirelog.api.common.config.properties.AdminProperties
 import com.hirelog.api.common.exception.EntityNotFoundException
 import com.hirelog.api.member.application.port.MemberCommand
 import com.hirelog.api.member.application.port.MemberQuery
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional
 class MemberWriteService(
     private val memberCommand: MemberCommand,
     private val memberQuery: MemberQuery,
+    private val adminProperties: AdminProperties
 ) {
 
     /**
@@ -30,7 +32,7 @@ class MemberWriteService(
         email: String,
         oAuthUser: OAuthUser,
     ): Member {
-        val member = memberQuery.findByEmail(email)
+        val member = memberCommand.findByEmail(email)
             ?: throw EntityNotFoundException(
                 entityName = "Member",
                 identifier = email
@@ -56,8 +58,12 @@ class MemberWriteService(
         careerYears: Int? = null,
         summary: String? = null,
     ): Member {
-        if (memberQuery.existByUsername(username)) {
+        if (memberQuery.existsByUsername(username)) {
             throw IllegalArgumentException("이미 사용 중인 username 입니다.")
+        }
+
+        if (memberQuery.existsByEmail(email)) {
+            throw IllegalArgumentException("이미 사용 중인 email 입니다.")
         }
 
         val member = Member.createByOAuth(
@@ -69,6 +75,10 @@ class MemberWriteService(
             careerYears = careerYears,
             summary = summary,
         )
+
+        if (adminProperties.isAdmin(email)) {
+            member.grantAdmin()
+        }
 
         return memberCommand.save(member)
     }
@@ -101,12 +111,21 @@ class MemberWriteService(
     }
 
     /**
-     * 계정 정지
+     * 계정 정지 (Admin)
      */
     @Transactional
     fun suspend(memberId: Long) {
         val member = getRequired(memberId)
         member.suspend()
+    }
+
+    /**
+     * 계정 활성화 (Admin)
+     */
+    @Transactional
+    fun activate(memberId: Long) {
+        val member = getRequired(memberId)
+        member.activate()
     }
 
     /**
@@ -119,7 +138,7 @@ class MemberWriteService(
     }
 
     private fun getRequired(memberId: Long): Member =
-        memberQuery.findById(memberId)
+        memberCommand.findById(memberId)
             ?: throw EntityNotFoundException(
                 entityName = "Member",
                 identifier = memberId

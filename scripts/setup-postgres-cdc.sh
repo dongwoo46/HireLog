@@ -7,6 +7,13 @@ POSTGRES_DB=hirelog
 DEBEZIUM_USER=debezium
 DEBEZIUM_PASSWORD=debezium
 
+# CDC 대상 outbox 테이블 목록
+OUTBOX_TABLES=(
+  "public.outbox_event"
+  # "public.audit_outbox_event"
+  # "public.outbox_event_v2"
+)
+
 echo "▶ Entering Postgres container..."
 docker exec -i ${POSTGRES_CONTAINER} bash <<EOF
 set -e
@@ -20,16 +27,19 @@ sed -i "s/^#*max_replication_slots.*/max_replication_slots = 10/" \$CONF_FILE
 sed -i "s/^#*max_wal_senders.*/max_wal_senders = 10/" \$CONF_FILE
 
 echo "▶ Updating pg_hba.conf..."
-echo "host replication ${DEBEZIUM_USER} 0.0.0.0/0 md5" >> \$HBA_FILE
-echo "host ${POSTGRES_DB} ${DEBEZIUM_USER} 0.0.0.0/0 md5" >> \$HBA_FILE
+grep -q "host replication ${DEBEZIUM_USER}" \$HBA_FILE || \
+  echo "host replication ${DEBEZIUM_USER} 0.0.0.0/0 md5" >> \$HBA_FILE
+
+grep -q "host ${POSTGRES_DB} ${DEBEZIUM_USER}" \$HBA_FILE || \
+  echo "host ${POSTGRES_DB} ${DEBEZIUM_USER} 0.0.0.0/0 md5" >> \$HBA_FILE
 EOF
 
 echo "▶ Restarting Postgres..."
-docker restart pg_hirelog
+docker restart ${POSTGRES_CONTAINER}
 
 echo "▶ Waiting for Postgres to be ready..."
 for i in {1..30}; do
-  if docker exec pg_hirelog pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" > /dev/null 2>&1; then
+  if docker exec ${POSTGRES_CONTAINER} pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" > /dev/null 2>&1; then
     echo "✅ Postgres is ready"
     break
   fi
@@ -43,35 +53,54 @@ docker exec -i ${POSTGRES_CONTAINER} \
 -- Debezium 유저 생성 (idempotent)
 DO \$\$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${DEBEZIUM_USER}') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DEBEZIUM_USER}') THEN
     CREATE ROLE ${DEBEZIUM_USER}
       WITH LOGIN REPLICATION PASSWORD '${DEBEZIUM_PASSWORD}';
   END IF;
 END
 \$\$;
 
--- DB / 스키마 / 테이블 권한
 GRANT CONNECT ON DATABASE ${POSTGRES_DB} TO ${DEBEZIUM_USER};
-GRANT CREATE ON DATABASE ${POSTGRES_DB} TO ${DEBEZIUM_USER};
 GRANT USAGE ON SCHEMA public TO ${DEBEZIUM_USER};
-GRANT SELECT ON TABLE public.outbox_event TO ${DEBEZIUM_USER};
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT SELECT ON TABLES TO ${DEBEZIUM_USER};
+EOF
 
--- 🔴 publication은 postgres가 직접 생성
+echo "▶ Ensuring publication & outbox tables..."
+docker exec -i ${POSTGRES_CONTAINER} \
+  psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} <<EOF
+
+-- publication 생성
 DO \$\$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_publication WHERE pubname = 'dbz_publication'
   ) THEN
-    CREATE PUBLICATION dbz_publication
-    FOR TABLE public.outbox_event;
+    CREATE PUBLICATION dbz_publication;
   END IF;
 END
 \$\$;
 
 EOF
+
+# outbox 테이블을 publication에 추가
+for TABLE in "${OUTBOX_TABLES[@]}"; do
+  echo "▶ Adding table to publication: ${TABLE}"
+  docker exec -i ${POSTGRES_CONTAINER} \
+    psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} <<EOF
+DO \$\$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'dbz_publication'
+      AND schemaname || '.' || tablename = '${TABLE}'
+  ) THEN
+    ALTER PUBLICATION dbz_publication ADD TABLE ${TABLE};
+  END IF;
+END
+\$\$;
+EOF
+done
 
 echo "✅ Postgres CDC setup completed."
 

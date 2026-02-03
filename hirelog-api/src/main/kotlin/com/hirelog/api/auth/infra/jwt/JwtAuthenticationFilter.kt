@@ -57,19 +57,32 @@ class JwtAuthenticationFilter(
     private fun createAuthentication(claims: Claims): UsernamePasswordAuthenticationToken {
         val memberId = claims.subject.toLong()
         val roleString = claims["role"] as String
-        val role = MemberRole.valueOf(roleString)
+
+        log.info(
+            "[JWT] createAuthentication memberId={}, roleString={}",
+            memberId,
+            roleString
+        )
+
+        val authority = SimpleGrantedAuthority("ROLE_$roleString")
+
+        log.info(
+            "[JWT] granted authorities={}",
+            listOf(authority).map { it.authority }
+        )
 
         val principal = AuthenticatedMember(
             memberId = memberId,
-            role = role
+            role = MemberRole.valueOf(roleString)
         )
 
         return UsernamePasswordAuthenticationToken(
             principal,
             null,
-            listOf(SimpleGrantedAuthority(roleString))
+            listOf(authority)
         )
     }
+
 
 
     /**

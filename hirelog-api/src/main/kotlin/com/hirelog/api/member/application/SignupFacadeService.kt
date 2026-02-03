@@ -6,6 +6,7 @@ import com.hirelog.api.common.infra.redis.RedisService
 import com.hirelog.api.common.infra.redis.dto.OAuthUserRedisDto
 import com.hirelog.api.common.infra.redis.dto.OAuthUserRedisMapper
 import com.hirelog.api.member.application.port.MemberQuery
+import com.hirelog.api.member.domain.Member
 import com.hirelog.api.member.presentation.dto.*
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Service
@@ -34,18 +35,24 @@ class SignupFacadeService(
     }
 
     /**
-     * 1. 이메일 가용성 체크
-     * - 가입 토큰이 유효한지 먼저 확인 (Fail-fast)
+     * 이메일 가용성 체크
+     *
+     * 정책:
+     * - signupToken 유효성 먼저 검증
+     * - 이메일 중복 여부만 판단
      */
     @Transactional(readOnly = true)
-    fun checkEmailAvailability(signupToken: String, email: String): CheckEmailResponse {
+    fun checkEmailAvailability(
+        signupToken: String,
+        email: String
+    ): CheckEmailResponse {
+
         validateSignupSession(signupToken)
 
-        val member = memberQuery.findByEmail(email)
+        val exists = memberQuery.existsByEmail(email)
 
         return CheckEmailResponse(
-            exists = member != null,
-            username = member?.username // 변경: displayName -> username
+            exists = exists
         )
     }
 
@@ -66,7 +73,7 @@ class SignupFacadeService(
             oAuthUser = oAuthUser
         )
 
-        finalizeProcess(signupToken, member.id, response)
+        finalizeProcess(signupToken, member, response)
         return member.id
     }
 
@@ -91,7 +98,7 @@ class SignupFacadeService(
             summary = request.summary
         )
 
-        finalizeProcess(signupToken, member.id, response)
+        finalizeProcess(signupToken, member, response)
         return member.id
     }
 
@@ -101,8 +108,8 @@ class SignupFacadeService(
      * 프로세스 최종 확정
      * - 서비스 토큰(JWT) 발급 및 Redis 가입 임시 세션 제거
      */
-    private fun finalizeProcess(token: String, memberId: Long, response: HttpServletResponse) {
-        tokenIssuer.issueAccessAndRefresh(memberId, response)
+    private fun finalizeProcess(token: String, member: Member, response: HttpServletResponse) {
+        tokenIssuer.issueAccessAndRefresh(member, response)
         redisService.delete("$SIGNUP_KEY_PREFIX$token")
     }
 

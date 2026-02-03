@@ -10,17 +10,7 @@ import java.time.LocalDateTime
 @MappedSuperclass
 abstract class BaseEntity {
 
-    /**
-     * Optimistic Lock Version
-     *
-     * 역할:
-     * - 동시 수정 충돌 감지
-     * - Lost Update 방지
-     */
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
-        protected set
+
 
     /**
      * 생성 시각

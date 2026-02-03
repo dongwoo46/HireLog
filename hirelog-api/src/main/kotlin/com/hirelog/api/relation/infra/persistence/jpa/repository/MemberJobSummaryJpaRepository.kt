@@ -12,22 +12,9 @@ import org.springframework.data.jpa.repository.JpaRepository
  */
 interface MemberJobSummaryJpaRepository : JpaRepository<MemberJobSummary, Long> {
 
-    /**
-     * 사용자가 저장한 JD 요약 목록 조회
-     */
-    fun findAllByMemberId(memberId: Long): List<MemberJobSummary>
-
-    /**
-     * 특정 JD 요약을 저장한 사용자 목록 조회
-     */
-    fun findAllByJobSummaryId(jobSummaryId: Long): List<MemberJobSummary>
-
-
-    /**
-     * 단건 관계 조회
-     */
     fun findByMemberIdAndJobSummaryId(
         memberId: Long,
         jobSummaryId: Long
     ): MemberJobSummary?
 }
+

@@ -20,4 +20,10 @@ class MemberJobSummaryJpaCommand(
     override fun delete(memberJobSummary: MemberJobSummary) {
         repository.delete(memberJobSummary)
     }
+
+    override fun findEntityByMemberIdAndJobSummaryId(
+        memberId: Long,
+        jobSummaryId: Long
+    ): MemberJobSummary? =
+        repository.findByMemberIdAndJobSummaryId(memberId, jobSummaryId)
 }

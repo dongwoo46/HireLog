@@ -19,29 +19,30 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class CompanyWriteService(
-    private val companyCommand: CompanyCommand,
-    private val companyQuery: CompanyQuery
+    private val companyCommand: CompanyCommand
 ) {
 
     /**
      * Company 확보
      *
      * 정책:
-     * - normalizedName 기준 단일 Company 보장
+     * - 회사명 기반 단일 Company 보장
      * - 존재하면 반환
      * - 없으면 신규 생성
      */
     @Transactional
     fun getOrCreate(
         name: String,
-        normalizedName: String,
         aliases: List<String>,
         source: CompanySource,
         externalId: String?
     ): Company {
 
-        // 1. 빠른 조회 (UX / 의미용)
-        companyQuery.findByNormalizedName(normalizedName)?.let {
+        // 🔒 도메인 규칙에 따라 내부에서 정규화
+        val normalizedName = Company.normalize(name)
+
+        // 1️⃣ 쓰기 전용 빠른 조회
+        companyCommand.findByNormalizedName(normalizedName)?.let {
             return it
         }
 
@@ -52,12 +53,12 @@ class CompanyWriteService(
             externalId = externalId
         )
 
-        // 2. DB가 최종 중복을 판단하도록 위임
+        // 2️⃣ DB를 최종 진실로 신뢰
         return try {
             companyCommand.save(company)
         } catch (ex: DataIntegrityViolationException) {
-            // 3. 동시성으로 이미 생성된 경우 재조회
-            companyQuery.findByNormalizedName(normalizedName)
+            // 3️⃣ 동시성으로 이미 생성된 경우 재조회
+            companyCommand.findByNormalizedName(normalizedName)
                 ?: throw ex
         }
     }
@@ -82,10 +83,10 @@ class CompanyWriteService(
      * 쓰기 유스케이스 전용 필수 조회
      */
     private fun getRequired(companyId: Long): Company =
-        companyQuery.findById(companyId)
+        companyCommand.findById(companyId)
             ?: throw EntityNotFoundException(
                 entityName = "Company",
                 identifier = companyId
             )
-
 }
+

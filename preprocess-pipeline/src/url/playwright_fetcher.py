@@ -190,10 +190,39 @@ class PlaywrightFetcher:
         """
         clicked_count = 0
 
-        # 방법 1: getByText로 정확한 텍스트 매칭
         for text in EXPAND_BUTTON_TEXTS:
+            # 방법 1: get_by_role("button")으로 버튼 직접 탐색 (RECOMMENDED)
             try:
-                # 정확한 텍스트 매칭
+                button_locator = page.get_by_role("button", name=text)
+                if button_locator.count() > 0:
+                    for i in range(button_locator.count()):
+                        try:
+                            btn = button_locator.nth(i)
+                            if btn.is_visible():
+                                btn.scroll_into_view_if_needed()
+                                time.sleep(0.2)
+                                btn.click(timeout=3000)
+                                clicked_count += 1
+                                logger.info(
+                                    "[EXPAND_BUTTON_CLICKED] method='role' text='%s' index=%d",
+                                    text, i
+                                )
+                                time.sleep(1)
+                                try:
+                                    page.wait_for_load_state("networkidle", timeout=3000)
+                                except:
+                                    pass
+                                break
+                        except Exception as e:
+                            logger.debug("[ROLE_CLICK_FAILED] text='%s' error=%s", text, str(e))
+                            continue
+                    if clicked_count > 0:
+                        continue  # 이 텍스트 패턴은 성공, 다음 패턴으로
+            except Exception as e:
+                logger.debug("[ROLE_SEARCH_FAILED] text='%s' error=%s", text, str(e))
+
+            # 방법 2: get_by_text 후 부모 button 찾아 클릭
+            try:
                 locator = page.get_by_text(text, exact=False)
                 count = locator.count()
 
@@ -202,27 +231,34 @@ class PlaywrightFetcher:
                         try:
                             element = locator.nth(i)
                             if element.is_visible():
-                                # 요소로 스크롤
                                 element.scroll_into_view_if_needed()
                                 time.sleep(0.2)
 
-                                # 클릭
-                                element.click(timeout=3000)
+                                # 부모 중 button/[role=button]/a 요소 찾아 클릭
+                                clickable = element.locator(
+                                    "xpath=ancestor::button | ancestor::*[@role='button'] | ancestor::a"
+                                ).first
+
+                                if clickable.count() > 0 and clickable.is_visible():
+                                    clickable.click(timeout=3000)
+                                    logger.info(
+                                        "[EXPAND_BUTTON_CLICKED] method='ancestor' text='%s' index=%d",
+                                        text, i
+                                    )
+                                else:
+                                    # 부모 button이 없으면 원래 요소 클릭
+                                    element.click(timeout=3000)
+                                    logger.info(
+                                        "[EXPAND_BUTTON_CLICKED] method='direct' text='%s' index=%d",
+                                        text, i
+                                    )
+
                                 clicked_count += 1
-
-                                logger.info(
-                                    "[EXPAND_BUTTON_CLICKED] text='%s' index=%d",
-                                    text, i
-                                )
-
-                                # 클릭 후 DOM 업데이트 대기
                                 time.sleep(1)
                                 try:
                                     page.wait_for_load_state("networkidle", timeout=3000)
                                 except:
                                     pass
-
-                                # 한 번 클릭하면 다음 패턴으로 (중복 클릭 방지)
                                 break
 
                         except Exception as click_error:

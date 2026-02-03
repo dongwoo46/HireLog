@@ -61,7 +61,7 @@ class GeminiClient(
 
         return webClient.post()
             .uri {
-                it.path("/v1beta/models/{model}:generateContent")
+                it.path("/models/{model}:generateContent")
                     .queryParam("key", geminiProperties.apiKey)
                     .build(geminiProperties.model)
             }

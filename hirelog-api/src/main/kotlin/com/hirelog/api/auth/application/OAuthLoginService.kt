@@ -39,7 +39,7 @@ class OAuthLoginService(
 
         // 가입된 적이 있다면 바로 기존 유저 리턴
         if (existingAccount != null) {
-            return OAuth2LoginResult.ExistingUser(existingAccount.member.id)
+            return OAuth2LoginResult.ExistingUser(existingAccount.member)
         }
 
         // 2. 가입된 적이 없다면? DB에 저장하지 않고 정보를 담아 NewUser 리턴

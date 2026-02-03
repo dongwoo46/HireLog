@@ -1,6 +1,7 @@
 package com.hirelog.api.company.domain
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.VersionedEntity
 import jakarta.persistence.*
 
 @Entity
@@ -67,7 +68,7 @@ class CompanyCandidate protected constructor(
     @Column(name = "status", nullable = false, length = 30)
     var status: CompanyCandidateStatus
 
-) : BaseEntity() {
+) : VersionedEntity() {
 
     companion object {
 

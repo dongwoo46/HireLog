@@ -68,8 +68,63 @@ class GlobalExceptionHandler {
         val status = HttpStatus.INTERNAL_SERVER_ERROR
 
         log.error(
-            "[UNHANDLED_EXCEPTION] path={} exception={}",
+            "[UNHANDLED_EXCEPTION] path={}, method={}, exceptionType={}, message={}",
             request.requestURI,
+            request.method,
+            ex.javaClass.simpleName,
+            ex.message,
+            ex
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = status.reasonPhrase,
+                path = request.requestURI
+            )
+        )
+    }
+
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgument(
+        ex: IllegalArgumentException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.BAD_REQUEST
+
+        log.error(
+            "[ILLEGAL_ARGUMENT] path={}, method={}, message={}",
+            request.requestURI,
+            request.method,
+            ex.message,
+            ex
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = status.reasonPhrase,
+                message = ex.message,
+                path = request.requestURI
+            )
+        )
+    }
+
+    @ExceptionHandler(IllegalStateException::class)
+    fun handleIllegalState(
+        ex: IllegalStateException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.INTERNAL_SERVER_ERROR
+
+        log.error(
+            "[ILLEGAL_STATE] path={}, method={}, message={}",
+            request.requestURI,
+            request.method,
             ex.message,
             ex
         )

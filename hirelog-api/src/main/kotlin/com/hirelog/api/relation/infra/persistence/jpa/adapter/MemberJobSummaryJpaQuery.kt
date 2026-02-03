@@ -1,30 +1,139 @@
 package com.hirelog.api.relation.infra.persistence.jpa.adapter
 
+import com.hirelog.api.job.domain.QJobSummary.jobSummary
 import com.hirelog.api.relation.application.jobsummary.query.MemberJobSummaryQuery
-import com.hirelog.api.relation.domain.model.MemberJobSummary
-import com.hirelog.api.relation.infra.persistence.jpa.repository.MemberJobSummaryJpaRepository
+import com.hirelog.api.relation.application.jobsummary.view.MemberJobSummaryView
+import com.hirelog.api.relation.application.jobsummary.view.SavedJobSummaryView
+import com.hirelog.api.relation.domain.model.QMemberJobSummary.memberJobSummary
+import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
+import com.hirelog.api.userrequest.application.port.PagedResult
+import com.querydsl.core.types.Projections
+import com.querydsl.core.types.dsl.BooleanExpression
+import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.stereotype.Component
 
-/**
- * MemberJobSummary JPA Query Adapter
- */
 @Component
 class MemberJobSummaryJpaQuery(
-    private val repository: MemberJobSummaryJpaRepository
+    private val queryFactory: JPAQueryFactory
 ) : MemberJobSummaryQuery {
 
-    override fun findAllByMemberId(memberId: Long): List<MemberJobSummary> {
-        return repository.findAllByMemberId(memberId)
+    override fun findAllByMemberId(
+        memberId: Long,
+        page: Int,
+        size: Int
+    ): PagedResult<MemberJobSummaryView> {
+
+        val offset = page.toLong() * size
+
+        val items = queryFactory
+            .select(
+                Projections.constructor(
+                    MemberJobSummaryView::class.java,
+                    memberJobSummary.memberId,
+                    memberJobSummary.jobSummaryId,
+                    memberJobSummary.saveType,
+                    memberJobSummary.memo,
+                    memberJobSummary.createdAt,
+                    memberJobSummary.updatedAt
+                )
+            )
+            .from(memberJobSummary)
+            .where(memberJobSummary.memberId.eq(memberId))
+            .orderBy(memberJobSummary.createdAt.desc())
+            .offset(offset)
+            .limit(size.toLong())
+            .fetch()
+
+        val total = queryFactory
+            .select(memberJobSummary.count())
+            .from(memberJobSummary)
+            .where(memberJobSummary.memberId.eq(memberId))
+            .fetchOne() ?: 0L
+
+        return PagedResult(
+            items = items,
+            page = page,
+            size = size,
+            totalElements = total,
+            totalPages = ((total + size - 1) / size).toInt(),
+            hasNext = offset + size < total
+        )
     }
 
-    override fun findAllByJobSummaryId(jobSummaryId: Long): List<MemberJobSummary> {
-        return repository.findAllByJobSummaryId(jobSummaryId)
-    }
-
-    override fun findByMemberIdAndJobSummaryId(
+    override fun existsByMemberIdAndJobSummaryId(
         memberId: Long,
         jobSummaryId: Long
-    ): MemberJobSummary? {
-        return repository.findByMemberIdAndJobSummaryId(memberId, jobSummaryId)
+    ): Boolean =
+        queryFactory
+            .selectOne()
+            .from(memberJobSummary)
+            .where(
+                memberJobSummary.memberId.eq(memberId),
+                memberJobSummary.jobSummaryId.eq(jobSummaryId)
+            )
+            .fetchFirst() != null
+
+    override fun findSavedJobSummaries(
+        memberId: Long,
+        saveType: MemberJobSummarySaveType?,
+        page: Int,
+        size: Int
+    ): PagedResult<SavedJobSummaryView> {
+
+        val offset = page.toLong() * size
+
+        val items = queryFactory
+            .select(
+                Projections.constructor(
+                    SavedJobSummaryView::class.java,
+                    memberJobSummary.memberId,
+                    memberJobSummary.jobSummaryId,
+                    memberJobSummary.saveType,
+                    memberJobSummary.memo,
+                    memberJobSummary.createdAt,
+                    jobSummary.brandId,
+                    jobSummary.brandName,
+                    jobSummary.companyId,
+                    jobSummary.companyName,
+                    jobSummary.positionId,
+                    jobSummary.positionName,
+                    jobSummary.brandPositionName,
+                    jobSummary.careerType,
+                    jobSummary.careerYears,
+                    jobSummary.summaryText,
+                    jobSummary.techStack
+                )
+            )
+            .from(memberJobSummary)
+            .join(jobSummary).on(memberJobSummary.jobSummaryId.eq(jobSummary.id))
+            .where(
+                memberJobSummary.memberId.eq(memberId),
+                saveTypeEq(saveType)
+            )
+            .orderBy(memberJobSummary.createdAt.desc())
+            .offset(offset)
+            .limit(size.toLong())
+            .fetch()
+
+        val total = queryFactory
+            .select(memberJobSummary.count())
+            .from(memberJobSummary)
+            .where(
+                memberJobSummary.memberId.eq(memberId),
+                saveTypeEq(saveType)
+            )
+            .fetchOne() ?: 0L
+
+        return PagedResult(
+            items = items,
+            page = page,
+            size = size,
+            totalElements = total,
+            totalPages = if (size > 0) ((total + size - 1) / size).toInt() else 0,
+            hasNext = offset + size < total
+        )
     }
+
+    private fun saveTypeEq(saveType: MemberJobSummarySaveType?): BooleanExpression? =
+        saveType?.let { memberJobSummary.saveType.eq(it) }
 }

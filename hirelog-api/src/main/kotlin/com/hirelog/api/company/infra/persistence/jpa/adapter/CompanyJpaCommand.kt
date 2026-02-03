@@ -5,25 +5,32 @@ import com.hirelog.api.company.domain.Company
 import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyJpaRepository
 import org.springframework.stereotype.Component
 
-/**
- * Company JPA Command Adapter
- *
- * 역할:
- * - CompanyCommand 포트를 JPA로 구현
- * - 영속성 세부 사항을 infra 계층에 격리
- */
 @Component
 class CompanyJpaCommand(
-    private val companyRepository: CompanyJpaRepository
+    private val repository: CompanyJpaRepository
 ) : CompanyCommand {
 
     /**
-     * Company 저장
+     * 신규 / 변경 저장
      *
-     * - 신규 생성
-     * - 상태 변경 반영
+     * - Dirty Checking 전제
+     * - 트랜잭션은 Application Service 책임
      */
-    override fun save(company: Company): Company {
-        return companyRepository.save(company)
+    override fun save(company: Company):Company {
+        return repository.save(company)
+    }
+
+    /**
+     * 수정 목적 단건 조회
+     *
+     * - 락 없음
+     * - verify / deactivate 등 idempotent 상태 변경 전제
+     */
+    override fun findById(id: Long): Company? {
+        return repository.findById(id).orElse(null)
+    }
+
+    override fun findByNormalizedName(normalizedName: String): Company? {
+        return repository.findByNormalizedName(normalizedName)
     }
 }

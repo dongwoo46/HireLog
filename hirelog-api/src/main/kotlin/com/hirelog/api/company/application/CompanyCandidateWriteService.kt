@@ -5,6 +5,7 @@ import com.hirelog.api.company.application.port.CompanyCandidateQuery
 import com.hirelog.api.company.domain.CompanyCandidate
 import com.hirelog.api.company.domain.CompanyCandidateSource
 import com.hirelog.api.company.domain.CompanyCandidateStatus
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -42,13 +43,13 @@ class CompanyCandidateWriteService(
 
         val normalizedName = normalize(candidateName)
 
-        val existing = companyCandidateQuery.findByBrandIdAndNormalizedName(
+        val exists = companyCandidateQuery.existsByBrandIdAndNormalizedName(
             brandId = brandId,
-            normalizedName = normalizedName
+            normalizedName = normalizedName,
         )
 
-        if (existing != null) {
-            return existing
+        if (exists) {
+            error("CompanyCandidate already exists. brandId=$brandId, name=$candidateName")
         }
 
         val candidate = CompanyCandidate.create(
@@ -59,49 +60,39 @@ class CompanyCandidateWriteService(
             confidenceScore = confidenceScore,
         )
 
-        companyCandidateCommand.save(candidate)
-        return candidate
+        return try {
+            companyCandidateCommand.save(candidate)
+        } catch (ex: DataIntegrityViolationException) {
+            // 3️⃣ 동시성으로 이미 생성된 경우 재조회
+            companyCandidateCommand.findByNormalizedName(normalizedName)
+                ?: throw ex
+        }
     }
 
     /**
      * CompanyCandidate 승인
-     *
-     * 정책:
-     * - PENDING 상태만 승인 가능
-     * - 승인 자체는 상태 전이만 수행
      */
     @Transactional
     fun approve(candidateId: Long) {
-        val candidate = getPendingCandidate(candidateId)
+        val candidate = loadForUpdate(candidateId)
         candidate.approve()
     }
 
     /**
      * CompanyCandidate 거절
-     *
-     * 정책:
-     * - 언제든 REJECTED 가능
      */
     @Transactional
     fun reject(candidateId: Long) {
-        val candidate = companyCandidateQuery.findById(candidateId)
-            ?: return
-
+        val candidate = loadForUpdate(candidateId)
         candidate.reject()
     }
 
     /**
-     * 내부 유틸: 승인 가능한 후보 조회
+     * 수정 목적 조회
      */
-    private fun getPendingCandidate(candidateId: Long): CompanyCandidate {
-        val candidate = companyCandidateQuery.findById(candidateId)
-            ?: error("CompanyCandidate not found: id=$candidateId")
-
-        require(candidate.status == CompanyCandidateStatus.PENDING) {
-            "Only PENDING CompanyCandidate can be approved. id=$candidateId"
-        }
-
-        return candidate
+    private fun loadForUpdate(candidateId: Long): CompanyCandidate {
+        return companyCandidateCommand.findByIdForUpdate(candidateId)
+            ?: error("CompanyCandidate not found. id=$candidateId")
     }
 
     /**

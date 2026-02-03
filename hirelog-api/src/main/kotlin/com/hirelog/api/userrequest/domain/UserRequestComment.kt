@@ -11,7 +11,7 @@ import jakarta.persistence.*
         Index(name = "idx_user_request_comment_writer", columnList = "writer_type")
     ]
 )
-class UserRequestComment(
+class UserRequestComment protected constructor(
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,4 +42,19 @@ class UserRequestComment(
 
     @Column(name = "content", columnDefinition = "TEXT", nullable = false)
     val content: String
-) : BaseEntity()
+) : BaseEntity() {
+
+    companion object {
+        fun create(
+            userRequest: UserRequest,
+            writerType: UserRequestCommentWriterType,
+            writerId: Long,
+            content: String
+        ): UserRequestComment = UserRequestComment(
+            userRequest = userRequest,
+            writerType = writerType,
+            writerId = writerId,
+            content = content
+        )
+    }
+}

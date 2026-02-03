@@ -1,9 +1,9 @@
 package com.hirelog.api.common.application.outbox
 
 import com.hirelog.api.common.domain.outbox.OutboxEvent
+import com.hirelog.api.common.logging.log
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.UUID
 
 /**
  * OutboxEventWriteService
@@ -30,7 +30,12 @@ class OutboxEventWriteService(
      */
     @Transactional
     fun append(event: OutboxEvent) {
-        outboxEventCommand.save(event)
+        try {
+            outboxEventCommand.save(event)
+        } catch (e: Exception) {
+            log.error("[OUTBOX_SAVE_FAILED] aggregateType={}, aggregateId={}, eventType={}, error={}",
+                event.aggregateType, event.aggregateId, event.eventType, e.message, e)
+            throw e
+        }
     }
-
 }

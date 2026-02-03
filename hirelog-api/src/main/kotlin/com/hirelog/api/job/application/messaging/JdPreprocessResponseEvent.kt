@@ -1,7 +1,6 @@
 package com.hirelog.api.job.application.messaging
 
 import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.RecruitmentPeriodType
 import java.time.LocalDate
 
 /**
@@ -40,7 +39,7 @@ data class JdPreprocessResponseEvent(
     val canonicalMap: Map<String, List<String>>,
 
     // === Recruitment Info ===
-    val recruitmentPeriodType: RecruitmentPeriodType,
+    val recruitmentPeriodType: String?,
     val openedDate: LocalDate?,
     val closedDate: LocalDate?,
 
