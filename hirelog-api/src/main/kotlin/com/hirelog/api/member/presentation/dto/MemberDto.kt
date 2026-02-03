@@ -20,3 +20,10 @@ data class UpdateDisplayNameReq(
     @field:NotBlank
     val displayName: String
 )
+
+/**
+ * 회원 ID 응답 DTO
+ */
+data class MemberIdResponse(
+    val memberId: Long
+)

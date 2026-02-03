@@ -1,38 +1,25 @@
-import { createContext, useContext, useState, type ReactNode, useEffect } from 'react';
-import { authService } from '../services/auth';
+import { createContext, useContext, useState, type ReactNode, useEffect, useRef } from 'react';
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatarUrl?: string;
-}
+// ... (imports)
 
-interface AuthContextType {
-  isAuthenticated: boolean;
-  user: User | null;
-  login: () => void;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ... (interfaces)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // TODO: In a real app, we might check an initial "me" endpoint or just default to false
-  // and rely on the first 401 to log us out, or a successful login to set true.
-  // For now, let's default to false, and rely on LoginPage calling login().
-  // Whether we have an access token is determining factor. 
-  // We can decode JWT here if we had the library, or fetch /me.
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
+  const isInitialized = useRef(false);
 
   // Check auth on mount
   useEffect(() => {
+    // Prevent double-execution in StrictMode (Dev) or unnecessary re-checks
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
     const checkAuth = async () => {
       try {
         await authService.refreshToken();
         setIsAuthenticated(true);
-        // Mock user data for now since we don't have a /me endpoint or JWT decoder yet
+        // Mock user data for now
         setUser({
           id: '1',
           email: 'user@example.com',

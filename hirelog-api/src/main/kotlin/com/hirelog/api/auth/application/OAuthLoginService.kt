@@ -3,10 +3,7 @@ package com.hirelog.api.auth.application
 import com.hirelog.api.auth.domain.OAuth2LoginResult
 import com.hirelog.api.auth.domain.OAuthUser
 import com.hirelog.api.auth.infra.oauth.handler.OAuth2LoginProcessor
-import com.hirelog.api.member.application.port.MemberCommand
 import com.hirelog.api.member.application.port.MemberOAuthAccountQuery
-import com.hirelog.api.member.application.port.MemberQuery
-import com.hirelog.api.member.domain.Member
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -39,7 +36,11 @@ class OAuthLoginService(
 
         // 가입된 적이 있다면 바로 기존 유저 리턴
         if (existingAccount != null) {
-            return OAuth2LoginResult.ExistingUser(existingAccount.member)
+            val member = existingAccount.member
+            return OAuth2LoginResult.ExistingUser(
+                memberId = member.id,
+                role = member.role.name
+            )
         }
 
         // 2. 가입된 적이 없다면? DB에 저장하지 않고 정보를 담아 NewUser 리턴

@@ -31,6 +31,35 @@ data class BindRequest(
 )
 
 /**
+ * 인증코드 발송 요청 (기존 계정 연결 선택 시)
+ */
+data class SendCodeRequest(
+    @field:NotBlank(message = "이메일은 필수입니다.")
+    @field:Email(message = "유효한 이메일 형식이 아닙니다.")
+    val email: String,
+)
+
+/**
+ * 인증코드 검증 요청
+ */
+data class VerifyCodeRequest(
+    @field:NotBlank(message = "이메일은 필수입니다.")
+    @field:Email(message = "유효한 이메일 형식이 아닙니다.")
+    val email: String,
+
+    @field:NotBlank(message = "인증코드는 필수입니다.")
+    @field:Size(min = 6, max = 6, message = "인증코드는 6자리입니다.")
+    val code: String,
+)
+
+/**
+ * 인증코드 검증 응답
+ */
+data class VerifyCodeResponse(
+    val verified: Boolean,
+)
+
+/**
  * 신규 회원가입 완료 요청
  */
 data class SignupCompleteRequest(
