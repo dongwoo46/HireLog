@@ -5,6 +5,8 @@ import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brandposition.application.BrandPositionWriteService
 import com.hirelog.api.common.application.outbox.OutboxEventWriteService
 import com.hirelog.api.common.domain.LlmProvider
+import com.hirelog.api.company.application.CompanyCandidateWriteService
+import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.job.application.intake.JdIntakePolicy
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.intake.model.IntakeHashes
@@ -14,11 +16,17 @@ import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.pipeline.JdSummaryGenerationFacade
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
+import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.domain.*
+import com.hirelog.api.job.domain.CareerType
+import com.hirelog.api.job.domain.JdSummaryProcessing
+import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.JobSummary
+import com.hirelog.api.job.domain.RecruitmentPeriodType
 import com.hirelog.api.position.application.port.PositionQuery
-import com.hirelog.api.position.application.query.PositionView
+import com.hirelog.api.position.application.view.PositionSummaryView
 import com.hirelog.api.position.domain.PositionStatus
+import com.hirelog.api.relation.application.jobsummary.MemberJobSummaryWriteService
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
@@ -46,6 +54,9 @@ class JdSummaryGenerationFacadeTest {
     @MockK lateinit var brandPositionWriteService: BrandPositionWriteService
     @MockK lateinit var positionQuery: PositionQuery
     @MockK lateinit var outboxEventWriteService: OutboxEventWriteService
+    @MockK lateinit var memberJobSummaryWriteService: MemberJobSummaryWriteService
+    @MockK lateinit var companyCandidateWriteService: CompanyCandidateWriteService
+    @MockK lateinit var companyQuery: CompanyQuery
 
     private lateinit var pipeline: JdSummaryGenerationFacade
 
@@ -61,7 +72,10 @@ class JdSummaryGenerationFacadeTest {
             brandWriteService = brandWriteService,
             brandPositionWriteService = brandPositionWriteService,
             positionQuery = positionQuery,
-            outboxEventWriteService = outboxEventWriteService
+            outboxEventWriteService = outboxEventWriteService,
+            memberJobSummaryWriteService = memberJobSummaryWriteService,
+            companyCandidateWriteService = companyCandidateWriteService,
+            companyQuery = companyQuery
         )
     }
 
@@ -104,29 +118,43 @@ class JdSummaryGenerationFacadeTest {
     private fun createLlmResult() =
         JobSummaryLlmResult(
             llmProvider = LlmProvider.GEMINI,
+            brandName = "테스트회사",
+            positionName = "Backend Engineer",
+            brandPositionName = "백엔드 개발자",
+            companyCandidate = null,
             careerType = CareerType.EXPERIENCED,
-            careerYears = 3,
+            careerYears = "3년 이상",
             summary = "요약",
             responsibilities = "API",
             requiredQualifications = "Java",
             preferredQualifications = null,
             techStack = "Kotlin",
             recruitmentProcess = null,
-            brandName = "테스트회사",
-            positionName = "Backend Engineer",
-            brandPositionName = "백엔드 개발자"
+            insight = JobSummaryInsightResult(
+                idealCandidate = null,
+                mustHaveSignals = null,
+                preparationFocus = null,
+                transferableStrengthsAndGapPlan = null,
+                proofPointsAndMetrics = null,
+                storyAngles = null,
+                keyChallenges = null,
+                technicalContext = null,
+                questionsToAsk = null,
+                considerations = null
+            )
         )
 
     private fun createPosition(
         id: Long = 1L,
         name: String = "Backend Engineer",
-        normalized: String = "backend_engineer"
-    ) = PositionView(
+        categoryId: Long = 1L,
+        categoryName: String = "Engineering"
+    ) = PositionSummaryView(
         id = id,
         name = name,
-        normalizedName = normalized,
         status = PositionStatus.ACTIVE,
-        description = null
+        categoryId = categoryId,
+        categoryName = categoryName
     )
 
     private fun createBrand() =
@@ -149,14 +177,16 @@ class JdSummaryGenerationFacadeTest {
 
             every { processingWriteService.startProcessing(any()) } returns processing
             every { jdIntakePolicy.isValidJd(any()) } returns true
+            every { snapshotQuery.loadSnapshotsByUrl(any()) } returns emptyList()
             every { jdIntakePolicy.generateIntakeHashes(any()) } returns createHashes()
             every { jdIntakePolicy.decideDuplicate(any(), any()) } returns DuplicateDecision.NOT_DUPLICATE
             every { snapshotWriteService.record(any()) } returns 1L
             every { processingWriteService.markSummarizing(any()) } just Runs
-            every { positionQuery.findActive() } returns listOf(createPosition())
+            every { positionQuery.findActiveNames() } returns listOf("Backend Engineer")
+            every { companyQuery.findAllNames() } returns emptyList()
 
             every {
-                llmClient.summarizeJobDescriptionAsync(any(), any(), any(), any())
+                llmClient.summarizeJobDescriptionAsync(any(), any(), any(), any(), any())
             } returns CompletableFuture.failedFuture(TimeoutException("timeout"))
 
             val errorCode = slot<String>()
@@ -179,23 +209,29 @@ class JdSummaryGenerationFacadeTest {
             val llmResult = createLlmResult()
             val position = createPosition()
             val brand = createBrand()
+            val summary = mockk<JobSummary> {
+                every { id } returns 1L
+            }
 
             every { processingWriteService.startProcessing(any()) } returns processing
             every { jdIntakePolicy.isValidJd(any()) } returns true
+            every { snapshotQuery.loadSnapshotsByUrl(any()) } returns emptyList()
             every { jdIntakePolicy.generateIntakeHashes(any()) } returns createHashes()
             every { jdIntakePolicy.decideDuplicate(any(), any()) } returns DuplicateDecision.NOT_DUPLICATE
             every { snapshotWriteService.record(any()) } returns 1L
             every { processingWriteService.markSummarizing(any()) } just Runs
-            every { positionQuery.findActive() } returns listOf(position)
+            every { positionQuery.findActiveNames() } returns listOf("Backend Engineer")
+            every { companyQuery.findAllNames() } returns emptyList()
 
             every {
-                llmClient.summarizeJobDescriptionAsync(any(), any(), any(), any())
+                llmClient.summarizeJobDescriptionAsync(any(), any(), any(), any(), any())
             } returns CompletableFuture.completedFuture(llmResult)
 
             every { brandWriteService.getOrCreate(any(), any(), any(), any()) } returns brand
             every { positionQuery.findByNormalizedName(any()) } returns position
             every { brandPositionWriteService.getOrCreate(any(), any(), any(), any()) } returns mockk()
-            every { summaryWriteService.save(any(), any(), any(), any(), any()) } returns mockk()
+            every { summaryWriteService.save(any(), any(), any(), any(), any(), any()) } returns summary
+            every { outboxEventWriteService.append(any()) } just Runs
             every { processingWriteService.markCompleted(any()) } just Runs
 
             pipeline.execute(command).get(5, TimeUnit.SECONDS)
@@ -206,7 +242,8 @@ class JdSummaryGenerationFacadeTest {
                     brand,
                     position.id,
                     position.name,
-                    llmResult
+                    llmResult,
+                    command.positionName
                 )
             }
         }
@@ -216,32 +253,38 @@ class JdSummaryGenerationFacadeTest {
             val command = createCommand()
             val processing = createProcessing()
             val llmResult = createLlmResult()
-            val unknown = createPosition(999, "UNKNOWN", "unknown")
+            val unknown = createPosition(id = 999, name = "UNKNOWN")
             val brand = createBrand()
+            val summary = mockk<JobSummary> {
+                every { id } returns 1L
+            }
 
             every { processingWriteService.startProcessing(any()) } returns processing
             every { jdIntakePolicy.isValidJd(any()) } returns true
+            every { snapshotQuery.loadSnapshotsByUrl(any()) } returns emptyList()
             every { jdIntakePolicy.generateIntakeHashes(any()) } returns createHashes()
             every { jdIntakePolicy.decideDuplicate(any(), any()) } returns DuplicateDecision.NOT_DUPLICATE
             every { snapshotWriteService.record(any()) } returns 1L
             every { processingWriteService.markSummarizing(any()) } just Runs
-            every { positionQuery.findActive() } returns listOf(createPosition())
+            every { positionQuery.findActiveNames() } returns listOf("Backend Engineer")
+            every { companyQuery.findAllNames() } returns emptyList()
 
             every {
-                llmClient.summarizeJobDescriptionAsync(any(), any(), any(), any())
+                llmClient.summarizeJobDescriptionAsync(any(), any(), any(), any(), any())
             } returns CompletableFuture.completedFuture(llmResult)
 
             every { brandWriteService.getOrCreate(any(), any(), any(), any()) } returns brand
             every { positionQuery.findByNormalizedName(match { it != "unknown" }) } returns null
             every { positionQuery.findByNormalizedName("unknown") } returns unknown
             every { brandPositionWriteService.getOrCreate(any(), any(), any(), any()) } returns mockk()
-            every { summaryWriteService.save(any(), any(), any(), any(), any()) } returns mockk()
+            every { summaryWriteService.save(any(), any(), any(), any(), any(), any()) } returns summary
+            every { outboxEventWriteService.append(any()) } just Runs
             every { processingWriteService.markCompleted(any()) } just Runs
 
             pipeline.execute(command).get(5, TimeUnit.SECONDS)
 
             verify {
-                summaryWriteService.save(any(), brand, 999L, "UNKNOWN", llmResult)
+                summaryWriteService.save(any(), brand, 999L, "UNKNOWN", llmResult, command.positionName)
             }
         }
     }

@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/authStore';
 import { TbDoorExit } from 'react-icons/tb';
 
 export function Header() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -67,20 +67,12 @@ export function Header() {
                 </button>
               </>
             ) : (
-              <div className="flex items-center gap-4">
                 <Link
                   to="/login"
                   className="text-slate-300 hover:text-white text-sm font-medium transition-colors"
                 >
                   Log in
                 </Link>
-                <Link
-                  to="/signup"
-                  className="px-4 py-2 bg-white text-slate-900 rounded-full text-sm font-bold hover:bg-slate-200 transition-all transform hover:scale-105 shadow-lg shadow-white/5"
-                >
-                  Sign up
-                </Link>
-              </div>
             )}
           </div>
         </div>

@@ -5,328 +5,350 @@ import { authService, type CheckEmailResponse } from '../services/auth';
 const SignupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
+  // -- State --
+  // Email & Verification
   const [email, setEmail] = useState('');
-  const [existingUser, setExistingUser] = useState<CheckEmailResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [checkingEmail, setCheckingEmail] = useState(false);
-  const [error, setError] = useState('');
-
-  // Complete signup form fields
+  const [isEmailSent, setIsEmailSent] = useState(false); // Code sent?
+  const [isEmailVerified, setIsEmailVerified] = useState(false); // Code verified?
+  const [verificationCode, setVerificationCode] = useState('');
+  const [existingUser, setExistingUser] = useState<CheckEmailResponse | null>(null); // For duplicate check
+  
+  // Profile Form
   const [username, setUsername] = useState('');
-  const [currentPositionId, setCurrentPositionId] = useState<string>('');
   const [careerYears, setCareerYears] = useState<string>('');
   const [summary, setSummary] = useState('');
-
-  // Email validation
-  const [emailError, setEmailError] = useState('');
+  
+  // UI Status
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(''); // Global/Process error
+  const [fieldErrors, setFieldErrors] = useState<{email?: string; code?: string; username?: string}>({});
 
   useEffect(() => {
-    // Try to get email from URL params (if backend redirects with it)
     const emailParam = searchParams.get('email');
     if (emailParam) {
       setEmail(emailParam);
-      checkEmailAvailability(emailParam);
     }
   }, [searchParams]);
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) {
-      setEmailError('이메일은 필수 입력 항목입니다.');
-      return false;
-    }
-    if (!emailRegex.test(email)) {
-      setEmailError('유효한 이메일 형식이 아닙니다.');
-      return false;
-    }
-    setEmailError('');
-    return true;
-  };
+  const validateEmailFormat = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const checkEmailAvailability = async (emailToCheck: string) => {
-    if (!validateEmail(emailToCheck)) return;
-
+  // 1. Send Email (Check Duplicate & Send Code)
+  const handleRequestVerification = async () => {
+    setFieldErrors(prev => ({ ...prev, email: '' }));
     setError('');
-    setCheckingEmail(true);
 
+    if (!email) {
+      setFieldErrors(prev => ({ ...prev, email: '이메일을 입력해주세요.' }));
+      return;
+    }
+    if (!validateEmailFormat(email)) {
+      setFieldErrors(prev => ({ ...prev, email: '올바른 이메일 형식이 아닙니다.' }));
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await authService.checkEmail({ email: emailToCheck });
+      const response = await authService.checkEmail({ email });
       setExistingUser(response);
+      
+      // If duplicate, we still 'send code' but user enters a specific "Duplicate Found" state technically,
+      // but to keep it inline, we might just show the code input AND a message saying "Account exists".
+      // Let's handle the "Bind" scenario slightly differently or inline.
+      // User said: "만약 이메일 중복이면... 기존 이메일과 합치겠냐 요청을 하고... 확인하면 인증코드 발송"
+      
+      if (response.exists) {
+        // We will pause here and show a "Duplicate" UI inline? 
+        // Or we can just set a state `showDuplicatePrompt` and let the user click "Yes" to actually send code.
+        // For simplicity and matching the request:
+        // "이메일 중복이면 사용자에게... 요청을 하고 그것을 확인하면 이메일 인증코드 발송"
+        // So we won't set `isEmailSent` yet.
+      } else {
+        // New user -> Code automtically sent? Actually backend might send it only on `send-code`?
+        // Wait, `checkEmail` doesn't send code in `SignupController`? 
+        // `checkEmail` returns boolean. If false (not exist), we might need to call `send-code`?
+        // Ah, previous logic was: `checkEmail` DOES NOT send code. `sendCode` sends code.
+        // BUT wait, `checkEmail` doc says: "중복 아님: 인증코드 발송 후 exists=false 반환"
+        // So `checkEmail` DOES send code if new.
+        setIsEmailSent(true);
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || '이메일 확인 중 오류가 발생했습니다.');
     } finally {
-      setCheckingEmail(false);
-    }
-  };
-
-  const handleBind = async () => {
-    setError('');
-    setLoading(true);
-
-    try {
-      await authService.bind({ email });
-      navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || '계정 연동 중 오류가 발생했습니다.');
       setLoading(false);
     }
   };
 
-  const handleComplete = async (e: React.FormEvent) => {
+  // 1-b. Confirm Duplicate Bind -> Send Code
+  const handleConfirmBind = async () => {
+    setLoading(true);
+    try {
+      await authService.sendCode({ email });
+      setIsEmailSent(true);
+      // We keep `existingUser` populated so we know it's a bind later
+    } catch (err: any) {
+      setError(err.response?.data?.message || '인증코드 발송 실패');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Verify Code
+  const handleVerifyCode = async () => {
+    setFieldErrors(prev => ({ ...prev, code: '' }));
+    if (!verificationCode || verificationCode.length < 6) {
+      setFieldErrors(prev => ({ ...prev, code: '6자리 인증코드를 입력해주세요.' }));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authService.verifyCode({ email, code: verificationCode });
+      setIsEmailVerified(true);
+      // Code section disappears or becomes read only? User said: "인증하고나면 이메일쪽은 수정불가가되고"
+      // Verification section can hide or show "Verified" status.
+    } catch (err: any) {
+       setFieldErrors(prev => ({ ...prev, code: '인증번호가 일치하지 않습니다.' }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 3. Reset (Change Email)
+  const handleReset = () => {
+    setIsEmailVerified(false);
+    setIsEmailSent(false);
+    setExistingUser(null);
+    setVerificationCode('');
+    // Email input becomes editable again
+  };
+
+  // 4. Complete / Bind
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    if (!isEmailVerified) return;
 
-    // Validate email first
-    if (!validateEmail(email)) {
-      return;
-    }
+    if (existingUser?.exists) {
+        // Bind Flow
+        setLoading(true);
+        try {
+            await authService.bind({ email });
+            navigate('/');
+        } catch (err: any) {
+            setError(err.response?.data?.message || '요청 실패');
+            setLoading(false);
+            handleReset(); // Reset to allow re-verification
+        }
+    } else {
+        // Signup Flow
+        setFieldErrors(prev => ({ ...prev, username: '' }));
+        if (!username || username.trim().length < 2) {
+            setFieldErrors(prev => ({ ...prev, username: '내용을 입력해주세요.' }));
+            return;
+        }
 
-    // Validate username
-    if (!username || username.trim().length < 2) {
-      setError('닉네임은 2자 이상 50자 이하로 입력해주세요.');
-      return;
-    }
-    if (username.length > 50) {
-      setError('닉네임은 2자 이상 50자 이하로 입력해주세요.');
-      return;
-    }
-
-    // Validate careerYears
-    if (careerYears && Number(careerYears) < 0) {
-      setError('경력 연차는 음수일 수 없습니다.');
-      return;
-    }
-
-    // Validate summary
-    if (summary && summary.length > 1000) {
-      setError('자기소개는 1000자 이내로 입력해주세요.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      await authService.complete({
-        email,
-        username: username.trim(),
-        currentPositionId: currentPositionId ? Number(currentPositionId) : undefined,
-        careerYears: careerYears ? Number(careerYears) : undefined,
-        summary: summary.trim() || undefined,
-      });
-
-      // ✅ 백엔드에서 200 OK가 오면 브라우저가 여기서 직접 페이지를 이동시킵니다.
-      // 메인 페이지 혹은 대시보드로 이동
-      navigate('/'); 
-      
-    } catch (err: any) {
-      // ✅ 여기서 '유효하지 않거나 만료된 가입 세션입니다.' 에러가 잡힐 거예요.
-      setError(err.response?.data?.message || '회원가입 중 오류가 발생했습니다.');
-      setLoading(false);
+        setLoading(true);
+        try {
+            await authService.complete({
+                email,
+                username: username.trim(),
+                careerYears: careerYears ? Number(careerYears) : undefined,
+                summary: summary.trim() || undefined,
+            });
+            navigate('/');
+        } catch (err: any) {
+            setError(err.response?.data?.message || '가입 완료 실패');
+            setLoading(false);
+        }
     }
   };
 
-  // Show bind UI if existing user found
-  if (existingUser?.exists) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="p-8">
-            <Link to="/" className="block w-12 h-12 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white text-xl mx-auto mb-4 hover:opacity-80 transition-opacity">
-              H
-            </Link>
-            <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">계정 연동</h2>
-            <p className="text-gray-500 text-center mb-8">기존 계정을 찾았습니다</p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
-              <p className="text-sm text-gray-700 mb-2">
-                이미 <strong>{existingUser.username}</strong> 계정이 존재합니다.
-              </p>
-              <p className="text-sm text-gray-600">
-                이 계정과 연동하시겠습니까?
-              </p>
-            </div>
-
-            <button
-              onClick={handleBind}
-              disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
-            >
-              {loading ? '연동 중...' : '계정 연동하기'}
-            </button>
-          </div>
-
-          <div className="bg-gray-50 px-8 py-4 border-t border-gray-100 text-center">
-            <p className="text-sm text-gray-500">
-              Already have an account? <a href="/login" className="text-blue-600 hover:underline">Log in</a>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if required fields are complete (without modifying state)
-  const isEmailFormatValid = (emailToCheck: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return !!emailToCheck && emailRegex.test(emailToCheck);
-  };
-
-  const isEmailValid = email && !emailError && isEmailFormatValid(email);
-  const isUsernameValid = username.trim().length >= 2 && username.length <= 50;
-  const requiredFieldsComplete = isEmailValid && isUsernameValid;
-
-  // Show signup form
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in">
         <div className="p-8">
-          <Link to="/" className="block w-12 h-12 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white text-xl mx-auto mb-4 hover:opacity-80 transition-opacity">
+          <Link to="/" className="block w-12 h-12 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white text-xl mx-auto mb-6 hover:opacity-80 transition-opacity">
             H
           </Link>
-          <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">프로필 완성하기</h2>
-          <p className="text-gray-500 text-center mb-8">거의 다 왔습니다!</p>
+          
+          <h2 className="text-2xl font-bold text-gray-800 text-center mb-8">
+            {existingUser?.exists && isEmailVerified ? '계정 연동하기' : '회원가입'}
+          </h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center">
               {error}
             </div>
           )}
 
-          {checkingEmail && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
-              이메일 확인 중...
-            </div>
-          )}
-
-          <form onSubmit={handleComplete} className="space-y-4">
-            {/* Required Fields */}
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-500">*</span>
-                </label>
+          <div className="space-y-6">
+            
+            {/* 1. Email Input Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                이메일 <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
                 <input
-                  id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setEmailError('');
-                    setExistingUser(null);
-                  }}
-                  onBlur={(e) => {
-                    if (e.target.value) {
-                      checkEmailAvailability(e.target.value);
-                    }
-                  }}
-                  required
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    emailError ? 'border-red-300' : 'border-gray-300'
+                  disabled={isEmailSent || isEmailVerified} // Locked if sent or verified
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`flex-1 px-4 py-3 border rounded-lg outline-none transition-all ${
+                    isEmailVerified 
+                      ? 'bg-gray-50 text-gray-500 border-gray-200' 
+                      : 'bg-white border-gray-300 focus:ring-2 focus:ring-blue-500'
                   }`}
-                  placeholder="your@email.com"
+                  placeholder="name@example.com"
                 />
-                {emailError && (
-                  <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                
+                {isEmailVerified ? (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    변경
+                  </button>
+                ) : (
+                    !isEmailSent && (
+                        <button
+                        type="button"
+                        onClick={handleRequestVerification}
+                        disabled={loading}
+                        className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                        >
+                        인증요청
+                        </button>
+                    )
                 )}
               </div>
-
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                  닉네임 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  minLength={2}
-                  maxLength={50}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="2자 이상 50자 이하"
-                />
-                <p className="mt-1 text-xs text-gray-500">{username.length}/50</p>
-              </div>
+              {fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
+              
+              {/* Duplicate Warning */}
+              {existingUser?.exists && !isEmailSent && (
+                 <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                    <p className="text-sm text-blue-800 mb-2">
+                        이미 가입된 계정(<strong>{existingUser.username}</strong>)이 있습니다.<br/>
+                        기존 계정과 연동하시겠습니까?
+                    </p>
+                    <button
+                        onClick={handleConfirmBind}
+                        disabled={loading}
+                        className="text-sm font-bold text-blue-700 underline hover:text-blue-900"
+                    >
+                        네, 인증번호를 보내주세요
+                    </button>
+                 </div>
+              )}
             </div>
 
-            {/* Optional Fields - Only show when required fields are complete */}
-            {requiredFieldsComplete && (
-              <div className="space-y-4 pt-4 border-t border-gray-200">
-                <p className="text-sm font-medium text-gray-600 mb-2">추가 정보 (선택사항)</p>
+            {/* 2. Verification Code Section (Visible only when sent and NOT verified) */}
+            {isEmailSent && !isEmailVerified && (
+              <div className="animate-slide-down">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  인증코드
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase tracking-widest text-center"
+                    placeholder="000000"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyCode}
+                    disabled={loading}
+                    className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    확인
+                  </button>
+                </div>
+                {fieldErrors.code && <p className="mt-1 text-sm text-red-600">{fieldErrors.code}</p>}
                 
-                <div>
-                  <label htmlFor="positionId" className="block text-sm font-medium text-gray-700 mb-1">
-                    현재 포지션 ID
-                  </label>
-                  <input
-                    id="positionId"
-                    type="number"
-                    value={currentPositionId}
-                    onChange={(e) => setCurrentPositionId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="선택사항"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="careerYears" className="block text-sm font-medium text-gray-700 mb-1">
-                    경력 연차
-                  </label>
-                  <input
-                    id="careerYears"
-                    type="number"
-                    min="0"
-                    value={careerYears}
-                    onChange={(e) => setCareerYears(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="선택사항 (0 이상)"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="summary" className="block text-sm font-medium text-gray-700 mb-1">
-                    자기소개
-                  </label>
-                  <textarea
-                    id="summary"
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    maxLength={1000}
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="자기소개를 입력해주세요 (선택사항)"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">{summary.length}/1000</p>
+                <div className="mt-2 text-right">
+                    <button onClick={handleReset} className="text-xs text-gray-500 underline">
+                        이메일 재입력
+                    </button>
                 </div>
               </div>
             )}
-
-            <button
-              type="submit"
-              disabled={!requiredFieldsComplete || loading || checkingEmail}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? '가입 중...' : '가입 완료'}
-            </button>
-
-            {!requiredFieldsComplete && (
-              <p className="text-xs text-gray-500 text-center">
-                필수 항목을 모두 입력해주세요
-              </p>
+            
+            {/* Verified Confirmation */}
+            {isEmailVerified && (
+                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700 text-sm">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    이메일 인증이 완료되었습니다.
+                 </div>
             )}
-          </form>
-        </div>
 
-        <div className="bg-gray-50 px-8 py-4 border-t border-gray-100 text-center">
-          <p className="text-sm text-gray-500">
-            Already have an account? <a href="/login" className="text-blue-600 hover:underline">Log in</a>
-          </p>
+            {/* 3. Profile Form (Visible only after verification) */}
+            {isEmailVerified && (
+                <div className="space-y-6 pt-6 border-t border-gray-100 animate-slide-down">
+                    {existingUser?.exists ? (
+                         <div className="text-center py-4">
+                            <p className="text-gray-600 mb-4">
+                                <strong>{existingUser.username}</strong> 계정으로 연동됩니다.
+                            </p>
+                         </div>
+                    ) : (
+                        <>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                닉네임 <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="사용하실 닉네임을 입력하세요"
+                                maxLength={50}
+                                />
+                                {fieldErrors.username && <p className="mt-1 text-sm text-red-600">{fieldErrors.username}</p>}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">경력 (연차)</label>
+                                    <input
+                                        type="number"
+                                        value={careerYears}
+                                        onChange={(e) => setCareerYears(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">자기소개</label>
+                                <textarea
+                                    value={summary}
+                                    onChange={(e) => setSummary(e.target.value)}
+                                    rows={3}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                    placeholder="간단한 자기소개를 입력해주세요"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+                    >
+                        {loading ? '처리 중...' : (existingUser?.exists ? '계정 연동 완료' : '회원가입 완료')}
+                    </button>
+
+                </div>
+            )}
+
+          </div>
         </div>
       </div>
     </div>

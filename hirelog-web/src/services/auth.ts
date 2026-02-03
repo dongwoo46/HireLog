@@ -34,6 +34,27 @@ export const authService = {
   },
 
   /**
+   * 인증코드 발송 (기존 계정 연결 선택 시)
+   * POST /auth/signup/send-code
+   */
+  sendCode: async (data: { email: string }): Promise<void> => {
+    await apiClient.post('/auth/signup/send-code', data, {
+      withCredentials: true,
+    });
+  },
+
+  /**
+   * 인증코드 검증
+   * POST /auth/signup/verify-code
+   */
+  verifyCode: async (data: { email: string; code: string }): Promise<{ verified: boolean }> => {
+    const response = await apiClient.post<{ verified: boolean }>('/auth/signup/verify-code', data, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
+  /**
    * 기존 회원 계정 연동 (Binding)
    * POST /auth/signup/bind
    */

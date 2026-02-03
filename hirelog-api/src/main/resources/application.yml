@@ -1,4 +1,16 @@
 spring:
+  mail:
+    host: ${MAIL_HOST}
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   kafka:
     bootstrap-servers: localhost:19092  # 'kafka:9092'를 'localhost:9092'로 변경
     producer:

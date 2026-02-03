@@ -1,16 +1,12 @@
 package com.hirelog.api.auth.domain
 
-import com.hirelog.api.member.domain.Member
-
 sealed class OAuth2LoginResult {
     /**
      * 기존 회원 로그인 성공
-     *
-     * - userId ❌
-     * - Member Aggregate ✅
      */
     data class ExistingUser(
-        val member: Member
+        val memberId: Long,
+        val role: String,
     ) : OAuth2LoginResult()
 
     data class NewUser(

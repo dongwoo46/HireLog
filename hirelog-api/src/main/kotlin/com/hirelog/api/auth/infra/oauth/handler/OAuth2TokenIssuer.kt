@@ -4,7 +4,6 @@ import com.hirelog.api.auth.domain.OAuthUser
 import com.hirelog.api.auth.infra.jwt.JwtUtils
 import com.hirelog.api.common.infra.redis.dto.OAuthUserRedisMapper
 import com.hirelog.api.common.infra.redis.RedisService
-import com.hirelog.api.member.domain.Member
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Component
@@ -14,23 +13,23 @@ import java.util.UUID
 @Component
 class OAuth2TokenIssuer(
     private val jwtUtils: JwtUtils,
-    private val redisService: RedisService, // 주입
+    private val redisService: RedisService,
 ) {
 
     /**
      * 기존 회원: Access Token(JWT) + Refresh Token(UUID/Redis)
      */
-    fun issueAccessAndRefresh(member: Member, response: HttpServletResponse) {
+    fun issueAccessAndRefresh(memberId: Long, role: String, response: HttpServletResponse) {
         // 1. Access Token 생성 (JWT)
         val accessToken = jwtUtils.issueAccessToken(
-            memberId = member.id,
-            role = member.role.name // USER / ADMIN
+            memberId = memberId,
+            role = role
         )
         // 2. Refresh Token 생성 (UUID) 및 Redis 저장
         val refreshToken = UUID.randomUUID().toString()
         redisService.set(
             key = "REFRESH:$refreshToken",
-            value = member.id.toString(),
+            value = memberId,
             duration = Duration.ofDays(7)
         )
 
