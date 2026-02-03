@@ -64,7 +64,7 @@ class OAuth2LoginSuccessHandler(
             // 기존 회원 → Access/Refresh Token 발급 후 메인 이동
             is OAuth2LoginResult.ExistingUser -> {
                 tokenIssuer.issueAccessAndRefresh(
-                    memberId = result.userId,
+                    member = result.member,
                     response = response
                 )
                 response.sendRedirect(frontendProperties.mainUrl)

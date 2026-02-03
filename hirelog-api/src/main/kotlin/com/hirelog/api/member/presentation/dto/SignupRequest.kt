@@ -19,8 +19,6 @@ data class CheckEmailRequest(
  */
 data class CheckEmailResponse(
     val exists: Boolean,
-    /** 기존 회원이 있을 경우 보여줄 이름 */
-    val username: String?,
 )
 
 /**

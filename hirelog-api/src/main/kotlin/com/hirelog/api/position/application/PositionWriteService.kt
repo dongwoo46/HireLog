@@ -4,7 +4,6 @@ import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.common.exception.EntityNotFoundException
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.position.application.port.PositionCommand
-import com.hirelog.api.position.application.port.PositionLoad
 import com.hirelog.api.position.domain.Position
 import com.hirelog.api.position.domain.PositionCategory
 import org.springframework.dao.DataIntegrityViolationException
@@ -17,15 +16,10 @@ import org.springframework.transaction.annotation.Transactional
  * 책임:
  * - Position 생성 및 상태 변경 유스케이스 실행
  * - 트랜잭션 경계 정의
- *
- * 설계 원칙:
- * - Read(Query/View) 포트 의존 ❌
- * - Write 판단은 Load(Entity) 포트만 사용
  */
 @Service
 class PositionWriteService(
-    private val positionCommand: PositionCommand,
-    private val positionLoad: PositionLoad
+    private val positionCommand: PositionCommand
 ) {
 
     /**
@@ -44,7 +38,6 @@ class PositionWriteService(
         normalizedName: String
     ): Position {
 
-        // ── [LOG] getOrCreate 진입 ────────────────────────────────
         log.info(
             "[POSITION_GET_OR_CREATE_ENTER] name={}, normalizedName={}, categoryId={}, thread={}",
             name,
@@ -53,7 +46,7 @@ class PositionWriteService(
             Thread.currentThread().name
         )
 
-        positionLoad.loadByNormalizedName(normalizedName)?.let {
+        positionCommand.findByNormalizedName(normalizedName)?.let {
             return it
         }
 
@@ -81,7 +74,7 @@ class PositionWriteService(
 
             saved
         } catch (ex: DataIntegrityViolationException) {
-            positionLoad.loadByNormalizedName(normalizedName)
+            positionCommand.findByNormalizedName(normalizedName)
                 ?: throw ex
         }
     }
@@ -96,7 +89,6 @@ class PositionWriteService(
     @Transactional
     fun create(
         name: String,
-        normalizedName: String,
         positionCategory: PositionCategory,
         description: String?
     ): Position {
@@ -111,7 +103,7 @@ class PositionWriteService(
             positionCommand.save(position)
         } catch (ex: DataIntegrityViolationException) {
             throw EntityAlreadyExistsException(
-                "Position already exists. normalizedName=$normalizedName",
+                "Position already exists. normalizedName=${position.normalizedName}",
                 ex
             )
         }
@@ -135,11 +127,8 @@ class PositionWriteService(
 
     /**
      * 필수 Position 조회
-     *
-     * 정책:
-     * - 존재하지 않으면 예외
      */
     private fun getRequired(positionId: Long): Position =
-        positionLoad.loadById(positionId)
+        positionCommand.findById(positionId)
             ?: throw EntityNotFoundException("Position", positionId)
 }

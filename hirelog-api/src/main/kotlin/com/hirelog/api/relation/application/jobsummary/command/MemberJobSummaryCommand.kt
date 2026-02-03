@@ -22,4 +22,13 @@ interface MemberJobSummaryCommand {
      * MemberJobSummary 삭제
      */
     fun delete(memberJobSummary: MemberJobSummary)
+
+    /**
+     * Write 전용 엔티티 조회
+     * - 상태 변경 대상 확보 목적
+     */
+    fun findEntityByMemberIdAndJobSummaryId(
+        memberId: Long,
+        jobSummaryId: Long
+    ): MemberJobSummary?
 }

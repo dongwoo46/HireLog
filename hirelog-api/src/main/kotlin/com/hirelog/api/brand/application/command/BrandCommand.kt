@@ -21,4 +21,9 @@ interface BrandCommand {
      * - JPA Dirty Checking 기반
      */
     fun save(brand: Brand): Brand
+
+    fun findByNormalizedName(normalizedName: String): Brand?
+
+    fun findById(id: Long): Brand?
+
 }

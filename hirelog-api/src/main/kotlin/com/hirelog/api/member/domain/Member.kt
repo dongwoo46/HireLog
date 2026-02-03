@@ -1,7 +1,7 @@
 package com.hirelog.api.member.domain
 
 import com.hirelog.api.auth.domain.OAuth2Provider
-import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.VersionedEntity
 import jakarta.persistence.*
 
 /**
@@ -53,7 +53,7 @@ class Member protected constructor(
     @Column(name = "summary", length = 1000)
     var summary: String? = null,
 
-) : BaseEntity() {
+    ) : VersionedEntity() {
 
     /**
      * 회원 권한
@@ -183,5 +183,14 @@ class Member protected constructor(
     fun softDelete() {
         require(status != MemberStatus.DELETED)
         status = MemberStatus.DELETED
+    }
+
+    /* =========================
+     * Role Control
+     * ========================= */
+
+    fun grantAdmin() {
+        require(status == MemberStatus.ACTIVE)
+        this.role = MemberRole.ADMIN
     }
 }

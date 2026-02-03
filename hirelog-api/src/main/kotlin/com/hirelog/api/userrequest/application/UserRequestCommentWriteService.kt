@@ -33,7 +33,7 @@ class UserRequestCommentWriteService(
         val userRequest = userRequestQuery.findById(userRequestId)
             ?: throw IllegalArgumentException("UserRequest not found: $userRequestId")
 
-        val comment = UserRequestComment(
+        val comment = UserRequestComment.create(
             userRequest = userRequest,
             writerType = writerType,
             writerId = writerId,

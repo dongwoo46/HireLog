@@ -6,5 +6,6 @@ data class ErrorResponse(
     val timestamp: Instant,
     val status: Int,
     val error: String,
-    val path: String
+    val path: String,
+    val message: String? = null
 )

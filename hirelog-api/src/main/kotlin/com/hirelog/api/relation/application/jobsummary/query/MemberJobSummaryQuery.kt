@@ -1,6 +1,9 @@
 package com.hirelog.api.relation.application.jobsummary.query
 
-import com.hirelog.api.relation.domain.model.MemberJobSummary
+import com.hirelog.api.relation.application.jobsummary.view.MemberJobSummaryView
+import com.hirelog.api.relation.application.jobsummary.view.SavedJobSummaryView
+import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
+import com.hirelog.api.userrequest.application.port.PagedResult
 
 /**
  * MemberJobSummary Query Port
@@ -11,23 +14,29 @@ import com.hirelog.api.relation.domain.model.MemberJobSummary
  */
 interface MemberJobSummaryQuery {
 
-    /**
-     * 사용자가 저장한 JD 목록 조회
-     */
-    fun findAllByMemberId(memberId: Long): List<MemberJobSummary>
+    fun findAllByMemberId(
+        memberId: Long,
+        page: Int,
+        size: Int
+    ): PagedResult<MemberJobSummaryView>
 
-    /**
-     * 특정 JD를 저장한 사용자 목록 조회
-     */
-    fun findAllByJobSummaryId(jobSummaryId: Long): List<MemberJobSummary>
-
-    /**
-     * 단건 관계 조회
-     *
-     * - Facade에서 상태 변경 전 검증용
-     */
-    fun findByMemberIdAndJobSummaryId(
+    fun existsByMemberIdAndJobSummaryId(
         memberId: Long,
         jobSummaryId: Long
-    ): MemberJobSummary?
+    ): Boolean
+
+    /**
+     * 사용자가 저장한 JobSummary 목록 조회 (JobSummary Join)
+     *
+     * @param memberId 사용자 ID
+     * @param saveType 저장 유형 필터 (null이면 전체)
+     * @param page 페이지 번호 (0-based)
+     * @param size 페이지 크기
+     */
+    fun findSavedJobSummaries(
+        memberId: Long,
+        saveType: MemberJobSummarySaveType?,
+        page: Int,
+        size: Int
+    ): PagedResult<SavedJobSummaryView>
 }

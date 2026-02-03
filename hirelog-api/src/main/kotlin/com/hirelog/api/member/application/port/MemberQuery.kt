@@ -1,22 +1,28 @@
 package com.hirelog.api.member.application.port
 
-import com.hirelog.api.auth.domain.OAuthUser
-import com.hirelog.api.member.domain.Member
+import com.hirelog.api.member.application.view.MemberDetailView
+import com.hirelog.api.member.application.view.MemberSummaryView
+import com.hirelog.api.member.domain.MemberStatus
+import com.hirelog.api.userrequest.application.port.PagedResult
 
 /**
- * Member Read Port
+ * Member Query Port
  *
  * 책임:
- * - Member 조회 계약 정의
- * - 조회 기술(JPA 등)과 분리
+ * - Member 조회 계약 정의 (View 반환)
+ * - exists 검증
  */
 interface MemberQuery {
 
-    fun findById(memberId: Long): Member?
+    fun findAllPaged(page: Int, size: Int): PagedResult<MemberSummaryView>
 
-    fun findByEmail(email: String): Member?
+    fun findDetailById(id: Long): MemberDetailView?
 
-    fun findByUsername(username: String): Member?
+    fun existsById(id: Long): Boolean
 
-    fun existByUsername(username: String): Boolean
+    fun existsByIdAndStatus(id: Long, status: MemberStatus): Boolean
+
+    fun existsByUsername(username: String): Boolean
+
+    fun existsByEmail(email: String): Boolean
 }

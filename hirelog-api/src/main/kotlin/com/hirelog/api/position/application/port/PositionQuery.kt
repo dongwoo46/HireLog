@@ -1,28 +1,27 @@
 package com.hirelog.api.position.application.port
 
-import com.hirelog.api.position.application.query.PositionView
+import com.hirelog.api.position.application.view.PositionDetailView
+import com.hirelog.api.position.application.view.PositionSummaryView
+import com.hirelog.api.userrequest.application.port.PagedResult
 
 /**
- * Position Read Port
+ * Position Query Port
  *
  * 책임:
- * - Position 조회 계약 정의
- * - 조회 기술과 분리
+ * - Position 조회 계약 정의 (View 반환)
+ * - QueryDSL 기반 구현
  */
 interface PositionQuery {
 
-    /**
-     * ID 기준 조회
-     */
-    fun findById(id: Long): PositionView?
+    fun findAllPaged(page: Int, size: Int): PagedResult<PositionSummaryView>
 
-    /**
-     * normalizedName 기준 조회
-     */
-    fun findByNormalizedName(normalizedName: String): PositionView?
+    fun findDetailById(id: Long): PositionDetailView?
 
-    /**
-     * 활성 Position 목록 조회
-     */
-    fun findActive(): List<PositionView>
+    fun findByNormalizedName(normalizedName: String): PositionSummaryView?
+
+    fun findActiveNames(): List<String>
+
+    fun existsById(id: Long): Boolean
+
+    fun existsByNormalizedName(normalizedName: String): Boolean
 }

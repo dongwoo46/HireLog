@@ -37,7 +37,7 @@ from worker.base_kafka_worker import BaseKafkaWorker
 # Logging 설정
 # ==================================================
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)]
 )

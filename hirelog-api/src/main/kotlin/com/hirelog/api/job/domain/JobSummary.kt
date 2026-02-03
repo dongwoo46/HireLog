@@ -2,6 +2,7 @@ package com.hirelog.api.job.domain
 
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.common.infra.jpa.entity.VersionedEntity
 import jakarta.persistence.*
 
 /**
@@ -193,7 +194,7 @@ class JobSummary protected constructor(
     @Column(name = "llm_model", nullable = false, length = 50, updatable = false)
     val llmModel: String
 
-) : BaseEntity() {
+) : VersionedEntity() {
 
     companion object {
         /**

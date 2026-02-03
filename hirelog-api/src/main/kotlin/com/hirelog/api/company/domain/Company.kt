@@ -104,12 +104,14 @@ class Company protected constructor(
             )
         }
 
-        private fun normalize(value: String): String =
+        fun normalize(value:String):String =
             value
                 .lowercase()
                 .replace(Regex("[^a-z0-9]+"), "_")
                 .trim('_')
     }
+
+
 
     /**
      * 회사 검증 승인

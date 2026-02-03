@@ -1,51 +1,56 @@
 package com.hirelog.api.company.infra.persistence.jpa.adapter
 
 import com.hirelog.api.company.application.port.CompanyRelationQuery
-import com.hirelog.api.company.domain.CompanyRelation
-import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyRelationJpaRepository
+import com.hirelog.api.company.application.view.CompanyRelationView
+import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyRelationJpaQueryDslImpl
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 /**
- * CompanyRelation JPA Query Adapter
+ * CompanyRelationJpaQueryAdapter
  *
- * 역할:
- * - CompanyRelationQuery 포트를 JPA 기반으로 구현
- * - 조회 로직만 담당
+ * 책임:
+ * - CompanyRelationQuery 포트 구현
+ * - QueryDSL 조회 구현체로 위임
  *
- * 설계 원칙:
- * - 예외를 던지지 않는다
- * - 비즈니스 판단은 상위 계층(WriteService / Facade) 책임
+ * 주의:
+ * - 정책 ❌
+ * - 조건 분기 ❌
+ * - 가공 로직 ❌
  */
 @Component
 class CompanyRelationJpaQuery(
-    private val relationRepository: CompanyRelationJpaRepository
+    private val queryDsl: CompanyRelationJpaQueryDslImpl
 ) : CompanyRelationQuery {
 
-    /**
-     * 부모 회사 기준 하위 관계 조회
-     */
-    override fun findByParentCompanyId(
-        parentCompanyId: Long
-    ): List<CompanyRelation> =
-        relationRepository.findAllByParentCompanyId(parentCompanyId)
+    override fun findAllByParentCompanyId(
+        parentCompanyId: Long,
+        pageable: Pageable
+    ): Page<CompanyRelationView> {
+        return queryDsl.findAllByParentCompanyId(
+            parentCompanyId = parentCompanyId,
+            pageable = pageable
+        )
+    }
 
-    /**
-     * 자회사 기준 상위 관계 조회
-     */
-    override fun findByChildCompanyId(
-        childCompanyId: Long
-    ): List<CompanyRelation> =
-        relationRepository.findAllByChildCompanyId(childCompanyId)
+    override fun findAllByChildCompanyId(
+        childCompanyId: Long,
+        pageable: Pageable
+    ): Page<CompanyRelationView> {
+        return queryDsl.findAllByChildCompanyId(
+            childCompanyId = childCompanyId,
+            pageable = pageable
+        )
+    }
 
-    /**
-     * 부모-자식 관계 단건 조회
-     */
-    override fun findRelation(
+    override fun findView(
         parentCompanyId: Long,
         childCompanyId: Long
-    ): CompanyRelation? =
-        relationRepository.findByParentCompanyIdAndChildCompanyId(
-            parentCompanyId,
-            childCompanyId
+    ): CompanyRelationView? {
+        return queryDsl.findView(
+            parentCompanyId = parentCompanyId,
+            childCompanyId = childCompanyId
         )
+    }
 }

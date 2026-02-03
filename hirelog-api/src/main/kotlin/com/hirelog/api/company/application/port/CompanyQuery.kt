@@ -1,28 +1,23 @@
 package com.hirelog.api.company.application.port
 
-import com.hirelog.api.company.domain.Company
+import com.hirelog.api.company.application.view.CompanyNameView
+import com.hirelog.api.company.application.view.CompanyView
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 
 /**
- * Company Query Port
+ * CompanyQuery
  *
  * 책임:
- * - Company 조회 전용 인터페이스
- * - 쓰기 로직 절대 포함 금지
+ * - Company 조회 전용 (View)
  */
 interface CompanyQuery {
 
-    /**
-     * ID 기준 단일 조회
-     */
-    fun findById(id: Long): Company?
+    fun findViewById(id: Long): CompanyView?
 
-    /**
-     * 정규화된 이름 기준 조회
-     */
-    fun findByNormalizedName(normalizedName: String): Company?
+    fun findAllViews(pageable: Pageable): Page<CompanyView>
 
-    /**
-     * 전체 회사명 조회 (LLM 후보 매칭용)
-     */
-    fun findAllNames(): List<String>
+    fun findAllActiveViews(pageable: Pageable): Page<CompanyView>
+
+    fun findAllNames(): List<CompanyNameView>
 }

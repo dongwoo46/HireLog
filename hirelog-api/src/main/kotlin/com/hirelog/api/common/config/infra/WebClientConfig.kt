@@ -17,7 +17,7 @@ class WebClientConfig(
     @Bean("geminiWebClient")
     fun geminiWebClient(): WebClient =
         WebClientFactory.create(
-            baseUrl = "https://generativelanguage.googleapis.com/v1",
+            baseUrl = "https://generativelanguage.googleapis.com/v1beta",
             poolName = "gemini-pool",
             maxConnections = 50,
             responseTimeoutSec = 30,

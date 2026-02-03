@@ -2,6 +2,7 @@ package com.hirelog.api.job.application.summary.pipeline
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
@@ -32,8 +33,8 @@ import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.domain.JobSummary
 import com.hirelog.api.position.application.port.PositionQuery
-import com.hirelog.api.position.application.query.PositionView
-import com.hirelog.api.relation.application.jobsummary.command.MemberJobSummaryWriteService
+import com.hirelog.api.position.application.view.PositionSummaryView
+import com.hirelog.api.relation.application.jobsummary.MemberJobSummaryWriteService
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -83,14 +84,14 @@ class JdSummaryGenerationFacade(
      */
     fun execute(command: JobSummaryGenerateCommand): CompletableFuture<Void> {
 
-        log.info("[JD_PIPELINE_START] requestId={}", command.requestId)
-
         val processing =
             processingWriteService.startProcessing(command.requestId)
 
         val snapshotId: Long
         val positionCandidates: List<String>
         val existCompanies: List<String>
+
+        log.info("[JD_SUMMARY_PIPELINE_STARTED] JobSummaryGenerateCommand={}", command)
 
         // ── Pre-LLM Phase ─────────────────────────────────────────────
         try {
@@ -142,10 +143,10 @@ class JdSummaryGenerationFacade(
             processingWriteService.markSummarizing(processing.id)
 
             positionCandidates =
-                positionQuery.findActive().map { it.name }
+                positionQuery.findActiveNames()
 
             existCompanies =
-                companyQuery.findAllNames()
+                companyQuery.findAllNames().map { it.name }
 
         } catch (e: Exception) {
             handleFailure(processing.id, e, command.requestId, "PRE_LLM")
@@ -174,6 +175,7 @@ class JdSummaryGenerationFacade(
     }
 
     // ── Post-LLM Phase ─────────────────────────────────────────────
+    // brandPositionName은 사용자가 실제로 입력한 이름 / positionName은 llm을 통해 position 후보중 선택된 이름
     private fun executePostLlm(
         snapshotId: Long,
         llmResult: JobSummaryLlmResult,
@@ -188,16 +190,18 @@ class JdSummaryGenerationFacade(
                 source = BrandSource.INFERRED
             )
 
+        // llmResult.positionName은 LLM이 후보군에서 선택한 이름
         val normalizedPositionName =
             Normalizer.normalizePosition(llmResult.positionName)
 
-        val position: PositionView =
+        val position: PositionSummaryView =
             positionQuery.findByNormalizedName(normalizedPositionName)
                 ?: positionQuery.findByNormalizedName(
                     Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
                 )
                 ?: throw IllegalStateException("UNKNOWN position not found")
 
+        // command에 입력된 데이터 positionName는 사용자가 입력한 데이터 즉 BrandPositionName
         brandPositionWriteService.getOrCreate(
             brandId = brand.id,
             positionId = position.id,
@@ -210,7 +214,8 @@ class JdSummaryGenerationFacade(
             brand = brand,
             positionId = position.id,
             positionName = position.name,
-            llmResult = llmResult
+            llmResult = llmResult,
+            brandPositionName = command.positionName
         )
 
         outboxEventWriteService.append(
@@ -279,6 +284,11 @@ class JdSummaryGenerationFacade(
                 else -> "FAILED_AT_$phase"
             }
 
+        log.error(
+            "[JD_PIPELINE_FAILED] requestId={}, phase={}, errorCode={}, message={}",
+            requestId, phase, errorCode, cause.message, cause
+        )
+
         processingWriteService.markFailed(
             processingId = processingId,
             errorCode = errorCode,
@@ -296,6 +306,7 @@ class JdSummaryGenerationFacade(
 
     private val objectMapper = ObjectMapper().apply {
         registerKotlinModule()
+        registerModule(JavaTimeModule())
         disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
     }
 }

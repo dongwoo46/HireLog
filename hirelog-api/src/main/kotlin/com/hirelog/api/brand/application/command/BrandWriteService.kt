@@ -3,7 +3,7 @@ package com.hirelog.api.brand.application.command
 import com.hirelog.api.brand.application.query.BrandQuery
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.common.domain.VerificationStatus
+import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.common.exception.EntityNotFoundException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
@@ -45,8 +45,12 @@ class BrandWriteService(
     ): Brand {
 
         // 1. 선 조회
-        brandQuery.findByNormalizedName(normalizedName)?.let {
-            return it
+        // 중복 선검증
+        if (brandQuery.existsByNormalizedName(normalizedName)) {
+            throw EntityAlreadyExistsException(
+                entityName = "Brand",
+                identifier = normalizedName
+            )
         }
 
         // 2. 생성 시도
@@ -61,7 +65,7 @@ class BrandWriteService(
             )
         } catch (e: DataIntegrityViolationException) {
             // 3. 동시성 충돌 → 이미 생성됨
-            brandQuery.findByNormalizedName(normalizedName)
+            brandCommand.findByNormalizedName(normalizedName)
                 ?: throw e
         }
     }
@@ -97,7 +101,7 @@ class BrandWriteService(
      * 쓰기 유스케이스 전용 필수 조회
      */
     private fun getRequired(brandId: Long): Brand =
-        brandQuery.findById(brandId)
+        brandCommand.findById(brandId)
             ?: throw EntityNotFoundException(
                 entityName = "Brand",
                 identifier = brandId

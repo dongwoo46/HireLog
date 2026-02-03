@@ -15,5 +15,9 @@ data class JdPreprocessRequestMessage(
     val brandName: String,
     val positionName: String,
     val source: JobSourceType,
-    val text: String
+
+    // === Source별 데이터 (Python 측 필수 필드) ===
+    val text: String? = null,           // TEXT 소스용
+    val url: String? = null,            // URL 소스용
+    val images: List<String>? = null    // IMAGE(OCR) 소스용
 )

@@ -69,7 +69,6 @@ gemini:
 logging:
   level:
     root: INFO
-    org.hibernate.SQL: INFO
     com.hirelog.api: DEBUG
 
 server:
@@ -79,6 +78,8 @@ server:
       pattern: '%h %l %u %t "%r" %s %b'
 
 hirelog:
+  admin:
+    emails: ${ADMIN_EMAILS}
   worker:
     job-summary:
       enabled: false

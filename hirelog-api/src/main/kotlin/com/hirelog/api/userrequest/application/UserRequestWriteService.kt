@@ -1,5 +1,7 @@
 package com.hirelog.api.userrequest.application
 
+import com.hirelog.api.member.application.port.MemberQuery
+import com.hirelog.api.member.domain.MemberStatus
 import com.hirelog.api.userrequest.application.port.UserRequestCommand
 import com.hirelog.api.userrequest.application.port.UserRequestQuery
 import com.hirelog.api.userrequest.domain.UserRequest
@@ -7,7 +9,6 @@ import com.hirelog.api.userrequest.domain.UserRequestStatus
 import com.hirelog.api.userrequest.domain.UserRequestType
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDateTime
 
 /**
  * UserRequest Write Service
@@ -19,7 +20,8 @@ import java.time.LocalDateTime
 @Service
 class UserRequestWriteService(
     private val command: UserRequestCommand,
-    private val query: UserRequestQuery
+    private val query: UserRequestQuery,
+    private val memberQuery: MemberQuery
 ) {
 
     /**
@@ -31,7 +33,13 @@ class UserRequestWriteService(
         requestType: UserRequestType,
         content: String
     ): UserRequest {
-        val userRequest = UserRequest(
+
+        // 1. 사용자 존재 여부 검증
+        require(memberQuery.existsByIdAndStatus(memberId, MemberStatus.ACTIVE)) {
+            "존재하지 않는 사용자입니다. memberId=$memberId"
+        }
+
+        val userRequest = UserRequest.create(
             memberId = memberId,
             requestType = requestType,
             content = content
@@ -50,11 +58,7 @@ class UserRequestWriteService(
         val userRequest = query.findById(userRequestId)
             ?: throw IllegalArgumentException("UserRequest not found: $userRequestId")
 
-        userRequest.status = status
-
-        if (status == UserRequestStatus.RESOLVED || status == UserRequestStatus.REJECTED) {
-            userRequest.resolvedAt = LocalDateTime.now()
-        }
+        userRequest.updateStatus(status)
 
         return command.save(userRequest)
     }

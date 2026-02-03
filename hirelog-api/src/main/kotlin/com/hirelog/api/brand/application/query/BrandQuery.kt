@@ -1,27 +1,30 @@
 package com.hirelog.api.brand.application.query
 
-import com.hirelog.api.brand.domain.Brand
+import com.hirelog.api.brand.application.view.BrandDetailView
+import com.hirelog.api.brand.application.view.BrandSummaryView
+import com.hirelog.api.userrequest.application.port.PagedResult
 
-/**
- * Brand Read Port
- *
- * 책임:
- * - Brand 조회 계약 정의
- * - 조회 기술(JPA 등)과 분리
- */
 interface BrandQuery {
 
     /**
-     * ID 기준 Brand 조회
-     *
-     * 없으면 null 반환
+     * 브랜드 목록 조회 (페이지네이션)
+     * 리스트용 최소 정보
      */
-    fun findById(brandId: Long): Brand?
+    fun findAllPaged(
+        page: Int,
+        size: Int
+    ): PagedResult<BrandSummaryView>
 
     /**
-     * normalizedName 기준 Brand 조회
-     *
-     * 중복 판단/정책 결정용
+     * 브랜드 상세 조회
      */
-    fun findByNormalizedName(normalizedName: String): Brand?
+    fun findDetailById(brandId: Long): BrandDetailView?
+
+    /**
+     * Write 선행 검증
+     */
+    fun existsById(brandId: Long): Boolean
+
+    fun existsByNormalizedName(normalizedName: String): Boolean
+
 }

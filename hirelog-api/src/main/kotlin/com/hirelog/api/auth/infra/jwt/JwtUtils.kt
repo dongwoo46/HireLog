@@ -47,9 +47,6 @@ class JwtUtils(
         val now = Date()
         val expiry = Date(now.time + jwtProperties.accessExpirationMs)
 
-        // role 앞에 ROLE_ 접두어가 없다면 붙여줍니다.
-        val authority = if (role.startsWith("ROLE_")) role else "ROLE_$role"
-
         return Jwts.builder()
             .subject(memberId.toString())   // 인증 주체
             .claim("role", role)            // 인가 정보

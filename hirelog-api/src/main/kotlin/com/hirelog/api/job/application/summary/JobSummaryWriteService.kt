@@ -37,7 +37,8 @@ class JobSummaryWriteService(
         brand: Brand,
         positionId: Long,
         positionName: String,
-        llmResult: JobSummaryLlmResult
+        llmResult: JobSummaryLlmResult,
+        brandPositionName: String?
     ): JobSummary {
 
         log.info(

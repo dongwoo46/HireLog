@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 /**
- * CompanyRelation Write Service
+ * CompanyRelationWriteService
  *
  * 책임:
  * - CompanyRelation 쓰기 유스케이스 전담
@@ -28,7 +28,11 @@ class CompanyRelationWriteService(
      *
      * 정책:
      * - (parent, child) 관계는 유일해야 함
-     * - 중복 생성 시 EntityExistsException 발생
+     * - 중복 생성 시 EntityAlreadyExistsException 발생
+     *
+     * 전략:
+     * - 사전 조회 ❌
+     * - DB 유니크 제약을 최종 진실로 신뢰
      */
     @Transactional
     fun create(
@@ -37,25 +41,16 @@ class CompanyRelationWriteService(
         relationType: CompanyRelationType
     ): CompanyRelation {
 
-        // 1️⃣ UX / 의미적 빠른 실패 (선택)
-        if (relationQuery.findRelation(parentCompanyId, childCompanyId) != null) {
-            throw EntityAlreadyExistsException(
-                entityName = "CompanyRelation",
-                identifier = "parent=$parentCompanyId, child=$childCompanyId"
-            )
-        }
-
         val relation = CompanyRelation.create(
             parentCompanyId = parentCompanyId,
             childCompanyId = childCompanyId,
             relationType = relationType
         )
 
-        // 2️⃣ DB를 최종 진실로 신뢰
         return try {
             relationCommand.save(relation)
+            relation
         } catch (ex: DataIntegrityViolationException) {
-            // 3️⃣ 동시성 중복 생성 방어
             throw EntityAlreadyExistsException(
                 entityName = "CompanyRelation",
                 identifier = "parent=$parentCompanyId, child=$childCompanyId",
@@ -70,14 +65,22 @@ class CompanyRelationWriteService(
      * 정책:
      * - 존재할 경우에만 삭제
      * - 없으면 no-op
+     *
+     * 전략:
+     * - Query(View)로 존재 확인
+     * - Command로 엔티티 삭제
      */
     @Transactional
     fun delete(
         parentCompanyId: Long,
         childCompanyId: Long
     ) {
-        relationQuery
-            .findRelation(parentCompanyId, childCompanyId)
-            ?.let { relationCommand.delete(it) }
+        val view = relationQuery.findView(parentCompanyId, childCompanyId)
+            ?: return
+
+        val relation = relationCommand.findById(view.id)
+            ?: return
+
+        relationCommand.delete(relation)
     }
 }
