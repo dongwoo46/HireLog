@@ -121,12 +121,15 @@ class JobSummaryIndexManager(
             .properties(Fields.BRAND_ID, longProperty())
             .properties(Fields.COMPANY_ID, longProperty())
             .properties(Fields.POSITION_ID, longProperty())
+            .properties(Fields.BRAND_POSITION_ID, longProperty())
+            .properties(Fields.POSITION_CATEGORY_ID, longProperty())
 
             // === 검색 대상 텍스트 필드 (한글/영어 multi-field) ===
             .properties(Fields.BRAND_NAME, searchableTextField())
             .properties(Fields.COMPANY_NAME, searchableTextField())
             .properties(Fields.POSITION_NAME, searchableTextField())
             .properties(Fields.BRAND_POSITION_NAME, searchableTextField())
+            .properties(Fields.POSITION_CATEGORY_NAME, searchableTextField())
             .properties(Fields.SUMMARY_TEXT, searchableTextField())
             .properties(Fields.RESPONSIBILITIES, searchableTextField())
             .properties(Fields.REQUIRED_QUALIFICATIONS, searchableTextField())

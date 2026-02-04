@@ -40,6 +40,16 @@ data class JobSummarySearchQuery(
     val positionId: Long? = null,
 
     /**
+     * BrandPosition ID 필터
+     */
+    val brandPositionId: Long? = null,
+
+    /**
+     * PositionCategory ID 필터
+     */
+    val positionCategoryId: Long? = null,
+
+    /**
      * 기술스택 필터 (정확한 매칭)
      * - techStackParsed 필드에서 검색
      */

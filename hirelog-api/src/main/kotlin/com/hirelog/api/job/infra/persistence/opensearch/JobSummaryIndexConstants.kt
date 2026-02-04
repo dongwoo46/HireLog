@@ -14,12 +14,15 @@ object JobSummaryIndexConstants {
         const val BRAND_ID = "brandId"
         const val COMPANY_ID = "companyId"
         const val POSITION_ID = "positionId"
+        const val BRAND_POSITION_ID = "brandPositionId"
+        const val POSITION_CATEGORY_ID = "positionCategoryId"
 
         // 기본 정보
         const val BRAND_NAME = "brandName"
         const val COMPANY_NAME = "companyName"
         const val POSITION_NAME = "positionName"
         const val BRAND_POSITION_NAME = "brandPositionName"
+        const val POSITION_CATEGORY_NAME = "positionCategoryName"
 
         // 경력
         const val CAREER_TYPE = "careerType"

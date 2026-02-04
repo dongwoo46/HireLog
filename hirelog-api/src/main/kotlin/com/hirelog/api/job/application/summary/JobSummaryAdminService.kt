@@ -27,8 +27,10 @@ import com.hirelog.api.job.domain.JobSummary
 import com.hirelog.api.job.domain.RecruitmentPeriodType
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionSummaryView
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.nio.file.AccessDeniedException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -53,7 +55,10 @@ class JobSummaryAdminService(
     private val positionQuery: PositionQuery,
     private val outboxEventWriteService: OutboxEventWriteService,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
-    private val companyQuery: CompanyQuery
+    private val companyQuery: CompanyQuery,
+
+    @Value("\${admin.verify.password}")
+    private val adminVerifyPassword: String
 ) {
 
     companion object {
@@ -160,6 +165,22 @@ class JobSummaryAdminService(
         )
     }
 
+    /**
+     * Admin 액션 수행 전 비밀번호 검증
+     *
+     * 정책:
+     * - 설정된 admin verify password와 일치해야 함
+     * - 실패 시 AccessDeniedException 발생
+     */
+    fun verify(password: String) {
+        if (password != adminVerifyPassword) {
+            log.warn("[ADMIN_VERIFY_FAILED]")
+            throw AccessDeniedException("Invalid admin verification password")
+        }
+
+        log.info("[ADMIN_VERIFY_SUCCESS]")
+    }
+
     private fun executePostLlm(
         snapshotId: Long,
         llmResult: JobSummaryLlmResult,
@@ -183,7 +204,7 @@ class JobSummaryAdminService(
                 )
                 ?: throw IllegalStateException("UNKNOWN position not found")
 
-        brandPositionWriteService.getOrCreate(
+        val brandPosition = brandPositionWriteService.getOrCreate(
             brandId = brand.id,
             positionId = position.id,
             displayName = inputPositionName,
@@ -195,6 +216,9 @@ class JobSummaryAdminService(
             brand = brand,
             positionId = position.id,
             positionName = position.name,
+            brandPositionId = brandPosition.id,
+            positionCategoryId = position.categoryId,
+            positionCategoryName = position.categoryName,
             llmResult = llmResult,
             brandPositionName = inputPositionName,
             sourceUrl = sourceUrl

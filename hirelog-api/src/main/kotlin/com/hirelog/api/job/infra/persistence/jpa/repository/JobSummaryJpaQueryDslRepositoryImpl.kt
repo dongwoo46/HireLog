@@ -62,6 +62,11 @@ class JobSummaryJpaQueryDslRepositoryImpl(
                     q.positionId,
                     q.positionName,
 
+                    // --- 브랜드 포지션 / 카테고리 ---
+                    q.brandPositionId,
+                    q.positionCategoryId,
+                    q.positionCategoryName,
+
                     // --- 커리어 ---
                     q.careerType,
                     q.careerYears,

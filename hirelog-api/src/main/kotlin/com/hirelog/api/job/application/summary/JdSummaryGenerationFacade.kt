@@ -204,7 +204,7 @@ class JdSummaryGenerationFacade(
                 ?: throw IllegalStateException("UNKNOWN position not found")
 
         // command에 입력된 데이터 positionName는 사용자가 입력한 데이터 즉 BrandPositionName
-        brandPositionWriteService.getOrCreate(
+        val brandPosition = brandPositionWriteService.getOrCreate(
             brandId = brand.id,
             positionId = position.id,
             displayName = command.positionName,
@@ -216,6 +216,9 @@ class JdSummaryGenerationFacade(
             brand = brand,
             positionId = position.id,
             positionName = position.name,
+            brandPositionId = brandPosition.id,
+            positionCategoryId = position.categoryId,
+            positionCategoryName = position.categoryName,
             llmResult = llmResult,
             brandPositionName = command.positionName,
             sourceUrl = command.sourceUrl

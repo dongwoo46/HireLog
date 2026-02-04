@@ -21,6 +21,10 @@ interface JobSummaryProjection {
     val positionId: Long
     val positionName: String
 
+    val brandPositionId: Long?
+    val positionCategoryId: Long
+    val positionCategoryName: String
+
     val careerType: CareerType
     val careerYears: Int?
 

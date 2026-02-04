@@ -5,6 +5,7 @@ import com.hirelog.api.job.infrastructure.external.gemini.GeminiPromptBuilder
 import com.hirelog.api.job.presentation.controller.dto.GeminiPromptPreviewReq
 import com.hirelog.api.job.presentation.controller.dto.GeminiPromptRes
 import com.hirelog.api.job.presentation.controller.dto.JobSummaryAdminCreateReq
+import com.hirelog.api.job.presentation.controller.dto.VerifyAdminReq
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -51,6 +52,14 @@ class JobSummaryAdminController(
         )
 
         return ResponseEntity.ok(mapOf("summaryId" to summaryId))
+    }
+
+    @PostMapping("/verify")
+    fun verifyAdmin(@Valid @RequestBody request: VerifyAdminReq):ResponseEntity<Void> {
+        jobSummaryAdminService.verify(request.password)
+
+        // 검증 성공 → 204 No Content
+        return ResponseEntity.noContent().build()
     }
 
     /**

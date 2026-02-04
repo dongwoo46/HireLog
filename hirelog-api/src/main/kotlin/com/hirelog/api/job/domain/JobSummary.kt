@@ -95,11 +95,32 @@ class JobSummary protected constructor(
     val positionName: String,
 
     /**
+     * BrandPosition 식별자
+     * Brand-Position 매핑 엔티티 참조
+     */
+    @Column(name = "brand_position_id", updatable = false)
+    val brandPositionId: Long? = null,
+
+    /**
      * 브랜드 내부 포지션명 (JD에 명시된 원본)
      * 예: "서버 개발자 (결제팀)"
      */
     @Column(name = "brand_position_name", length = 300, updatable = false)
     val brandPositionName: String? = null,
+
+    /**
+     * 포지션 카테고리 식별자 (비정규화)
+     * 검색 필터링 최적화용
+     */
+    @Column(name = "position_category_id", nullable = false, updatable = false)
+    val positionCategoryId: Long,
+
+    /**
+     * 포지션 카테고리명 (비정규화)
+     * 검색/조회 최적화용
+     */
+    @Column(name = "position_category_name", nullable = false, length = 100, updatable = false)
+    val positionCategoryName: String,
 
     /**
      * 채용 경력 유형
@@ -219,7 +240,10 @@ class JobSummary protected constructor(
             companyName: String?,
             positionId: Long,
             positionName: String,
+            brandPositionId: Long?,
             brandPositionName: String?,
+            positionCategoryId: Long,
+            positionCategoryName: String,
             careerType: CareerType,
             careerYears: String?,
             summaryText: String,
@@ -241,7 +265,10 @@ class JobSummary protected constructor(
                 companyName = companyName,
                 positionId = positionId,
                 positionName = positionName,
+                brandPositionId = brandPositionId,
                 brandPositionName = brandPositionName,
+                positionCategoryId = positionCategoryId,
+                positionCategoryName = positionCategoryName,
                 careerType = careerType,
                 careerYears = careerYears,
                 summaryText = summaryText,

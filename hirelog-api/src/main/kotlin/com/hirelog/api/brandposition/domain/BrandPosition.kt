@@ -58,7 +58,7 @@ class BrandPosition protected constructor(
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    var status: BrandPositionStatus,
+    var status: BrandPositionStatus = BrandPositionStatus.ACTIVE,
 
     /**
      * 생성 출처
@@ -151,7 +151,7 @@ class BrandPosition protected constructor(
                 brandId = brandId,
                 positionId = positionId,
                 displayName = displayName,
-                status = BrandPositionStatus.CANDIDATE,
+                status = BrandPositionStatus.ACTIVE,
                 source = source
             )
         }

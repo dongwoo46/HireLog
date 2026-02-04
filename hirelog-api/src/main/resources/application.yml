@@ -141,3 +141,7 @@ auth:
 
   signup-token:
     expiration-ms: 600000          # 10분
+
+admin:
+  verify:
+    password: ${ADMIN_VERIFY_PASSWORD}
