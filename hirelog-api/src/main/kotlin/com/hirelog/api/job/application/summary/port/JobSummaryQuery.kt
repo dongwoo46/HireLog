@@ -24,4 +24,46 @@ interface JobSummaryQuery {
         condition: JobSummarySearchCondition,
         pageable: Pageable
     ): Page<JobSummaryView>
+
+    /**
+     * URL 기반 중복 체크
+     *
+     * @param sourceUrl 원본 JD URL
+     * @return 해당 URL로 생성된 JobSummary 존재 여부
+     */
+    fun existsBySourceUrl(sourceUrl: String): Boolean
+
+    /**
+     * URL 기반 JobSummary 조회
+     *
+     * 용도:
+     * - 중복 시 기존 JobSummary 반환
+     *
+     * @param sourceUrl 원본 JD URL
+     * @return JobSummary View (없으면 null)
+     */
+    fun findBySourceUrl(sourceUrl: String): JobSummaryView?
+
+    /**
+     * Snapshot 기반 JobSummary 존재 여부 확인
+     *
+     * 용도:
+     * - 중복 체크 시 Snapshot만 있고 Summary 생성 실패한 경우 구분
+     * - Snapshot 있음 + Summary 없음 = 재처리 허용
+     *
+     * @param jobSnapshotId JobSnapshot ID
+     * @return 해당 Snapshot으로 생성된 JobSummary 존재 여부
+     */
+    fun existsByJobSnapshotId(jobSnapshotId: Long): Boolean
+
+    /**
+     * Snapshot 기반 JobSummary ID 조회
+     *
+     * 용도:
+     * - 중복 판정 시 기존 JobSummary ID 반환
+     *
+     * @param jobSnapshotId JobSnapshot ID
+     * @return JobSummary ID (없으면 null)
+     */
+    fun findIdByJobSnapshotId(jobSnapshotId: Long): Long?
 }

@@ -23,18 +23,17 @@ import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
-import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
+import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
+import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.domain.JobSummary
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionSummaryView
-import com.hirelog.api.relation.application.jobsummary.MemberJobSummaryWriteService
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -56,15 +55,14 @@ import java.util.concurrent.TimeoutException
 class JdSummaryGenerationFacade(
     private val processingWriteService: JdSummaryProcessingWriteService,
     private val snapshotWriteService: JobSnapshotWriteService,
-    private val snapshotQuery: JobSnapshotQuery,
     private val jdIntakePolicy: JdIntakePolicy,
     private val llmClient: JobSummaryLlm,
     private val summaryWriteService: JobSummaryWriteService,
+    private val summaryQuery: JobSummaryQuery,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
     private val outboxEventWriteService: OutboxEventWriteService,
-    private val memberJobSummaryWriteService: MemberJobSummaryWriteService,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
     private val companyQuery: CompanyQuery
 ) {
@@ -105,7 +103,7 @@ class JdSummaryGenerationFacade(
             }
 
             if (command.source == JobSourceType.URL && command.sourceUrl != null) {
-                if (snapshotQuery.loadSnapshotsByUrl(command.sourceUrl).isNotEmpty()) {
+                if (summaryQuery.existsBySourceUrl(command.sourceUrl)) {
                     processingWriteService.markDuplicate(
                         processingId = processing.id,
                         reason = "URL_DUPLICATE"
@@ -117,10 +115,14 @@ class JdSummaryGenerationFacade(
             val hashes = jdIntakePolicy.generateIntakeHashes(command.canonicalMap)
             val decision = jdIntakePolicy.decideDuplicate(command, hashes)
 
-            if (decision != DuplicateDecision.NOT_DUPLICATE) {
+            if (decision is DuplicateDecision.Duplicate) {
                 processingWriteService.markDuplicate(
                     processingId = processing.id,
-                    reason = decision.name
+                    reason = decision.reason.name
+                )
+                log.info(
+                    "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
+                    decision.reason, decision.existingSnapshotId, decision.existingSummaryId
                 )
                 return CompletableFuture.completedFuture(null)
             }
@@ -215,7 +217,8 @@ class JdSummaryGenerationFacade(
             positionId = position.id,
             positionName = position.name,
             llmResult = llmResult,
-            brandPositionName = command.positionName
+            brandPositionName = command.positionName,
+            sourceUrl = command.sourceUrl
         )
 
         outboxEventWriteService.append(
@@ -300,7 +303,7 @@ class JdSummaryGenerationFacade(
         if (ex is CompletionException) ex.cause ?: ex else ex
 
     private fun buildEventPayload(summary: JobSummary): String {
-        val payload = JobSummarySearchPayload.from(summary)
+        val payload = JobSummaryOutboxPayload.from(summary)
         return objectMapper.writeValueAsString(payload)
     }
 

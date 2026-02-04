@@ -7,6 +7,11 @@ Kafka 기반 Preprocess Pipeline Entry Point
 각 Worker는 독립적인 Consumer로 각자의 Topic을 소비
 단일 Producer를 공유하여 결과를 response topic으로 발행
 
+실패 처리:
+- 처리 실패 → fail 토픽 발행
+- fail 토픽 발행 실패 → 로컬 파일 백업
+- 무조건 commit (파이프라인 멈추지 않음)
+
 Graceful Shutdown:
 - SIGTERM/SIGINT 수신 시 모든 Worker 종료 요청
 - 각 Worker는 현재 처리 중인 메시지 완료 후 종료
@@ -14,7 +19,6 @@ Graceful Shutdown:
 
 import logging
 import signal
-import sys
 import threading
 import time
 import uuid
@@ -24,7 +28,6 @@ from infra.config.kafka_config import (
     load_kafka_config,
     load_kafka_worker_config,
     KafkaConfig,
-    WorkerConfig,
 )
 from infra.kafka.kafka_consumer import KafkaStreamConsumer
 from infra.kafka.kafka_producer import KafkaStreamProducer
@@ -36,19 +39,20 @@ from worker.base_kafka_worker import BaseKafkaWorker
 # ==================================================
 # Logging 설정
 # ==================================================
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+from utils.logger import setup_logging
+
+# 환경변수 LOG_LEVEL로 제어 (DEBUG / INFO / WARNING / ERROR)
+# 개발: LOG_LEVEL=DEBUG python main_kafka.py
+# 운영: LOG_LEVEL=INFO python main_kafka.py (기본값)
+setup_logging()
 
 logger = logging.getLogger(__name__)
 
 
 def create_kafka_consumer(
-        kafka_config: KafkaConfig,
-        topic: str,
-        client_id: str,
+    kafka_config: KafkaConfig,
+    topic: str,
+    client_id: str,
 ) -> KafkaStreamConsumer:
     """Kafka Consumer 생성"""
     return KafkaStreamConsumer(
@@ -61,8 +65,8 @@ def create_kafka_consumer(
 
 
 def create_kafka_producer(
-        kafka_config: KafkaConfig,
-        client_id: str,
+    kafka_config: KafkaConfig,
+    client_id: str,
 ) -> KafkaStreamProducer:
     """Kafka Producer 생성"""
     return KafkaStreamProducer(
@@ -100,11 +104,12 @@ def main():
         kafka_config.bootstrap_servers
     )
     logger.info(
-        "[CONFIG] Topics: text=%s ocr=%s url=%s result=%s group=%s",
+        "[CONFIG] Topics: text=%s ocr=%s url=%s result=%s fail=%s group=%s",
         kafka_config.text_topic,
         kafka_config.ocr_topic,
         kafka_config.url_topic,
         kafka_config.result_topic,
+        kafka_config.fail_topic,
         kafka_config.consumer_group,
     )
 
@@ -139,6 +144,7 @@ def main():
         consumer=text_consumer,
         producer=producer,
         result_topic=kafka_config.result_topic,
+        fail_topic=kafka_config.fail_topic,
         config=worker_config,
     )
     workers.append(text_worker)
@@ -153,6 +159,7 @@ def main():
         consumer=ocr_consumer,
         producer=producer,
         result_topic=kafka_config.result_topic,
+        fail_topic=kafka_config.fail_topic,
         config=worker_config,
     )
     workers.append(ocr_worker)
@@ -167,6 +174,7 @@ def main():
         consumer=url_consumer,
         producer=producer,
         result_topic=kafka_config.result_topic,
+        fail_topic=kafka_config.fail_topic,
         config=worker_config,
     )
     workers.append(url_worker)

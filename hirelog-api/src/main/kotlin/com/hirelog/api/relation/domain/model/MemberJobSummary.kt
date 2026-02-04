@@ -8,17 +8,12 @@ import jakarta.persistence.*
 @Table(
     name = "member_job_summary",
     indexes = [
-        // 사용자가 저장한 JD 목록 조회
-        Index(
-            name = "idx_member_job_summary_member",
-            columnList = "member_id"
-        ),
         // 특정 JD를 저장한 사용자 조회 (분석용)
         Index(
             name = "idx_member_job_summary_job_summary",
             columnList = "job_summary_id"
         ),
-        // 중복 저장 방지
+        // 중복 저장 방지 + member_id 선행이므로 사용자별 JD 목록 조회도 커버
         Index(
             name = "ux_member_job_summary_member_job",
             columnList = "member_id, job_summary_id",

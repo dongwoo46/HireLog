@@ -3,6 +3,7 @@ package com.hirelog.api.job.infra.kafka.consumer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.hirelog.api.common.logging.log
+import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
 import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchAdapter
@@ -55,25 +56,26 @@ class JobSummaryIndexingConsumer(
             record.offset()
         )
 
-        try {
-            // Debezium Outbox Event Router는 payload를 그대로 전달
-            val searchPayload = objectMapper.readValue<JobSummarySearchPayload>(payload)
-
-            openSearchAdapter.index(searchPayload)
-
-            acknowledgment.acknowledge()
-
-            log.info(
-                "[JOB_SUMMARY_INDEXING_SUCCESS] id={}, offset committed",
-                searchPayload.id
-            )
-        } catch (e: Exception) {
-            // 실패 시 offset 커밋하지 않음 → Kafka 재전달
-            log.error(
-                "[JOB_SUMMARY_INDEXING_FAILED] aggregateId={}, offset NOT committed",
-                aggregateId,
-                e
-            )
+        // Debezium + JsonConverter 조합에서 TEXT 컬럼은 이중 직렬화될 수 있음
+        // 예: "{\"id\":1,...}" (문자열로 감싸진 JSON)
+        val actualPayload = if (payload.startsWith("\"")) {
+            objectMapper.readValue<String>(payload)
+        } else {
+            payload
         }
+
+        // OutboxPayload → SearchPayload 변환
+        val outboxPayload = objectMapper.readValue<JobSummaryOutboxPayload>(actualPayload)
+        val searchPayload = JobSummarySearchPayload.from(outboxPayload)
+
+        openSearchAdapter.index(searchPayload)
+
+        acknowledgment.acknowledge()
+
+        log.info(
+            "[JOB_SUMMARY_INDEXING_SUCCESS] id={}, offset committed",
+            searchPayload.id
+        )
+        // 예외 발생 시 ErrorHandler가 처리 (3회 재시도 → DLT 전송 → DB 기록)
     }
 }

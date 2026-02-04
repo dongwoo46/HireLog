@@ -1,4 +1,6 @@
 import os
+import logging
+import json
 from ocr.preprocess import preprocess_image
 from ocr.engine import run_ocr
 from ocr.lines import build_lines
@@ -8,6 +10,8 @@ from utils.rawtext import build_raw_text
 from ocr.confidence import classify_confidence
 from ocr.quality import filter_low_quality_lines
 from ocr.header_detector import detect_visual_headers
+
+logger = logging.getLogger(__name__)
 
 def process_ocr_input(image_input: str | list[str]):
     """
@@ -117,18 +121,24 @@ def _process_single_image(image_path: str) -> dict:
     ocr_result = run_ocr(preprocessed_image)
     if not ocr_result.get("raw"):
         return _fail("ocr returned empty raw result")
-    # # 🔍 DEBUG 1: OCR RAW (PaddleOCR 원본)
-    # print("\n=== [DEBUG 1] OCR RAW ITEMS ===")
-    # for i, item in enumerate(ocr_result["raw"]):
-    #     print(f"[{i:03d}] text='{item.get('text', '')}' conf={item.get('confidence')}")
-    # print("================================\n")
+
+    # 🔍 DEBUG: OCR RAW (PaddleOCR 원본)
+    logger.debug("[OCR] 1️⃣ OCR RAW 데이터 (원본)")
+    logger.debug(json.dumps(
+        [{"text": item.get("text", ""), "confidence": item.get("confidence")}
+         for item in ocr_result["raw"]],
+        ensure_ascii=False, indent=2
+    ))
 
     # 2.5️⃣ OCR RAW → LINE 구조화 (아직 가공 없음)
     lines = build_lines(ocr_result["raw"])
-    # print("\n=== [DEBUG 2] AFTER build_lines ===")
-    # for i, line in enumerate(lines):
-    #     print(f"[{i:03d}] '{line.get('text', '')}'")
-    # print("=================================\n")
+
+    # 🔍 DEBUG: LINE 구조화 후
+    logger.debug("[OCR] 2️⃣ LINE 구조화 후")
+    logger.debug(json.dumps(
+        [line.get("text", "") for line in lines],
+        ensure_ascii=False, indent=2
+    ))
 
     # 3️⃣ 헤더 감지
     lines = detect_visual_headers(lines)
@@ -156,6 +166,13 @@ def _process_single_image(image_path: str) -> dict:
 
     # 5. ocr로 처리한 raw 데이터 후처리
     ocr_lines = postprocess_ocr_lines(passed_lines)
+
+    # 🔍 DEBUG: 후처리 완료
+    logger.debug("[OCR] 3️⃣ 전처리 완료 후 최종 라인")
+    logger.debug(json.dumps(
+        [line.get("text", "") for line in ocr_lines],
+        ensure_ascii=False, indent=2
+    ))
 
     # 6. 최종 rawText 생성
     raw_text = build_raw_text(ocr_lines)

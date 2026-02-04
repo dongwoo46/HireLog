@@ -38,7 +38,8 @@ class JobSummaryWriteService(
         positionId: Long,
         positionName: String,
         llmResult: JobSummaryLlmResult,
-        brandPositionName: String?
+        brandPositionName: String?,
+        sourceUrl: String? = null
     ): JobSummary {
 
         log.info(
@@ -82,7 +83,8 @@ class JobSummaryWriteService(
             recruitmentProcess = llmResult.recruitmentProcess,
             insight = insight,
             llmProvider = llmProperties.provider,
-            llmModel = llmProperties.model
+            llmModel = llmProperties.model,
+            sourceUrl = sourceUrl
         )
 
         return summaryCommand.save(summary)

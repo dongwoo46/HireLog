@@ -1,18 +1,14 @@
 package com.hirelog.api.job.application.summary.payload
 
-import com.hirelog.api.job.domain.JobSummary
-import java.time.LocalDateTime
-
 /**
  * JobSummary OpenSearch 인덱싱용 Payload
  *
  * 용도:
- * - OutboxEvent.payload에 JSON 직렬화되어 저장
- * - Debezium CDC → Kafka → OpenSearch Consumer 흐름에서 사용
+ * - Kafka Consumer → OpenSearch 인덱싱 흐름에서 사용
  *
  * 설계 원칙:
  * - 검색에 필요한 필드만 포함 (llmProvider, llmModel 제외)
- * - Enum은 String으로 직렬화하여 호환성 확보
+ * - 모든 필드는 직렬화 친화적 타입 (String, Long, List<String>)
  * - Insight 필드는 flat하게 저장 (검색 효율성)
  */
 data class JobSummarySearchPayload(
@@ -47,73 +43,50 @@ data class JobSummarySearchPayload(
     val questionsToAsk: String?,
     val considerations: String?,
 
-    val createdAt: LocalDateTime
+    val createdAt: String  // ISO-8601 형식
 ) {
     companion object {
 
         /**
-         * JobSummary → Payload 변환
+         * OutboxPayload → SearchPayload 변환
+         *
+         * Kafka Consumer에서 사용
          */
-        fun from(entity: JobSummary): JobSummarySearchPayload {
+        fun from(outbox: JobSummaryOutboxPayload): JobSummarySearchPayload {
             return JobSummarySearchPayload(
-                id = entity.id,
-                jobSnapshotId = entity.jobSnapshotId,
-                brandId = entity.brandId,
-                brandName = entity.brandName,
-                companyId = entity.companyId,
-                companyName = entity.companyName,
-                positionId = entity.positionId,
-                positionName = entity.positionName,
-                brandPositionName = entity.brandPositionName,
-                careerType = entity.careerType.name,
-                careerYears = entity.careerYears,
-                summaryText = entity.summaryText,
-                responsibilities = entity.responsibilities,
-                requiredQualifications = entity.requiredQualifications,
-                preferredQualifications = entity.preferredQualifications,
-                techStack = entity.techStack,
-                techStackParsed = parseTechStack(entity.techStack),
-                recruitmentProcess = entity.recruitmentProcess,
+                id = outbox.id,
+                jobSnapshotId = outbox.jobSnapshotId,
+                brandId = outbox.brandId,
+                brandName = outbox.brandName,
+                companyId = outbox.companyId,
+                companyName = outbox.companyName,
+                positionId = outbox.positionId,
+                positionName = outbox.positionName,
+                brandPositionName = outbox.brandPositionName,
+                careerType = outbox.careerType,
+                careerYears = outbox.careerYears,
+                summaryText = outbox.summaryText,
+                responsibilities = outbox.responsibilities,
+                requiredQualifications = outbox.requiredQualifications,
+                preferredQualifications = outbox.preferredQualifications,
+                techStack = outbox.techStack,
+                techStackParsed = outbox.techStackParsed,
+                recruitmentProcess = outbox.recruitmentProcess,
 
                 // Insight
-                idealCandidate = entity.insight.idealCandidate,
-                mustHaveSignals = entity.insight.mustHaveSignals,
-                preparationFocus = entity.insight.preparationFocus,
-                transferableStrengthsAndGapPlan = entity.insight.transferableStrengthsAndGapPlan,
-                proofPointsAndMetrics = entity.insight.proofPointsAndMetrics,
-                storyAngles = entity.insight.storyAngles,
-                keyChallenges = entity.insight.keyChallenges,
-                technicalContext = entity.insight.technicalContext,
-                questionsToAsk = entity.insight.questionsToAsk,
-                considerations = entity.insight.considerations,
+                idealCandidate = outbox.idealCandidate,
+                mustHaveSignals = outbox.mustHaveSignals,
+                preparationFocus = outbox.preparationFocus,
+                transferableStrengthsAndGapPlan = outbox.transferableStrengthsAndGapPlan,
+                proofPointsAndMetrics = outbox.proofPointsAndMetrics,
+                storyAngles = outbox.storyAngles,
+                keyChallenges = outbox.keyChallenges,
+                technicalContext = outbox.technicalContext,
+                questionsToAsk = outbox.questionsToAsk,
+                considerations = outbox.considerations,
 
-                createdAt = entity.createdAt
+                createdAt = outbox.createdAt
             )
-        }
-
-        /**
-         * techStack CSV 파싱
-         *
-         * 규칙:
-         * - 콤마(,) 구분자로 split
-         * - 각 항목 trim
-         * - 빈 문자열 제거
-         * - 파싱 불가 시 null 반환
-         */
-        private fun parseTechStack(techStack: String?): List<String>? {
-            if (techStack.isNullOrBlank()) return null
-
-            val parsed = techStack
-                .split(",")
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-
-            // 파싱 결과가 1개이고 원본과 동일하면 자연어로 판단
-            if (parsed.size == 1 && parsed[0] == techStack.trim()) {
-                return null
-            }
-
-            return parsed.ifEmpty { null }
         }
     }
 }

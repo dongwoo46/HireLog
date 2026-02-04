@@ -9,4 +9,13 @@ import org.springframework.data.jpa.repository.JpaRepository
  * 책임:
  * - JobSummary Entity CRUD
  */
-interface JobSummaryJpaRepository : JpaRepository<JobSummary, Long>
+interface JobSummaryJpaRepository : JpaRepository<JobSummary, Long> {
+
+    fun existsBySourceUrl(sourceUrl: String): Boolean
+
+    fun existsByJobSnapshotId(jobSnapshotId: Long): Boolean
+
+    fun findByJobSnapshotId(jobSnapshotId: Long): JobSummary?
+
+    fun findBySourceUrl(sourceUrl: String): JobSummary?
+}

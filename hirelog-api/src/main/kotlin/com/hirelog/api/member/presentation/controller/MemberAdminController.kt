@@ -25,6 +25,7 @@ class MemberAdminController(
     /**
      * 회원 목록 조회
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     fun getAll(
         @RequestParam(defaultValue = "0") page: Int,
@@ -52,6 +53,7 @@ class MemberAdminController(
     /**
      * 회원 정지
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{memberId}/suspend")
     fun suspend(
         @PathVariable memberId: Long
@@ -64,6 +66,7 @@ class MemberAdminController(
     /**
      * 회원 활성화
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{memberId}/activate")
     fun activate(
         @PathVariable memberId: Long
@@ -76,6 +79,7 @@ class MemberAdminController(
     /**
      * 회원 삭제 (논리 삭제)
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{memberId}")
     fun delete(
         @PathVariable memberId: Long

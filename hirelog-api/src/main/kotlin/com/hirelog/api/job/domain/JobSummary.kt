@@ -28,6 +28,10 @@ import jakarta.persistence.*
             name = "uk_job_summary_snapshot_id",
             columnList = "job_snapshot_id",
             unique = true
+        ),
+        Index(
+            name = "idx_job_summary_source_url",
+            columnList = "source_url"
         )
     ]
 )
@@ -192,7 +196,14 @@ class JobSummary protected constructor(
      * 요약 생성에 사용된 LLM 모델
      */
     @Column(name = "llm_model", nullable = false, length = 50, updatable = false)
-    val llmModel: String
+    val llmModel: String,
+
+    /**
+     * 원본 JD URL (URL 소스인 경우만)
+     * TEXT/OCR 소스는 null
+     */
+    @Column(name = "source_url", length = 2000, updatable = false)
+    val sourceUrl: String? = null
 
 ) : VersionedEntity() {
 
@@ -219,7 +230,8 @@ class JobSummary protected constructor(
             recruitmentProcess: String?,
             insight: JobSummaryInsight,
             llmProvider: LlmProvider,
-            llmModel: String
+            llmModel: String,
+            sourceUrl: String? = null
         ): JobSummary {
             return JobSummary(
                 jobSnapshotId = jobSnapshotId,
@@ -240,7 +252,8 @@ class JobSummary protected constructor(
                 recruitmentProcess = recruitmentProcess,
                 insight = insight,
                 llmProvider = llmProvider,
-                llmModel = llmModel
+                llmModel = llmModel,
+                sourceUrl = sourceUrl
             )
         }
     }

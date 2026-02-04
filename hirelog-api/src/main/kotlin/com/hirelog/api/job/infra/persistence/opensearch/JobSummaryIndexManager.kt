@@ -170,7 +170,7 @@ class JobSummaryIndexManager(
     private fun dateProperty(): Property {
         return Property.of { p ->
             p.date(DateProperty.Builder()
-                .format("yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd||epoch_millis")
+                .format("yyyy-MM-dd'T'HH:mm:ss.SSSSSS||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd||epoch_millis")
                 .build())
         }
     }

@@ -1,4 +1,4 @@
-package com.hirelog.api.member.presentation
+package com.hirelog.api.member.presentation.controller
 
 import com.hirelog.api.auth.application.dto.AuthTokens
 import com.hirelog.api.auth.presentation.CookieManager

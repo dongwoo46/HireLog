@@ -19,6 +19,11 @@ summary:
   - company overview
   - introduction
   - intro
+  # 토스 스타일
+  - 합류하게 될 팀
+  - 팀에 대해 알려드려요
+  - 팀을 소개해요
+  - 팀을 소개합니다
 
 responsibilities:
   - 담당업무
@@ -35,6 +40,12 @@ responsibilities:
   - what you'll do
   - job description
   - job duties
+  # 토스 스타일
+  - 함께할 업무
+  - 함께할 업무예요
+  - 이런 일을 해요
+  - 이런 일을 합니다
+  - 맡게 될 업무
 
 requiredQualifications:
   - 자격요건
@@ -51,6 +62,12 @@ requiredQualifications:
   - must have
   - must-have
   - basic qualifications
+  # 토스 스타일
+  - 이런 분을 찾고 있어요
+  - 이런 분을 찾습니다
+  - 이런 분이 필요해요
+  - 이런 분과 함께하고 싶어요
+  - 지원 자격
 
 preferredQualifications:
   - 우대사항
@@ -63,6 +80,12 @@ preferredQualifications:
   - plus
   - preferred qualifications
   - bonus
+  # 토스 스타일
+  - 이런 경험이 있으면 좋아요
+  - 이런 분이면 더 좋아요
+  - 우대해요
+  - 우대합니다
+  - 이런 경험이 있다면
 
 skills:
   - 기술스택
@@ -124,6 +147,18 @@ recruitmentProcess:
   - 입사 절차
   - 입사과정
   - 입사 과정
+  # 토스 스타일
+  - 합류 과정
+  - 이렇게 합류해요
+  - 이렇게 진행돼요
+
+# 지원 가이드 (토스 스타일)
+applicationGuide:
+  - 이력서는 이렇게 작성
+  - 이렇게 지원해 주세요
+  - 지원 전 확인해 주세요
+  - 지원방법
+  - 지원 방법
 
 employmentType:
   - 고용형태

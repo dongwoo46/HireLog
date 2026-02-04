@@ -52,12 +52,12 @@ class FileStorageService(
 
         // 파일명 생성: UUID_원본파일명
         val originalFilename = file.originalFilename ?: "unknown"
-        val extension = originalFilename.substringAfterLast(".", "")
-        val uniqueFilename = "${UUID.randomUUID()}_${sanitizeFilename(originalFilename)}"
+        val extension = originalFilename.substringAfterLast(".", "").lowercase()
 
-        val targetPath = targetDir.resolve(uniqueFilename)
-
-        // 파일 저장
+        val savedFilename = "${UUID.randomUUID()}.$extension"
+        val targetPath = targetDir.resolve(savedFilename)
+        
+        // 파일저장
         file.inputStream.use { input ->
             Files.copy(input, targetPath, StandardCopyOption.REPLACE_EXISTING)
         }
@@ -92,9 +92,4 @@ class FileStorageService(
         }
     }
 
-    private fun sanitizeFilename(filename: String): String {
-        return filename
-            .replace(Regex("[^a-zA-Z0-9가-힣._-]"), "_")
-            .take(100)  // 파일명 길이 제한
-    }
 }

@@ -25,6 +25,7 @@ _SECTION_KEYWORD_MAP = {
     "skills": "skills",
     "experience": "experience",
     "recruitmentProcess": "process",
+    "applicationGuide": "application_guide",  # 토스 스타일 지원 가이드
     "employmentType": "employment_type",
     "location": "location",
     "benefits": "benefits",
@@ -95,6 +96,10 @@ def _get_employment_type_keywords() -> tuple:
 
 def _get_location_keywords() -> tuple:
     return tuple(_get_keywords_for_zone("location"))
+
+
+def _get_application_guide_keywords() -> tuple:
+    return tuple(_get_keywords_for_zone("application_guide"))
 
 
 # 지원서 질문은 section_keywords.yml에 없으므로 하드코딩 유지
@@ -202,6 +207,11 @@ def detect_semantic_zone(header: str | None) -> str:
     # 채용 절차와 의미가 다르므로 process보다 우선 판별
     if _matches_keywords(h, APPLICATION_QUESTION_KEYWORDS):
         return "application_questions"
+
+    # 7️⃣-2 지원 가이드 (토스 스타일)
+    # "이력서는 이렇게 작성하시는 걸 추천해요" 등
+    if _matches_keywords(h, _get_application_guide_keywords()):
+        return "application_guide"
 
     # 8️⃣ 채용 절차
     # 인터뷰, 전형 단계 등

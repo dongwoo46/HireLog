@@ -1,4 +1,5 @@
 import logging
+import json
 from inputs.jd_preprocess_input import JdPreprocessInput
 from url.fetcher import UrlFetcher
 from url.playwright_fetcher import PlaywrightFetcher
@@ -60,6 +61,11 @@ class UrlPipeline:
         title = parsed_data.get("title", "")
         body_text = parsed_data.get("body", "")
 
+        # 🔍 DEBUG: URL fetch 후 원본 데이터
+        logger.debug(f"[URL_PIPELINE] 1️⃣ URL fetch 후 (url={input.url})")
+        logger.debug(f"[URL_PIPELINE] title: {title}")
+        logger.debug(f"[URL_PIPELINE] body_text (first 2000 chars):\n{body_text[:2000]}")
+
         if not body_text:
             logger.warning(f"No body text extracted from URL: {input.url}")
             return {
@@ -76,6 +82,10 @@ class UrlPipeline:
         # 3️⃣ URL 전용 전처리 (노이즈 제거)
         cleaned_lines = preprocess_url_text(body_text)
 
+        # 🔍 DEBUG: URL 전처리 후
+        logger.debug("[URL_PIPELINE] 2️⃣ URL 전처리 후 (cleaned_lines)")
+        logger.debug(json.dumps(cleaned_lines, ensure_ascii=False, indent=2))
+
         if not cleaned_lines:
             logger.warning(f"No lines after URL preprocessing: {input.url}")
             return {
@@ -91,6 +101,10 @@ class UrlPipeline:
 
         # 4️⃣ Header 기반 섹션 분리 (OCR 방식)
         raw_sections = extract_url_sections(cleaned_lines)
+
+        # 🔍 DEBUG: 섹션 분리 후
+        logger.debug("[URL_PIPELINE] 3️⃣ 섹션 분리 후 (raw_sections)")
+        logger.debug(json.dumps(raw_sections, ensure_ascii=False, indent=2))
 
         if not raw_sections:
             logger.warning(f"No sections extracted from URL: {input.url}")
@@ -113,6 +127,10 @@ class UrlPipeline:
 
         # 7️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
         canonical_map = self.canonical.process(sections)
+
+        # 🔍 DEBUG: 최종 canonical_map
+        logger.debug("[URL_PIPELINE] 4️⃣ 최종 canonical_map")
+        logger.debug(json.dumps(canonical_map, ensure_ascii=False, indent=2))
 
         # 8️⃣ 최종 결과
         return {

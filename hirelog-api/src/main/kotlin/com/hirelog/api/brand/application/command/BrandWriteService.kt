@@ -1,9 +1,7 @@
 package com.hirelog.api.brand.application.command
 
-import com.hirelog.api.brand.application.query.BrandQuery
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.common.exception.EntityNotFoundException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
@@ -23,8 +21,7 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class BrandWriteService(
-    private val brandCommand: BrandCommand,
-    private val brandQuery: BrandQuery
+    private val brandCommand: BrandCommand
 ) {
 
     /**
@@ -44,14 +41,8 @@ class BrandWriteService(
         source: BrandSource
     ): Brand {
 
-        // 1. 선 조회
-        // 중복 선검증
-        if (brandQuery.existsByNormalizedName(normalizedName)) {
-            throw EntityAlreadyExistsException(
-                entityName = "Brand",
-                identifier = normalizedName
-            )
-        }
+        // 1. 선 조회 → 존재하면 반환
+        brandCommand.findByNormalizedName(normalizedName)?.let { return it }
 
         // 2. 생성 시도
         return try {
