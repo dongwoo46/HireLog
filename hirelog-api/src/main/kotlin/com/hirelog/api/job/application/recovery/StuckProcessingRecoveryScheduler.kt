@@ -14,6 +14,7 @@ import com.hirelog.api.job.application.summary.JobSummaryCreationService
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JdSummaryProcessing
 import com.hirelog.api.job.domain.JdSummaryProcessingStatus
+import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -39,7 +40,7 @@ class StuckProcessingRecoveryScheduler(
     private val summaryCreationService: JobSummaryCreationService,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
-    private val positionQuery: PositionQuery,
+    private val positionCommand: PositionCommand,
     private val objectMapper: ObjectMapper
 ) {
 
@@ -119,8 +120,8 @@ class StuckProcessingRecoveryScheduler(
 
         // Position 조회
         val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
-        val position = positionQuery.findByNormalizedName(normalizedPositionName)
-            ?: positionQuery.findByNormalizedName(Normalizer.normalizePosition(UNKNOWN_POSITION_NAME))
+        val position = positionCommand.findByNormalizedName(normalizedPositionName)
+            ?: positionCommand.findByNormalizedName(Normalizer.normalizePosition(UNKNOWN_POSITION_NAME))
             ?: throw IllegalStateException("UNKNOWN position not found")
 
         // BrandPosition 조회/생성
@@ -139,8 +140,8 @@ class StuckProcessingRecoveryScheduler(
             positionId = position.id,
             positionName = position.name,
             brandPositionId = brandPosition.id,
-            positionCategoryId = position.categoryId,
-            positionCategoryName = position.categoryName,
+            positionCategoryId = position.category.id,
+            positionCategoryName = position.category.name,
             llmResult = llmResult,
             brandPositionName = llmResult.brandPositionName,
             sourceUrl = null

@@ -16,8 +16,9 @@ import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.JobSnapshot
 import com.hirelog.api.job.domain.JobSourceType
 import com.hirelog.api.job.domain.RecruitmentPeriodType
+import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
-import com.hirelog.api.position.application.view.PositionSummaryView
+import com.hirelog.api.position.domain.Position
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.nio.file.AccessDeniedException
@@ -47,9 +48,10 @@ class JobSummaryAdminService(
     private val positionQuery: PositionQuery,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
     private val companyQuery: CompanyQuery,
-
     @Value("\${admin.verify.password}")
-    private val adminVerifyPassword: String
+    private val adminVerifyPassword: String,
+    private val positionCommand: PositionCommand
+
 ) {
 
     companion object {
@@ -118,9 +120,9 @@ class JobSummaryAdminService(
         )
 
         val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
-        val position: PositionSummaryView =
-            positionQuery.findByNormalizedName(normalizedPositionName)
-                ?: positionQuery.findByNormalizedName(
+        val position: Position =
+            positionCommand.findByNormalizedName(normalizedPositionName)
+                ?: positionCommand.findByNormalizedName(
                     Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
                 )
                 ?: throw IllegalStateException("UNKNOWN position not found")
@@ -156,8 +158,8 @@ class JobSummaryAdminService(
             positionId = position.id,
             positionName = position.name,
             brandPositionId = brandPosition.id,
-            positionCategoryId = position.categoryId,
-            positionCategoryName = position.categoryName,
+            positionCategoryId = position.category.id,
+            positionCategoryName = position.category.name,
             brandPositionName = positionName,
             sourceUrl = sourceUrl
         )

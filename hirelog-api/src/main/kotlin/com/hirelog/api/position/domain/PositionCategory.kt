@@ -1,6 +1,7 @@
 package com.hirelog.api.position.domain
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.common.utils.Normalizer
 import jakarta.persistence.*
 
 @Entity
@@ -51,18 +52,24 @@ class PositionCategory protected constructor(
         fun create(name: String, description: String?): PositionCategory =
             PositionCategory(
                 name = name,
-                normalizedName = normalize(name),
+                normalizedName = Normalizer.normalizePositionCategory(name),
                 status = PositionStatus.ACTIVE,
                 description = description
             )
 
-        private fun normalize(value: String): String =
-            value.lowercase()
-                .replace(Regex("[^a-z0-9]+"), "_")
-                .trim('_')
+    }
+
+    fun activate() {
+        require(status == PositionStatus.INACTIVE) {
+            "Only INACTIVE position can be activated. current=$status"
+        }
+        status = PositionStatus.ACTIVE
     }
 
     fun deactivate() {
+        require(status == PositionStatus.ACTIVE) {
+            "Only ACTIVE position can be deactivated. current=$status"
+        }
         status = PositionStatus.INACTIVE
     }
 }

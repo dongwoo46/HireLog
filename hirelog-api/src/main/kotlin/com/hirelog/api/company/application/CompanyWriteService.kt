@@ -89,6 +89,7 @@ class CompanyWriteService(
 
         val company = getRequired(companyId)
         company.activate()
+        companyCommand.save(company)
     }
 
     /**
@@ -104,6 +105,8 @@ class CompanyWriteService(
 
         val company = getRequired(companyId)
         company.deactivate()
+        companyCommand.save(company)
+
     }
 
     /**

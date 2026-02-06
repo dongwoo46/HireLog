@@ -63,4 +63,12 @@ object Normalizer {
 
         return normalized
     }
+
+    fun normalizePositionCategory(value: String): String =
+        value
+            .trim()
+            .lowercase()
+            .replace(SEPARATOR_CHARS, "_")
+            .replace(Regex("_+"), "_")
+            .trim('_')
 }

@@ -23,8 +23,9 @@ import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
-import com.hirelog.api.position.application.view.PositionSummaryView
+import com.hirelog.api.position.domain.Position
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -55,7 +56,8 @@ class JdSummaryGenerationFacade(
     private val positionQuery: PositionQuery,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
     private val companyQuery: CompanyQuery,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val positionCommand: PositionCommand
 ) {
 
     companion object {
@@ -190,9 +192,9 @@ class JdSummaryGenerationFacade(
         val normalizedPositionName =
             Normalizer.normalizePosition(llmResult.positionName)
 
-        val position: PositionSummaryView =
-            positionQuery.findByNormalizedName(normalizedPositionName)
-                ?: positionQuery.findByNormalizedName(
+        val position: Position =
+            positionCommand.findByNormalizedName(normalizedPositionName)
+                ?: positionCommand.findByNormalizedName(
                     Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
                 )
                 ?: throw IllegalStateException("UNKNOWN position not found")
@@ -213,8 +215,8 @@ class JdSummaryGenerationFacade(
             positionId = position.id,
             positionName = position.name,
             brandPositionId = brandPosition.id,
-            positionCategoryId = position.categoryId,
-            positionCategoryName = position.categoryName,
+            positionCategoryId = position.category.id,
+            positionCategoryName = position.category.name,
             llmResult = llmResult,
             brandPositionName = command.positionName,
             sourceUrl = command.sourceUrl

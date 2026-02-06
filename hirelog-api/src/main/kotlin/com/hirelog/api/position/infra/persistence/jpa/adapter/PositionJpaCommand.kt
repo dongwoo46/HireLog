@@ -21,9 +21,6 @@ class PositionJpaCommand(
     override fun save(position: Position): Position =
         repository.save(position)
 
-    override fun delete(position: Position) =
-        repository.delete(position)
-
     override fun findById(id: Long): Position? =
         repository.findByIdOrNull(id)
 

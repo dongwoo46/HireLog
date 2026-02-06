@@ -1,19 +1,33 @@
 package com.hirelog.api.position.application.view
 
-import com.hirelog.api.position.domain.PositionStatus
-import java.time.LocalDateTime
 
 /**
- * PositionDetailView
- *
  * Position 상세 조회용 View
+ *
+ * 목적:
+ * - 관리/편집
+ * - 검증
+ *
+ * 특징:
+ * - 모든 도메인 정보 노출
  */
 data class PositionDetailView(
     val id: Long,
     val name: String,
     val normalizedName: String,
-    val status: PositionStatus,
+    val status: String,
     val description: String?,
-    val createdAt: LocalDateTime,
-    val category: PositionCategoryView?
+    val category: PositionCategoryView
+)
+
+
+/**
+ * PositionCategory 조회 전용 View
+ *
+ * - 목록/상세 공용
+ */
+data class PositionCategoryView(
+    val id: Long,
+    val name: String,
+    val description: String?
 )

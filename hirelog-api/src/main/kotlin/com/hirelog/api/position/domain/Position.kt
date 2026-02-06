@@ -1,6 +1,7 @@
 package com.hirelog.api.position.domain
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.common.utils.Normalizer
 import jakarta.persistence.*
 
 /**
@@ -139,34 +140,18 @@ class Position protected constructor(
          */
         fun create(
             name: String,
-            description: String?,
-            positionCategory: PositionCategory
+            positionCategory: PositionCategory,
+            description: String?
         ): Position {
             return Position(
                 name = name,
-                normalizedName = normalize(name),
+                normalizedName = Normalizer.normalizePosition(name),
                 status = PositionStatus.ACTIVE,
                 description = description,
                 category = positionCategory
             )
         }
 
-        /**
-         * 포지션명 정규화 규칙
-         *
-         * 책임:
-         * - 사람이 정의한 포지션명을
-         *   시스템 식별자 형태로 변환
-         *
-         * 주의:
-         * - 외부에서 normalizedName을 직접 지정하지 못하도록
-         *   도메인 내부에 캡슐화한다.
-         */
-        private fun normalize(value: String): String =
-            value
-                .lowercase()
-                .replace(Regex("[^a-z0-9]+"), "_")
-                .trim('_')
     }
 
     /**

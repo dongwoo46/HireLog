@@ -1,14 +1,16 @@
 package com.hirelog.api.position.infra.persistence.jpa.adapter
 
+import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionDetailView
-import com.hirelog.api.position.application.view.PositionSummaryView
+import com.hirelog.api.position.application.view.PositionListView
+import com.hirelog.api.position.application.view.PositionView
 import com.hirelog.api.position.infra.persistence.jpa.repository.PositionJpaQueryDsl
-import com.hirelog.api.common.application.port.PagedResult
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 /**
- * Position JPA Query Adapter
+ * PositionJpaQuery
  *
  * 책임:
  * - PositionQuery Port 구현
@@ -19,13 +21,18 @@ class PositionJpaQuery(
     private val queryDsl: PositionJpaQueryDsl
 ) : PositionQuery {
 
-    override fun findAllPaged(page: Int, size: Int): PagedResult<PositionSummaryView> =
-        queryDsl.findAllPaged(page, size)
+    override fun findAll(
+        status: String?,
+        categoryId: Long?,
+        name: String?,
+        pageable: Pageable
+    ): PagedResult<PositionListView> =
+        queryDsl.findAll(status, categoryId, name, pageable)
 
     override fun findDetailById(id: Long): PositionDetailView? =
         queryDsl.findDetailById(id)
 
-    override fun findByNormalizedName(normalizedName: String): PositionSummaryView? =
+    override fun findByNormalizedName(normalizedName: String): PositionView? =
         queryDsl.findByNormalizedName(normalizedName)
 
     override fun findActiveNames(): List<String> =
@@ -37,3 +44,4 @@ class PositionJpaQuery(
     override fun existsByNormalizedName(normalizedName: String): Boolean =
         queryDsl.existsByNormalizedName(normalizedName)
 }
+

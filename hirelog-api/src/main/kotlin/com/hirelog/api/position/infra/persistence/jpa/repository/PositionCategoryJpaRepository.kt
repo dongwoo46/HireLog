@@ -8,7 +8,5 @@ interface PositionCategoryJpaRepository : JpaRepository<PositionCategory, Long> 
 
     fun findByNormalizedName(normalizedName: String): PositionCategory?
 
-    fun existsByNormalizedName(normalizedName: String): Boolean
 
-    fun findByStatus(status: PositionStatus): List<PositionCategory>
 }

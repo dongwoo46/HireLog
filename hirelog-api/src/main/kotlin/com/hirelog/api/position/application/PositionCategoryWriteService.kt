@@ -2,6 +2,7 @@ package com.hirelog.api.position.application
 
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.position.application.port.PositionCategoryCommand
 import com.hirelog.api.position.domain.PositionCategory
 import org.springframework.dao.DataIntegrityViolationException
@@ -22,21 +23,20 @@ class PositionCategoryWriteService(
 
     /**
      * PositionCategory 확보 (idempotent)
-     *
-     * 정책:
-     * - normalizedName 기준 단일 PositionCategory 보장
-     * - 존재하면 그대로 반환
-     * - 없으면 신규 생성
      */
     @Transactional
     fun getOrCreate(name: String, description: String? = null): PositionCategory {
-        val normalized = normalize(name)
 
-        return positionCategoryCommand.findByNormalizedName(normalized)
+        val normalizedName =
+            Normalizer.normalizePositionCategory(name)
+
+        return positionCategoryCommand.findByNormalizedName(normalizedName)
             ?: try {
-                positionCategoryCommand.save(PositionCategory.create(name, description))
+                positionCategoryCommand.save(
+                    PositionCategory.create(name, description)
+                )
             } catch (ex: DataIntegrityViolationException) {
-                positionCategoryCommand.findByNormalizedName(normalized)
+                positionCategoryCommand.findByNormalizedName(normalizedName)
                     ?: throw ex
             }
     }
@@ -45,15 +45,26 @@ class PositionCategoryWriteService(
      * PositionCategory 신규 생성
      */
     @Transactional
-    fun create(name: String, description: String?): PositionCategory {
-        return try {
-            positionCategoryCommand.save(PositionCategory.create(name, description))
+    fun create(name: String, description: String?): PositionCategory =
+        try {
+            positionCategoryCommand.save(
+                PositionCategory.create(name, description)
+            )
         } catch (ex: DataIntegrityViolationException) {
             throw EntityAlreadyExistsException(
                 "PositionCategory already exists. name=$name",
                 ex
             )
         }
+
+    /**
+     * PositionCategory 활성화
+     */
+    @Transactional
+    fun activate(categoryId: Long) {
+        val positionCategory = getRequired(categoryId)
+        positionCategory.activate()
+        positionCategoryCommand.save(positionCategory)
     }
 
     /**
@@ -61,15 +72,13 @@ class PositionCategoryWriteService(
      */
     @Transactional
     fun deactivate(categoryId: Long) {
-        getRequired(categoryId).deactivate()
+        val positionCategory = getRequired(categoryId)
+        positionCategory.deactivate()
+        positionCategoryCommand.save(positionCategory)
     }
 
     private fun getRequired(categoryId: Long): PositionCategory =
         positionCategoryCommand.findById(categoryId)
             ?: throw EntityNotFoundException("PositionCategory", categoryId)
-
-    private fun normalize(value: String): String =
-        value.lowercase()
-            .replace(Regex("[^a-z0-9]+"), "_")
-            .trim('_')
 }
+
