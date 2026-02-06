@@ -4,7 +4,7 @@ import com.hirelog.api.position.application.PositionCategoryWriteService
 import com.hirelog.api.position.application.port.PositionCategoryQuery
 import com.hirelog.api.position.application.view.PositionCategoryView
 import com.hirelog.api.position.presentation.controller.dto.PositionCategoryCreateReq
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

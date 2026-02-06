@@ -1,12 +1,11 @@
 package com.hirelog.api.brand.infra.persistence.jpa.repository
 
-import com.hirelog.api.brand.application.query.BrandQuery
 import com.hirelog.api.brand.application.view.BrandDetailView
 import com.hirelog.api.brand.application.view.BrandSummaryView
 import com.hirelog.api.brand.application.view.CompanyView
 import com.hirelog.api.brand.domain.QBrand.brand
 import com.hirelog.api.company.domain.QCompany.company
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import com.querydsl.core.types.Projections
 import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.stereotype.Component
@@ -26,7 +25,7 @@ class BrandJpaQueryDsl(
         size: Int
     ): PagedResult<BrandSummaryView> {
 
-        val offset = page * size
+        val offset = page.toLong() * size
 
         val items = queryFactory
             .select(
@@ -40,22 +39,20 @@ class BrandJpaQueryDsl(
             )
             .from(brand)
             .orderBy(brand.createdAt.desc())
-            .offset(offset.toLong())
+            .offset(offset)
             .limit(size.toLong())
             .fetch()
 
-        val total = queryFactory
+        val totalElements = queryFactory
             .select(brand.count())
             .from(brand)
             .fetchOne() ?: 0L
 
-        return PagedResult(
+        return PagedResult.of(
             items = items,
             page = page,
             size = size,
-            totalElements = total,
-            totalPages = ((total + size - 1) / size).toInt(),
-            hasNext = offset + size < total
+            totalElements = totalElements
         )
     }
 

@@ -6,7 +6,7 @@ import com.hirelog.api.relation.application.jobsummary.view.MemberJobSummaryView
 import com.hirelog.api.relation.application.jobsummary.view.SavedJobSummaryView
 import com.hirelog.api.relation.domain.model.QMemberJobSummary.memberJobSummary
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import com.querydsl.core.types.Projections
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQueryFactory
@@ -44,21 +44,20 @@ class MemberJobSummaryJpaQuery(
             .limit(size.toLong())
             .fetch()
 
-        val total = queryFactory
+        val totalElements = queryFactory
             .select(memberJobSummary.count())
             .from(memberJobSummary)
             .where(memberJobSummary.memberId.eq(memberId))
             .fetchOne() ?: 0L
 
-        return PagedResult(
+        return PagedResult.of(
             items = items,
             page = page,
             size = size,
-            totalElements = total,
-            totalPages = ((total + size - 1) / size).toInt(),
-            hasNext = offset + size < total
+            totalElements = totalElements
         )
     }
+
 
     override fun existsByMemberIdAndJobSummaryId(
         memberId: Long,
@@ -105,7 +104,8 @@ class MemberJobSummaryJpaQuery(
                 )
             )
             .from(memberJobSummary)
-            .join(jobSummary).on(memberJobSummary.jobSummaryId.eq(jobSummary.id))
+            .join(jobSummary)
+            .on(memberJobSummary.jobSummaryId.eq(jobSummary.id))
             .where(
                 memberJobSummary.memberId.eq(memberId),
                 saveTypeEq(saveType)
@@ -115,7 +115,7 @@ class MemberJobSummaryJpaQuery(
             .limit(size.toLong())
             .fetch()
 
-        val total = queryFactory
+        val totalElements = queryFactory
             .select(memberJobSummary.count())
             .from(memberJobSummary)
             .where(
@@ -124,15 +124,14 @@ class MemberJobSummaryJpaQuery(
             )
             .fetchOne() ?: 0L
 
-        return PagedResult(
+        return PagedResult.of(
             items = items,
             page = page,
             size = size,
-            totalElements = total,
-            totalPages = if (size > 0) ((total + size - 1) / size).toInt() else 0,
-            hasNext = offset + size < total
+            totalElements = totalElements
         )
     }
+
 
     private fun saveTypeEq(saveType: MemberJobSummarySaveType?): BooleanExpression? =
         saveType?.let { memberJobSummary.saveType.eq(it) }

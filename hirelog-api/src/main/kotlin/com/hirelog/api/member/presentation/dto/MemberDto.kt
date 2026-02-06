@@ -16,9 +16,9 @@ data class UpdateProfileReq(
 /**
  * 표시 이름 변경 요청
  */
-data class UpdateDisplayNameReq(
+data class UpdateUsernameReq(
     @field:NotBlank
-    val displayName: String
+    val username: String
 )
 
 /**

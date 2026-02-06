@@ -49,6 +49,7 @@ class EmailVerificationService(
         return code
     }
 
+
     private fun buildVerificationEmailBody(code: String): String {
         return """
             <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -71,8 +72,9 @@ class EmailVerificationService(
      *
      * @return 검증 성공 여부
      */
-    fun verify(signupToken: String, email: String, code: String): Boolean {
-        val key = "$CODE_KEY_PREFIX$signupToken"
+    fun verify(token: String, email: String, code: String): Boolean {
+        val key = "$CODE_KEY_PREFIX$token"
+
         val codeData = redisService.get(key, CodeData::class.java)
             ?: return false
 
@@ -80,16 +82,19 @@ class EmailVerificationService(
             return false
         }
 
-        // 인증 성공 → 코드 삭제, 인증완료 상태 저장
+        // 인증 성공 → 코드 삭제
         redisService.delete(key)
+
+        // 인증 완료 상태 저장 (세션 기준)
         redisService.set(
-            "$VERIFIED_KEY_PREFIX$signupToken",
-            VerifiedData(email),
-            VERIFIED_TTL
+            key = "$VERIFIED_KEY_PREFIX$token",
+            value = VerifiedData(email),
+            duration = VERIFIED_TTL
         )
 
         return true
     }
+
 
     /**
      * 인증 완료 상태 확인

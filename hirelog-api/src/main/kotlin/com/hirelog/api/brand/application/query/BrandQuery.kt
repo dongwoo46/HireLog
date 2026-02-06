@@ -2,7 +2,7 @@ package com.hirelog.api.brand.application.query
 
 import com.hirelog.api.brand.application.view.BrandDetailView
 import com.hirelog.api.brand.application.view.BrandSummaryView
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 
 interface BrandQuery {
 

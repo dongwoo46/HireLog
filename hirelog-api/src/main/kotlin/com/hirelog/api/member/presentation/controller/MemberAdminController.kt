@@ -4,7 +4,7 @@ import com.hirelog.api.member.application.MemberWriteService
 import com.hirelog.api.member.application.port.MemberQuery
 import com.hirelog.api.member.application.view.MemberDetailView
 import com.hirelog.api.member.application.view.MemberSummaryView
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*

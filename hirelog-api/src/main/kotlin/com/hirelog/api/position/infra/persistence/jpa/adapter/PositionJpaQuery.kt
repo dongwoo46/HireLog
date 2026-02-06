@@ -4,7 +4,7 @@ import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionDetailView
 import com.hirelog.api.position.application.view.PositionSummaryView
 import com.hirelog.api.position.infra.persistence.jpa.repository.PositionJpaQueryDsl
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import org.springframework.stereotype.Component
 
 /**

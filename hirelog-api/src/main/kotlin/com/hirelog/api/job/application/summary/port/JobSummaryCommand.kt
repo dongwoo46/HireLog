@@ -22,4 +22,19 @@ interface JobSummaryCommand {
      * @return 저장된 JobSummary
      */
     fun save(summary: JobSummary): JobSummary
+
+    /**
+     * JobSummary 상태 변경 후 저장
+     *
+     * 용도:
+     * - 활성화/비활성화 상태 변경
+     */
+    fun update(summary: JobSummary)
+
+    /**
+     * ID로 JobSummary 조회 (상태 변경용)
+     *
+     * @return JobSummary (없으면 null)
+     */
+    fun findById(id: Long): JobSummary?
 }

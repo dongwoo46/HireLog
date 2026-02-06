@@ -4,6 +4,7 @@ import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcess
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.domain.JdSummaryProcessing
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
@@ -34,12 +35,27 @@ class JdSummaryProcessingWriteService(
     }
 
     /**
-     * LLM 요약 시작 상태로 전이
+     * LLM 요약 시작 상태로 전이 + Snapshot 연결
      */
     @Transactional
-    fun markSummarizing(processingId: UUID) {
+    fun markSummarizing(processingId: UUID, snapshotId: Long) {
         val processing = getRequired(processingId)
-        processing.markSummarizing()
+        processing.markSummarizing(snapshotId)
+        command.update(processing)
+    }
+
+    /**
+     * LLM 결과 임시 저장
+     *
+     * 정책:
+     * - REQUIRES_NEW: 본 트랜잭션과 분리
+     * - Post-LLM 실패해도 LLM 결과는 보존
+     * - 복구 스케줄러가 이 데이터로 재처리
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun saveLlmResult(processingId: UUID, llmResultJson: String) {
+        val processing = getRequired(processingId)
+        processing.saveLlmResult(llmResultJson)
         command.update(processing)
     }
 
@@ -59,12 +75,12 @@ class JdSummaryProcessingWriteService(
     }
 
     /**
-     * 정상 처리 완료 상태로 전이
+     * 정상 처리 완료 상태로 전이 + JobSummary 연결
      */
     @Transactional
-    fun markCompleted(processingId: UUID) {
+    fun markCompleted(processingId: UUID, summaryId: Long) {
         val processing = getRequired(processingId)
-        processing.markCompleted()
+        processing.markCompleted(summaryId)
         command.update(processing)
     }
 

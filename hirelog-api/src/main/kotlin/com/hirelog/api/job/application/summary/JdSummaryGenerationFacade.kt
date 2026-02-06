@@ -1,19 +1,13 @@
 package com.hirelog.api.job.application.summary.pipeline
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.brandposition.application.BrandPositionWriteService
-import com.hirelog.api.brandposition.domain.BrandPositionSource
+import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
+import com.hirelog.api.relation.domain.type.BrandPositionSource
 import com.hirelog.api.company.application.CompanyCandidateWriteService
 import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.company.domain.CompanyCandidateSource
-import com.hirelog.api.common.application.outbox.OutboxEventWriteService
-import com.hirelog.api.common.domain.outbox.AggregateType
-import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
@@ -23,15 +17,12 @@ import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
-import com.hirelog.api.job.application.summary.JobSummaryWriteService
-import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
+import com.hirelog.api.job.application.summary.JobSummaryCreationService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.JobSummary
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionSummaryView
 import org.springframework.stereotype.Service
@@ -57,14 +48,14 @@ class JdSummaryGenerationFacade(
     private val snapshotWriteService: JobSnapshotWriteService,
     private val jdIntakePolicy: JdIntakePolicy,
     private val llmClient: JobSummaryLlm,
-    private val summaryWriteService: JobSummaryWriteService,
+    private val summaryCreationService: JobSummaryCreationService,
     private val summaryQuery: JobSummaryQuery,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
-    private val outboxEventWriteService: OutboxEventWriteService,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
-    private val companyQuery: CompanyQuery
+    private val companyQuery: CompanyQuery,
+    private val objectMapper: ObjectMapper
 ) {
 
     companion object {
@@ -142,7 +133,7 @@ class JdSummaryGenerationFacade(
                     )
                 )
 
-            processingWriteService.markSummarizing(processing.id)
+            processingWriteService.markSummarizing(processing.id, snapshotId)
 
             positionCandidates =
                 positionQuery.findActiveNames()
@@ -166,9 +157,12 @@ class JdSummaryGenerationFacade(
             )
             .orTimeout(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .thenAccept { llmResult ->
-                executePostLlm(snapshotId, llmResult, processing.id, command)
-                processingWriteService.markCompleted(processing.id)
+                // LLM 결과 임시 저장 (별도 트랜잭션 - 복구용)
+                val llmResultJson = objectMapper.writeValueAsString(llmResult)
+                processingWriteService.saveLlmResult(processing.id, llmResultJson)
 
+                // Post-LLM 처리 (단일 트랜잭션: Summary + Outbox + Processing 완료)
+                executePostLlm(snapshotId, llmResult, processing.id, command)
             }
             .exceptionally { ex ->
                 handleFailure(processing.id, ex, command.requestId, "LLM_OR_POST_LLM")
@@ -211,7 +205,9 @@ class JdSummaryGenerationFacade(
             source = BrandPositionSource.LLM
         )
 
-        val summary = summaryWriteService.save(
+        // 단일 트랜잭션: JobSummary + Outbox + Processing 완료
+        val summary = summaryCreationService.createWithOutbox(
+            processingId = processingId,
             snapshotId = snapshotId,
             brand = brand,
             positionId = position.id,
@@ -224,16 +220,7 @@ class JdSummaryGenerationFacade(
             sourceUrl = command.sourceUrl
         )
 
-        outboxEventWriteService.append(
-            OutboxEvent.occurred(
-                aggregateType = AggregateType.JOB_SUMMARY,
-                aggregateId = summary.id.toString(),
-                eventType = EventType.CREATED,
-                payload = buildEventPayload(summary)
-            )
-        )
-
-        // CompanyCandidate 생성 (비필수 - 실패해도 트랜잭션 롤백 안함)
+        // CompanyCandidate 생성 (비필수 - 실패해도 파이프라인에 영향 없음)
         tryCreateCompanyCandidate(
             jdSummaryId = summary.id,
             brandId = brand.id,
@@ -304,15 +291,4 @@ class JdSummaryGenerationFacade(
 
     private fun unwrap(ex: Throwable): Throwable =
         if (ex is CompletionException) ex.cause ?: ex else ex
-
-    private fun buildEventPayload(summary: JobSummary): String {
-        val payload = JobSummaryOutboxPayload.from(summary)
-        return objectMapper.writeValueAsString(payload)
-    }
-
-    private val objectMapper = ObjectMapper().apply {
-        registerKotlinModule()
-        registerModule(JavaTimeModule())
-        disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-    }
 }

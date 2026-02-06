@@ -6,6 +6,7 @@ import com.hirelog.api.common.exception.EntityNotFoundException
 import com.hirelog.api.member.application.port.MemberCommand
 import com.hirelog.api.member.application.port.MemberQuery
 import com.hirelog.api.member.domain.Member
+import com.hirelog.api.member.domain.MemberRole
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -58,11 +59,11 @@ class MemberWriteService(
         careerYears: Int? = null,
         summary: String? = null,
     ): Member {
-        if (memberQuery.existsByUsername(username)) {
+        if (memberQuery.existsActiveByUsername(username)) {
             throw IllegalArgumentException("이미 사용 중인 username 입니다.")
         }
 
-        if (memberQuery.existsByEmail(email)) {
+        if (memberQuery.existsActiveByEmail(email)) {
             throw IllegalArgumentException("이미 사용 중인 email 입니다.")
         }
 
@@ -84,12 +85,52 @@ class MemberWriteService(
     }
 
     /**
+     * 계정 복구 완료
+     *
+     * - username 재입력 필수
+     * - 중복 체크 수행
+     * - 상태 ACTIVE 전환
+     */
+    @Transactional
+    fun recoveryAccount(
+        memberId: Long,
+        email: String,
+        username: String,
+        currentPositionId: Long?,
+        careerYears: Int?,
+        summary: String?
+    ): Member {
+
+        if (memberQuery.existsActiveByUsername(username)) {
+            throw IllegalArgumentException("이미 사용 중인 username 입니다.")
+        }
+
+        if (memberQuery.existsActiveByEmail(email)) {
+            throw IllegalArgumentException("이미 사용 중인 email 입니다.")
+        }
+
+        val member = getRequired(memberId)
+
+        member.updateDisplayName(username)
+        member.updateProfile(
+            currentPositionId = currentPositionId,
+            careerYears = careerYears,
+            summary = summary
+        )
+
+        member.activate()
+
+        return member
+    }
+
+
+    /**
      * 표시 이름 변경
      */
     @Transactional
-    fun updateDisplayName(memberId: Long, displayName: String) {
+    fun updateDisplayName(memberId: Long, username: String) {
         val member = getRequired(memberId)
-        member.updateDisplayName(displayName)
+        member.updateDisplayName(username)
     }
 
     /**

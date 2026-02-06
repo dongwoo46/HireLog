@@ -1,115 +1,124 @@
 package com.hirelog.api.brand.application.command
 
-import com.hirelog.api.brand.application.query.BrandQuery
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.common.exception.EntityAlreadyExistsException
-import io.mockk.*
-import io.mockk.impl.annotations.MockK
-import io.mockk.junit5.MockKExtension
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
+import com.hirelog.api.common.exception.EntityNotFoundException
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.dao.DataIntegrityViolationException
 
-@ExtendWith(MockKExtension::class)
+@DisplayName("BrandWriteService 테스트")
 class BrandWriteServiceTest {
 
-    @MockK
-    lateinit var brandCommand: BrandCommand
+    private val brandCommand: BrandCommand = mockk(relaxed = true)
+    private val service = BrandWriteService(brandCommand)
 
-    @MockK
-    lateinit var brandQuery: BrandQuery
+    @Test
+    @DisplayName("getOrCreate: 이미 존재하면 저장하지 않고 기존 Brand를 반환한다")
+    fun getOrCreate_when_exists_should_return_existing() {
+        // given
+        val normalizedName = "toss"
+        val existingBrand = mockk<Brand>()
 
-    private lateinit var brandWriteService: BrandWriteService
+        every { brandCommand.findByNormalizedName(normalizedName) } returns existingBrand
 
-    @BeforeEach
-    fun setUp() {
-        brandWriteService = BrandWriteService(
-            brandCommand = brandCommand,
-            brandQuery = brandQuery
+        // when
+        val result = service.getOrCreate(
+            name = "Toss",
+            normalizedName = normalizedName,
+            companyId = null,
+            source = BrandSource.USER
         )
+
+        // then
+        assertEquals(existingBrand, result)
+        verify(exactly = 0) { brandCommand.save(any()) }
     }
 
-    private fun createBrand(
-        id: Long = 1L,
-        name: String = "테스트회사",
-        normalizedName: String = "테스트회사"
-    ): Brand = mockk {
-        every { this@mockk.id } returns id
-        every { this@mockk.name } returns name
-        every { this@mockk.normalizedName } returns normalizedName
+    @Test
+    @DisplayName("getOrCreate: 존재하지 않으면 Brand를 생성하여 저장한다")
+    fun getOrCreate_when_not_exists_should_create_and_return() {
+        // given
+        val normalizedName = "new_brand"
+        val savedBrand = mockk<Brand>()
+
+        every { brandCommand.findByNormalizedName(normalizedName) } returns null
+        every { brandCommand.save(any()) } returns savedBrand
+
+        // when
+        val result = service.getOrCreate(
+            name = "New Brand",
+            normalizedName = normalizedName,
+            companyId = null,
+            source = BrandSource.USER
+        )
+
+        // then
+        assertEquals(savedBrand, result)
+        verify(exactly = 1) { brandCommand.save(any()) }
     }
 
-    @Nested
-    @DisplayName("getOrCreate")
-    inner class GetOrCreateTest {
+    @Test
+    @DisplayName("getOrCreate: 동시성 충돌 시 재조회하여 기존 Brand를 반환한다")
+    fun getOrCreate_when_conflict_should_requery_and_return_existing() {
+        // given
+        val normalizedName = "concurrent_brand"
+        val existingBrand = mockk<Brand>()
 
-        @Test
-        @DisplayName("존재하지 않는 Brand는 정상적으로 생성된다")
-        fun create_when_not_exists() {
-            // given
-            every { brandQuery.existsByNormalizedName("신규회사") } returns false
+        every {
+            brandCommand.findByNormalizedName(normalizedName)
+        } returnsMany listOf(null, existingBrand)
 
-            val savedBrand = createBrand()
-            every { brandCommand.save(any()) } returns savedBrand
+        every {
+            brandCommand.save(any())
+        } throws DataIntegrityViolationException("duplicate key")
 
-            // when
-            val result = brandWriteService.getOrCreate(
-                name = "신규회사",
-                normalizedName = "신규회사",
-                companyId = null,
-                source = BrandSource.INFERRED
-            )
+        // when
+        val result = service.getOrCreate(
+            name = "Concurrent Brand",
+            normalizedName = normalizedName,
+            companyId = null,
+            source = BrandSource.USER
+        )
 
-            // then
-            assertEquals(savedBrand, result)
-            verify(exactly = 1) { brandCommand.save(any()) }
-        }
+        // then
+        assertEquals(existingBrand, result)
+        verify(exactly = 1) { brandCommand.save(any()) }
+        verify(exactly = 2) { brandCommand.findByNormalizedName(normalizedName) }
+    }
 
-        @Test
-        @DisplayName("이미 존재하는 Brand는 즉시 예외를 발생시킨다")
-        fun throw_exception_when_already_exists() {
-            // given
-            every { brandQuery.existsByNormalizedName("중복회사") } returns true
+    @Test
+    @DisplayName("verify: 브랜드가 존재하면 verify()가 호출된다")
+    fun verify_when_exists_should_call_verify() {
+        // given
+        val brandId = 1L
+        val brand = mockk<Brand>(relaxed = true)
 
-            // when & then
-            assertThrows(EntityAlreadyExistsException::class.java) {
-                brandWriteService.getOrCreate(
-                    name = "중복회사",
-                    normalizedName = "중복회사",
-                    companyId = null,
-                    source = BrandSource.INFERRED
-                )
-            }
+        every { brandCommand.findById(brandId) } returns brand
 
-            verify(exactly = 0) { brandCommand.save(any()) }
-        }
+        // when
+        service.verify(brandId)
 
-        @Test
-        @DisplayName("동시성 충돌로 INSERT 실패 시 재조회하여 Brand를 반환한다")
-        fun recover_when_data_integrity_violation_occurs() {
-            // given
-            every { brandQuery.existsByNormalizedName("충돌회사") } returns false
-            every { brandCommand.save(any()) } throws DataIntegrityViolationException("duplicate")
+        // then
+        verify(exactly = 1) { brand.verify() }
+    }
 
-            val existingBrand = createBrand()
-            every { brandCommand.findByNormalizedName("충돌회사") } returns existingBrand
+    @Test
+    @DisplayName("verify: 브랜드가 없으면 EntityNotFoundException이 발생한다")
+    fun verify_when_not_exists_should_throw_exception() {
+        // given
+        val brandId = 999L
+        every { brandCommand.findById(brandId) } returns null
 
-            // when
-            val result = brandWriteService.getOrCreate(
-                name = "충돌회사",
-                normalizedName = "충돌회사",
-                companyId = null,
-                source = BrandSource.INFERRED
-            )
-
-            // then
-            assertEquals(existingBrand, result)
-            verify(exactly = 1) { brandCommand.findByNormalizedName("충돌회사") }
+        // when & then
+        assertThrows(EntityNotFoundException::class.java) {
+            service.verify(brandId)
         }
     }
 }
+

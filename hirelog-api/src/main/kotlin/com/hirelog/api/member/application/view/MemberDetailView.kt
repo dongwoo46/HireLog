@@ -15,8 +15,16 @@ data class MemberDetailView(
     val username: String,
     val role: MemberRole,
     val status: MemberStatus,
-    val currentPositionId: Long?,
+    val currentPosition: PositionView?,   // ✅ 변경 포인트
     val careerYears: Int?,
     val summary: String?,
     val createdAt: LocalDateTime
+)
+
+/**
+ * Position 조회 전용 View
+ */
+data class PositionView(
+    val id: Long?,
+    val name: String?
 )

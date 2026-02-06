@@ -3,6 +3,7 @@ package com.hirelog.api.auth.application
 import com.hirelog.api.auth.application.dto.TokenRefreshResult
 import com.hirelog.api.auth.infra.jwt.JwtUtils
 import com.hirelog.api.common.infra.redis.RedisService
+import com.hirelog.api.member.application.port.MemberCommand
 import org.springframework.stereotype.Service
 import java.time.Duration
 import java.util.UUID
@@ -18,13 +19,13 @@ import java.util.UUID
 @Service
 class TokenRefreshService(
     private val jwtUtils: JwtUtils,
-    private val redisService: RedisService
+    private val redisService: RedisService,
+    private val memberCommand: MemberCommand
 ) {
 
     companion object {
         private const val REFRESH_TOKEN_PREFIX = "REFRESH:"
         private val REFRESH_TOKEN_TTL = Duration.ofDays(7)
-        private const val DEFAULT_ROLE = "USER"
     }
 
     /**
@@ -39,7 +40,11 @@ class TokenRefreshService(
             ?: return null
 
         // 2. 새 Access Token 발급
-        val newAccessToken = jwtUtils.issueAccessToken(memberId, DEFAULT_ROLE)
+        val member = memberCommand.findById(memberId)
+            ?: return null
+
+        val newAccessToken = jwtUtils.issueAccessToken(memberId,
+            member.role.name)
 
         // 3. Refresh Token Rotation (보안 강화)
         val newRefreshToken = rotateRefreshToken(refreshToken, memberId)

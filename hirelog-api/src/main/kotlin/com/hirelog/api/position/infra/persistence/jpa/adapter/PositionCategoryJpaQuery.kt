@@ -3,7 +3,7 @@ package com.hirelog.api.position.infra.persistence.jpa.adapter
 import com.hirelog.api.position.application.port.PositionCategoryQuery
 import com.hirelog.api.position.application.view.PositionCategoryView
 import com.hirelog.api.position.infra.persistence.jpa.repository.PositionCategoryJpaQueryDsl
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import org.springframework.stereotype.Component
 
 /**

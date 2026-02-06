@@ -1,8 +1,14 @@
 package com.hirelog.api.job.application.summary
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.brand.domain.Brand
+import com.hirelog.api.common.application.outbox.OutboxEventCommand
 import com.hirelog.api.common.config.properties.LlmProperties
+import com.hirelog.api.common.domain.outbox.AggregateType
+import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.logging.log
+import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
+import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSummary
@@ -21,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class JobSummaryWriteService(
     private val summaryCommand: JobSummaryCommand,
-    private val llmProperties: LlmProperties
+    private val outboxEventCommand: OutboxEventCommand,
+    private val llmProperties: LlmProperties,
+    private val objectMapper: ObjectMapper
 ) {
 
     /**
@@ -94,5 +102,66 @@ class JobSummaryWriteService(
         )
 
         return summaryCommand.save(summary)
+    }
+
+    /**
+     * JobSummary 비활성화 + OpenSearch 삭제 이벤트 발행
+     *
+     * 용도:
+     * - 잘못된 데이터 숨김
+     * - 중복 데이터 처리
+     * - 삭제 대신 소프트 삭제
+     *
+     * 트랜잭션:
+     * - 비활성화 + Outbox 이벤트 발행이 원자적으로 처리됨
+     */
+    @Transactional
+    fun deactivate(summaryId: Long) {
+        val summary = summaryCommand.findById(summaryId)
+            ?: throw IllegalArgumentException("JobSummary not found. id=$summaryId")
+
+        summary.deactivate()
+        summaryCommand.update(summary)
+
+        // OpenSearch 삭제 이벤트 발행
+        val outboxEvent = OutboxEvent.occurred(
+            aggregateType = AggregateType.JOB_SUMMARY,
+            aggregateId = summary.id.toString(),
+            eventType = EventType.DELETED,
+            payload = """{"id":${summary.id}}"""
+        )
+        outboxEventCommand.save(outboxEvent)
+
+        log.info("[JOB_SUMMARY_DEACTIVATED] summaryId={}", summaryId)
+    }
+
+    /**
+     * JobSummary 재활성화 + OpenSearch 인덱싱 이벤트 발행
+     *
+     * 용도:
+     * - 잘못 비활성화된 데이터 복구
+     *
+     * 트랜잭션:
+     * - 활성화 + Outbox 이벤트 발행이 원자적으로 처리됨
+     */
+    @Transactional
+    fun activate(summaryId: Long) {
+        val summary = summaryCommand.findById(summaryId)
+            ?: throw IllegalArgumentException("JobSummary not found. id=$summaryId")
+
+        summary.activate()
+        summaryCommand.update(summary)
+
+        // OpenSearch 재인덱싱 이벤트 발행
+        val payload = JobSummaryOutboxPayload.from(summary)
+        val outboxEvent = OutboxEvent.occurred(
+            aggregateType = AggregateType.JOB_SUMMARY,
+            aggregateId = summary.id.toString(),
+            eventType = EventType.CREATED,
+            payload = objectMapper.writeValueAsString(payload)
+        )
+        outboxEventCommand.save(outboxEvent)
+
+        log.info("[JOB_SUMMARY_ACTIVATED] summaryId={}", summaryId)
     }
 }

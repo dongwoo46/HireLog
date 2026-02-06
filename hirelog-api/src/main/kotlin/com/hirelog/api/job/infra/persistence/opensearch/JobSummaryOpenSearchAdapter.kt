@@ -50,6 +50,31 @@ class JobSummaryOpenSearchAdapter(
     }
 
     /**
+     * JobSummary 문서 삭제
+     *
+     * 동작:
+     * - 문서가 있으면 삭제
+     * - 문서가 없으면 무시 (not_found)
+     *
+     * @param id 삭제할 문서 ID (JobSummary.id)
+     */
+    fun delete(id: Long) {
+        val request = org.opensearch.client.opensearch.core.DeleteRequest.Builder()
+            .index(INDEX_NAME)
+            .id(id.toString())
+            .build()
+
+        val response = openSearchClient.delete(request)
+
+        log.info(
+            "[OPENSEARCH_DELETE] index={}, id={}, result={}",
+            INDEX_NAME,
+            id,
+            response.result().name
+        )
+    }
+
+    /**
      * 벌크 인덱싱 (향후 배치 처리용)
      */
     fun bulkIndex(payloads: List<JobSummarySearchPayload>) {

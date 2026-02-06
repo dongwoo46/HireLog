@@ -4,7 +4,7 @@ import com.hirelog.api.brand.application.query.BrandQuery
 import com.hirelog.api.brand.application.view.BrandDetailView
 import com.hirelog.api.brand.application.view.BrandSummaryView
 import com.hirelog.api.brand.infra.persistence.jpa.repository.BrandJpaQueryDsl
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import org.springframework.stereotype.Component
 
 /**

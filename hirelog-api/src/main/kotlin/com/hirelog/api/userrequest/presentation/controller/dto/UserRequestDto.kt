@@ -11,6 +11,10 @@ import java.time.LocalDateTime
  * UserRequest 생성 요청 DTO
  */
 data class UserRequestCreateReq(
+
+    @field:NotBlank
+    val title: String,
+
     @field:NotNull
     val requestType: UserRequestType,
 
@@ -18,10 +22,12 @@ data class UserRequestCreateReq(
     val content: String
 )
 
+
 /**
  * UserRequest 상태 변경 요청 DTO
  */
 data class UserRequestStatusUpdateReq(
+
     @field:NotNull
     val status: UserRequestStatus
 )
@@ -29,9 +35,13 @@ data class UserRequestStatusUpdateReq(
 /**
  * UserRequest 응답 DTO
  */
+/**
+ * UserRequest 상세 응답 DTO
+ */
 data class UserRequestRes(
     val id: Long,
     val memberId: Long,
+    val title: String,
     val requestType: UserRequestType,
     val content: String,
     val status: UserRequestStatus,
@@ -39,16 +49,19 @@ data class UserRequestRes(
     val createdAt: LocalDateTime
 ) {
     companion object {
+
         fun from(entity: UserRequest): UserRequestRes {
             return UserRequestRes(
                 id = entity.id,
                 memberId = entity.memberId,
+                title = entity.title,
                 requestType = entity.requestType,
                 content = entity.content,
-                status = entity.status,
-                resolvedAt = entity.resolvedAt,
+                status = entity.status(),          // ✅ 도메인 메서드
+                resolvedAt = entity.resolvedAt(),  // ✅ 도메인 메서드
                 createdAt = entity.createdAt
             )
         }
     }
 }
+

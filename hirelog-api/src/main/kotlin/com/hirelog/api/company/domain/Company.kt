@@ -3,7 +3,9 @@ package com.hirelog.api.company.domain
 import com.hirelog.api.common.domain.VerificationStatus
 import com.hirelog.api.common.infra.jpa.StringListJsonConverter
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType
 import jakarta.persistence.*
+import org.hibernate.annotations.Type
 
 @Entity
 @Table(
@@ -42,8 +44,8 @@ class Company protected constructor(
      * - "토스"
      * - "Toss"
      */
+    @Type(JsonBinaryType::class)
     @Column(name = "aliases", columnDefinition = "jsonb", nullable = false)
-    @Convert(converter = StringListJsonConverter::class)
     val aliases: List<String> = emptyList(),
 
     /**
@@ -87,16 +89,32 @@ class Company protected constructor(
          * - 최초 생성 시 항상 UNVERIFIED
          * - normalizedName은 내부 규칙으로 생성
          */
+        /**
+         * Company 생성 팩토리
+         *
+         * 정책:
+         * - 최초 생성 시 항상 UNVERIFIED
+         * - normalizedName은 내부 규칙으로 생성
+         * - aliases가 없으면 name을 기본 alias로 사용
+         */
         fun create(
             name: String,
-            aliases: List<String>,
             source: CompanySource,
-            externalId: String?
+            externalId: String?,
+            aliases: List<String> = emptyList()
         ): Company {
+
+            val normalizedName = normalize(name)
+
+            val normalizedAliases = buildAliases(
+                name = name,
+                aliases = aliases
+            )
+
             return Company(
                 name = name,
-                normalizedName = normalize(name),
-                aliases = aliases,
+                normalizedName = normalizedName,
+                aliases = normalizedAliases,
                 source = source,
                 externalId = externalId,
                 verificationStatus = VerificationStatus.UNVERIFIED,
@@ -104,14 +122,30 @@ class Company protected constructor(
             )
         }
 
-        fun normalize(value:String):String =
+        private fun buildAliases(
+            name: String,
+            aliases: List<String>
+        ): List<String> {
+            val base = aliases.ifEmpty { listOf(name) }
+
+            return base
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+        }
+
+        fun normalize(value: String): String =
             value
                 .lowercase()
                 .replace(Regex("[^a-z0-9]+"), "_")
                 .trim('_')
     }
 
-
+    fun normalize(value: String): String =
+        value
+            .lowercase()
+            .replace(Regex("[^a-z0-9]+"), "_")
+            .trim('_')
 
     /**
      * 회사 검증 승인

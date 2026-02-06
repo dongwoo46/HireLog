@@ -2,7 +2,7 @@ package com.hirelog.api.position.application.port
 
 import com.hirelog.api.position.application.view.PositionDetailView
 import com.hirelog.api.position.application.view.PositionSummaryView
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 
 /**
  * Position Query Port

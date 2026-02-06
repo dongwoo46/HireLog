@@ -131,6 +131,7 @@ auth:
   frontend:
     main-url: http://localhost:5173/
     signup-url: http://localhost:5173/signup
+    recovery-url: http://localhost:5173/recovery
 
   jwt:
     secret: ${JWT_SECRET}

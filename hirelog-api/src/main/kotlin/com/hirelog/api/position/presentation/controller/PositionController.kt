@@ -7,7 +7,7 @@ import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionDetailView
 import com.hirelog.api.position.application.view.PositionSummaryView
 import com.hirelog.api.position.presentation.controller.dto.PositionCreateReq
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

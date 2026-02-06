@@ -1,7 +1,7 @@
 package com.hirelog.api.position.application.port
 
 import com.hirelog.api.position.application.view.PositionCategoryView
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 
 /**
  * PositionCategory Query Port

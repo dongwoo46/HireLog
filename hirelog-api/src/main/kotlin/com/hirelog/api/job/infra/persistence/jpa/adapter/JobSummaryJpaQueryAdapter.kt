@@ -57,8 +57,14 @@ class JobSummaryJpaQueryAdapter(
         )
     }
 
+    /**
+     * URL 중복 체크 (활성화된 것만)
+     *
+     * 정책:
+     * - 비활성화된 URL은 새로 생성 가능
+     */
     override fun existsBySourceUrl(sourceUrl: String): Boolean {
-        return jpaRepository.existsBySourceUrl(sourceUrl)
+        return jpaRepository.existsBySourceUrlAndIsActiveTrue(sourceUrl)
     }
 
     override fun existsByJobSnapshotId(jobSnapshotId: Long): Boolean {
@@ -69,8 +75,11 @@ class JobSummaryJpaQueryAdapter(
         return jpaRepository.findByJobSnapshotId(jobSnapshotId)?.id
     }
 
+    /**
+     * URL로 조회 (활성화된 것만)
+     */
     override fun findBySourceUrl(sourceUrl: String): JobSummaryView? {
-        val entity = jpaRepository.findBySourceUrl(sourceUrl) ?: return null
+        val entity = jpaRepository.findBySourceUrlAndIsActiveTrue(sourceUrl) ?: return null
 
         return JobSummaryView(
             summaryId = entity.id,

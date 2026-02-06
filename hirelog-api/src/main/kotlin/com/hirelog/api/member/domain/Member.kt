@@ -95,6 +95,59 @@ class Member protected constructor(
 
     companion object {
 
+        /**
+         * 완전 일치 시 금지되는 닉네임 (예약어)
+         */
+        private val RESERVED_USERNAMES = setOf(
+            "ADMIN",
+            "ROOT",
+            "SYSTEM",
+            "관리자"
+        )
+
+        /**
+         * 포함만 되어도 금지되는 욕설 / 비속어
+         *
+         * 기준:
+         * - 완성형 기준
+         * - normalize 후 contains 검사
+         * - 1차 방어 목적 (완벽 차단 아님)
+         */
+        private val BANNED_WORDS = setOf(
+
+            /* ===== 강한 욕설 ===== */
+            "씨발",
+            "시발",
+            "좆",
+            "병신",
+            "개새끼",
+            "새끼",
+            "미친놈",
+            "미친년",
+
+            /* ===== 비하 / 모욕 ===== */
+            "멍청",
+            "등신",
+            "병자",
+            "폐인",
+
+            /* ===== 차별/혐오 (보수적으로 포함) ===== */
+            "장애인",
+            "장애",
+            "정신병",
+
+            /* ===== 영어 욕설 ===== */
+            "fuck",
+            "shit",
+            "bitch",
+            "asshole",
+            "bastard",
+
+            /* ===== 변형 자주 쓰는 케이스 ===== */
+            "fucking",
+            "motherfucker"
+        )
+
         fun createByOAuth(
             email: String,
             username: String,
@@ -105,7 +158,7 @@ class Member protected constructor(
             summary: String? = null,
         ): Member {
             require(email.isNotBlank())
-            require(username.isNotBlank())
+            validateUsername(username)
             require(careerYears == null || careerYears >= 0)
             require(summary == null || summary.length <= 1000)
 
@@ -119,6 +172,40 @@ class Member protected constructor(
             member.linkOAuthAccount(provider, providerUserId)
             return member
         }
+
+        private fun validateUsername(username: String) {
+            require(username.isNotBlank())
+
+            // 1️⃣ 예약어: 완전 일치
+            val upper = username.uppercase()
+            require(!RESERVED_USERNAMES.contains(upper)) {
+                "해당 닉네임은 사용할 수 없습니다."
+            }
+
+            // 2️⃣ 욕설: 포함 검사 (정규화 후)
+            require(!containsBannedWord(username)) {
+                "부적절한 표현이 포함된 닉네임은 사용할 수 없습니다."
+            }
+        }
+
+        private fun containsBannedWord(username: String): Boolean {
+            val normalized = normalize(username)
+            return BANNED_WORDS.any { banned ->
+                normalized.contains(banned)
+            }
+        }
+
+        /**
+         * 욕설 우회 방지를 위한 정규화
+         *
+         * - 소문자 변환
+         * - 공백 / 특수문자 제거
+         */
+        private fun normalize(input: String): String {
+            return input
+                .lowercase()
+                .replace(Regex("[^a-z0-9가-힣]"), "")
+        }
     }
 
     /* =========================
@@ -126,7 +213,7 @@ class Member protected constructor(
      * ========================= */
 
     fun updateDisplayName(newUsername: String) {
-        require(newUsername.isNotBlank())
+        validateUsername(newUsername)
         username = newUsername
     }
 
@@ -176,7 +263,7 @@ class Member protected constructor(
     }
 
     fun activate() {
-        require(status == MemberStatus.SUSPENDED)
+        require(status == MemberStatus.SUSPENDED || status==MemberStatus.DELETED)
         status = MemberStatus.ACTIVE
     }
 

@@ -1,35 +1,25 @@
 package com.hirelog.api.job.application.summary
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.hirelog.api.brand.application.command.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.brandposition.application.BrandPositionWriteService
-import com.hirelog.api.brandposition.domain.BrandPositionSource
-import com.hirelog.api.common.application.outbox.OutboxEventWriteService
-import com.hirelog.api.common.domain.outbox.AggregateType
-import com.hirelog.api.common.domain.outbox.OutboxEvent
+import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
+import com.hirelog.api.relation.domain.type.BrandPositionSource
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.company.application.CompanyCandidateWriteService
 import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.company.domain.CompanyCandidateSource
 import com.hirelog.api.job.application.intake.JdIntakePolicy
-import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
-import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
-import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
+import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
-import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+import com.hirelog.api.job.application.summary.port.JobSummaryQuery
+import com.hirelog.api.job.domain.JobSnapshot
 import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.JobSummary
 import com.hirelog.api.job.domain.RecruitmentPeriodType
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionSummaryView
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import java.nio.file.AccessDeniedException
 import java.util.concurrent.TimeUnit
 
@@ -41,19 +31,20 @@ import java.util.concurrent.TimeUnit
  * - 수동 데이터 처리용
  *
  * 정책:
- * - 중복 체크 스킵 (Admin 판단 하에 강제 생성)
+ * - 중복 체크 후 LLM 호출
  * - 동기 처리 (비동기 파이프라인 미사용)
+ * - Snapshot + JobSummary + Outbox 단일 트랜잭션 저장
  */
 @Service
 class JobSummaryAdminService(
     private val jdIntakePolicy: JdIntakePolicy,
-    private val snapshotWriteService: JobSnapshotWriteService,
+    private val snapshotCommand: JobSnapshotCommand,
     private val llmClient: JobSummaryLlm,
-    private val summaryWriteService: JobSummaryWriteService,
+    private val summaryCreationService: JobSummaryCreationService,
+    private val summaryQuery: JobSummaryQuery,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
-    private val outboxEventWriteService: OutboxEventWriteService,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
     private val companyQuery: CompanyQuery,
 
@@ -71,14 +62,15 @@ class JobSummaryAdminService(
      * Admin 전용 JobSummary 직접 생성
      *
      * 처리 흐름:
-     * 1. JD 텍스트 → 간단한 canonicalMap 변환
-     * 2. Hash 계산 + Snapshot 저장
-     * 3. Gemini 동기 호출
-     * 4. JobSummary 저장
+     * 1. JD 텍스트 → canonicalMap 변환
+     * 2. 중복 체크 (sourceUrl 기준)
+     * 3. Hash 계산 (메모리)
+     * 4. Position 후보 + Company 목록 조회 (읽기 전용)
+     * 5. Gemini 동기 호출 (DB 커넥션 점유 없음)
+     * 6. 단일 트랜잭션: Snapshot + Brand/Position + JobSummary + Outbox 저장
      *
      * @return 생성된 JobSummary ID
      */
-    @Transactional
     fun createDirectly(
         brandName: String,
         positionName: String,
@@ -94,29 +86,19 @@ class JobSummaryAdminService(
         // === 1. JD 텍스트 → canonicalMap 변환 ===
         val canonicalMap = buildAdminCanonicalMap(jdText)
 
-        // === 2. Hash 계산 ===
+        // === 2. 중복 체크 (sourceUrl 기준) ===
+        if (sourceUrl != null && summaryQuery.existsBySourceUrl(sourceUrl)) {
+            throw IllegalStateException("Duplicate JD: sourceUrl already exists. url=$sourceUrl")
+        }
+
+        // === 3. Hash 계산 (메모리) ===
         val hashes = jdIntakePolicy.generateIntakeHashes(canonicalMap)
 
-        // === 3. Snapshot 저장 ===
-        val snapshotId = snapshotWriteService.record(
-            JobSnapshotCreateCommand(
-                sourceType = JobSourceType.TEXT,
-                sourceUrl = sourceUrl,
-                canonicalMap = canonicalMap,
-                coreText = hashes.coreText,
-                recruitmentPeriodType = RecruitmentPeriodType.UNKNOWN,
-                openedDate = null,
-                closedDate = null,
-                canonicalHash = hashes.canonicalHash,
-                simHash = hashes.simHash
-            )
-        )
-
-        // === 4. Position 후보 + Company 목록 조회 ===
+        // === 4. Position 후보 + Company 목록 조회 (읽기 전용) ===
         val positionCandidates = positionQuery.findActiveNames()
         val existCompanies = companyQuery.findAllNames().map { it.name }
 
-        // === 5. Gemini 동기 호출 ===
+        // === 5. Gemini 동기 호출 (DB 커넥션 점유 없음) ===
         val llmResult = llmClient
             .summarizeJobDescriptionAsync(
                 brandName = brandName,
@@ -127,12 +109,64 @@ class JobSummaryAdminService(
             )
             .get(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
 
-        // === 6. Post-LLM 처리 ===
-        val summary = executePostLlm(
-            snapshotId = snapshotId,
+        // === 6. 단일 트랜잭션: 모든 데이터 저장 ===
+        val brand = brandWriteService.getOrCreate(
+            name = llmResult.brandName,
+            normalizedName = Normalizer.normalizeBrand(llmResult.brandName),
+            companyId = null,
+            source = BrandSource.INFERRED
+        )
+
+        val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
+        val position: PositionSummaryView =
+            positionQuery.findByNormalizedName(normalizedPositionName)
+                ?: positionQuery.findByNormalizedName(
+                    Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
+                )
+                ?: throw IllegalStateException("UNKNOWN position not found")
+
+        val brandPosition = brandPositionWriteService.getOrCreate(
+            brandId = brand.id,
+            positionId = position.id,
+            displayName = positionName,
+            source = BrandPositionSource.LLM
+        )
+
+        // Snapshot 생성 람다 (createAllForAdmin 내부에서 실행됨)
+        val snapshotSupplier = JobSummaryCreationService.JobSnapshotCommand {
+            val snapshot = JobSnapshot.create(
+                sourceType = JobSourceType.TEXT,
+                sourceUrl = sourceUrl,
+                canonicalSections = canonicalMap,
+                recruitmentPeriodType = RecruitmentPeriodType.UNKNOWN,
+                openedDate = null,
+                closedDate = null,
+                canonicalHash = hashes.canonicalHash,
+                simHash = hashes.simHash,
+                coreText = hashes.coreText
+            )
+            snapshotCommand.record(snapshot)
+            snapshot
+        }
+
+        val summary = summaryCreationService.createAllForAdmin(
+            snapshotCommand = snapshotSupplier,
             llmResult = llmResult,
-            inputPositionName = positionName,
+            brand = brand,
+            positionId = position.id,
+            positionName = position.name,
+            brandPositionId = brandPosition.id,
+            positionCategoryId = position.categoryId,
+            positionCategoryName = position.categoryName,
+            brandPositionName = positionName,
             sourceUrl = sourceUrl
+        )
+
+        // CompanyCandidate 생성 (비필수 - 실패해도 영향 없음)
+        tryCreateCompanyCandidate(
+            jdSummaryId = summary.id,
+            brandId = brand.id,
+            companyCandidate = llmResult.companyCandidate
         )
 
         log.info(
@@ -181,67 +215,6 @@ class JobSummaryAdminService(
         log.info("[ADMIN_VERIFY_SUCCESS]")
     }
 
-    private fun executePostLlm(
-        snapshotId: Long,
-        llmResult: JobSummaryLlmResult,
-        inputPositionName: String,
-        sourceUrl: String?
-    ): JobSummary {
-
-        val brand = brandWriteService.getOrCreate(
-            name = llmResult.brandName,
-            normalizedName = Normalizer.normalizeBrand(llmResult.brandName),
-            companyId = null,
-            source = BrandSource.INFERRED
-        )
-
-        val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
-
-        val position: PositionSummaryView =
-            positionQuery.findByNormalizedName(normalizedPositionName)
-                ?: positionQuery.findByNormalizedName(
-                    Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
-                )
-                ?: throw IllegalStateException("UNKNOWN position not found")
-
-        val brandPosition = brandPositionWriteService.getOrCreate(
-            brandId = brand.id,
-            positionId = position.id,
-            displayName = inputPositionName,
-            source = BrandPositionSource.LLM
-        )
-
-        val summary = summaryWriteService.save(
-            snapshotId = snapshotId,
-            brand = brand,
-            positionId = position.id,
-            positionName = position.name,
-            brandPositionId = brandPosition.id,
-            positionCategoryId = position.categoryId,
-            positionCategoryName = position.categoryName,
-            llmResult = llmResult,
-            brandPositionName = inputPositionName,
-            sourceUrl = sourceUrl
-        )
-
-        outboxEventWriteService.append(
-            OutboxEvent.occurred(
-                aggregateType = AggregateType.JOB_SUMMARY,
-                aggregateId = summary.id.toString(),
-                eventType = JobSummaryOutboxConstants.EventType.CREATED,
-                payload = buildEventPayload(summary)
-            )
-        )
-
-        tryCreateCompanyCandidate(
-            jdSummaryId = summary.id,
-            brandId = brand.id,
-            companyCandidate = llmResult.companyCandidate
-        )
-
-        return summary
-    }
-
     private fun tryCreateCompanyCandidate(
         jdSummaryId: Long,
         brandId: Long,
@@ -263,16 +236,5 @@ class JobSummaryAdminService(
                 jdSummaryId, e.message
             )
         }
-    }
-
-    private fun buildEventPayload(summary: JobSummary): String {
-        val payload = JobSummaryOutboxPayload.from(summary)
-        return objectMapper.writeValueAsString(payload)
-    }
-
-    private val objectMapper = ObjectMapper().apply {
-        registerKotlinModule()
-        registerModule(JavaTimeModule())
-        disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
     }
 }

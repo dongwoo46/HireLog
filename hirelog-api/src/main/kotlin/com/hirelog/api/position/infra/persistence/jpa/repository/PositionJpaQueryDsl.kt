@@ -5,7 +5,7 @@ import com.hirelog.api.position.application.view.PositionDetailView
 import com.hirelog.api.position.application.view.PositionSummaryView
 import com.hirelog.api.position.domain.QPosition.position
 import com.hirelog.api.position.domain.QPositionCategory.positionCategory
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import com.querydsl.core.types.Projections
 import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.stereotype.Component
@@ -19,8 +19,12 @@ class PositionJpaQueryDsl(
      * Position 목록 조회 (페이지네이션)
      * - Category join
      */
-    fun findAllPaged(page: Int, size: Int): PagedResult<PositionSummaryView> {
-        val offset = page * size
+    fun findAllPaged(
+        page: Int,
+        size: Int
+    ): PagedResult<PositionSummaryView> {
+
+        val offset = page.toLong() * size
 
         val items = queryFactory
             .select(
@@ -36,24 +40,23 @@ class PositionJpaQueryDsl(
             .from(position)
             .join(position.category, positionCategory)
             .orderBy(position.createdAt.desc())
-            .offset(offset.toLong())
+            .offset(offset)
             .limit(size.toLong())
             .fetch()
 
-        val total = queryFactory
+        val totalElements = queryFactory
             .select(position.count())
             .from(position)
             .fetchOne() ?: 0L
 
-        return PagedResult(
+        return PagedResult.of(
             items = items,
             page = page,
             size = size,
-            totalElements = total,
-            totalPages = if (size > 0) ((total + size - 1) / size).toInt() else 0,
-            hasNext = offset + size < total
+            totalElements = totalElements
         )
     }
+
 
     /**
      * Position 상세 조회

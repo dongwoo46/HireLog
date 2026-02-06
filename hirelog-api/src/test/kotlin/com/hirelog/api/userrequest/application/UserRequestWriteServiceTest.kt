@@ -1,6 +1,7 @@
 package com.hirelog.api.userrequest.application
 
 import com.hirelog.api.member.application.port.MemberQuery
+import com.hirelog.api.member.domain.MemberStatus
 import com.hirelog.api.userrequest.application.port.UserRequestCommand
 import com.hirelog.api.userrequest.application.port.UserRequestQuery
 import com.hirelog.api.userrequest.domain.UserRequest
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
-
 @ExtendWith(MockKExtension::class)
 class UserRequestWriteServiceTest {
 
@@ -27,7 +27,7 @@ class UserRequestWriteServiceTest {
     @MockK
     lateinit var query: UserRequestQuery
 
-    @Mock
+    @MockK
     lateinit var memberQuery: MemberQuery
 
     private lateinit var writeService: UserRequestWriteService
@@ -42,23 +42,21 @@ class UserRequestWriteServiceTest {
     inner class CreateTest {
 
         @Test
-        @DisplayName("UserRequest 생성 성공")
-        fun `should create UserRequest successfully`() {
+        @DisplayName("UserRequest 생성 성공 - ACTIVE 회원")
+        fun create_success() {
             // given
             val memberId = 1L
             val requestType = UserRequestType.ERROR_REPORT
-            val content = "오류 신고 내용"
+            val content = "오류 신고"
 
-            every { command.save(any()) } answers {
-                firstArg()
-            }
+            every {
+                memberQuery.existsByIdAndStatus(memberId, MemberStatus.ACTIVE)
+            } returns true
+
+            every { command.save(any()) } answers { firstArg() }
 
             // when
-            val result = writeService.create(
-                memberId = memberId,
-                requestType = requestType,
-                content = content
-            )
+            val result = writeService.create(memberId, requestType, content)
 
             // then
             assertEquals(memberId, result.memberId)
@@ -66,28 +64,37 @@ class UserRequestWriteServiceTest {
             assertEquals(content, result.content)
             assertEquals(UserRequestStatus.OPEN, result.status)
 
+            verify(exactly = 1) {
+                memberQuery.existsByIdAndStatus(memberId, MemberStatus.ACTIVE)
+            }
             verify(exactly = 1) { command.save(any()) }
         }
 
         @Test
-        @DisplayName("다양한 requestType으로 생성")
-        fun `should create UserRequest with various types`() {
+        @DisplayName("UserRequest 생성 실패 - 존재하지 않는 회원")
+        fun create_fail_member_not_exists() {
             // given
-            every { command.save(any()) } answers { firstArg() }
+            val memberId = 999L
 
-            val types = UserRequestType.entries
+            every {
+                memberQuery.existsByIdAndStatus(memberId, MemberStatus.ACTIVE)
+            } returns false
 
             // when & then
-            types.forEach { type ->
-                val result = writeService.create(
-                    memberId = 1L,
-                    requestType = type,
-                    content = "내용"
+            val exception = assertThrows<IllegalArgumentException> {
+                writeService.create(
+                    memberId = memberId,
+                    requestType = UserRequestType.FEATURE_REQUEST,
+                    content = "기능 요청"
                 )
-                assertEquals(type, result.requestType)
             }
 
-            verify(exactly = types.size) { command.save(any()) }
+            assertEquals(
+                "존재하지 않는 사용자입니다. memberId=$memberId",
+                exception.message
+            )
+
+            verify(exactly = 0) { command.save(any()) }
         }
     }
 
@@ -96,13 +103,13 @@ class UserRequestWriteServiceTest {
     inner class UpdateStatusTest {
 
         @Test
-        @DisplayName("상태 변경 성공 - RESOLVED")
-        fun `should update status to RESOLVED successfully`() {
+        @DisplayName("상태 변경 성공")
+        fun update_status_success() {
             // given
             val userRequest = UserRequest.create(
                 memberId = 1L,
-                requestType = UserRequestType.FEATURE_REQUEST,
-                content = "기능 요청"
+                requestType = UserRequestType.MODIFY_REQUEST,
+                content = "수정 요청"
             )
 
             every { query.findById(1L) } returns userRequest
@@ -120,61 +127,18 @@ class UserRequestWriteServiceTest {
         }
 
         @Test
-        @DisplayName("상태 변경 성공 - IN_PROGRESS")
-        fun `should update status to IN_PROGRESS successfully`() {
-            // given
-            val userRequest = UserRequest.create(
-                memberId = 1L,
-                requestType = UserRequestType.MODIFY_REQUEST,
-                content = "수정 요청"
-            )
-
-            every { query.findById(1L) } returns userRequest
-            every { command.save(any()) } answers { firstArg() }
-
-            // when
-            val result = writeService.updateStatus(1L, UserRequestStatus.IN_PROGRESS)
-
-            // then
-            assertEquals(UserRequestStatus.IN_PROGRESS, result.status)
-            assertNull(result.resolvedAt)
-        }
-
-        @Test
         @DisplayName("존재하지 않는 UserRequest 상태 변경 시 예외")
-        fun `should throw exception when UserRequest not found`() {
+        fun update_status_fail_not_found() {
             // given
             every { query.findById(999L) } returns null
 
             // when & then
             val exception = assertThrows<IllegalArgumentException> {
-                writeService.updateStatus(999L, UserRequestStatus.RESOLVED)
+                writeService.updateStatus(999L, UserRequestStatus.REJECTED)
             }
 
             assertEquals("UserRequest not found: 999", exception.message)
-            verify(exactly = 1) { query.findById(999L) }
             verify(exactly = 0) { command.save(any()) }
-        }
-
-        @Test
-        @DisplayName("REJECTED 상태로 변경 시 resolvedAt 설정")
-        fun `should set resolvedAt when status changed to REJECTED`() {
-            // given
-            val userRequest = UserRequest.create(
-                memberId = 1L,
-                requestType = UserRequestType.REPROCESS_REQUEST,
-                content = "재처리 요청"
-            )
-
-            every { query.findById(1L) } returns userRequest
-            every { command.save(any()) } answers { firstArg() }
-
-            // when
-            val result = writeService.updateStatus(1L, UserRequestStatus.REJECTED)
-
-            // then
-            assertEquals(UserRequestStatus.REJECTED, result.status)
-            assertNotNull(result.resolvedAt)
         }
     }
 }

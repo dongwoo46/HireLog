@@ -3,7 +3,7 @@ package com.hirelog.api.relation.application.jobsummary.query
 import com.hirelog.api.relation.application.jobsummary.view.MemberJobSummaryView
 import com.hirelog.api.relation.application.jobsummary.view.SavedJobSummaryView
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 
 /**
  * MemberJobSummary Query Port

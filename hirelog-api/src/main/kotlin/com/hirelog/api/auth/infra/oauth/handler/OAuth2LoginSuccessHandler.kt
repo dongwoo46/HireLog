@@ -79,6 +79,16 @@ class OAuth2LoginSuccessHandler(
                 )
                 response.sendRedirect(frontendProperties.signupUrl)
             }
+
+            is OAuth2LoginResult.RecoverableUser-> {
+                tokenIssuer.issueRecoveryToken(
+                    memberId = result.memberId,
+                    provider = oauthUser.provider,
+                    providerUserId = oauthUser.providerUserId,
+                    response = response
+                )
+                response.sendRedirect(frontendProperties.recoveryUrl)
+            }
         }
     }
 }

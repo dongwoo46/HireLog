@@ -24,4 +24,12 @@ class JobSummaryJpaCommandAdapter(
     override fun save(summary: JobSummary): JobSummary {
         return repository.save(summary)
     }
+
+    override fun update(summary: JobSummary) {
+        repository.save(summary)
+    }
+
+    override fun findById(id: Long): JobSummary? {
+        return repository.findById(id).orElse(null)
+    }
 }

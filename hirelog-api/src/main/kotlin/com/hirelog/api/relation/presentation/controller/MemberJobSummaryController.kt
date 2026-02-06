@@ -9,7 +9,7 @@ import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import com.hirelog.api.relation.presentation.controller.dto.ChangeSaveTypeReq
 import com.hirelog.api.relation.presentation.controller.dto.SaveJobSummaryReq
 import com.hirelog.api.relation.presentation.controller.dto.UpdateMemoReq
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

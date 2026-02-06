@@ -3,7 +3,7 @@ package com.hirelog.api.member.application.port
 import com.hirelog.api.member.application.view.MemberDetailView
 import com.hirelog.api.member.application.view.MemberSummaryView
 import com.hirelog.api.member.domain.MemberStatus
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.common.application.port.PagedResult
 
 /**
  * Member Query Port
@@ -25,4 +25,12 @@ interface MemberQuery {
     fun existsByUsername(username: String): Boolean
 
     fun existsByEmail(email: String): Boolean
+
+    /* =========================
+     * Username / Email (ACTIVE 고정)
+     * ========================= */
+
+    fun existsActiveByUsername(username: String): Boolean
+
+    fun existsActiveByEmail(email: String): Boolean
 }

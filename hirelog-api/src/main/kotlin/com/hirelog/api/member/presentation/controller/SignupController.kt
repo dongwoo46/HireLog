@@ -55,6 +55,15 @@ class SignupController(
         return ResponseEntity.ok().build()
     }
 
+    @PostMapping("/recovery/send-code")
+    fun sendRecoveryCode(
+        @Valid @RequestBody request: SendCodeRequest,
+        @CookieValue("recovery_token") recoveryToken: String,
+    ): ResponseEntity<Void> {
+        signupFacadeService.sendRecoveryVerificationCode(recoveryToken, request.email)
+        return ResponseEntity.ok().build()
+    }
+
     /**
      * 인증코드 검증
      */
@@ -66,6 +75,20 @@ class SignupController(
         val response = signupFacadeService.verifyCode(signupToken, request.email, request.code)
         return ResponseEntity.ok(response)
     }
+
+    @PostMapping("/recovery/verify-code")
+    fun verifyRecoveryCode(
+        @Valid @RequestBody request: VerifyCodeRequest,
+        @CookieValue("recovery_token") recoveryToken: String,
+    ): ResponseEntity<VerifyCodeResponse> {
+        val response = signupFacadeService.verifyRecoveryCode(
+            recoveryToken = recoveryToken,
+            email = request.email,
+            code = request.code
+        )
+        return ResponseEntity.ok(response)
+    }
+
 
     /**
      * 기존 회원 계정 연동 (Binding)
@@ -124,5 +147,42 @@ class SignupController(
 
         return ResponseEntity.ok(MemberIdResponse(memberId = result.memberId))
     }
+
+    /**
+     * 계정 복구 완료
+     *
+     * - 탈퇴/정지 계정의 재온보딩
+     * - SignupCompleteRequest 재사용
+     * - email / username 재입력 + 인증
+     * - ACTIVE 기준 중복 체크
+     * - 기존 memberId 유지
+     *
+     * ✅ Service에서 받은 토큰으로 쿠키 설정
+     */
+    @PostMapping("/recovery/complete")
+    fun completeRecovery(
+        @Valid @RequestBody request: SignupCompleteRequest,
+        @CookieValue("recovery_token") recoveryToken: String,
+        response: HttpServletResponse,
+    ): ResponseEntity<MemberIdResponse> {
+
+        // Recovery Service 호출
+        val result = signupFacadeService.completeRecovery(
+            recoveryToken = recoveryToken,
+            request = request
+        )
+
+        // ✅ Presentation 계층에서 쿠키 설정
+        cookieManager.setAuthCookies(
+            response = response,
+            tokens = AuthTokens(
+                accessToken = result.accessToken,
+                refreshToken = result.refreshToken
+            )
+        )
+
+        return ResponseEntity.ok(MemberIdResponse(memberId = result.memberId))
+    }
+
 }
 

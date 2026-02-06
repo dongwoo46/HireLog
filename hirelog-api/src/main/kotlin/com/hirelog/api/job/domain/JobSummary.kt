@@ -32,6 +32,10 @@ import jakarta.persistence.*
         Index(
             name = "idx_job_summary_source_url",
             columnList = "source_url"
+        ),
+        Index(
+            name = "idx_job_summary_is_active",
+            columnList = "is_active"
         )
     ]
 )
@@ -224,9 +228,48 @@ class JobSummary protected constructor(
      * TEXT/OCR 소스는 null
      */
     @Column(name = "source_url", length = 2000, updatable = false)
-    val sourceUrl: String? = null
+    val sourceUrl: String? = null,
+
+    // =========================
+    // 상태 관리
+    // =========================
+
+    /**
+     * 활성화 상태
+     *
+     * 정책:
+     * - 기본값: true (활성화)
+     * - 비활성화 시 일반 조회에서 제외
+     * - Admin 조회에서는 모두 표시 가능
+     */
+    @Column(name = "is_active", nullable = false)
+    var isActive: Boolean = true
 
 ) : VersionedEntity() {
+
+    /**
+     * 비활성화 처리
+     *
+     * 용도:
+     * - 잘못된 데이터 숨김
+     * - 중복 데이터 처리
+     * - 삭제 대신 소프트 삭제
+     */
+    fun deactivate() {
+        if (!isActive) return
+        isActive = false
+    }
+
+    /**
+     * 재활성화 처리
+     *
+     * 용도:
+     * - 잘못 비활성화된 데이터 복구
+     */
+    fun activate() {
+        if (isActive) return
+        isActive = true
+    }
 
     companion object {
         /**
@@ -280,7 +323,8 @@ class JobSummary protected constructor(
                 insight = insight,
                 llmProvider = llmProvider,
                 llmModel = llmModel,
-                sourceUrl = sourceUrl
+                sourceUrl = sourceUrl,
+                isActive = true
             )
         }
     }

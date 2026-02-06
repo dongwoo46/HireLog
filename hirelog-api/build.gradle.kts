@@ -45,8 +45,9 @@ dependencies {
 	implementation("org.opensearch.client:opensearch-java:2.13.0")
 	implementation("org.opensearch.client:opensearch-rest-client:2.13.0")
 	implementation("com.fasterxml.jackson.core:jackson-databind")
+	implementation("com.vladmihalcea:hibernate-types-60:2.21.1")
 
-
+	implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.3")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 	implementation("io.jsonwebtoken:jjwt-api:0.12.5")
@@ -54,6 +55,7 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
 	runtimeOnly("org.postgresql:postgresql")
+	testImplementation("com.h2database:h2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("io.mockk:mockk:1.13.13")

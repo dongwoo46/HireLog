@@ -1,8 +1,10 @@
 package com.hirelog.api.auth.infra.oauth.handler
 
+import com.hirelog.api.auth.domain.OAuth2Provider
 import com.hirelog.api.auth.domain.OAuthUser
 import com.hirelog.api.auth.infra.jwt.JwtUtils
-import com.hirelog.api.common.infra.redis.dto.OAuthUserRedisMapper
+import com.hirelog.api.auth.infra.oauth.handler.dto.OAuthUserRedisMapper
+import com.hirelog.api.auth.infra.oauth.handler.dto.RecoverySessionRedisDto
 import com.hirelog.api.common.infra.redis.RedisService
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletResponse
@@ -58,6 +60,47 @@ class OAuth2TokenIssuer(
         // 3. 쿠키 설정
         addCookie(response, "signup_token", signupKey, 600) // 10분
     }
+
+    /**
+     * 계정 복구용 토큰 발급
+     *
+     * - DELETED / SUSPENDED 계정 복구 플로우 진입용
+     * - Redis 기반 단기 세션
+     * - OAuth 인증 컨텍스트 유지
+     */
+    fun issueRecoveryToken(
+        memberId: Long,
+        provider: OAuth2Provider,
+        providerUserId: String,
+        response: HttpServletResponse
+    ) {
+        // 1. Recovery Token 생성
+        val recoveryToken = UUID.randomUUID().toString()
+
+        // 2. Redis DTO 구성
+        val sessionDto = RecoverySessionRedisDto(
+            memberId = memberId,
+            provider = provider,
+            providerUserId = providerUserId
+        )
+
+        // 3. Redis 저장 (10분 TTL)
+        redisService.set(
+            key = "RECOVERY:$recoveryToken",
+            value = sessionDto,
+            duration = Duration.ofMinutes(10)
+        )
+
+        // 4. 쿠키 설정
+        addCookie(
+            response = response,
+            name = "recovery_token",
+            value = recoveryToken,
+            maxAge = 600 // 10분
+        )
+    }
+
+
 
     private fun addCookie(response: HttpServletResponse, name: String, value: String, maxAge: Int) {
         val cookie = Cookie(name, value).apply {

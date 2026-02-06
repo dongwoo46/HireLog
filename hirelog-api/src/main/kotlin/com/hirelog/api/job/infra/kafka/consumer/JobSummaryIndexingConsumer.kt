@@ -3,6 +3,7 @@ package com.hirelog.api.job.infra.kafka.consumer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.hirelog.api.common.logging.log
+import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
 import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
 import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
@@ -11,6 +12,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
+import java.nio.charset.StandardCharsets
 
 /**
  * JobSummary OpenSearch 인덱싱 Consumer
@@ -35,6 +37,7 @@ class JobSummaryIndexingConsumer(
 
     companion object {
         private const val CONSUMER_GROUP = "job-summary-indexing-consumer"
+        private const val EVENT_TYPE_HEADER = "eventType"
     }
 
     @KafkaListener(
@@ -48,10 +51,12 @@ class JobSummaryIndexingConsumer(
     ) {
         val aggregateId = record.key()
         val payload = record.value()
+        val eventType = extractEventType(record)
 
         log.info(
-            "[JOB_SUMMARY_INDEXING_START] aggregateId={}, partition={}, offset={}",
+            "[JOB_SUMMARY_INDEXING_START] aggregateId={}, eventType={}, partition={}, offset={}",
             aggregateId,
+            eventType,
             record.partition(),
             record.offset()
         )
@@ -64,18 +69,55 @@ class JobSummaryIndexingConsumer(
             payload
         }
 
-        // OutboxPayload → SearchPayload 변환
-        val outboxPayload = objectMapper.readValue<JobSummaryOutboxPayload>(actualPayload)
-        val searchPayload = JobSummarySearchPayload.from(outboxPayload)
-
-        openSearchAdapter.index(searchPayload)
+        when (eventType) {
+            EventType.DELETED -> handleDelete(aggregateId, actualPayload)
+            else -> handleIndex(actualPayload)
+        }
 
         acknowledgment.acknowledge()
 
         log.info(
-            "[JOB_SUMMARY_INDEXING_SUCCESS] id={}, offset committed",
-            searchPayload.id
+            "[JOB_SUMMARY_INDEXING_SUCCESS] aggregateId={}, eventType={}, offset committed",
+            aggregateId,
+            eventType
         )
         // 예외 발생 시 ErrorHandler가 처리 (3회 재시도 → DLT 전송 → DB 기록)
+    }
+
+    /**
+     * Kafka 헤더에서 eventType 추출
+     *
+     * Debezium Outbox Event Router가 eventType 컬럼을 header로 전달
+     * header가 없으면 CREATED로 간주 (하위 호환성)
+     */
+    private fun extractEventType(record: ConsumerRecord<String, String>): String {
+        val header = record.headers().lastHeader(EVENT_TYPE_HEADER)
+        return header?.value()?.toString(StandardCharsets.UTF_8) ?: EventType.CREATED
+    }
+
+    /**
+     * CREATED 이벤트 처리 - OpenSearch 인덱싱
+     */
+    private fun handleIndex(payload: String) {
+        val outboxPayload = objectMapper.readValue<JobSummaryOutboxPayload>(payload)
+        val searchPayload = JobSummarySearchPayload.from(outboxPayload)
+        openSearchAdapter.index(searchPayload)
+    }
+
+    /**
+     * DELETED 이벤트 처리 - OpenSearch 문서 삭제
+     *
+     * payload 형식: {"id": 123}
+     */
+    private fun handleDelete(aggregateId: String, payload: String) {
+        val id = aggregateId.toLongOrNull()
+            ?: run {
+                // aggregateId가 숫자가 아니면 payload에서 추출
+                val deletePayload = objectMapper.readTree(payload)
+                deletePayload.get("id")?.asLong()
+            }
+            ?: throw IllegalArgumentException("Cannot extract id from DELETED event. aggregateId=$aggregateId, payload=$payload")
+
+        openSearchAdapter.delete(id)
     }
 }
