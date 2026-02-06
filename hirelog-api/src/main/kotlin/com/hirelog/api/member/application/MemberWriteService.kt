@@ -22,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional
 class MemberWriteService(
     private val memberCommand: MemberCommand,
     private val memberQuery: MemberQuery,
-    private val adminProperties: AdminProperties
+    private val adminProperties: AdminProperties,
+    private val usernameValidationPolicyResolver: UsernameValidationPolicyResolver
 ) {
 
     /**
@@ -67,6 +68,10 @@ class MemberWriteService(
             throw IllegalArgumentException("이미 사용 중인 email 입니다.")
         }
 
+        val policy = usernameValidationPolicyResolver.resolve(email)
+        policy.validate(username)
+
+        // 2️⃣ 검증된 값만 Domain으로
         val member = Member.createByOAuth(
             email = email,
             username = username,

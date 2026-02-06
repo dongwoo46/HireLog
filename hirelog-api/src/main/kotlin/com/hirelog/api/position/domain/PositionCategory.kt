@@ -40,7 +40,7 @@ class PositionCategory protected constructor(
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    var status: PositionCategoryStatus,
+    var status: PositionStatus,
 
     @Column(length = 500)
     val description: String?
@@ -52,7 +52,7 @@ class PositionCategory protected constructor(
             PositionCategory(
                 name = name,
                 normalizedName = normalize(name),
-                status = PositionCategoryStatus.ACTIVE,
+                status = PositionStatus.ACTIVE,
                 description = description
             )
 
@@ -63,6 +63,6 @@ class PositionCategory protected constructor(
     }
 
     fun deactivate() {
-        status = PositionCategoryStatus.INACTIVE
+        status = PositionStatus.INACTIVE
     }
 }

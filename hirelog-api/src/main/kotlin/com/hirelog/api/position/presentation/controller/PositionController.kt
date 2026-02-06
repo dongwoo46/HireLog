@@ -26,7 +26,6 @@ class PositionController(
     /**
      * Position 생성
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     fun create(
         @Valid @RequestBody request: PositionCreateReq
@@ -50,7 +49,6 @@ class PositionController(
     /**
      * Position 단건 조회
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{positionId}")
     fun getById(
         @PathVariable positionId: Long
@@ -65,7 +63,6 @@ class PositionController(
     /**
      * Position 목록 조회 (페이지네이션)
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     fun getAll(
         @RequestParam(defaultValue = "0") page: Int,
@@ -79,7 +76,6 @@ class PositionController(
     /**
      * Position 활성화
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{positionId}/activate")
     fun activate(
         @PathVariable positionId: Long
@@ -92,7 +88,6 @@ class PositionController(
     /**
      * Position 비활성화 (Deprecated)
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{positionId}/deprecate")
     fun deprecate(
         @PathVariable positionId: Long

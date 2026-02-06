@@ -22,7 +22,6 @@ class PositionCategoryController(
     /**
      * PositionCategory 생성
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     fun create(
         @Valid @RequestBody request: PositionCategoryCreateReq
@@ -42,7 +41,6 @@ class PositionCategoryController(
     /**
      * PositionCategory 단건 조회
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{categoryId}")
     fun getById(
         @PathVariable categoryId: Long
@@ -57,7 +55,6 @@ class PositionCategoryController(
     /**
      * PositionCategory 목록 조회 (페이지네이션)
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     fun getAll(
         @RequestParam(defaultValue = "0") page: Int,
@@ -71,7 +68,6 @@ class PositionCategoryController(
     /**
      * PositionCategory 비활성화
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{categoryId}/deactivate")
     fun deactivate(
         @PathVariable categoryId: Long

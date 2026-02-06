@@ -99,9 +99,8 @@ class Position protected constructor(
      * 포지션 상태
      *
      * 생명주기:
-     * - CANDIDATE  : 신규 생성, 검증 대기
-     * - ACTIVE     : 검증 완료, 정식 사용
-     * - DEPRECATED : 더 이상 사용하지 않음
+     * - ACTIVE     : 정식 사용
+     * - INACTVE : 더 이상 사용하지 않음
      *
      * 정책:
      * - 외부 데이터 매핑은 ACTIVE 상태만 사용한다.
@@ -146,7 +145,7 @@ class Position protected constructor(
             return Position(
                 name = name,
                 normalizedName = normalize(name),
-                status = PositionStatus.CANDIDATE,
+                status = PositionStatus.ACTIVE,
                 description = description,
                 category = positionCategory
             )
@@ -195,7 +194,7 @@ class Position protected constructor(
      * - 상태 전이로 히스토리 유지
      */
     fun deprecate() {
-        if (status == PositionStatus.DEPRECATED) return
-        status = PositionStatus.DEPRECATED
+        if (status == PositionStatus.INACTIVE) return
+        status = PositionStatus.INACTIVE
     }
 }

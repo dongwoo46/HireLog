@@ -1,6 +1,8 @@
 package com.hirelog.api.company.application
 
+import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.company.application.port.CompanyCommand
 import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.company.domain.Company
@@ -15,68 +17,104 @@ import org.springframework.transaction.annotation.Transactional
  * 책임:
  * - Company 쓰기 유스케이스 전담
  * - 트랜잭션 경계 정의
- * - 중복 / 존재 정책 보장
+ * - 관리자 권한 최종 검증
+ *
+ * 설계 원칙:
+ * - 인증 주체는 명시적으로 전달받는다
+ * - 권한 판단은 반드시 Application Layer에서 수행한다
  */
 @Service
 class CompanyWriteService(
-    private val companyCommand: CompanyCommand
+    private val companyCommand: CompanyCommand,
+    private val companyQuery: CompanyQuery
 ) {
 
     /**
-     * Company 확보
+     * Company 생성
      *
      * 정책:
-     * - 회사명 기반 단일 Company 보장
-     * - 존재하면 반환
-     * - 없으면 신규 생성
+     * - 관리자만 생성 가능
+     * - normalizedName 중복 불가
      */
     @Transactional
-    fun getOrCreate(
+    fun create(
         name: String,
-        aliases: List<String>,
         source: CompanySource,
-        externalId: String?
-    ): Company {
+        externalId: String?,
+        member: AuthenticatedMember
+    ): Long {
 
-        // 🔒 도메인 규칙에 따라 내부에서 정규화
-        val normalizedName = Company.normalize(name)
+        requireAdmin(member)
 
-        // 1️⃣ 쓰기 전용 빠른 조회
-        companyCommand.findByNormalizedName(normalizedName)?.let {
-            return it
+        val normalizedName = Normalizer.normalizeCompany(name)
+
+        require(normalizedName.isNotBlank()) {
+            "Company name cannot be normalized (name=$name)"
+        }
+
+        // 🔍 조회는 Query 책임
+        if (companyQuery.existsByNormalizedName(normalizedName)) {
+            throw IllegalStateException(
+                "Company already exists (normalizedName=$normalizedName)"
+            )
         }
 
         val company = Company.create(
             name = name,
-            aliases = aliases,
             source = source,
             externalId = externalId
         )
 
-        // 2️⃣ DB를 최종 진실로 신뢰
         return try {
-            companyCommand.save(company)
+            companyCommand.save(company).id
         } catch (ex: DataIntegrityViolationException) {
-            // 3️⃣ 동시성으로 이미 생성된 경우 재조회
-            companyCommand.findByNormalizedName(normalizedName)
-                ?: throw ex
+            // 동시성 상황에서의 최후 방어 (DB가 진실)
+            throw IllegalStateException(
+                "Company already exists (normalizedName=$normalizedName)",
+                ex
+            )
         }
     }
 
     /**
-     * 회사 검증 승인
+     * Company 활성화
      */
     @Transactional
-    fun verify(companyId: Long) {
-        getRequired(companyId).verify()
+    fun activate(
+        companyId: Long,
+        member: AuthenticatedMember
+    ) {
+
+        requireAdmin(member)
+
+        val company = getRequired(companyId)
+        company.activate()
     }
 
     /**
-     * 회사 비활성화
+     * Company 비활성화
      */
     @Transactional
-    fun deactivate(companyId: Long) {
-        getRequired(companyId).deactivate()
+    fun deactivate(
+        companyId: Long,
+        member: AuthenticatedMember
+    ) {
+
+        requireAdmin(member)
+
+        val company = getRequired(companyId)
+        company.deactivate()
+    }
+
+    /**
+     * 관리자 권한 검증
+     *
+     * - 모든 쓰기 유스케이스의 단일 진입점
+     */
+    private fun requireAdmin(member: AuthenticatedMember) {
+        require(member.isAdmin()) {
+            "Only ADMIN can operate Company"
+        }
     }
 
     /**
@@ -89,4 +127,3 @@ class CompanyWriteService(
                 identifier = companyId
             )
 }
-

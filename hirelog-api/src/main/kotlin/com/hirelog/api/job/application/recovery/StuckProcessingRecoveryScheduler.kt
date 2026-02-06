@@ -53,7 +53,7 @@ class StuckProcessingRecoveryScheduler(
     /**
      * 10분마다 Stuck Processing 복구 시도
      */
-    @Scheduled(cron = "0 */10 * * * *")
+    @Scheduled(cron = "0 */30 * * * *")
     fun recoverStuckProcessing() {
         log.info("[STUCK_PROCESSING_RECOVERY_START]")
 

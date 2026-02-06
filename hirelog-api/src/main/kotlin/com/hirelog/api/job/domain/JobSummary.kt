@@ -78,13 +78,13 @@ class JobSummary protected constructor(
      * 없는 경우 null
      */
     @Column(name = "company_id", updatable = false)
-    val companyId: Long? = null,
+    var companyId: Long? = null,
 
     /**
      * 회사명
      */
     @Column(name = "company_name", length = 200, updatable = false)
-    val companyName: String? = null,
+    var companyName: String? = null,
 
     /**
      * 브랜드 기준 포지션 식별자
@@ -269,6 +269,15 @@ class JobSummary protected constructor(
     fun activate() {
         if (isActive) return
         isActive = true
+    }
+
+    fun applyCompany(
+        companyId: Long,
+        companyName: String
+    ) {
+        if (this.companyId != null) return  // 이미 반영된 경우 무시
+        this.companyId = companyId
+        this.companyName = companyName
     }
 
     companion object {

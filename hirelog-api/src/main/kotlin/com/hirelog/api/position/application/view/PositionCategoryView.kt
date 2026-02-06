@@ -1,6 +1,6 @@
 package com.hirelog.api.position.application.view
 
-import com.hirelog.api.position.domain.PositionCategoryStatus
+import com.hirelog.api.position.domain.PositionStatus
 
 /**
  * PositionCategoryView
@@ -11,6 +11,6 @@ data class PositionCategoryView(
     val id: Long,
     val name: String,
     val normalizedName: String,
-    val status: PositionCategoryStatus,
+    val status: PositionStatus,
     val description: String?
 )

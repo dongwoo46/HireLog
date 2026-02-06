@@ -79,7 +79,6 @@ class BrandJpaQueryDsl(
                         company.id,
                         company.name,
                         company.normalizedName,
-                        company.verificationStatus,
                         company.isActive
                     )
                 )
