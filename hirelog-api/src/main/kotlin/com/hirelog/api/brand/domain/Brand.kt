@@ -2,6 +2,7 @@ package com.hirelog.api.brand.domain
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import com.hirelog.api.common.domain.VerificationStatus
+import com.hirelog.api.common.utils.Normalizer
 import jakarta.persistence.*
 
 @Entity
@@ -70,16 +71,29 @@ class Brand(
 
         fun create(
             name: String,
-            normalizedName: String,
             companyId: Long?,
             source: BrandSource
         ): Brand {
             return Brand(
                 name = name,
-                normalizedName = normalizedName,
+                normalizedName = Normalizer.normalizeBrand(name),
                 companyId = companyId,
                 verificationStatus = VerificationStatus.UNVERIFIED,
                 source = source,
+                isActive = true
+            )
+        }
+
+        fun createByAdmin(
+            name: String,
+            companyId: Long?,
+        ): Brand {
+            return Brand(
+                name = name,
+                normalizedName = Normalizer.normalizeBrand(name),
+                companyId = companyId,
+                verificationStatus = VerificationStatus.VERIFIED,
+                source = BrandSource.ADMIN,
                 isActive = true
             )
         }
@@ -91,12 +105,15 @@ class Brand(
     fun verify() {
         if (verificationStatus == VerificationStatus.VERIFIED) return
         verificationStatus = VerificationStatus.VERIFIED
+        isActive = true
     }
 
     /**
      * 브랜드 검증 거절
      */
     fun reject() {
+        if (verificationStatus == VerificationStatus.REJECTED) return
+
         verificationStatus = VerificationStatus.REJECTED
         isActive = false
     }
@@ -107,5 +124,17 @@ class Brand(
     fun deactivate() {
         if (!isActive) return
         isActive = false
+    }
+
+    /**
+     * 브랜드 활성화
+     */
+    fun activate() {
+        require(verificationStatus == VerificationStatus.VERIFIED) {
+            "Only verified brand can be activated (current=$verificationStatus)"
+        }
+
+        if (isActive) return
+        isActive = true
     }
 }

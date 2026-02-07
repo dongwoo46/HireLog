@@ -2,7 +2,7 @@ package com.hirelog.api.job.application.recovery
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.hirelog.api.brand.application.command.BrandWriteService
+import com.hirelog.api.brand.application.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
 import com.hirelog.api.relation.domain.type.BrandPositionSource
@@ -15,7 +15,6 @@ import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JdSummaryProcessing
 import com.hirelog.api.job.domain.JdSummaryProcessingStatus
 import com.hirelog.api.position.application.port.PositionCommand
-import com.hirelog.api.position.application.port.PositionQuery
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -113,7 +112,6 @@ class StuckProcessingRecoveryScheduler(
         // Brand 조회/생성
         val brand = brandWriteService.getOrCreate(
             name = llmResult.brandName,
-            normalizedName = Normalizer.normalizeBrand(llmResult.brandName),
             companyId = null,
             source = BrandSource.INFERRED
         )

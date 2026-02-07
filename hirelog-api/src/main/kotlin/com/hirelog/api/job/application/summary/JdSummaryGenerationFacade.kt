@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.summary.pipeline
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.hirelog.api.brand.application.command.BrandWriteService
+import com.hirelog.api.brand.application.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
 import com.hirelog.api.relation.domain.type.BrandPositionSource
@@ -183,7 +183,6 @@ class JdSummaryGenerationFacade(
         val brand =
             brandWriteService.getOrCreate(
                 name = llmResult.brandName,
-                normalizedName = Normalizer.normalizeBrand(llmResult.brandName),
                 companyId = null,
                 source = BrandSource.INFERRED
             )

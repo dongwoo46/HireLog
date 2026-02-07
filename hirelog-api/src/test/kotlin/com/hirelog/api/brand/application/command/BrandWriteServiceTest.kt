@@ -1,5 +1,7 @@
 package com.hirelog.api.brand.application.command
 
+import com.hirelog.api.brand.application.BrandWriteService
+import com.hirelog.api.brand.application.port.BrandCommand
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.common.exception.EntityNotFoundException

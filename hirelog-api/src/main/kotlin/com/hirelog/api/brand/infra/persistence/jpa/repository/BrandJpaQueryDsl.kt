@@ -1,13 +1,16 @@
-package com.hirelog.api.brand.infra.persistence.jpa.repository
+package com.hirelog.api.brand.infrastructure.querydsl
 
-import com.hirelog.api.brand.application.view.BrandDetailView
-import com.hirelog.api.brand.application.view.BrandSummaryView
-import com.hirelog.api.brand.application.view.CompanyView
+import com.hirelog.api.brand.application.view.*
 import com.hirelog.api.brand.domain.QBrand.brand
 import com.hirelog.api.company.domain.QCompany.company
-import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.position.domain.QPosition.position
+import com.hirelog.api.brand.presentation.controller.dto.BrandSearchReq
+import com.hirelog.api.relation.domain.model.QBrandPosition.brandPosition
+import com.querydsl.core.BooleanBuilder
+import com.querydsl.core.Tuple
 import com.querydsl.core.types.Projections
 import com.querydsl.jpa.impl.JPAQueryFactory
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 @Component
@@ -15,101 +18,123 @@ class BrandJpaQueryDsl(
     private val queryFactory: JPAQueryFactory
 ) {
 
-    /**
-     * 브랜드 목록 조회 (페이지네이션)
-     * - 리스트용 최소 컬럼만 Projection
-     * - Company join ❌
-     */
-    fun findAllPaged(
-        page: Int,
-        size: Int
-    ): PagedResult<BrandSummaryView> {
+    fun search(
+        condition: BrandSearchReq,
+        pageable: Pageable
+    ): Pair<List<BrandListView>, Long> {
 
-        val offset = page.toLong() * size
+        val where = BooleanBuilder()
 
-        val items = queryFactory
+        condition.isActive?.let { where.and(brand.isActive.eq(it)) }
+        condition.verificationStatus?.let { where.and(brand.verificationStatus.eq(it)) }
+        condition.source?.let { where.and(brand.source.eq(it)) }
+        condition.name?.takeIf { it.isNotBlank() }
+            ?.let { where.and(brand.name.containsIgnoreCase(it)) }
+
+        condition.createdFrom?.let { where.and(brand.createdAt.goe(it)) }
+        condition.createdTo?.let { where.and(brand.createdAt.lt(it)) }
+
+        val content = queryFactory
             .select(
                 Projections.constructor(
-                    BrandSummaryView::class.java,
+                    BrandListView::class.java,
                     brand.id,
                     brand.name,
                     brand.verificationStatus,
+                    brand.source,
                     brand.isActive
                 )
             )
             .from(brand)
+            .where(where)
+            .offset(pageable.offset)
+            .limit(pageable.pageSize.toLong())
             .orderBy(brand.createdAt.desc())
-            .offset(offset)
-            .limit(size.toLong())
             .fetch()
 
-        val totalElements = queryFactory
+        val total = queryFactory
             .select(brand.count())
             .from(brand)
+            .where(where)
             .fetchOne() ?: 0L
 
-        return PagedResult.of(
-            items = items,
-            page = page,
-            size = size,
-            totalElements = totalElements
-        )
+        return content to total
     }
 
-    /**
-     * 브랜드 상세 조회
-     * - Company 존재 시에만 join
-     * - 단건 조회
-     */
     fun findDetailById(brandId: Long): BrandDetailView? {
 
-        val result = queryFactory
+        val brandTuple = queryFactory
             .select(
-                Projections.constructor(
-                    BrandDetailView::class.java,
-                    brand.id,
-                    brand.name,
-                    brand.normalizedName,
-                    brand.verificationStatus,
-                    brand.source,
-                    brand.isActive,
-                    brand.createdAt,
-                    Projections.constructor(
-                        CompanyView::class.java,
-                        company.id,
-                        company.name,
-                        company.normalizedName,
-                        company.isActive
-                    )
-                )
+                brand.id,
+                brand.name,
+                brand.normalizedName,
+                brand.verificationStatus,
+                brand.source,
+                brand.isActive,
+                brand.createdAt,
+                company.id,
+                company.name,
+                company.isActive
             )
             .from(brand)
-            .leftJoin(company)
-            .on(brand.companyId.eq(company.id))
+            .leftJoin(company).on(company.id.eq(brand.companyId))
             .where(brand.id.eq(brandId))
             .fetchOne()
+            ?: return null
 
-        return result
+        val brandPositionsTuple = queryFactory
+            .select(
+                brandPosition.id,
+                brandPosition.positionId,
+                brandPosition.displayName,
+                brandPosition.status,
+                position.name
+            )
+            .from(brandPosition)
+            .join(position).on(position.id.eq(brandPosition.positionId))
+            .where(brandPosition.brandId.eq(brandId))
+            .orderBy(brandPosition.status.asc(), brandPosition.id.asc())
+            .fetch()
+
+        return mapToBrandDetailView(brandTuple, brandPositionsTuple)
     }
 
-    /**
-     * Write 선행 검증
-     * - index only scan
-     */
-    fun existsById(brandId: Long): Boolean =
-        queryFactory
-            .selectOne()
-            .from(brand)
-            .where(brand.id.eq(brandId))
-            .fetchFirst() != null
+    private fun mapToBrandDetailView(
+        brandTuple: Tuple,
+        brandPositionTuples: List<Tuple>
+    ): BrandDetailView {
 
-    /**
-     * normalizedName 중복 검증
-     */
-    fun existsByNormalizedName(normalizedName: String): Boolean =
-        queryFactory
-            .selectOne()
-            .from(brand)
-            .where(brand.normalizedName.eq(normalizedName))
-            .fetchFirst() != null
+        val companyView =
+            brandTuple[company.id]?.let {
+                CompanySimpleView(
+                    id = it,
+                    name = brandTuple[company.name]!!,
+                    isActive = brandTuple[company.isActive]!!
+                )
+            }
+
+        val brandPositions = brandPositionTuples.map {
+            val displayName =
+                it[brandPosition.displayName] ?: it[position.name]!!
+
+            BrandPositionView(
+                id = it[brandPosition.id]!!,
+                positionId = it[brandPosition.positionId]!!,
+                displayName = displayName,
+                status = it[brandPosition.status]!!
+            )
+        }
+
+        return BrandDetailView(
+            id = brandTuple[brand.id]!!,
+            name = brandTuple[brand.name]!!,
+            normalizedName = brandTuple[brand.normalizedName]!!,
+            company = companyView,
+            verificationStatus = brandTuple[brand.verificationStatus]!!,
+            source = brandTuple[brand.source]!!,
+            isActive = brandTuple[brand.isActive]!!,
+            createdAt = brandTuple[brand.createdAt]!!,
+            brandPositions = brandPositions
+        )
+    }
 }

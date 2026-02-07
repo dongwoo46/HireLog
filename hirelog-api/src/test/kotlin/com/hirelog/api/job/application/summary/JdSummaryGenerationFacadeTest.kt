@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.summary
 
-import com.hirelog.api.brand.application.command.BrandWriteService
+import com.hirelog.api.brand.application.BrandWriteService
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
 import com.hirelog.api.company.application.CompanyCandidateWriteService

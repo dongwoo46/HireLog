@@ -1,6 +1,6 @@
 package com.hirelog.api.brand.infra.persistence.jpa.adapter
 
-import com.hirelog.api.brand.application.command.BrandCommand
+import com.hirelog.api.brand.application.port.BrandCommand
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brand.infra.persistence.jpa.repository.BrandJpaRepository
 import org.springframework.data.repository.findByIdOrNull
