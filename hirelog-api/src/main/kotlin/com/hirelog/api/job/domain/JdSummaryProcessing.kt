@@ -50,6 +50,22 @@ class JdSummaryProcessing protected constructor(
     var llmResultJson: String? = null,
 
     /**
+     * 원본 커맨드의 brandName
+     * - 복구 시 Brand 조회/생성에 사용
+     * - Post-LLM 완료 시 null 처리
+     */
+    @Column(name = "command_brand_name", length = 255)
+    var commandBrandName: String? = null,
+
+    /**
+     * 원본 커맨드의 positionName (= BrandPosition displayName)
+     * - 복구 시 BrandPosition 조회/생성에 사용
+     * - Post-LLM 완료 시 null 처리
+     */
+    @Column(name = "command_position_name", length = 255)
+    var commandPositionName: String? = null,
+
+    /**
      * 중복 판정 사유
      *
      * - status == DUPLICATE 인 경우에만 의미 있음
@@ -132,13 +148,19 @@ class JdSummaryProcessing protected constructor(
      * - Post-LLM 트랜잭션 실패 시 복구용
      * - SUMMARIZING 상태에서만 가능
      */
-    fun saveLlmResult(llmResultJson: String) {
+    fun saveLlmResult(
+        llmResultJson: String,
+        commandBrandName: String,
+        commandPositionName: String
+    ) {
         require(status == JdSummaryProcessingStatus.SUMMARIZING) {
             "LLM result can only be saved in SUMMARIZING state. current=$status"
         }
         require(llmResultJson.isNotBlank()) { "llmResultJson must not be blank" }
 
         this.llmResultJson = llmResultJson
+        this.commandBrandName = commandBrandName
+        this.commandPositionName = commandPositionName
     }
 
     /**
@@ -160,6 +182,8 @@ class JdSummaryProcessing protected constructor(
 
         // 임시 데이터 및 에러 정보 제거
         llmResultJson = null
+        commandBrandName = null
+        commandPositionName = null
         duplicateReason = null
         errorCode = null
         errorMessage = null

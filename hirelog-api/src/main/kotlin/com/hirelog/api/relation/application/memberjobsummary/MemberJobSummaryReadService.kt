@@ -1,34 +1,35 @@
-package com.hirelog.api.relation.infra.persistence.adapter
+package com.hirelog.api.relation.application.memberjobsummary
 
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryDetailView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
-import com.hirelog.api.relation.infra.persistence.jpa.repository.MemberJobSummaryJpaQueryDsl
-import org.springframework.stereotype.Component
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.stereotype.Service
 
 /**
- * MemberJobSummary Query Adapter
+ * MemberJobSummary Read Service
  *
  * 책임:
- * - Read Port 구현
- * - Querydsl Repository 위임
+ * - 조회 유스케이스 처리
+ * - Read Port 위임
+ *
+ * 규칙:
+ * - Entity 접근 금지
+ * - 트랜잭션 직접 관리하지 않음
  */
-@Component
-@Transactional(readOnly = true)
-class MemberJobSummaryJpaQuery(
-    private val querydslRepository: MemberJobSummaryJpaQueryDsl
-) : MemberJobSummaryQuery {
+@Service
+class MemberJobSummaryReadService(
+    private val query: MemberJobSummaryQuery
+) {
 
-    override fun findMySummaries(
+    fun getMySummaries(
         memberId: Long,
         saveType: MemberJobSummarySaveType?,
         page: Int,
         size: Int
     ): PagedResult<MemberJobSummaryListView> {
-        return querydslRepository.findMySummaries(
+        return query.findMySummaries(
             memberId = memberId,
             saveType = saveType,
             page = page,
@@ -36,23 +37,21 @@ class MemberJobSummaryJpaQuery(
         )
     }
 
-    override fun findDetail(
+    fun getDetail(
         memberId: Long,
         jobSummaryId: Long
     ): MemberJobSummaryDetailView {
-        return querydslRepository.findDetail(
+        return query.findDetail(
             memberId = memberId,
             jobSummaryId = jobSummaryId
-        ) ?: throw NoSuchElementException(
-            "MemberJobSummary not found (memberId=$memberId, jobSummaryId=$jobSummaryId)"
         )
     }
 
-    override fun exists(
+    fun exists(
         memberId: Long,
         jobSummaryId: Long
     ): Boolean {
-        return querydslRepository.exists(
+        return query.exists(
             memberId = memberId,
             jobSummaryId = jobSummaryId
         )

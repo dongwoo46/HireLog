@@ -1,32 +1,41 @@
 package com.hirelog.api.relation.application.brandposition.port
 
-import com.hirelog.api.relation.domain.model.BrandPosition
+import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.relation.application.brandposition.view.BrandPositionListView
+import com.hirelog.api.relation.presentation.controller.dto.BrandPositionSearchReq
+import org.springframework.data.domain.Pageable
 
 /**
  * BrandPosition Query Port
  *
  * 역할:
- * - BrandPosition 조회 책임 추상화
- * - 표현(API 응답)과는 완전히 분리
+ * - BrandPosition 조회 전용 (Read Context)
  *
  * 원칙:
- * - 도메인 엔티티를 그대로 반환
- * - DTO 변환은 Presentation 계층에서 수행
+ * - 도메인 엔티티 반환 금지
+ * - View / Boolean / Count 만 허용
  */
 interface BrandPositionQuery {
 
     /**
-     * 특정 브랜드에 속한 모든 BrandPosition 조회
+     * BrandPosition 검색 (Admin)
      */
-    fun findAllByBrandId(brandId: Long): List<BrandPosition>
+    fun search(
+        condition: BrandPositionSearchReq,
+        pageable: Pageable
+    ): PagedResult<BrandPositionListView>
 
     /**
-     * 브랜드 + 포지션 조합으로 단일 조회
+     * Brand + Position 조합 존재 여부
+     * - 중복 생성 검증용
      */
-    fun findByBrandIdAndPositionId(
+    fun existsByBrandIdAndPositionId(
         brandId: Long,
         positionId: Long
-    ): BrandPosition?
+    ): Boolean
 
-    fun findById(id: Long): BrandPosition?
+    /**
+     * BrandPosition 단건 존재 여부
+     */
+    fun existsById(id: Long): Boolean
 }

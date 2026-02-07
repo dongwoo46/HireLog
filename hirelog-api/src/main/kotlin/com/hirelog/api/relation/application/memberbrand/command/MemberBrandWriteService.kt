@@ -1,7 +1,7 @@
-package com.hirelog.api.relation.application.brand.command
+package com.hirelog.api.relation.application.memberbrand.command
 
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
-import com.hirelog.api.relation.application.brand.query.MemberBrandQuery
+import com.hirelog.api.relation.application.memberbrand.query.MemberBrandQuery
 import com.hirelog.api.relation.domain.model.MemberBrand
 import com.hirelog.api.relation.domain.type.InterestType
 import jakarta.persistence.EntityNotFoundException

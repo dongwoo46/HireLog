@@ -6,6 +6,7 @@ import com.hirelog.api.relation.domain.model.BrandPosition
 import com.hirelog.api.relation.domain.type.BrandPositionSource
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.relation.domain.type.BrandPositionStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -39,11 +40,11 @@ class BrandPositionWriteService(
     fun getOrCreate(
         brandId: Long,
         positionId: Long,
-        displayName: String?,
+        displayName: String,
         source: BrandPositionSource
     ): BrandPosition {
 
-        brandPositionQuery.findByBrandIdAndPositionId(brandId, positionId)?.let {
+        brandPositionCommand.findByBrandIdAndPositionId(brandId, positionId)?.let {
             return it
         }
 
@@ -57,71 +58,81 @@ class BrandPositionWriteService(
         return try {
             brandPositionCommand.save(brandPosition)
         } catch (ex: org.springframework.dao.DataIntegrityViolationException) {
-            brandPositionQuery.findByBrandIdAndPositionId(brandId, positionId)
+            brandPositionCommand.findByBrandIdAndPositionId(brandId, positionId)
                 ?: throw ex
         }
     }
 
     /**
-     * BrandPosition 생성
-     *
-     * 정책:
-     * - (brandId, positionId)는 논리적으로 유니크
-     * - 초기 상태는 CANDIDATE
+     * 명시적 생성
      */
     @Transactional
     fun create(
         brandId: Long,
         positionId: Long,
-        displayName: String?,
+        displayName: String,
         source: BrandPositionSource
     ): BrandPosition {
 
-        // 의미적 중복 체크 (UX 목적, 동시성 보장 아님)
-        brandPositionQuery.findByBrandIdAndPositionId(brandId, positionId)?.let {
+        if (brandPositionQuery.existsByBrandIdAndPositionId(brandId, positionId)) {
             throw EntityAlreadyExistsException(
                 entityName = "BrandPosition",
                 identifier = "brandId=$brandId, positionId=$positionId"
             )
         }
 
-        val brandPosition = BrandPosition.create(
-            brandId = brandId,
-            positionId = positionId,
-            displayName = displayName,
-            source = source
+        return brandPositionCommand.save(
+            BrandPosition.create(
+                brandId = brandId,
+                positionId = positionId,
+                displayName = displayName,
+                source = source
+            )
         )
-
-        // 실제 동시성 보장은 DB Unique + Adapter 예외 변환
-        return brandPositionCommand.save(brandPosition)
     }
 
     /**
-     * 관리자 승인
+     * 회사명 변경
      */
     @Transactional
-    fun approve(
+    fun changeDisplayName(
         brandPositionId: Long,
+        newDisplayName: String
+    ) {
+        val brandPosition = getRequired(brandPositionId)
+        brandPosition.changeDisplayName(newDisplayName)
+        brandPositionCommand.save(brandPosition)
+    }
+
+
+    /**
+     * BrandPosition 상태 변경
+     *
+     * 정책:
+     * - 상태 전이는 도메인에서 검증
+     * - Service는 트랜잭션 경계 + 오케스트레이션만 담당
+     */
+    @Transactional
+    fun changeStatus(
+        brandPositionId: Long,
+        newStatus: BrandPositionStatus,
         adminId: Long
     ) {
         val brandPosition = getRequired(brandPositionId)
-        brandPosition.approve(adminId)
+
+        brandPosition.changeStatus(
+            newStatus = newStatus,
+            adminId = adminId
+        )
+
+        brandPositionCommand.save(brandPosition)
     }
 
     /**
-     * 비활성화
-     */
-    @Transactional
-    fun deactivate(brandPositionId: Long) {
-        val brandPosition = getRequired(brandPositionId)
-        brandPosition.deactivate()
-    }
-
-    /**
-     * 반드시 존재해야 하는 Aggregate 로드
+     * 필수 Aggregate 로딩 (Write Context)
      */
     private fun getRequired(id: Long): BrandPosition =
-        brandPositionQuery.findById(id)
+        brandPositionCommand.findById(id)
             ?: throw EntityNotFoundException(
                 entityName = "BrandPosition",
                 identifier = id

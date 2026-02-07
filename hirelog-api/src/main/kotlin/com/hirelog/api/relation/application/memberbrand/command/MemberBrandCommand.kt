@@ -1,4 +1,4 @@
-package com.hirelog.api.relation.application.brand.command
+package com.hirelog.api.relation.application.memberbrand.command
 
 import com.hirelog.api.relation.domain.model.MemberBrand
 

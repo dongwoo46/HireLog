@@ -1,6 +1,6 @@
 package com.hirelog.api.relation.infra.persistence.jpa.adapter
 
-import com.hirelog.api.relation.application.brand.query.MemberBrandQuery
+import com.hirelog.api.relation.application.memberbrand.query.MemberBrandQuery
 import com.hirelog.api.relation.infra.persistence.jpa.repository.MemberBrandJpaRepository
 import com.hirelog.api.relation.domain.model.MemberBrand
 import org.springframework.stereotype.Component

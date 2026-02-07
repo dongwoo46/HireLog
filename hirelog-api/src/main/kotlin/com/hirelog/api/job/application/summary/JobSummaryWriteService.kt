@@ -7,6 +7,8 @@ import com.hirelog.api.common.config.properties.LlmProperties
 import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.logging.log
+import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
+import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
 import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
@@ -26,11 +28,14 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class JobSummaryWriteService(
+    private val objectMapper: ObjectMapper,
     private val summaryCommand: JobSummaryCommand,
     private val outboxEventCommand: OutboxEventCommand,
-    private val llmProperties: LlmProperties,
-    private val objectMapper: ObjectMapper
+    private val processingCommand: JdSummaryProcessingCommand,
+    private val processingQuery: JdSummaryProcessingQuery,
+    private val llmProperties: LlmProperties
 ) {
+
 
     /**
      * JobSummary 생성 및 저장
@@ -45,11 +50,11 @@ class JobSummaryWriteService(
         brand: Brand,
         positionId: Long,
         positionName: String,
-        brandPositionId: Long?,
+        brandPositionId: Long,
+        brandPositionName: String,
         positionCategoryId: Long,
         positionCategoryName: String,
         llmResult: JobSummaryLlmResult,
-        brandPositionName: String?,
         sourceUrl: String? = null
     ): JobSummary {
 
@@ -75,6 +80,10 @@ class JobSummaryWriteService(
             considerations = llmResult.insight.considerations
         )
 
+        val resolvedBrandPositionName =
+            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
+                ?: brandPositionName
+
         val summary = JobSummary.create(
             jobSnapshotId = snapshotId,
             brandId = brand.id,
@@ -84,7 +93,7 @@ class JobSummaryWriteService(
             positionId = positionId,
             positionName = positionName,
             brandPositionId = brandPositionId,
-            brandPositionName = llmResult.brandPositionName,
+            brandPositionName = resolvedBrandPositionName,
             positionCategoryId = positionCategoryId,
             positionCategoryName = positionCategoryName,
             careerType = llmResult.careerType,

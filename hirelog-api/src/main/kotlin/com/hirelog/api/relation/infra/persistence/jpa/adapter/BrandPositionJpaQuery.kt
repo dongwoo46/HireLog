@@ -1,32 +1,60 @@
 package com.hirelog.api.relation.infra.persistence.jpa.adapter
 
+import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.relation.application.brandposition.port.BrandPositionQuery
-import com.hirelog.api.relation.domain.model.BrandPosition
+import com.hirelog.api.relation.application.brandposition.view.BrandPositionListView
+import com.hirelog.api.relation.infra.persistence.jpa.repository.BrandPositionJpaQueryDsl
 import com.hirelog.api.relation.infra.persistence.jpa.repository.BrandPositionJpaRepository
-import org.springframework.data.repository.findByIdOrNull
+import com.hirelog.api.relation.presentation.controller.dto.BrandPositionSearchReq
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 /**
- * BrandPosition JPA Query Adapter
+ * BrandPositionQueryJpaAdapter
  *
- * 역할:
- * - BrandPositionQuery Port의 JPA 구현체
- * - 조회 전용 책임 수행
+ * 책임:
+ * - BrandPosition 조회 전용 Adapter
+ * - QueryDSL 기반 Read Model 조회
+ *
+ * 제약:
+ * - 도메인 엔티티 반환 ❌
+ * - 쓰기 로직 ❌
  */
 @Component
 class BrandPositionJpaQuery(
-    private val repository: BrandPositionJpaRepository
+    private val queryDsl: BrandPositionJpaQueryDsl,
+    private val repository: BrandPositionJpaRepository   // ✅ 추가
 ) : BrandPositionQuery {
 
-    override fun findAllByBrandId(brandId: Long): List<BrandPosition> =
-        repository.findAllByBrandId(brandId)
+    override fun search(
+        condition: BrandPositionSearchReq,
+        pageable: Pageable
+    ): PagedResult<BrandPositionListView> {
 
-    override fun findByBrandIdAndPositionId(
+        val (content, total) = queryDsl.search(
+            condition = condition,
+            pageable = pageable
+        )
+
+        return PagedResult.of(
+            items = content,
+            page = pageable.pageNumber,
+            size = pageable.pageSize,
+            totalElements = total
+        )
+    }
+
+    override fun existsByBrandIdAndPositionId(
         brandId: Long,
         positionId: Long
-    ): BrandPosition? =
-        repository.findByBrandIdAndPositionId(brandId, positionId)
+    ): Boolean {
+        return repository.existsByBrandIdAndPositionId(
+            brandId = brandId,
+            positionId = positionId
+        )
+    }
 
-    override fun findById(id: Long): BrandPosition? =
-        repository.findByIdOrNull(id)
+    override fun existsById(id: Long): Boolean {
+        return repository.existsById(id)
+    }
 }

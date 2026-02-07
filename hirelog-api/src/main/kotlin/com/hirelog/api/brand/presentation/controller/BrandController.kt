@@ -5,6 +5,7 @@ import com.hirelog.api.brand.application.BrandWriteService
 import com.hirelog.api.brand.application.view.BrandDetailView
 import com.hirelog.api.brand.application.view.BrandListView
 import com.hirelog.api.brand.presentation.controller.dto.BrandCreateReq
+import com.hirelog.api.brand.presentation.controller.dto.BrandNameChangeReq
 import com.hirelog.api.brand.presentation.controller.dto.BrandSearchReq
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.common.config.security.AuthenticatedMember
@@ -47,6 +48,24 @@ class BrandController(
         brandWriteService.create(
             name = request.name,
             companyId = request.companyId,
+        )
+
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * 브랜드명 변경
+     */
+    @PatchMapping("/{brandId}/name")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun changeName(
+        @PathVariable brandId: Long,
+        @Valid @RequestBody request: BrandNameChangeReq
+    ): ResponseEntity<Void> {
+
+        brandWriteService.changeName(
+            brandId = brandId,
+            newName = request.name
         )
 
         return ResponseEntity.noContent().build()

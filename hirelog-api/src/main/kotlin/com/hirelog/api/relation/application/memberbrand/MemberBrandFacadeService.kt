@@ -1,8 +1,6 @@
-package com.hirelog.api.relation.application.brand.facade
+package com.hirelog.api.relation.application.memberbrand.facade
 
-import com.hirelog.api.relation.application.brand.command.MemberBrandWriteService
-import com.hirelog.api.relation.application.brand.query.MemberBrandQuery
-import com.hirelog.api.relation.domain.model.MemberBrand
+import com.hirelog.api.relation.application.memberbrand.command.MemberBrandWriteService
 import com.hirelog.api.relation.domain.type.InterestType
 import org.springframework.stereotype.Service
 

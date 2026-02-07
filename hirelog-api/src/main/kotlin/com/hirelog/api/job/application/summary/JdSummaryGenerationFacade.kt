@@ -161,7 +161,12 @@ class JdSummaryGenerationFacade(
             .thenAccept { llmResult ->
                 // LLM 결과 임시 저장 (별도 트랜잭션 - 복구용)
                 val llmResultJson = objectMapper.writeValueAsString(llmResult)
-                processingWriteService.saveLlmResult(processing.id, llmResultJson)
+                processingWriteService.saveLlmResult(
+                    processingId = processing.id,
+                    llmResultJson = llmResultJson,
+                    commandBrandName = command.brandName,
+                    commandPositionName = command.positionName
+                )
 
                 // Post-LLM 처리 (단일 트랜잭션: Summary + Outbox + Processing 완료)
                 executePostLlm(snapshotId, llmResult, processing.id, command)

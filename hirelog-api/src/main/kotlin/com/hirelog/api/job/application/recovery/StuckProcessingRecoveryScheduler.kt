@@ -102,6 +102,12 @@ class StuckProcessingRecoveryScheduler(
         val snapshotId = processing.jobSnapshotId
             ?: throw IllegalStateException("jobSnapshotId is null for processing ${processing.id}")
 
+        val commandBrandName = processing.commandBrandName
+            ?: throw IllegalStateException("commandBrandName is null for processing ${processing.id}")
+
+        val commandPositionName = processing.commandPositionName
+            ?: throw IllegalStateException("commandPositionName is null for processing ${processing.id}")
+
         log.info(
             "[STUCK_PROCESSING_RECOVERY_ATTEMPT] processingId={}, snapshotId={}",
             processing.id, snapshotId
@@ -116,17 +122,17 @@ class StuckProcessingRecoveryScheduler(
             source = BrandSource.INFERRED
         )
 
-        // Position 조회
+        // Position 조회 (LLM이 후보군에서 선택한 positionName 사용)
         val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
         val position = positionCommand.findByNormalizedName(normalizedPositionName)
             ?: positionCommand.findByNormalizedName(Normalizer.normalizePosition(UNKNOWN_POSITION_NAME))
             ?: throw IllegalStateException("UNKNOWN position not found")
 
-        // BrandPosition 조회/생성
+        // BrandPosition 조회/생성 (원본 command의 positionName = displayName)
         val brandPosition = brandPositionWriteService.getOrCreate(
             brandId = brand.id,
             positionId = position.id,
-            displayName = llmResult.brandPositionName,
+            displayName = commandPositionName,
             source = BrandPositionSource.LLM
         )
 
@@ -141,7 +147,7 @@ class StuckProcessingRecoveryScheduler(
             positionCategoryId = position.category.id,
             positionCategoryName = position.category.name,
             llmResult = llmResult,
-            brandPositionName = llmResult.brandPositionName,
+            brandPositionName = commandPositionName,
             sourceUrl = null
         )
 

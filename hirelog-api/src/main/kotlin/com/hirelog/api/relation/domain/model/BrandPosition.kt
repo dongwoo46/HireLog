@@ -52,8 +52,8 @@ class BrandPosition protected constructor(
      * 브랜드 내부에서 사용하는 포지션명
      * - null이면 공통 Position.name 사용
      */
-    @Column(name = "display_name", length = 200)
-    val displayName: String? = null,
+    @Column(name = "display_name", length = 200, nullable = false)
+    var displayName: String,
 
     /**
      * 브랜드 기준 포지션 상태
@@ -83,43 +83,62 @@ class BrandPosition protected constructor(
 
 ) : BaseEntity() {
 
+
     /**
-     * 관리자 승인 처리
+     * BrandPosition 상태 변경
      *
      * 도메인 규칙:
-     * - CANDIDATE 상태에서만 승인 가능
-     * - INACTIVE 상태에서는 승인 불가
+     * - 모든 상태로의 변경은 이 메서드를 통해서만 가능
+     * - 승인 메타데이터는 ACTIVE 전환 시에만 설정
      */
-    fun approve(
-        adminId: Long,
-        approvedTime: LocalDateTime = LocalDateTime.now()
+    fun changeStatus(
+        newStatus: BrandPositionStatus,
+        adminId: Long? = null,
+        changedTime: LocalDateTime = LocalDateTime.now()
     ) {
-        require(adminId > 0) { "adminId must be valid" }
+        if (this.status == newStatus) return
 
-        when (status) {
-            BrandPositionStatus.ACTIVE -> return
+        when (newStatus) {
 
-            BrandPositionStatus.INACTIVE ->
-                throw IllegalStateException("Inactive BrandPosition cannot be approved")
+            BrandPositionStatus.ACTIVE -> {
+                require(adminId != null && adminId > 0) {
+                    "adminId is required when activating BrandPosition"
+                }
+
+                this.status = BrandPositionStatus.ACTIVE
+                this.approvedAt = changedTime
+                this.approvedBy = adminId
+            }
+
+            BrandPositionStatus.INACTIVE -> {
+                this.status = BrandPositionStatus.INACTIVE
+            }
 
             BrandPositionStatus.CANDIDATE -> {
-                status = BrandPositionStatus.ACTIVE
-                approvedAt = approvedTime
-                approvedBy = adminId
+                this.status = BrandPositionStatus.CANDIDATE
+                this.approvedAt = null
+                this.approvedBy = null
             }
         }
     }
 
+
     /**
-     * 비활성화 처리
+     * 브랜드 포지션 표시명 변경
      *
-     * 도메인 규칙:
-     * - ACTIVE / CANDIDATE → INACTIVE 허용
-     * - 이미 INACTIVE면 no-op
+     * 정책:
+     * - null 허용 (공통 Position.name fallback)
+     * - 빈 문자열 불가
+     * - 동일 값 변경은 no-op
      */
-    fun deactivate() {
-        if (status == BrandPositionStatus.INACTIVE) return
-        status = BrandPositionStatus.INACTIVE
+    fun changeDisplayName(newDisplayName: String) {
+        require(newDisplayName.isNotBlank()) {
+            "displayName must not be blank"
+        }
+
+        if (this.displayName == newDisplayName) return
+
+        this.displayName = newDisplayName
     }
 
     /**
@@ -142,7 +161,7 @@ class BrandPosition protected constructor(
         fun create(
             brandId: Long,
             positionId: Long,
-            displayName: String?,
+            displayName: String,
             source: BrandPositionSource
         ): BrandPosition {
 

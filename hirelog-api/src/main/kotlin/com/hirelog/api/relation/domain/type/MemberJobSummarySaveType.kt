@@ -10,6 +10,9 @@ enum class MemberJobSummarySaveType {
     /**
      * 지원 의사가 있는 JD
      */
-    APPLY
+    APPLY,
+
+    // 저장해제
+    UNSAVED
 }
 

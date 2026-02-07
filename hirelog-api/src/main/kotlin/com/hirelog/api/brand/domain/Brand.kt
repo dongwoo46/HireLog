@@ -35,13 +35,13 @@ class Brand(
      * 예: 토스, 강남언니
      */
     @Column(name = "name", nullable = false, length = 100)
-    val name: String,
+    var name: String,
 
     /**
      * 정규화된 브랜드명
      */
     @Column(name = "normalized_name", nullable = false, length = 100)
-    val normalizedName: String,
+    var normalizedName: String,
 
     /**
      * 소유 회사 (검증 전에는 null 가능)
@@ -136,5 +136,23 @@ class Brand(
 
         if (isActive) return
         isActive = true
+    }
+
+    /**
+     * 브랜드명 변경
+     *
+     * 정책:
+     * - name 변경 시 normalizedName도 함께 변경
+     * - 동일한 이름으로 변경 요청 시 무시
+     */
+    fun changeName(newName: String) {
+        require(newName.isNotBlank()) {
+            "Brand name must not be blank"
+        }
+
+        if (this.name == newName) return
+
+        this.name = newName
+        this.normalizedName = Normalizer.normalizeBrand(newName)
     }
 }

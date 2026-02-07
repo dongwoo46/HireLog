@@ -77,6 +77,19 @@ class CompanyWriteService(
     }
 
     /**
+     * 회사명 변경
+     */
+    @Transactional
+    fun changeName(
+        companyId: Long,
+        newName: String
+    ) {
+        val company = getRequired(companyId)
+        company.changeName(newName)
+        companyCommand.save(company)
+    }
+
+    /**
      * Company 활성화
      */
     @Transactional

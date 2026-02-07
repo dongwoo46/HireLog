@@ -102,15 +102,15 @@ class JobSummary protected constructor(
      * BrandPosition 식별자
      * Brand-Position 매핑 엔티티 참조
      */
-    @Column(name = "brand_position_id", updatable = false)
-    val brandPositionId: Long? = null,
+    @Column(name = "brand_position_id", nullable = false, updatable = false)
+    val brandPositionId: Long,
 
     /**
      * 브랜드 내부 포지션명 (JD에 명시된 원본)
      * 예: "서버 개발자 (결제팀)"
      */
-    @Column(name = "brand_position_name", length = 300, updatable = false)
-    val brandPositionName: String? = null,
+    @Column(name = "brand_position_name", length = 300, nullable = false, updatable = false)
+    val brandPositionName: String,
 
     /**
      * 포지션 카테고리 식별자 (비정규화)
@@ -292,8 +292,8 @@ class JobSummary protected constructor(
             companyName: String?,
             positionId: Long,
             positionName: String,
-            brandPositionId: Long?,
-            brandPositionName: String?,
+            brandPositionId: Long,
+            brandPositionName: String,
             positionCategoryId: Long,
             positionCategoryName: String,
             careerType: CareerType,

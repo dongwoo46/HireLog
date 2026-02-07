@@ -22,8 +22,4 @@ interface BrandPositionJpaRepository : JpaRepository<BrandPosition, Long> {
         positionId: Long
     ): BrandPosition?
 
-    /**
-     * 특정 브랜드에 속한 모든 포지션 조회
-     */
-    fun findAllByBrandId(brandId: Long): List<BrandPosition>
 }

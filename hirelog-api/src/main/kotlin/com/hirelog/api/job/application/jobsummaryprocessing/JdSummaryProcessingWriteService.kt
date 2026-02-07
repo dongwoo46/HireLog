@@ -53,9 +53,14 @@ class JdSummaryProcessingWriteService(
      * - 복구 스케줄러가 이 데이터로 재처리
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    fun saveLlmResult(processingId: UUID, llmResultJson: String) {
+    fun saveLlmResult(
+        processingId: UUID,
+        llmResultJson: String,
+        commandBrandName: String,
+        commandPositionName: String
+    ) {
         val processing = getRequired(processingId)
-        processing.saveLlmResult(llmResultJson)
+        processing.saveLlmResult(llmResultJson, commandBrandName, commandPositionName)
         command.update(processing)
     }
 

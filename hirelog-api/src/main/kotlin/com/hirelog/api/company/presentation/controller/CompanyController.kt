@@ -8,6 +8,7 @@ import com.hirelog.api.company.application.CompanyWriteService
 import com.hirelog.api.company.application.view.CompanyDetailView
 import com.hirelog.api.company.application.view.CompanyView
 import com.hirelog.api.company.presentation.controller.dto.CompanyCreateReq
+import com.hirelog.api.company.presentation.controller.dto.CompanyNameChangeReq
 import com.hirelog.api.company.presentation.controller.dto.CompanySearchReq
 import jakarta.validation.Valid
 import org.springframework.data.domain.Pageable
@@ -43,6 +44,24 @@ class CompanyController(
 
         return ResponseEntity.status(HttpStatus.CREATED).build()
     }
+
+    /**
+     * 회사명 변경
+     */
+    @PatchMapping("/{companyId}/name")
+    fun changeName(
+        @PathVariable companyId: Long,
+        @Valid @RequestBody request: CompanyNameChangeReq
+    ): ResponseEntity<Void> {
+
+        companyWriteService.changeName(
+            companyId = companyId,
+            newName = request.name
+        )
+
+        return ResponseEntity.noContent().build()
+    }
+
 
     /**
      * Company 목록 조회 (검색 + 페이징)

@@ -64,11 +64,11 @@ class JobSummaryCreationService(
         brand: Brand,
         positionId: Long,
         positionName: String,
-        brandPositionId: Long?,
+        brandPositionId: Long,
+        brandPositionName: String,
         positionCategoryId: Long,
         positionCategoryName: String,
         llmResult: JobSummaryLlmResult,
-        brandPositionName: String?,
         sourceUrl: String?
     ): JobSummary {
 
@@ -91,6 +91,10 @@ class JobSummaryCreationService(
             considerations = llmResult.insight.considerations
         )
 
+        val resolvedBrandPositionName =
+            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
+                ?: brandPositionName
+
         val summary = JobSummary.create(
             jobSnapshotId = snapshotId,
             brandId = brand.id,
@@ -100,7 +104,7 @@ class JobSummaryCreationService(
             positionId = positionId,
             positionName = positionName,
             brandPositionId = brandPositionId,
-            brandPositionName = llmResult.brandPositionName,
+            brandPositionName = resolvedBrandPositionName,
             positionCategoryId = positionCategoryId,
             positionCategoryName = positionCategoryName,
             careerType = llmResult.careerType,
@@ -161,10 +165,10 @@ class JobSummaryCreationService(
         brand: Brand,
         positionId: Long,
         positionName: String,
-        brandPositionId: Long?,
+        brandPositionId: Long,
+        brandPositionName: String,
         positionCategoryId: Long,
         positionCategoryName: String,
-        brandPositionName: String?,
         sourceUrl: String?
     ): JobSummary {
 
@@ -190,6 +194,10 @@ class JobSummaryCreationService(
             considerations = llmResult.insight.considerations
         )
 
+        val resolvedBrandPositionName =
+            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
+                ?: brandPositionName
+
         val summary = JobSummary.create(
             jobSnapshotId = snapshot.id,
             brandId = brand.id,
@@ -199,7 +207,7 @@ class JobSummaryCreationService(
             positionId = positionId,
             positionName = positionName,
             brandPositionId = brandPositionId,
-            brandPositionName = llmResult.brandPositionName,
+            brandPositionName = resolvedBrandPositionName,
             positionCategoryId = positionCategoryId,
             positionCategoryName = positionCategoryName,
             careerType = llmResult.careerType,

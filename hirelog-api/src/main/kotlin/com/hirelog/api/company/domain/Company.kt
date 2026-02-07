@@ -26,7 +26,7 @@ class Company protected constructor(
      * 예: 비바리퍼블리카
      */
     @Column(name = "name", nullable = false, length = 200)
-    val name: String,
+    var name: String,
 
     /**
      * 시스템 기준 정규화 회사명
@@ -35,7 +35,7 @@ class Company protected constructor(
      * - 검색 키
      */
     @Column(name = "normalized_name", nullable = false, length = 200)
-    val normalizedName: String,
+    var normalizedName: String,
 
     /**
      * 회사 데이터 출처
@@ -110,4 +110,23 @@ class Company protected constructor(
         if (isActive) return
         isActive = true
     }
+
+    /**
+     * 회사명 변경
+     *
+     * 정책:
+     * - name 변경 시 normalizedName도 함께 변경
+     * - 동일한 이름으로 변경 요청은 무시
+     */
+    fun changeName(newName: String) {
+        require(newName.isNotBlank()) {
+            "Company name must not be blank"
+        }
+
+        if (this.name == newName) return
+
+        this.name = newName
+        this.normalizedName = Normalizer.normalizeCompany(newName)
+    }
+
 }

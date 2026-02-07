@@ -88,6 +88,19 @@ class BrandWriteService(
         )
     }
 
+    /**
+     * 브랜드명 변경
+     */
+    @Transactional
+    fun changeName(
+        brandId: Long,
+        newName: String
+    ) {
+        val brand = getRequiredForWrite(brandId)
+        brand.changeName(newName)
+        brandCommand.save(brand)
+    }
+
 
     /**
      * 브랜드 검증 승인
