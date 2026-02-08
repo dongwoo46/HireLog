@@ -1,9 +1,7 @@
-package com.hirelog.api.job.presentation.controller.dto
+package com.hirelog.api.job.presentation.controller.dto.response
 
 import com.hirelog.api.job.domain.JobSummaryReview
-import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
 
 /**
  * JobSummaryReview Response

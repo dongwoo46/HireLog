@@ -25,7 +25,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create # ⭐ local 핵심
+      ddl-auto: update # ⭐ local 핵심
 
   data:
     redis:

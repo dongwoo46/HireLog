@@ -1,4 +1,4 @@
-package com.hirelog.api.job.presentation.controller.dto
+package com.hirelog.api.job.presentation.controller.dto.response
 
 /**
  * Gemini 프롬프트 조회 응답

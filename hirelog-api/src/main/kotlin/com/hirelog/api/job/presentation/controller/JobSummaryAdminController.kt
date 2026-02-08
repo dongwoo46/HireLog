@@ -2,10 +2,10 @@ package com.hirelog.api.job.presentation.controller
 
 import com.hirelog.api.job.application.summary.JobSummaryAdminService
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiPromptBuilder
-import com.hirelog.api.job.presentation.controller.dto.GeminiPromptPreviewReq
-import com.hirelog.api.job.presentation.controller.dto.GeminiPromptRes
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryAdminCreateReq
-import com.hirelog.api.job.presentation.controller.dto.VerifyAdminReq
+import com.hirelog.api.job.presentation.controller.dto.request.GeminiPromptPreviewReq
+import com.hirelog.api.job.presentation.controller.dto.response.GeminiPromptRes
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryAdminCreateReq
+import com.hirelog.api.job.presentation.controller.dto.request.VerifyAdminReq
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize

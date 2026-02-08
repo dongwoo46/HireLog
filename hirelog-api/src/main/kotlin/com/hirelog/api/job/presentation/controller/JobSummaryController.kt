@@ -8,10 +8,10 @@ import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
-import com.hirelog.api.job.presentation.controller.dto.JobSummarySearchReq
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryTextReq
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryUrlReq
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryUrlRes
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummarySearchReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryTextReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryUrlReq
+import com.hirelog.api.job.presentation.controller.dto.response.JobSummaryUrlRes
 import jakarta.validation.Valid
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.ResponseEntity
@@ -98,7 +98,7 @@ class JobSummaryController(
 
         jdIntakeService.requestText(
             brandName = request.brandName,
-            positionName = request.positionName,
+            brandPositionName = request.brandPositionName,
             text = request.jdText,
         )
 
@@ -115,14 +115,14 @@ class JobSummaryController(
     @PostMapping("/ocr")
     fun requestOcrSummary(
         @RequestParam("brandName") brandName: String,
-        @RequestParam("positionName") positionName: String,
+        @RequestParam("positionName") brandPositionName: String,
         @RequestParam("images") images: List<MultipartFile>,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
         val requestId = jdIntakeService.requestOcr(
             brandName = brandName,
-            positionName = positionName,
+            brandPositionName = brandPositionName,
             imageFiles = images,
         )
 
@@ -150,7 +150,7 @@ class JobSummaryController(
 
         val requestId = jdIntakeService.requestUrl(
             brandName = request.brandName,
-            positionName = request.positionName,
+            brandPositionName = request.brandPositionName,
             url = request.url,
         )
 

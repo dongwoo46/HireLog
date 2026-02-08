@@ -1,4 +1,4 @@
-package com.hirelog.api.job.presentation.controller.dto
+package com.hirelog.api.job.presentation.controller.dto.response
 
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 

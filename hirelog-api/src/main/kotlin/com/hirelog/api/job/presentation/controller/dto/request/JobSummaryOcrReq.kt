@@ -1,4 +1,4 @@
-package com.hirelog.api.job.presentation.controller.dto
+package com.hirelog.api.job.presentation.controller.dto.request
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
@@ -11,5 +11,5 @@ data class JobSummaryOcrReq(
 
     @field:NotBlank(message = "positionName은 필수입니다")
     @field:Size(max = 200, message = "positionName은 200자를 초과할 수 없습니다")
-    val positionName: String
+    val brandPositionName: String
 )

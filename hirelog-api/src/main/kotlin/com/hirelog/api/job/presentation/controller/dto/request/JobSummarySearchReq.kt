@@ -1,4 +1,4 @@
-package com.hirelog.api.job.presentation.controller.dto
+package com.hirelog.api.job.presentation.controller.dto.request
 
 import com.hirelog.api.job.application.summary.query.JobSummarySearchQuery
 import com.hirelog.api.job.domain.CareerType

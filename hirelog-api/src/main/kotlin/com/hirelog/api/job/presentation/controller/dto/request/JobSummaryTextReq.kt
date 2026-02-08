@@ -1,10 +1,10 @@
-package com.hirelog.api.job.presentation.controller.dto
+package com.hirelog.api.job.presentation.controller.dto.request
 
+import com.hirelog.api.job.domain.JobSourceType
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
-import org.hibernate.validator.constraints.URL
 
-data class JobSummaryUrlReq(
+data class JobSummaryTextReq(
 
     @field:NotBlank(message = "brandName은 필수입니다")
     @field:Size(max = 200, message = "brandName은 200자를 초과할 수 없습니다")
@@ -12,9 +12,8 @@ data class JobSummaryUrlReq(
 
     @field:NotBlank(message = "positionName은 필수입니다")
     @field:Size(max = 200, message = "positionName은 200자를 초과할 수 없습니다")
-    val positionName: String,
+    val brandPositionName: String,
 
-    @field:NotBlank(message = "url은 필수입니다")
-    @field:URL(message = "유효한 URL 형식이 아닙니다")
-    val url: String
+    @field:NotBlank(message = "jdText는 비어 있을 수 없습니다")
+    val jdText: String,
 )

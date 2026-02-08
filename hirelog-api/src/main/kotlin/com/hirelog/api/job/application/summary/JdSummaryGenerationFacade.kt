@@ -165,7 +165,7 @@ class JdSummaryGenerationFacade(
                     processingId = processing.id,
                     llmResultJson = llmResultJson,
                     commandBrandName = command.brandName,
-                    commandPositionName = command.positionName
+                    commandPositionName = command.positionName // 사용자가 입력한 position명 = brandPosition
                 )
 
                 // Post-LLM 처리 (단일 트랜잭션: Summary + Outbox + Processing 완료)
@@ -183,7 +183,7 @@ class JdSummaryGenerationFacade(
         snapshotId: Long,
         llmResult: JobSummaryLlmResult,
         processingId: UUID,
-        command: JobSummaryGenerateCommand
+        command: JobSummaryGenerateCommand // command.positionName = brandPositionName
     ) {
         val brand =
             brandWriteService.getOrCreate(
@@ -203,11 +203,15 @@ class JdSummaryGenerationFacade(
                 )
                 ?: throw IllegalStateException("UNKNOWN position not found")
 
+        val resolvedBrandPositionName =
+            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
+                ?: command.positionName
+
         // command에 입력된 데이터 positionName는 사용자가 입력한 데이터 즉 BrandPositionName
         val brandPosition = brandPositionWriteService.getOrCreate(
             brandId = brand.id,
             positionId = position.id,
-            displayName = command.positionName,
+            displayName = resolvedBrandPositionName,
             source = BrandPositionSource.LLM
         )
 
@@ -222,7 +226,7 @@ class JdSummaryGenerationFacade(
             positionCategoryId = position.category.id,
             positionCategoryName = position.category.name,
             llmResult = llmResult,
-            brandPositionName = command.positionName,
+            brandPositionName = resolvedBrandPositionName, // llmResult.brandPositionName이 없으면 사용자가 입력한 positionName으로
             sourceUrl = command.sourceUrl
         )
 

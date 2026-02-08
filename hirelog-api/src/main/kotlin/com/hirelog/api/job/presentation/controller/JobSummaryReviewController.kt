@@ -4,7 +4,8 @@ import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.job.application.review.JobSummaryReviewWriteService
 import com.hirelog.api.job.application.review.port.JobSummaryReviewQuery
 import com.hirelog.api.job.application.review.port.PagedView
-import com.hirelog.api.job.presentation.controller.dto.*
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryReviewWriteReq
+import com.hirelog.api.job.presentation.controller.dto.response.JobSummaryReviewRes
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
