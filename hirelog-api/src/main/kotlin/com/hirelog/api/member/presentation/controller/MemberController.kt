@@ -3,10 +3,10 @@ package com.hirelog.api.member.presentation.controller
 import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.member.application.MemberWriteService
-import com.hirelog.api.member.application.port.MemberQuery
 import com.hirelog.api.member.application.view.MemberDetailView
-import com.hirelog.api.member.presentation.dto.UpdateDisplayNameReq
+import com.hirelog.api.member.infra.persistence.querydsl.MemberJpaQueryDsl
 import com.hirelog.api.member.presentation.dto.UpdateProfileReq
+import com.hirelog.api.member.presentation.dto.UpdateUsernameReq
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/member")
 class MemberController(
     private val memberWriteService: MemberWriteService,
-    private val memberQuery: MemberQuery
+    private val memberQuery: MemberJpaQueryDsl
 ) {
 
     /**
@@ -59,15 +59,15 @@ class MemberController(
     /**
      * 표시 이름 변경
      */
-    @PatchMapping("/me/display-name")
-    fun updateDisplayName(
-        @Valid @RequestBody request: UpdateDisplayNameReq,
+    @PatchMapping("/me/username")
+    fun updateUsername(
+        @Valid @RequestBody request: UpdateUsernameReq,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Void> {
 
         memberWriteService.updateDisplayName(
             memberId = member.memberId,
-            displayName = request.displayName
+            username = request.username
         )
 
         return ResponseEntity.ok().build()

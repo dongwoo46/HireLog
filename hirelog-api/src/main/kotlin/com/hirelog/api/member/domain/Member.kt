@@ -105,7 +105,6 @@ class Member protected constructor(
             summary: String? = null,
         ): Member {
             require(email.isNotBlank())
-            require(username.isNotBlank())
             require(careerYears == null || careerYears >= 0)
             require(summary == null || summary.length <= 1000)
 
@@ -119,6 +118,20 @@ class Member protected constructor(
             member.linkOAuthAccount(provider, providerUserId)
             return member
         }
+
+
+
+        /**
+         * 욕설 우회 방지를 위한 정규화
+         *
+         * - 소문자 변환
+         * - 공백 / 특수문자 제거
+         */
+        private fun normalize(input: String): String {
+            return input
+                .lowercase()
+                .replace(Regex("[^a-z0-9가-힣]"), "")
+        }
     }
 
     /* =========================
@@ -126,7 +139,6 @@ class Member protected constructor(
      * ========================= */
 
     fun updateDisplayName(newUsername: String) {
-        require(newUsername.isNotBlank())
         username = newUsername
     }
 
@@ -176,7 +188,7 @@ class Member protected constructor(
     }
 
     fun activate() {
-        require(status == MemberStatus.SUSPENDED)
+        require(status == MemberStatus.SUSPENDED || status==MemberStatus.DELETED)
         status = MemberStatus.ACTIVE
     }
 
@@ -192,5 +204,9 @@ class Member protected constructor(
     fun grantAdmin() {
         require(status == MemberStatus.ACTIVE)
         this.role = MemberRole.ADMIN
+    }
+
+    fun isAdmin(): Boolean {
+        return this.role == MemberRole.ADMIN
     }
 }

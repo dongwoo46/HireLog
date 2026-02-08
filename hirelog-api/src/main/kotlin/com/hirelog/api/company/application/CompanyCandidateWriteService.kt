@@ -1,5 +1,6 @@
 package com.hirelog.api.company.application
 
+import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.company.application.port.CompanyCandidateCommand
 import com.hirelog.api.company.application.port.CompanyCandidateQuery
 import com.hirelog.api.company.domain.CompanyCandidate
@@ -39,9 +40,9 @@ class CompanyCandidateWriteService(
         candidateName: String,
         source: CompanyCandidateSource,
         confidenceScore: Double,
-    ): CompanyCandidate {
+    ) {
 
-        val normalizedName = normalize(candidateName)
+        val normalizedName = Normalizer.normalizeCompany(candidateName)
 
         val exists = companyCandidateQuery.existsByBrandIdAndNormalizedName(
             brandId = brandId,
@@ -60,12 +61,11 @@ class CompanyCandidateWriteService(
             confidenceScore = confidenceScore,
         )
 
-        return try {
+        try {
             companyCandidateCommand.save(candidate)
         } catch (ex: DataIntegrityViolationException) {
-            // 3️⃣ 동시성으로 이미 생성된 경우 재조회
-            companyCandidateCommand.findByNormalizedName(normalizedName)
-                ?: throw ex
+            // 동시성 충돌 → 이미 생성됨
+            error("CompanyCandidate already exists (concurrent). brandId=$brandId, name=$candidateName")
         }
     }
 
@@ -95,16 +95,4 @@ class CompanyCandidateWriteService(
             ?: error("CompanyCandidate not found. id=$candidateId")
     }
 
-    /**
-     * 법인명 정규화 규칙
-     *
-     * 주의:
-     * - CompanyCandidate.normalize와 반드시 동일해야 함
-     * - 추후 공통 유틸로 분리 가능
-     */
-    private fun normalize(value: String): String =
-        value
-            .lowercase()
-            .replace(Regex("[^a-z0-9]+"), "_")
-            .trim('_')
 }

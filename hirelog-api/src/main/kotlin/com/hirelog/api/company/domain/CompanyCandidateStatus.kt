@@ -7,12 +7,28 @@ enum class CompanyCandidateStatus {
     PENDING,
 
     /**
-     * 승인됨 (Company 생성/연결 완료)
+     * 승인됨
      */
     APPROVED,
 
     /**
      * 거절됨
      */
-    REJECTED
+    REJECTED,
+
+    /**
+     * Company 생성 완료
+     */
+    COMPLETED,
+
+    /**
+     * Company 처리중
+     */
+    PROCESSING,
+
+    /**
+     *  처리 실패 (재시도 대상)
+     */
+    FAILED
+
 }

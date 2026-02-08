@@ -111,8 +111,9 @@ def _get_matched_header_keyword(line: str, header_keywords: set) -> str | None:
         kw_normalized = kw.lower().replace(" ", "")
         # 완전 일치 또는 포함
         if kw_normalized == normalized or kw_normalized in normalized:
-            # 문장형인지 체크
-            if not _looks_like_sentence(stripped.lower()):
+            # 키워드 길이가 충분히 길면 (토스 스타일) 문장형 검사 스킵
+            # 짧은 키워드는 오탐 방지를 위해 문장형 검사 유지
+            if len(kw_normalized) >= 6 or not _looks_like_sentence(stripped.lower()):
                 return kw
 
     return None

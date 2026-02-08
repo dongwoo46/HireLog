@@ -6,13 +6,6 @@ import com.hirelog.api.position.infra.persistence.jpa.repository.PositionCategor
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 
-/**
- * PositionCategory JPA Command Adapter
- *
- * 책임:
- * - PositionCategoryCommand Port의 JPA 구현
- * - Entity 저장/조회
- */
 @Component
 class PositionCategoryJpaCommand(
     private val repository: PositionCategoryJpaRepository

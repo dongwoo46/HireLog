@@ -1,9 +1,11 @@
 package com.hirelog.api.company.infra.persistence.jpa.adapter
 
 import com.hirelog.api.company.application.port.CompanyQuery
+import com.hirelog.api.company.application.view.CompanyDetailView
 import com.hirelog.api.company.application.view.CompanyNameView
 import com.hirelog.api.company.application.view.CompanyView
-import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyJpaQueryDslImpl
+import com.hirelog.api.company.presentation.controller.dto.CompanySearchReq
+import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyJpaQueryDsl
 import com.hirelog.api.company.infra.persistence.jpa.repository.CompanyJpaRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -14,33 +16,40 @@ import org.springframework.stereotype.Component
  *
  * 책임:
  * - CompanyQuery 포트 구현
- * - QueryDSL 기반 조회 로직 위임
+ * - 조회 / 존재 여부 확인 위임
  *
- * 주의:
- * - 정책 ❌
- * - 필터링 조건 추가 ❌
- * - 가공 로직 ❌
+ * 원칙:
+ * - Port에 정의된 메서드만 구현
+ * - 비즈니스 판단 ❌
+ * - 단순 조회 위임만 수행
  */
 @Component
 class CompanyJpaQuery(
-    private val queryDsl: CompanyJpaQueryDslImpl,
+    private val queryDsl: CompanyJpaQueryDsl,
     private val repository: CompanyJpaRepository
 ) : CompanyQuery {
 
-    override fun findViewById(id: Long): CompanyView? {
-        return queryDsl.findViewById(id)
+    override fun existsByNormalizedName(normalizedName: String): Boolean {
+        return repository.existsByNormalizedName(normalizedName)
     }
 
-    override fun findAllViews(pageable: Pageable): Page<CompanyView> {
-        return queryDsl.findAllViews(pageable)
+    override fun findViewById(companyId: Long): CompanyView? {
+        return queryDsl.findViewById(companyId)
     }
 
-    override fun findAllActiveViews(pageable: Pageable): Page<CompanyView> {
-        return queryDsl.findAllActiveViews(pageable)
+    override fun findDetailById(companyId: Long): CompanyDetailView? {
+        return queryDsl.findDetailById(companyId)
     }
 
+    override fun search(
+        condition: CompanySearchReq,
+        pageable: Pageable
+    ): Page<CompanyView> {
+        return queryDsl.search(condition, pageable)
+    }
+
+    // Company 전체 이름 목록 조회
     override fun findAllNames(): List<CompanyNameView> {
         return queryDsl.findAllNames()
     }
-
 }

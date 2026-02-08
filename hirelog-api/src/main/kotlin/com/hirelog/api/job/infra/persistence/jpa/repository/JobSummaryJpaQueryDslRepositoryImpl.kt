@@ -33,6 +33,9 @@ class JobSummaryJpaQueryDslRepositoryImpl(
         val q = QJobSummary.jobSummary
         val conditions = mutableListOf<BooleanExpression>()
 
+        // 0️⃣ 활성화된 것만 조회 (필수)
+        conditions += q.isActive.isTrue
+
         // 1️⃣ 검색 조건 구성
         brandId?.let { conditions += q.brandId.eq(it) }
         positionId?.let { conditions += q.positionId.eq(it) }
@@ -61,6 +64,11 @@ class JobSummaryJpaQueryDslRepositoryImpl(
                     // --- 포지션 ---
                     q.positionId,
                     q.positionName,
+
+                    // --- 브랜드 포지션 / 카테고리 ---
+                    q.brandPositionId,
+                    q.positionCategoryId,
+                    q.positionCategoryName,
 
                     // --- 커리어 ---
                     q.careerType,

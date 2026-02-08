@@ -2,8 +2,8 @@ package com.hirelog.api.member.application
 
 import com.hirelog.api.auth.domain.OAuthUser
 import com.hirelog.api.common.infra.redis.RedisService
-import com.hirelog.api.common.infra.redis.dto.OAuthUserRedisDto
-import com.hirelog.api.common.infra.redis.dto.OAuthUserRedisMapper
+import com.hirelog.api.auth.infra.oauth.handler.dto.OAuthUserRedisDto
+import com.hirelog.api.auth.infra.oauth.handler.dto.OAuthUserRedisMapper
 import org.springframework.stereotype.Service
 
 /**

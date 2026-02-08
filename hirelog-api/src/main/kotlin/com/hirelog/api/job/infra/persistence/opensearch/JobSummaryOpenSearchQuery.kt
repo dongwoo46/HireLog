@@ -50,6 +50,8 @@ class JobSummaryOpenSearchQuery(
             "${Fields.COMPANY_NAME}.${Fields.ENGLISH_SUFFIX}",
             Fields.BRAND_POSITION_NAME,
             "${Fields.BRAND_POSITION_NAME}.${Fields.ENGLISH_SUFFIX}",
+            Fields.POSITION_CATEGORY_NAME,
+            "${Fields.POSITION_CATEGORY_NAME}.${Fields.ENGLISH_SUFFIX}",
             Fields.SUMMARY_TEXT,
             "${Fields.SUMMARY_TEXT}.${Fields.ENGLISH_SUFFIX}",
             Fields.RESPONSIBILITIES,
@@ -151,6 +153,24 @@ class JobSummaryOpenSearchQuery(
             })
         }
 
+        query.brandPositionId?.let { brandPositionId ->
+            filters.add(Query.of { q ->
+                q.term(TermQuery.Builder()
+                    .field(Fields.BRAND_POSITION_ID)
+                    .value(FieldValue.of(brandPositionId))
+                    .build())
+            })
+        }
+
+        query.positionCategoryId?.let { positionCategoryId ->
+            filters.add(Query.of { q ->
+                q.term(TermQuery.Builder()
+                    .field(Fields.POSITION_CATEGORY_ID)
+                    .value(FieldValue.of(positionCategoryId))
+                    .build())
+            })
+        }
+
         // 기술스택 필터 (OR 조건)
         if (!query.techStacks.isNullOrEmpty()) {
             filters.add(Query.of { q ->
@@ -212,7 +232,10 @@ class JobSummaryOpenSearchQuery(
                 companyName = source[Fields.COMPANY_NAME] as? String,
                 positionId = (source[Fields.POSITION_ID] as? Number)?.toLong() ?: 0L,
                 positionName = source[Fields.POSITION_NAME] as? String ?: "",
+                brandPositionId = (source[Fields.BRAND_POSITION_ID] as? Number)?.toLong(),
                 brandPositionName = source[Fields.BRAND_POSITION_NAME] as? String,
+                positionCategoryId = (source[Fields.POSITION_CATEGORY_ID] as? Number)?.toLong() ?: 0L,
+                positionCategoryName = source[Fields.POSITION_CATEGORY_NAME] as? String ?: "",
                 careerType = source[Fields.CAREER_TYPE] as? String ?: "UNKNOWN",
                 careerYears = source[Fields.CAREER_YEARS] as? String,
                 summaryText = source[Fields.SUMMARY_TEXT] as? String ?: "",

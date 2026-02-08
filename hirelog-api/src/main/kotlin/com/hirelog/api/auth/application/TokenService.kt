@@ -4,7 +4,10 @@ import com.hirelog.api.auth.application.dto.AuthTokens
 import com.hirelog.api.auth.domain.OAuthUser
 import com.hirelog.api.auth.infra.jwt.JwtUtils
 import com.hirelog.api.common.infra.redis.RedisService
-import com.hirelog.api.common.infra.redis.dto.OAuthUserRedisMapper
+import com.hirelog.api.auth.infra.oauth.handler.dto.OAuthUserRedisMapper
+import com.hirelog.api.common.logging.log
+import com.hirelog.api.member.application.port.MemberCommand
+import com.hirelog.api.member.application.port.MemberQuery
 import org.springframework.stereotype.Component
 import java.time.Duration
 import java.util.*
@@ -13,16 +16,22 @@ import java.util.*
 class TokenService(
     private val jwtUtils: JwtUtils,
     private val redisService: RedisService,
-) {
+    private val memberCommand: MemberCommand,
+    ) {
 
     /**
      * Access/Refresh 토큰 생성 및 Redis 저장
      */
-    fun generateAuthTokens(memberId: Long, role: String): AuthTokens {
+    fun generateAuthTokens(memberId: Long): AuthTokens {
+
+        val member = memberCommand.findById(memberId)
+            ?: throw IllegalStateException("Member not found: $memberId")
+
+        log.info("[Token Service] role: {}", member.role.name)
         // Access Token 생성 (JWT)
         val accessToken = jwtUtils.issueAccessToken(
             memberId = memberId,
-            role = role
+            role = member.role.name
         )
 
         // Refresh Token 생성 (UUID) 및 Redis 저장

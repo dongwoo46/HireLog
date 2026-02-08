@@ -47,13 +47,11 @@ def is_garbled_korean(text: str) -> bool:
     # 0️⃣ JD 헤더 / 메타는 무조건 보호
     for kw in JD_HEADER_KEYWORDS:
         if kw.replace(" ", "").lower() in compact:
-            print(f"    [garbled_check] PASS: header keyword '{kw}'")
             return False
 
     # 1️⃣ 명백한 깨짐 패턴
     for pattern in GARBLED_PATTERNS:
         if pattern.search(text):
-            print(f"    [garbled_check] FAIL: garbled pattern")
             return True
 
     # 2️⃣ 한글 비율 계산
@@ -61,27 +59,22 @@ def is_garbled_korean(text: str) -> bool:
     total_chars = len(text)
 
     if korean_chars == 0:
-        print(f"    [garbled_check] PASS: no korean chars")
         return False
 
     korean_ratio = korean_chars / total_chars
-    print(f"    [garbled_check] len={len(text)}, korean_chars={korean_chars}, ratio={korean_ratio:.2f}")
 
     # 3️⃣ 짧은 텍스트 (≤ 12자)
     if len(text) <= 12:
         if korean_ratio > 0.9 and not KOREAN_PARTICLE_PATTERN.search(text):
-            print(f"    [garbled_check] FAIL: short text, high korean ratio, no particles")
             return True
 
         upper_count = sum(1 for c in text if c.isupper())
         if korean_ratio >= 0.7 and upper_count == 1:
-            print(f"    [garbled_check] FAIL: short text, 1 uppercase")
             return True
 
     # 4️⃣ 중간 길이 (13 ~ 30자)
     elif 13 <= len(text) <= 30:
         if korean_ratio > 0.8 and not KOREAN_PARTICLE_PATTERN.search(text):
-            print(f"    [garbled_check] FAIL: medium text, high ratio, no particles")
             return True
 
         special_chars = sum(
@@ -89,21 +82,16 @@ def is_garbled_korean(text: str) -> bool:
             if not (c.isalnum() or c.isspace() or c in ":-,.()/▶")
         )
         if special_chars / total_chars > 0.3:
-            print(f"    [garbled_check] FAIL: too many special chars ({special_chars}/{total_chars})")
             return True
 
     # ⭐ 5️⃣ 긴 텍스트 (31자 이상)
     else:
         if korean_chars >= 50:
-            print(f"    [garbled_check] PASS: long text with many korean chars")
             return False
         
         has_particles = KOREAN_PARTICLE_PATTERN.search(text)
-        print(f"    [garbled_check] has_particles={bool(has_particles)}")
-        
+
         if korean_ratio > 0.9 and not has_particles:
-            print(f"    [garbled_check] FAIL: long text, very high ratio, no particles")
             return True
 
-    print(f"    [garbled_check] PASS: default")
     return False

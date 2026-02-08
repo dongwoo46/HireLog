@@ -36,11 +36,11 @@ class JdIntakeService(
      */
     fun requestText(
         brandName: String,
-        positionName: String,
+        brandPositionName: String,
         text: String,
     ): String {
         require(brandName.isNotBlank()) { "brandName is required" }
-        require(positionName.isNotBlank()) { "positionName is required" }
+        require(brandPositionName.isNotBlank()) { "positionName is required" }
         require(text.isNotBlank()) { "text is required" }
 
         val message = JdPreprocessRequestMessage(
@@ -49,7 +49,7 @@ class JdIntakeService(
             occurredAt = System.currentTimeMillis(),
             version = "v1",
             brandName = brandName,
-            positionName = positionName,
+            positionName = brandPositionName,
             source = JobSourceType.TEXT,
             text = text,
         )
@@ -63,11 +63,11 @@ class JdIntakeService(
      */
     fun requestOcr(
         brandName: String,
-        positionName: String,
+        brandPositionName: String,
         imageFiles: List<MultipartFile>,
     ): String {
         require(brandName.isNotBlank()) { "brandName is required" }
-        require(positionName.isNotBlank()) { "positionName is required" }
+        require(brandPositionName.isNotBlank()) { "positionName is required" }
         require(imageFiles.isNotEmpty()) { "imageFiles is required" }
 
         val savedPaths = fileStorageService.saveImages(imageFiles, "ocr")
@@ -78,7 +78,7 @@ class JdIntakeService(
             occurredAt = System.currentTimeMillis(),
             version = "v1",
             brandName = brandName,
-            positionName = positionName,
+            positionName = brandPositionName,
             source = JobSourceType.IMAGE,
             images = savedPaths,
         )
@@ -92,11 +92,11 @@ class JdIntakeService(
      */
     fun requestUrl(
         brandName: String,
-        positionName: String,
+        brandPositionName: String,
         url: String,
     ): String {
         require(brandName.isNotBlank()) { "brandName is required" }
-        require(positionName.isNotBlank()) { "positionName is required" }
+        require(brandPositionName.isNotBlank()) { "positionName is required" }
         require(isValidUrl(url)) { "Invalid URL format: $url" }
 
         val message = JdPreprocessRequestMessage(
@@ -105,7 +105,7 @@ class JdIntakeService(
             occurredAt = System.currentTimeMillis(),
             version = "v1",
             brandName = brandName,
-            positionName = positionName,
+            positionName = brandPositionName,
             source = JobSourceType.URL,
             url = url,
         )

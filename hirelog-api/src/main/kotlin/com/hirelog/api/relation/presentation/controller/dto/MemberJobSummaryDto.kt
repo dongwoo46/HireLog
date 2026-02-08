@@ -1,41 +1,56 @@
-package com.hirelog.api.relation.presentation.controller.dto
+package com.hirelog.api.relation.application.view
 
+import com.hirelog.api.job.domain.HiringStage
+import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
+import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import java.time.LocalDateTime
 
-/**
- * JD 저장 요청
- */
-data class SaveJobSummaryReq(
-    @field:NotNull
+
+
+
+
+data class CreateMemberJobSummaryCommand(
+
+    val memberId: Long,
+
     val jobSummaryId: Long,
-    val saveType: MemberJobSummarySaveType = MemberJobSummarySaveType.SAVED,
-    val memo: String? = null
+
+    val brandName: String,
+
+    val positionName: String,
+
+    val brandPositionName: String,
+
+    val positionCategoryName: String
 )
 
-/**
- * 저장 유형 변경 요청
- */
 data class ChangeSaveTypeReq(
-    @field:NotNull
-    val jobSummaryId: Long,
+
     @field:NotNull
     val saveType: MemberJobSummarySaveType
 )
+data class AddStageReq(
 
-/**
- * 메모 수정 요청
- */
-data class UpdateMemoReq(
     @field:NotNull
-    val jobSummaryId: Long,
-    val memo: String?
+    val stage: HiringStage,
+
+    @field:NotBlank
+    val note: String
 )
 
-/**
- * JD 저장 취소 요청
- */
-data class UnsaveJobSummaryReq(
+data class UpdateStageReq(
+
     @field:NotNull
-    val jobSummaryId: Long
+    val stage: HiringStage,
+
+    @field:NotBlank
+    val note: String,
+
+    val result: HiringStageResult?
+)
+
+data class ExistsResponse(
+    val exists: Boolean
 )

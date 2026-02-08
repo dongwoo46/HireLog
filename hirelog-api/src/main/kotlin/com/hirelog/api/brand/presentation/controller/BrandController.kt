@@ -1,13 +1,19 @@
 package com.hirelog.api.brand.presentation.controller
 
-import com.hirelog.api.brand.application.command.BrandWriteService
-import com.hirelog.api.brand.application.query.BrandQuery
+import com.hirelog.api.brand.application.BrandReadService
+import com.hirelog.api.brand.application.BrandWriteService
 import com.hirelog.api.brand.application.view.BrandDetailView
-import com.hirelog.api.brand.application.view.BrandSummaryView
+import com.hirelog.api.brand.application.view.BrandListView
+import com.hirelog.api.brand.presentation.controller.dto.BrandCreateReq
+import com.hirelog.api.brand.presentation.controller.dto.BrandNameChangeReq
+import com.hirelog.api.brand.presentation.controller.dto.BrandSearchReq
+import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.common.logging.log
-import com.hirelog.api.userrequest.application.port.PagedResult
+import jakarta.validation.Valid
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
@@ -16,7 +22,7 @@ import org.springframework.web.bind.annotation.*
  * Brand Controller
  *
  * 책임:
- * - Brand 조회 API 제공
+ * - Brand 목록/상세 조회
  * - Brand 상태 변경 트리거 (관리자)
  *
  * 비책임:
@@ -24,24 +30,60 @@ import org.springframework.web.bind.annotation.*
  * - 트랜잭션 관리 ❌
  */
 @RestController
-@RequestMapping("/api/brands")
+@RequestMapping("/api/brand")
 class BrandController(
-    private val brandQuery: BrandQuery,
+    private val brandReadService: BrandReadService,
     private val brandWriteService: BrandWriteService
 ) {
 
     /**
-     * 브랜드 목록 조회 (페이지네이션)
+     * 브랜드 생성 (관리자)
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping
+    fun create(
+        @Valid @RequestBody request: BrandCreateReq,
+    ): ResponseEntity<Void> {
+
+        brandWriteService.create(
+            name = request.name,
+            companyId = request.companyId,
+        )
+
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * 브랜드명 변경
+     */
+    @PatchMapping("/{brandId}/name")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun changeName(
+        @PathVariable brandId: Long,
+        @Valid @RequestBody request: BrandNameChangeReq
+    ): ResponseEntity<Void> {
+
+        brandWriteService.changeName(
+            brandId = brandId,
+            newName = request.name
+        )
+
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * 브랜드 목록 조회 (검색 + 페이징)
      *
      * GET /api/brands
      */
     @GetMapping
-    fun getBrands(
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "20") size: Int
-    ): ResponseEntity<PagedResult<BrandSummaryView>> {
+    fun search(
+        @ModelAttribute condition: BrandSearchReq,
+        @PageableDefault(size = 20) pageable: Pageable,
+        @CurrentUser member: AuthenticatedMember
+    ): ResponseEntity<PagedResult<BrandListView>> {
 
-        val result = brandQuery.findAllPaged(page, size)
+        val result = brandReadService.search(condition, pageable)
         return ResponseEntity.ok(result)
     }
 
@@ -50,78 +92,66 @@ class BrandController(
      *
      * GET /api/brands/{brandId}
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{brandId}")
-    fun getBrandDetail(
-        @PathVariable brandId: Long
+    fun getDetail(
+        @PathVariable brandId: Long,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<BrandDetailView> {
 
-        val brand = brandQuery.findDetailById(brandId)
+        val view = brandReadService.findDetail(brandId)
             ?: return ResponseEntity.notFound().build()
 
-        return ResponseEntity.ok(brand)
+        return ResponseEntity.ok(view)
     }
 
     /**
-     * 브랜드 검증 승인 (관리자)
-     *
-     * PATCH /api/brands/{brandId}/verify
+     * 브랜드 검증 승인
      */
-    @PatchMapping("/{brandId}/verify")
     @PreAuthorize("hasRole('ADMIN')")
-    fun verifyBrand(
-        @CurrentUser member: AuthenticatedMember,
-        @PathVariable brandId: Long
+    @PatchMapping("/{brandId}/verify")
+    fun verify(
+        @PathVariable brandId: Long,
     ): ResponseEntity<Void> {
-
-        log.info(
-            "[BrandVerify] adminId={}, brandId={}",
-            member.memberId,
-            brandId
-        )
 
         brandWriteService.verify(brandId)
         return ResponseEntity.noContent().build()
     }
 
     /**
-     * 브랜드 검증 거절 (관리자)
-     *
-     * PATCH /api/brands/{brandId}/reject
+     * 브랜드 검증 거절
      */
     @PatchMapping("/{brandId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
-    fun rejectBrand(
-        @CurrentUser member: AuthenticatedMember,
-        @PathVariable brandId: Long
+    fun reject(
+        @PathVariable brandId: Long,
     ): ResponseEntity<Void> {
-
-        log.info(
-            "[BrandReject] adminId={}, brandId={}",
-            member.memberId,
-            brandId
-        )
 
         brandWriteService.reject(brandId)
         return ResponseEntity.noContent().build()
     }
 
     /**
-     * 브랜드 비활성화 (관리자)
-     *
-     * PATCH /api/brands/{brandId}/deactivate
+     * 브랜드 활성화
+     */
+    @PatchMapping("/{brandId}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun activate(
+        @PathVariable brandId: Long,
+    ): ResponseEntity<Void> {
+
+        brandWriteService.activate(brandId)
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * 브랜드 비활성화
      */
     @PatchMapping("/{brandId}/deactivate")
     @PreAuthorize("hasRole('ADMIN')")
-    fun deactivateBrand(
-        @CurrentUser member: AuthenticatedMember,
-        @PathVariable brandId: Long
+    fun deactivate(
+        @PathVariable brandId: Long,
     ): ResponseEntity<Void> {
-
-        log.info(
-            "[BrandDeactivate] adminId={}, brandId={}",
-            member.memberId,
-            brandId
-        )
 
         brandWriteService.deactivate(brandId)
         return ResponseEntity.noContent().build()

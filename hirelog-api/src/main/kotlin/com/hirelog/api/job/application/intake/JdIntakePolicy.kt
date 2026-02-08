@@ -2,6 +2,7 @@ package com.hirelog.api.job.application.intake
 
 import com.hirelog.api.common.infra.storage.FileStorageService
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
+import com.hirelog.api.job.application.intake.model.DuplicateReason
 import com.hirelog.api.job.application.intake.model.IntakeHashes
 import com.hirelog.api.job.application.intake.model.JdIntakeInput
 import com.hirelog.api.job.application.intake.port.JdPreprocessRequestPort
@@ -38,6 +39,7 @@ import java.util.*
 @Service
 class JdIntakePolicy(
     private val snapshotQuery: JobSnapshotQuery,
+    private val summaryQuery: JobSummaryQuery
 ) {
 
     fun generateIntakeHashes(
@@ -61,27 +63,30 @@ class JdIntakePolicy(
     ): DuplicateDecision {
 
         // 1️⃣ 완전 동일 중복 (Fast-path)
-        if (isHashDuplicate(hashes.canonicalHash)) {
-            return DuplicateDecision.HASH_DUPLICATE
+        val hashDuplicateResult = findHashDuplicate(hashes.canonicalHash)
+        if (hashDuplicateResult != null) {
+            return hashDuplicateResult
         }
 
         // 2️⃣ 의심 후보 수집
         val suspects = collectSuspectSnapshots(command)
         if (suspects.isEmpty()) {
-            return DuplicateDecision.NOT_DUPLICATE
+            return DuplicateDecision.NotDuplicate
         }
 
         // 3️⃣ SimHash (1차 의미적 중복)
-        if (isSimHashDuplicate(suspects, hashes.simHash)) {
-            return DuplicateDecision.SIMHASH_DUPLICATE
+        val simHashDuplicateResult = findSimHashDuplicate(suspects, hashes.simHash)
+        if (simHashDuplicateResult != null) {
+            return simHashDuplicateResult
         }
 
         // 4️⃣ pg_trgm (최종 의미적 중복)
-        if (isTrgmDuplicate(hashes.coreText)) {
-            return DuplicateDecision.TRGM_DUPLICATE
+        val trgmDuplicateResult = findTrgmDuplicate(hashes.coreText)
+        if (trgmDuplicateResult != null) {
+            return trgmDuplicateResult
         }
 
-        return DuplicateDecision.NOT_DUPLICATE
+        return DuplicateDecision.NotDuplicate
     }
 
 
@@ -211,50 +216,79 @@ class JdIntakePolicy(
         return true
     }
 
-    private fun isHashDuplicate(canonicalHash: String): Boolean {
-        return snapshotQuery.getSnapshotByCanonicalHash(canonicalHash) != null
+    /**
+     * Hash 기반 중복 판정
+     *
+     * 정책:
+     * - Snapshot 존재 + JobSummary 존재 = 진짜 중복
+     * - Snapshot 존재 + JobSummary 없음 = 처리 실패한 것 → 재처리 허용
+     *
+     * @return 중복이면 DuplicateDecision.Duplicate, 아니면 null
+     */
+    private fun findHashDuplicate(canonicalHash: String): DuplicateDecision.Duplicate? {
+        val snapshot = snapshotQuery.getSnapshotByCanonicalHash(canonicalHash)
+            ?: return null
+
+        val summaryId = summaryQuery.findIdByJobSnapshotId(snapshot.id)
+            ?: return null  // Snapshot만 있고 Summary 없음 → 재처리 허용
+
+        return DuplicateDecision.Duplicate(
+            reason = DuplicateReason.HASH,
+            existingSnapshotId = snapshot.id,
+            existingSummaryId = summaryId
+        )
     }
 
     /**
-     * JD 중복 판정
+     * SimHash 기반 의미적 중복 판정
      *
-     * 단계:
-     * 1. 완전 동일 중복 (contentHash)
-     * 2. SimHash 기반 의미적 중복 (1차)
-     *
-     * 의미:
-     * - true면 신규 JD 아님
-     * - false면 신규 JD
+     * @return 중복이면 DuplicateDecision.Duplicate, 아니면 null
      */
-    private fun isSimHashDuplicate(
+    private fun findSimHashDuplicate(
         suspects: List<JobSnapshot>,
         inputSimHash: Long
-    ): Boolean {
-        return suspects.any { snapshot ->
-            snapshot.simHash != null &&
-                    SimHashSimilarity.isDuplicate(
-                        a = inputSimHash,
-                        b = snapshot.simHash
-                    )
+    ): DuplicateDecision.Duplicate? {
+        for (snapshot in suspects) {
+            if (snapshot.simHash != null &&
+                SimHashSimilarity.isDuplicate(a = inputSimHash, b = snapshot.simHash)
+            ) {
+                val summaryId = summaryQuery.findIdByJobSnapshotId(snapshot.id)
+                    ?: continue  // Summary 없으면 재처리 허용
+
+                return DuplicateDecision.Duplicate(
+                    reason = DuplicateReason.SIMHASH,
+                    existingSnapshotId = snapshot.id,
+                    existingSummaryId = summaryId
+                )
+            }
         }
+        return null
     }
 
     /**
      * pg_trgm 기반 텍스트 유사도 중복 판정
      *
-     * 의미:
-     * - SimHash 이후 최종 중복 판정
-     * - coreText 기준
+     * @return 중복이면 DuplicateDecision.Duplicate, 아니면 null
      */
-    private fun isTrgmDuplicate(
+    private fun findTrgmDuplicate(
         coreText: String,
         threshold: Double = 0.75
-    ): Boolean {
-        if (coreText.isBlank()) return false
+    ): DuplicateDecision.Duplicate? {
+        if (coreText.isBlank()) return null
 
-        return snapshotQuery
-            .findSimilarByCoreText(coreText, threshold)
-            .isNotEmpty()
+        val similarSnapshots = snapshotQuery.findSimilarByCoreText(coreText, threshold)
+
+        for (snapshot in similarSnapshots) {
+            val summaryId = summaryQuery.findIdByJobSnapshotId(snapshot.id)
+                ?: continue  // Summary 없으면 재처리 허용
+
+            return DuplicateDecision.Duplicate(
+                reason = DuplicateReason.TRGM,
+                existingSnapshotId = snapshot.id,
+                existingSummaryId = summaryId
+            )
+        }
+        return null
     }
 
 

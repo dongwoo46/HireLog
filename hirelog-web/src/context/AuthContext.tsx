@@ -1,8 +1,22 @@
 import { createContext, useContext, useState, type ReactNode, useEffect, useRef } from 'react';
 
-// ... (imports)
+import { authService } from '../services/auth';
+import { getCookie, isTokenExpired } from '../utils/authUtils';
 
-// ... (interfaces)
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+interface AuthContextType {
+  isAuthenticated: boolean;
+  user: User | null;
+  login: () => void;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -16,6 +30,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isInitialized.current = true;
 
     const checkAuth = async () => {
+      const accessToken = getCookie('accessToken');
+
+      // If we have a valid access token, skip refresh
+      if (accessToken && !isTokenExpired(accessToken)) {
+        setIsAuthenticated(true);
+        // Mock user data for now - in real app, we might need a separate /me call
+        setUser({
+          id: '1',
+          email: 'user@example.com',
+          name: 'Demo User',
+        });
+        return;
+      }
+
       try {
         await authService.refreshToken();
         setIsAuthenticated(true);

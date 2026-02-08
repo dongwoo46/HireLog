@@ -27,6 +27,45 @@ class JdSummaryProcessing protected constructor(
     var status: JdSummaryProcessingStatus = JdSummaryProcessingStatus.RECEIVED,
 
     /**
+     * 연결된 JobSnapshot ID
+     * - Pre-LLM 단계에서 설정
+     */
+    @Column(name = "job_snapshot_id")
+    var jobSnapshotId: Long? = null,
+
+    /**
+     * 연결된 JobSummary ID
+     * - Post-LLM 완료 시 설정
+     */
+    @Column(name = "job_summary_id")
+    var jobSummaryId: Long? = null,
+
+    /**
+     * LLM 결과 임시 저장
+     * - Post-LLM 진입 시 저장, 완료 시 null 처리
+     * - 장애 복구용
+     */
+    @Lob
+    @Column(name = "llm_result_json", columnDefinition = "text")
+    var llmResultJson: String? = null,
+
+    /**
+     * 원본 커맨드의 brandName
+     * - 복구 시 Brand 조회/생성에 사용
+     * - Post-LLM 완료 시 null 처리
+     */
+    @Column(name = "command_brand_name", length = 255)
+    var commandBrandName: String? = null,
+
+    /**
+     * 원본 커맨드의 positionName (= BrandPosition displayName)
+     * - 복구 시 BrandPosition 조회/생성에 사용
+     * - Post-LLM 완료 시 null 처리
+     */
+    @Column(name = "command_position_name", length = 255)
+    var commandPositionName: String? = null,
+
+    /**
      * 중복 판정 사유
      *
      * - status == DUPLICATE 인 경우에만 의미 있음
@@ -90,30 +129,61 @@ class JdSummaryProcessing protected constructor(
     }
 
     /**
-     * 요약 처리 시작
+     * 요약 처리 시작 + Snapshot 연결
      */
-    fun markSummarizing() {
+    fun markSummarizing(snapshotId: Long) {
         require(status == JdSummaryProcessingStatus.RECEIVED) {
             "Invalid state transition: $status -> SUMMARIZING"
         }
+        require(snapshotId > 0) { "snapshotId must be positive" }
 
         status = JdSummaryProcessingStatus.SUMMARIZING
+        jobSnapshotId = snapshotId
     }
 
     /**
-     * 처리 완료
+     * LLM 결과 임시 저장
+     *
+     * 용도:
+     * - Post-LLM 트랜잭션 실패 시 복구용
+     * - SUMMARIZING 상태에서만 가능
+     */
+    fun saveLlmResult(
+        llmResultJson: String,
+        commandBrandName: String,
+        commandPositionName: String
+    ) {
+        require(status == JdSummaryProcessingStatus.SUMMARIZING) {
+            "LLM result can only be saved in SUMMARIZING state. current=$status"
+        }
+        require(llmResultJson.isNotBlank()) { "llmResultJson must not be blank" }
+
+        this.llmResultJson = llmResultJson
+        this.commandBrandName = commandBrandName
+        this.commandPositionName = commandPositionName
+    }
+
+    /**
+     * 처리 완료 + JobSummary 연결
      *
      * 규칙:
      * - SUMMARIZING 상태에서만 가능
-     * - 모든 에러/중복 정보는 제거
+     * - jobSummaryId 필수
+     * - 모든 에러/중복/임시 정보는 제거
      */
-    fun markCompleted() {
+    fun markCompleted(summaryId: Long) {
         require(status == JdSummaryProcessingStatus.SUMMARIZING) {
             "Invalid state transition: $status -> COMPLETED"
         }
+        require(summaryId > 0) { "summaryId must be positive" }
 
         status = JdSummaryProcessingStatus.COMPLETED
+        jobSummaryId = summaryId
 
+        // 임시 데이터 및 에러 정보 제거
+        llmResultJson = null
+        commandBrandName = null
+        commandPositionName = null
         duplicateReason = null
         errorCode = null
         errorMessage = null

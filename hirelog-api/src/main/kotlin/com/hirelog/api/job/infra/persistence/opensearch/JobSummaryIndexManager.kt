@@ -121,12 +121,15 @@ class JobSummaryIndexManager(
             .properties(Fields.BRAND_ID, longProperty())
             .properties(Fields.COMPANY_ID, longProperty())
             .properties(Fields.POSITION_ID, longProperty())
+            .properties(Fields.BRAND_POSITION_ID, longProperty())
+            .properties(Fields.POSITION_CATEGORY_ID, longProperty())
 
             // === 검색 대상 텍스트 필드 (한글/영어 multi-field) ===
             .properties(Fields.BRAND_NAME, searchableTextField())
             .properties(Fields.COMPANY_NAME, searchableTextField())
             .properties(Fields.POSITION_NAME, searchableTextField())
             .properties(Fields.BRAND_POSITION_NAME, searchableTextField())
+            .properties(Fields.POSITION_CATEGORY_NAME, searchableTextField())
             .properties(Fields.SUMMARY_TEXT, searchableTextField())
             .properties(Fields.RESPONSIBILITIES, searchableTextField())
             .properties(Fields.REQUIRED_QUALIFICATIONS, searchableTextField())
@@ -170,7 +173,7 @@ class JobSummaryIndexManager(
     private fun dateProperty(): Property {
         return Property.of { p ->
             p.date(DateProperty.Builder()
-                .format("yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd||epoch_millis")
+                .format("yyyy-MM-dd'T'HH:mm:ss.SSSSSS||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd||epoch_millis")
                 .build())
         }
     }

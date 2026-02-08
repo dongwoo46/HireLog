@@ -21,6 +21,7 @@ data class JobSummaryGenerateCommand(
 
     // Context
     val brandName: String,
+    // 사용자가 입력한 position명
     val positionName: String,
 
     // Source

@@ -14,4 +14,11 @@ sealed class OAuth2LoginResult {
         val provider: OAuth2Provider,
         val providerUserId: String
     ) : OAuth2LoginResult()
+
+    data class RecoverableUser(
+        val memberId: Long,
+        val role: String,
+        val provider: OAuth2Provider,
+        val providerUserId: String
+    ) : OAuth2LoginResult()
 }

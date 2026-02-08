@@ -1,12 +1,16 @@
 package com.hirelog.api.company.presentation.controller
 
+import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.common.config.security.AuthenticatedMember
+import com.hirelog.api.common.config.security.CurrentUser
+import com.hirelog.api.company.application.CompanyReadService
 import com.hirelog.api.company.application.CompanyWriteService
-import com.hirelog.api.company.application.port.CompanyQuery
-import com.hirelog.api.company.application.view.CompanyNameView
+import com.hirelog.api.company.application.view.CompanyDetailView
 import com.hirelog.api.company.application.view.CompanyView
 import com.hirelog.api.company.presentation.controller.dto.CompanyCreateReq
+import com.hirelog.api.company.presentation.controller.dto.CompanyNameChangeReq
+import com.hirelog.api.company.presentation.controller.dto.CompanySearchReq
 import jakarta.validation.Valid
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
@@ -15,110 +19,102 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/company")
+@RequestMapping("/api/companies")
+@PreAuthorize("hasRole('ADMIN')")
 class CompanyController(
     private val companyWriteService: CompanyWriteService,
-    private val companyQuery: CompanyQuery
+    private val companyReadService: CompanyReadService
 ) {
 
     /**
-     * Company 생성 (getOrCreate)
-     *
-     * 정책:
-     * - 동일 normalizedName 존재 시 기존 반환
-     * - 없으면 신규 생성
+     * Company 생성
      */
-    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     fun create(
-        @Valid @RequestBody request: CompanyCreateReq
-    ): ResponseEntity<CompanyView> {
+        @Valid @RequestBody request: CompanyCreateReq,
+        @CurrentUser member: AuthenticatedMember
+    ): ResponseEntity<Void> {
 
-        val company = companyWriteService.getOrCreate(
+        companyWriteService.create(
             name = request.name,
-            aliases = request.aliases,
             source = request.source,
-            externalId = request.externalId
+            externalId = request.externalId,
+            member = member
         )
 
-        val view = companyQuery.findViewById(company.id)
-            ?: throw IllegalStateException("Company 생성 직후 조회 실패: ${company.id}")
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(view)
+        return ResponseEntity.status(HttpStatus.CREATED).build()
     }
 
     /**
-     * Company 단건 조회
+     * 회사명 변경
+     */
+    @PatchMapping("/{companyId}/name")
+    fun changeName(
+        @PathVariable companyId: Long,
+        @Valid @RequestBody request: CompanyNameChangeReq
+    ): ResponseEntity<Void> {
+
+        companyWriteService.changeName(
+            companyId = companyId,
+            newName = request.name
+        )
+
+        return ResponseEntity.noContent().build()
+    }
+
+
+    /**
+     * Company 목록 조회 (검색 + 페이징)
+     */
+    @GetMapping
+    fun search(
+        @ModelAttribute condition: CompanySearchReq,
+        @PageableDefault(size = 20) pageable: Pageable,
+        @CurrentUser member: AuthenticatedMember
+    ): ResponseEntity<PagedResult<CompanyView>> {
+
+        val result = companyReadService.search(condition, pageable)
+        return ResponseEntity.ok(result)
+    }
+
+    /**
+     * Company 상세 조회
      */
     @GetMapping("/{companyId}")
-    fun getById(
-        @PathVariable companyId: Long
-    ): ResponseEntity<CompanyView> {
+    fun getDetail(
+        @PathVariable companyId: Long,
+        @CurrentUser member: AuthenticatedMember
+    ): ResponseEntity<CompanyDetailView> {
 
-        val view = companyQuery.findViewById(companyId)
+        val view = companyReadService.findDetail(companyId)
             ?: return ResponseEntity.notFound().build()
 
         return ResponseEntity.ok(view)
     }
 
     /**
-     * Company 전체 목록 조회 (관리자용)
+     * Company 활성화
      */
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping
-    fun getAll(
-        @PageableDefault(size = 20) pageable: Pageable
-    ): ResponseEntity<Page<CompanyView>> {
-
-        val result = companyQuery.findAllViews(pageable)
-        return ResponseEntity.ok(result)
-    }
-
-    /**
-     * 활성 Company 목록 조회
-     */
-    @GetMapping("/active")
-    fun getAllActive(
-        @PageableDefault(size = 20) pageable: Pageable
-    ): ResponseEntity<Page<CompanyView>> {
-
-        val result = companyQuery.findAllActiveViews(pageable)
-        return ResponseEntity.ok(result)
-    }
-
-    /**
-     * Company 이름 목록 조회 (자동완성용)
-     */
-    @GetMapping("/names")
-    fun getAllNames(): ResponseEntity<List<CompanyNameView>> {
-
-        val result = companyQuery.findAllNames()
-        return ResponseEntity.ok(result)
-    }
-
-    /**
-     * Company 검증 승인
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/{companyId}/verify")
-    fun verify(
-        @PathVariable companyId: Long
+    @PatchMapping("/{companyId}/activate")
+    fun activate(
+        @PathVariable companyId: Long,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Void> {
 
-        companyWriteService.verify(companyId)
+        companyWriteService.activate(companyId, member)
         return ResponseEntity.ok().build()
     }
 
     /**
      * Company 비활성화
      */
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/{companyId}/deactivate")
+    @PatchMapping("/{companyId}/deactivate")
     fun deactivate(
-        @PathVariable companyId: Long
+        @PathVariable companyId: Long,
+        @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Void> {
 
-        companyWriteService.deactivate(companyId)
+        companyWriteService.deactivate(companyId, member)
         return ResponseEntity.ok().build()
     }
 }

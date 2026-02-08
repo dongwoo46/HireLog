@@ -1,11 +1,22 @@
-# src/preprocess/worker/kafka/base_kafka_jd_preprocess_worker.py
+# src/preprocess/worker/kafka/kafka_base_jd_preprocess_worker.py
+
+"""
+Kafka 기반 JD 전처리 Worker 공통 베이스
+
+책임:
+- Output DTO 생성
+- 날짜 포맷 정규화
+
+비책임:
+- Kafka publish (BaseKafkaWorker에서 담당)
+- commit / retry 판단 (BaseKafkaWorker에서 담당)
+"""
 
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 
 from outputs.kafka_jd_preprocess_output import KafkaJdPreprocessOutput
-from infra.kafka.kafka_producer import KafkaStreamProducer
 
 logger = logging.getLogger(__name__)
 
@@ -14,28 +25,19 @@ class KafkaBaseJdPreprocessWorker(ABC):
     """
     Kafka 기반 JD 전처리 Worker 공통 베이스
 
-    책임:
-    - Output DTO → Kafka 메시지 직렬화
-    - JSON schema 계약 일관성 보장
-    - 날짜 포맷 정규화
-    - Kafka publish (비동기)
-
-    비책임:
-    - 전처리 로직(TEXT / OCR / URL)
-    - commit / retry 판단
-    - Topic 선택 정책 (외부 주입)
+    하위 Worker는 process()에서 결과 DTO만 반환한다.
+    Kafka 발행은 상위 BaseKafkaWorker에서 일괄 처리한다.
     """
 
-    def __init__(self, producer: KafkaStreamProducer, result_topic: str):
-        # 모든 JD 전처리 결과는 단일 response topic으로 발행한다
-        self.producer = producer
-        self.result_topic = result_topic
+    def __init__(self):
+        pass
 
     # ==================================================
     # Internal Utils
     # ==================================================
 
     def _normalize_date(self, date_str: str) -> str | None:
+        """날짜 문자열 ISO 8601 정규화"""
         if not date_str:
             return None
 
@@ -53,52 +55,13 @@ class KafkaBaseJdPreprocessWorker(ABC):
     # ==================================================
 
     @abstractmethod
-    def process(self, input) -> KafkaJdPreprocessOutput:
+    def execute(self, input) -> KafkaJdPreprocessOutput:
         """
-        전처리 실행
+        전처리 실행 (결과 DTO 반환)
 
         규칙:
-        - Kafka publish 실패 시 반드시 예외 발생
-        - commit / retry 판단은 Consumer 책임
+        - 성공 시 KafkaJdPreprocessOutput 반환
+        - 실패 시 ProcessingError 발생
+        - Kafka 발행하지 않음 (상위에서 처리)
         """
         raise NotImplementedError
-
-    # ==================================================
-    # Publish
-    # ==================================================
-
-    def _publish_result(self, output: KafkaJdPreprocessOutput) -> None:
-        """
-        Kafka 결과 발행
-
-        계약:
-        - produce 실패 시 예외 발생 (호출자가 재처리 판단)
-        - 예외 없이 완료 = 성공
-        - 반환값 없음 (void)
-        """
-        message = output.to_dict()
-        key = output.request_id
-
-        logger.info(
-            "[JD_PREPROCESS_PUBLISH] topic=%s requestId=%s brand=%s position=%s source=%s",
-            self.result_topic,
-            output.request_id,
-            output.brand_name,
-            output.position_name,
-            output.source.value if hasattr(output.source, 'value') else output.source,
-        )
-
-        try:
-            self.producer.publish(
-                topic=self.result_topic,
-                message=message,
-                key=key,
-            )
-        except Exception as e:
-            logger.error(
-                "[JD_PREPROCESS_PUBLISH_FAILED] requestId=%s error=%s",
-                output.request_id,
-                str(e),
-                exc_info=True,
-            )
-            raise

@@ -21,6 +21,10 @@ fun JobSummaryProjection.toSummaryView(): JobSummaryView {
         positionId = positionId,
         positionName = positionName,
 
+        brandPositionId = brandPositionId,
+        positionCategoryId = positionCategoryId,
+        positionCategoryName = positionCategoryName,
+
         careerType = careerType,
         careerYears = careerYears,
 

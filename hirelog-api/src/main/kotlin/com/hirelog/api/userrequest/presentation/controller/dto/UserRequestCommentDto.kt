@@ -13,6 +13,8 @@ data class UserRequestCommentCreateReq(
     val content: String
 )
 
+
+
 /**
  * UserRequestComment 응답 DTO
  */
@@ -25,10 +27,14 @@ data class UserRequestCommentRes(
     val createdAt: LocalDateTime
 ) {
     companion object {
-        fun from(entity: UserRequestComment): UserRequestCommentRes {
+
+        fun from(
+            entity: UserRequestComment,
+            userRequestId: Long
+        ): UserRequestCommentRes {
             return UserRequestCommentRes(
                 id = entity.id,
-                userRequestId = entity.userRequest.id,
+                userRequestId = userRequestId,
                 writerType = entity.writerType,
                 writerId = entity.writerId,
                 content = entity.content,

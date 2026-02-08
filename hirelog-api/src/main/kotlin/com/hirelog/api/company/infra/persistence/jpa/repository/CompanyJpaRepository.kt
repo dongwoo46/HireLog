@@ -10,4 +10,5 @@ interface CompanyJpaRepository : JpaRepository<Company, Long> {
     fun findByNormalizedName(normalizedName: String): Company?
 
     fun existsByNormalizedName(normalizedName: String): Boolean
+
 }

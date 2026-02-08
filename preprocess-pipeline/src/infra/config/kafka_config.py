@@ -12,8 +12,9 @@ class KafkaConfig:
     ocr_topic: str
     url_topic: str
 
-    # result topic (하나)
-    result_topic: str
+    # result topics
+    result_topic: str       # 성공
+    fail_topic: str         # 실패
 
     consumer_group: str
     poll_timeout_sec: float
@@ -35,6 +36,7 @@ def load_kafka_config() -> KafkaConfig:
         ocr_topic=os.getenv("KAFKA_OCR_TOPIC", "jd.preprocess.ocr.request"),
         url_topic=os.getenv("KAFKA_URL_TOPIC", "jd.preprocess.url.request"),
         result_topic=os.getenv("KAFKA_RESULT_TOPIC", "jd.preprocess.response"),
+        fail_topic=os.getenv("KAFKA_FAIL_TOPIC", "jd.preprocess.response.fail"),
         consumer_group=os.getenv("KAFKA_CONSUMER_GROUP", "preprocess-group"),
         poll_timeout_sec=float(os.getenv("KAFKA_POLL_TIMEOUT_SEC", "1.0")),
     )

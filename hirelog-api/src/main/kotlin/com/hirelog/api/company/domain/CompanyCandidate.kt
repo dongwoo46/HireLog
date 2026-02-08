@@ -117,7 +117,9 @@ class CompanyCandidate protected constructor(
      * - PENDING → APPROVED만 허용
      */
     fun approve() {
-        if (status != CompanyCandidateStatus.PENDING) return
+        require(status == CompanyCandidateStatus.PENDING) {
+            "Only PENDING candidate can be approved"
+        }
         status = CompanyCandidateStatus.APPROVED
     }
 
@@ -128,7 +130,37 @@ class CompanyCandidate protected constructor(
      * - 언제든 REJECTED 가능
      */
     fun reject() {
-        if (status == CompanyCandidateStatus.REJECTED) return
+        require(status == CompanyCandidateStatus.PENDING) {
+            "Only PENDING candidate can be rejected"
+        }
         status = CompanyCandidateStatus.REJECTED
+    }
+
+    fun markProcessing() {
+        require(status == CompanyCandidateStatus.APPROVED) {
+            "Only APPROVED candidate can be processed"
+        }
+        status = CompanyCandidateStatus.PROCESSING
+    }
+
+    fun complete() {
+        require(status == CompanyCandidateStatus.PROCESSING) {
+            "Only PROCESSING candidate can be completed"
+        }
+        status = CompanyCandidateStatus.COMPLETED
+    }
+
+    fun fail() {
+        require(status == CompanyCandidateStatus.PROCESSING) {
+            "Only PROCESSING candidate can be failed"
+        }
+        status = CompanyCandidateStatus.FAILED
+    }
+
+    fun retry() {
+        require(status == CompanyCandidateStatus.FAILED) {
+            "Only FAILED candidate can be retried"
+        }
+        status = CompanyCandidateStatus.APPROVED
     }
 }

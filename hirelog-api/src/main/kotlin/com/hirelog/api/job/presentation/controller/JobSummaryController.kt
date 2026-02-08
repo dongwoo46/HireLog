@@ -8,9 +8,10 @@ import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
-import com.hirelog.api.job.presentation.controller.dto.JobSummarySearchReq
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryTextReq
-import com.hirelog.api.job.presentation.controller.dto.JobSummaryUrlReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummarySearchReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryTextReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryUrlReq
+import com.hirelog.api.job.presentation.controller.dto.response.JobSummaryUrlRes
 import jakarta.validation.Valid
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.ResponseEntity
@@ -97,7 +98,7 @@ class JobSummaryController(
 
         jdIntakeService.requestText(
             brandName = request.brandName,
-            positionName = request.positionName,
+            brandPositionName = request.brandPositionName,
             text = request.jdText,
         )
 
@@ -114,14 +115,14 @@ class JobSummaryController(
     @PostMapping("/ocr")
     fun requestOcrSummary(
         @RequestParam("brandName") brandName: String,
-        @RequestParam("positionName") positionName: String,
+        @RequestParam("positionName") brandPositionName: String,
         @RequestParam("images") images: List<MultipartFile>,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
         val requestId = jdIntakeService.requestOcr(
             brandName = brandName,
-            positionName = positionName,
+            brandPositionName = brandPositionName,
             imageFiles = images,
         )
 
@@ -132,21 +133,27 @@ class JobSummaryController(
      * URL 기반 JD 요약 요청
      *
      * 처리 방식:
-     * - URL 크롤링 요청을 비동기 파이프라인에 전달
-     * - 즉시 200 반환
+     * - 중복 체크 후 기존 JobSummary 있으면 즉시 반환
+     * - 신규면 비동기 파이프라인에 전달
      */
     @PostMapping("/url")
     fun requestUrlSummary(
         @Valid @RequestBody request: JobSummaryUrlReq,
         @CurrentUser member: AuthenticatedMember
-    ): ResponseEntity<Map<String, String>> {
+    ): ResponseEntity<JobSummaryUrlRes> {
+
+        // 중복 체크: 동일 URL로 생성된 JobSummary 존재 여부
+        val existingSummary = jobSummaryQuery.findBySourceUrl(request.url)
+        if (existingSummary != null) {
+            return ResponseEntity.ok(JobSummaryUrlRes.duplicateOf(existingSummary))
+        }
 
         val requestId = jdIntakeService.requestUrl(
             brandName = request.brandName,
-            positionName = request.positionName,
+            brandPositionName = request.brandPositionName,
             url = request.url,
         )
 
-        return ResponseEntity.ok(mapOf("requestId" to requestId))
+        return ResponseEntity.ok(JobSummaryUrlRes.newRequest(requestId))
     }
 }

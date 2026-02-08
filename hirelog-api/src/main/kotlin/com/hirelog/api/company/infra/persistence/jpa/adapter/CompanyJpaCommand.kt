@@ -33,4 +33,5 @@ class CompanyJpaCommand(
     override fun findByNormalizedName(normalizedName: String): Company? {
         return repository.findByNormalizedName(normalizedName)
     }
+
 }

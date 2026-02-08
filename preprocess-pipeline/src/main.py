@@ -34,13 +34,12 @@ from worker.base_worker import BaseWorker
 # ==================================================
 # Logging 설정
 # ==================================================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ]
-)
+from utils.logger import setup_logging
+
+# 환경변수 LOG_LEVEL로 제어 (DEBUG / INFO / WARNING / ERROR)
+# 개발: LOG_LEVEL=DEBUG python main.py
+# 운영: LOG_LEVEL=INFO python main.py (기본값)
+setup_logging()
 
 logger = logging.getLogger(__name__)
 

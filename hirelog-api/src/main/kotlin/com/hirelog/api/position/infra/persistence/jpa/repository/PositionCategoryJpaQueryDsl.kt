@@ -1,10 +1,14 @@
 package com.hirelog.api.position.infra.persistence.jpa.repository
 
-import com.hirelog.api.position.application.view.PositionCategoryView
+import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.position.application.view.PositionCategoryDetailView
+import com.hirelog.api.position.application.view.PositionCategoryListView
+import com.hirelog.api.position.domain.PositionStatus
 import com.hirelog.api.position.domain.QPositionCategory.positionCategory
-import com.hirelog.api.userrequest.application.port.PagedResult
 import com.querydsl.core.types.Projections
+import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQueryFactory
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 @Component
@@ -12,63 +16,63 @@ class PositionCategoryJpaQueryDsl(
     private val queryFactory: JPAQueryFactory
 ) {
 
-    /**
-     * PositionCategory 목록 조회 (페이지네이션)
-     */
-    fun findAllPaged(page: Int, size: Int): PagedResult<PositionCategoryView> {
-        val offset = page * size
+    fun findAll(
+        status: PositionStatus?,
+        name: String?,
+        pageable: Pageable
+    ): PagedResult<PositionCategoryListView> {
 
         val items = queryFactory
             .select(
                 Projections.constructor(
-                    PositionCategoryView::class.java,
+                    PositionCategoryListView::class.java,
                     positionCategory.id,
                     positionCategory.name,
-                    positionCategory.normalizedName,
-                    positionCategory.status,
-                    positionCategory.description
+                    positionCategory.status.stringValue() // ✅ 핵심
                 )
             )
             .from(positionCategory)
+            .where(
+                status?.let { positionCategory.status.eq(it) },
+                name?.let { positionCategory.name.containsIgnoreCase(it) }
+            )
             .orderBy(positionCategory.createdAt.desc())
-            .offset(offset.toLong())
-            .limit(size.toLong())
+            .offset(pageable.offset)
+            .limit(pageable.pageSize.toLong())
             .fetch()
 
         val total = queryFactory
             .select(positionCategory.count())
             .from(positionCategory)
+            .where(
+                status?.let { positionCategory.status.eq(it) },
+                name?.let { positionCategory.name.containsIgnoreCase(it) }
+            )
             .fetchOne() ?: 0L
 
-        return PagedResult(
+        return PagedResult.of(
             items = items,
-            page = page,
-            size = size,
-            totalElements = total,
-            totalPages = if (size > 0) ((total + size - 1) / size).toInt() else 0,
-            hasNext = offset + size < total
+            page = pageable.pageNumber,
+            size = pageable.pageSize,
+            totalElements = total
         )
     }
 
-    /**
-     * PositionCategory 상세 조회
-     */
-    fun findDetailById(id: Long): PositionCategoryView? {
-        return queryFactory
+    fun findDetailById(id: Long): PositionCategoryDetailView? =
+        queryFactory
             .select(
                 Projections.constructor(
-                    PositionCategoryView::class.java,
+                    PositionCategoryDetailView::class.java,
                     positionCategory.id,
                     positionCategory.name,
                     positionCategory.normalizedName,
-                    positionCategory.status,
+                    positionCategory.status.stringValue(),
                     positionCategory.description
                 )
             )
             .from(positionCategory)
             .where(positionCategory.id.eq(id))
             .fetchOne()
-    }
 
     fun existsById(id: Long): Boolean =
         queryFactory

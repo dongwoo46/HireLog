@@ -26,7 +26,7 @@ class CookieManager {
         val cookie = Cookie(name, value).apply {
             path = "/"
             isHttpOnly = true
-            secure = true // HTTPS 환경에서 활성화
+            secure = false // HTTPS 환경에서 활성화
             this.maxAge = maxAge
         }
         response.addCookie(cookie)

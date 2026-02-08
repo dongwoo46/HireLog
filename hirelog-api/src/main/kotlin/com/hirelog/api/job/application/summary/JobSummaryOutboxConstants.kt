@@ -13,5 +13,6 @@ object JobSummaryOutboxConstants {
      */
     object EventType {
         const val CREATED = "CREATED"
+        const val DELETED = "DELETED"
     }
 }

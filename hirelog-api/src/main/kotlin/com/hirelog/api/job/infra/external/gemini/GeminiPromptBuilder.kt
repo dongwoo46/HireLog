@@ -39,14 +39,14 @@ object GeminiPromptBuilder {
             - RULE: Sanitize special chars only. Maintain the brand's identity as accurately as possible.
             
             positionName:
-            - SOURCE: Use 'positionCandidates' (if any) or 'positionName' from user input.
+            - SOURCE: Use 'positionCandidates'.
             - RULE: If candidates exist, select ONE that best fits the JD.
             - CONSTRAINT: Output MUST exactly match the provided input string.
             
             
             brandPositionName:
             - Exact internal title from JD (e.g., "서버 개발자 (결제팀)")
-            - null if not stated
+            - if u cant figure it out what it is, use 'positionName' from user input
 
             companyCandidate:
             - SOURCE: 'existCompanies' (input) or Model Knowledge + JD clues.

@@ -15,7 +15,5 @@ data class CompanyView(
     val id: Long,
     val name: String,
     val source: CompanySource,
-    val verificationStatus: VerificationStatus,
-    val isActive: Boolean,
-    val createdAt: LocalDateTime
+    val isActive: Boolean
 )

@@ -1,9 +1,13 @@
+import logging
+import json
 from inputs.jd_preprocess_input import JdPreprocessInput
 from ocr.pipeline import process_ocr_input
 from ocr.structure.header_grouping import extract_sections_by_header
 from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
 from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
 from preprocess.adapter.ocr_section_adapter import adapt_ocr_sections_to_sections
+
+logger = logging.getLogger(__name__)
 
 
 class OcrPipeline:
@@ -33,6 +37,10 @@ class OcrPipeline:
         # 2️⃣ Header 기반 구조화 (OCR 전용)
         raw_sections = extract_sections_by_header(ocr_result["lines"])
 
+        # 🔍 DEBUG: 섹션 분리 후
+        logger.debug("[OCR_PIPELINE] 4️⃣ 섹션 분리 후 (raw_sections)")
+        logger.debug(json.dumps(raw_sections, ensure_ascii=False, indent=2))
+
         if not raw_sections:
             return {
                 "ocr": {
@@ -56,6 +64,10 @@ class OcrPipeline:
 
         # 5️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
         canonical_map = self.canonical.process(sections)
+
+        # 🔍 DEBUG: 최종 canonical_map
+        logger.debug("[OCR_PIPELINE] 5️⃣ 최종 canonical_map")
+        logger.debug(json.dumps(canonical_map, ensure_ascii=False, indent=2))
 
         # 6️⃣ 최종 결과
         return {

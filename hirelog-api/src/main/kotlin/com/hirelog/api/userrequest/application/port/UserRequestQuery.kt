@@ -1,5 +1,7 @@
 package com.hirelog.api.userrequest.application.port
 
+import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.userrequest.application.view.UserRequestView
 import com.hirelog.api.userrequest.domain.UserRequest
 import com.hirelog.api.userrequest.domain.UserRequestStatus
 
@@ -13,41 +15,29 @@ import com.hirelog.api.userrequest.domain.UserRequestStatus
 interface UserRequestQuery {
 
     /**
-     * ID로 UserRequest 조회
+     * 단건 조회 (연관 로딩 없음)
      */
     fun findById(id: Long): UserRequest?
 
     /**
-     * 특정 회원의 모든 요청 조회
+     * 상세 조회 (댓글 포함)
      */
-    fun findAllByMemberId(memberId: Long): List<UserRequest>
+    fun findDetailById(id: Long): UserRequest?
 
     /**
-     * 특정 상태의 요청 페이징 조회
+     * 특정 회원의 요청 목록
      */
-    fun findAllByStatus(
-        status: UserRequestStatus,
-        page: Int,
-        size: Int
-    ): PagedResult<UserRequest>
+    fun findAllByMemberId(memberId: Long): List<UserRequestView>
 
     /**
-     * 전체 요청 페이징 조회 (관리자용)
+     * 관리자 / 상태별 통합 페이징 조회
+     *
+     * status == null → 전체 조회
      */
-    fun findAllPaged(
+    fun findPaged(
+        status: UserRequestStatus? = null,
         page: Int,
         size: Int
-    ): PagedResult<UserRequest>
+    ): PagedResult<UserRequestView>
 }
 
-/**
- * 페이징 결과
- */
-data class PagedResult<T>(
-    val items: List<T>,
-    val page: Int,
-    val size: Int,
-    val totalElements: Long,
-    val totalPages: Int,
-    val hasNext: Boolean
-)

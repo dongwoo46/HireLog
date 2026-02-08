@@ -1,14 +1,18 @@
 package com.hirelog.api.position.presentation.controller
 
-import com.hirelog.api.common.exception.EntityNotFoundException
+import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.common.config.security.AuthenticatedMember
+import com.hirelog.api.common.config.security.CurrentUser
+import com.hirelog.api.member.application.view.PositionView
+import com.hirelog.api.position.application.PositionReadService
 import com.hirelog.api.position.application.PositionWriteService
-import com.hirelog.api.position.application.port.PositionCategoryCommand
-import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionDetailView
-import com.hirelog.api.position.application.view.PositionSummaryView
+import com.hirelog.api.position.application.view.PositionListView
 import com.hirelog.api.position.presentation.controller.dto.PositionCreateReq
-import com.hirelog.api.userrequest.application.port.PagedResult
+import com.hirelog.api.position.presentation.controller.dto.PositionSearchReq
 import jakarta.validation.Valid
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -19,66 +23,77 @@ import org.springframework.web.bind.annotation.*
 @PreAuthorize("hasRole('ADMIN')")
 class PositionController(
     private val positionWriteService: PositionWriteService,
-    private val positionQuery: PositionQuery,
-    private val positionCategoryCommand: PositionCategoryCommand
+    private val positionReadService: PositionReadService
 ) {
 
     /**
      * Position 생성
+     *
+     * 정책:
+     * - 관리자만 생성 가능
+     * - normalizedName은 도메인에서 생성
      */
     @PostMapping
     fun create(
-        @Valid @RequestBody request: PositionCreateReq
-    ): ResponseEntity<PositionDetailView> {
+        @Valid @RequestBody request: PositionCreateReq,
+    ): ResponseEntity<Void> {
 
-        val category = positionCategoryCommand.findById(request.categoryId)
-            ?: throw EntityNotFoundException("PositionCategory", request.categoryId)
-
-        val position = positionWriteService.create(
+        positionWriteService.create(
             name = request.name,
-            positionCategory = category,
-            description = request.description
+            categoryId = request.categoryId,
+            description = request.description,
         )
 
-        val view = positionQuery.findDetailById(position.id)
-            ?: throw IllegalStateException("Position 생성 직후 조회 실패: ${position.id}")
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(view)
+        return ResponseEntity.status(HttpStatus.CREATED).build()
     }
 
     /**
-     * Position 단건 조회
+     * Position 목록 조회 (검색 + 페이징)
+     *
+     * 조회 범위:
+     * - 핵심 정보만 반환
+     * - Category 포함
+     */
+    @GetMapping
+    fun search(
+        @ModelAttribute condition: PositionSearchReq,
+        @PageableDefault(size = 20) pageable: Pageable
+    ): ResponseEntity<PagedResult<PositionListView>> {
+
+        val result = positionReadService.search(
+            status = condition.status,
+            categoryId = condition.categoryId,
+            name = condition.name,
+            pageable = pageable
+        )
+
+        return ResponseEntity.ok(result)
+    }
+
+    /**
+     * Position 상세 조회
+     *
+     * 조회 범위:
+     * - Position 전체 정보
+     * - Category 포함
      */
     @GetMapping("/{positionId}")
-    fun getById(
+    fun getDetail(
         @PathVariable positionId: Long
     ): ResponseEntity<PositionDetailView> {
 
-        val view = positionQuery.findDetailById(positionId)
+        val view = positionReadService.findDetail(positionId)
             ?: return ResponseEntity.notFound().build()
 
         return ResponseEntity.ok(view)
     }
 
     /**
-     * Position 목록 조회 (페이지네이션)
-     */
-    @GetMapping
-    fun getAll(
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "20") size: Int
-    ): ResponseEntity<PagedResult<PositionSummaryView>> {
-
-        val result = positionQuery.findAllPaged(page, size)
-        return ResponseEntity.ok(result)
-    }
-
-    /**
      * Position 활성화
      */
-    @PostMapping("/{positionId}/activate")
+    @PatchMapping("/{positionId}/activate")
     fun activate(
-        @PathVariable positionId: Long
+        @PathVariable positionId: Long,
     ): ResponseEntity<Void> {
 
         positionWriteService.activate(positionId)
@@ -86,11 +101,11 @@ class PositionController(
     }
 
     /**
-     * Position 비활성화 (Deprecated)
+     * Position 비활성화
      */
-    @PostMapping("/{positionId}/deprecate")
-    fun deprecate(
-        @PathVariable positionId: Long
+    @PatchMapping("/{positionId}/deactivate")
+    fun deactivate(
+        @PathVariable positionId: Long,
     ): ResponseEntity<Void> {
 
         positionWriteService.deprecate(positionId)

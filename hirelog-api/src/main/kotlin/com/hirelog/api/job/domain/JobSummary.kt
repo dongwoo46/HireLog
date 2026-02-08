@@ -28,6 +28,14 @@ import jakarta.persistence.*
             name = "uk_job_summary_snapshot_id",
             columnList = "job_snapshot_id",
             unique = true
+        ),
+        Index(
+            name = "idx_job_summary_source_url",
+            columnList = "source_url"
+        ),
+        Index(
+            name = "idx_job_summary_is_active",
+            columnList = "is_active"
         )
     ]
 )
@@ -70,13 +78,13 @@ class JobSummary protected constructor(
      * 없는 경우 null
      */
     @Column(name = "company_id", updatable = false)
-    val companyId: Long? = null,
+    var companyId: Long? = null,
 
     /**
      * 회사명
      */
     @Column(name = "company_name", length = 200, updatable = false)
-    val companyName: String? = null,
+    var companyName: String? = null,
 
     /**
      * 브랜드 기준 포지션 식별자
@@ -91,11 +99,32 @@ class JobSummary protected constructor(
     val positionName: String,
 
     /**
+     * BrandPosition 식별자
+     * Brand-Position 매핑 엔티티 참조
+     */
+    @Column(name = "brand_position_id", nullable = false, updatable = false)
+    val brandPositionId: Long,
+
+    /**
      * 브랜드 내부 포지션명 (JD에 명시된 원본)
      * 예: "서버 개발자 (결제팀)"
      */
-    @Column(name = "brand_position_name", length = 300, updatable = false)
-    val brandPositionName: String? = null,
+    @Column(name = "brand_position_name", length = 300, nullable = false, updatable = false)
+    val brandPositionName: String,
+
+    /**
+     * 포지션 카테고리 식별자 (비정규화)
+     * 검색 필터링 최적화용
+     */
+    @Column(name = "position_category_id", nullable = false, updatable = false)
+    val positionCategoryId: Long,
+
+    /**
+     * 포지션 카테고리명 (비정규화)
+     * 검색/조회 최적화용
+     */
+    @Column(name = "position_category_name", nullable = false, length = 100, updatable = false)
+    val positionCategoryName: String,
 
     /**
      * 채용 경력 유형
@@ -192,9 +221,64 @@ class JobSummary protected constructor(
      * 요약 생성에 사용된 LLM 모델
      */
     @Column(name = "llm_model", nullable = false, length = 50, updatable = false)
-    val llmModel: String
+    val llmModel: String,
+
+    /**
+     * 원본 JD URL (URL 소스인 경우만)
+     * TEXT/OCR 소스는 null
+     */
+    @Column(name = "source_url", length = 2000, updatable = false)
+    val sourceUrl: String? = null,
+
+    // =========================
+    // 상태 관리
+    // =========================
+
+    /**
+     * 활성화 상태
+     *
+     * 정책:
+     * - 기본값: true (활성화)
+     * - 비활성화 시 일반 조회에서 제외
+     * - Admin 조회에서는 모두 표시 가능
+     */
+    @Column(name = "is_active", nullable = false)
+    var isActive: Boolean = true
 
 ) : VersionedEntity() {
+
+    /**
+     * 비활성화 처리
+     *
+     * 용도:
+     * - 잘못된 데이터 숨김
+     * - 중복 데이터 처리
+     * - 삭제 대신 소프트 삭제
+     */
+    fun deactivate() {
+        if (!isActive) return
+        isActive = false
+    }
+
+    /**
+     * 재활성화 처리
+     *
+     * 용도:
+     * - 잘못 비활성화된 데이터 복구
+     */
+    fun activate() {
+        if (isActive) return
+        isActive = true
+    }
+
+    fun applyCompany(
+        companyId: Long,
+        companyName: String
+    ) {
+        if (this.companyId != null) return  // 이미 반영된 경우 무시
+        this.companyId = companyId
+        this.companyName = companyName
+    }
 
     companion object {
         /**
@@ -208,7 +292,10 @@ class JobSummary protected constructor(
             companyName: String?,
             positionId: Long,
             positionName: String,
-            brandPositionName: String?,
+            brandPositionId: Long,
+            brandPositionName: String,
+            positionCategoryId: Long,
+            positionCategoryName: String,
             careerType: CareerType,
             careerYears: String?,
             summaryText: String,
@@ -219,7 +306,8 @@ class JobSummary protected constructor(
             recruitmentProcess: String?,
             insight: JobSummaryInsight,
             llmProvider: LlmProvider,
-            llmModel: String
+            llmModel: String,
+            sourceUrl: String? = null
         ): JobSummary {
             return JobSummary(
                 jobSnapshotId = jobSnapshotId,
@@ -229,7 +317,10 @@ class JobSummary protected constructor(
                 companyName = companyName,
                 positionId = positionId,
                 positionName = positionName,
+                brandPositionId = brandPositionId,
                 brandPositionName = brandPositionName,
+                positionCategoryId = positionCategoryId,
+                positionCategoryName = positionCategoryName,
                 careerType = careerType,
                 careerYears = careerYears,
                 summaryText = summaryText,
@@ -240,7 +331,9 @@ class JobSummary protected constructor(
                 recruitmentProcess = recruitmentProcess,
                 insight = insight,
                 llmProvider = llmProvider,
-                llmModel = llmModel
+                llmModel = llmModel,
+                sourceUrl = sourceUrl,
+                isActive = true
             )
         }
     }

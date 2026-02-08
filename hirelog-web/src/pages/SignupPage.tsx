@@ -1,9 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authService, type CheckEmailResponse } from '../services/auth';
+import { useAuthStore } from '../store/authStore';
+
+const POSITIONS = [
+  { id: 1, name: '백엔드 개발자' },
+  { id: 2, name: '프론트엔드 개발자' },
+  { id: 3, name: '데이터 엔지니어' },
+  { id: 4, name: '기획자 (PM/PO)' },
+  { id: 5, name: '프로덕트 디자이너' },
+  { id: 6, name: '데브옵스/인프라' },
+  { id: 7, name: '머신러닝/AI' },
+];
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const { checkAuth } = useAuthStore();
   const [searchParams] = useSearchParams();
   
   // -- State --
@@ -16,6 +28,7 @@ const SignupPage = () => {
   
   // Profile Form
   const [username, setUsername] = useState('');
+  const [currentPositionId, setCurrentPositionId] = useState<number | ''>('');
   const [careerYears, setCareerYears] = useState<string>('');
   const [summary, setSummary] = useState('');
   
@@ -133,6 +146,7 @@ const SignupPage = () => {
         setLoading(true);
         try {
             await authService.bind({ email });
+            await checkAuth();
             navigate('/');
         } catch (err: any) {
             setError(err.response?.data?.message || '요청 실패');
@@ -152,9 +166,11 @@ const SignupPage = () => {
             await authService.complete({
                 email,
                 username: username.trim(),
+                currentPositionId: currentPositionId ? Number(currentPositionId) : undefined,
                 careerYears: careerYears ? Number(careerYears) : undefined,
                 summary: summary.trim() || undefined,
             });
+            await checkAuth();
             navigate('/');
         } catch (err: any) {
             setError(err.response?.data?.message || '가입 완료 실패');
@@ -312,6 +328,21 @@ const SignupPage = () => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">포지션</label>
+                                    <select
+                                        value={currentPositionId}
+                                        onChange={(e) => setCurrentPositionId(e.target.value ? Number(e.target.value) : '')}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-gray-700"
+                                    >
+                                        <option value="">선택해주세요</option>
+                                        {POSITIONS.map((pos) => (
+                                            <option key={pos.id} value={pos.id}>
+                                                {pos.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">경력 (연차)</label>
                                     <input

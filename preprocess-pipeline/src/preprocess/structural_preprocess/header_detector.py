@@ -22,14 +22,20 @@ def is_text_header_candidate(line: str, next_line: str | None) -> bool:
 
     # 1️⃣ 정책 키워드 (가장 확실)
     header_keywords = load_header_keywords()
+
+    # 공백 제거 버전으로도 비교 (토스 스타일 대응)
+    lowered_no_space = lowered.replace(" ", "")
+
     # 1️⃣ 완전 일치 헤더
     if lowered in header_keywords:
         return True
 
     # 2️⃣ 부분 일치 헤더 (대괄호 안 내용도 매칭)
     # "[주요업무]" → "주요업무" in "[주요업무]" → True
+    # 토스 스타일: "합류하면 함께할 업무예요" → "함께할업무" 포함
     for keyword in header_keywords:
-        if keyword in lowered:
+        kw_no_space = keyword.replace(" ", "")
+        if keyword in lowered or kw_no_space in lowered_no_space:
             return True
 
     # 3️⃣ 대괄호 / 꺾쇠 괄호 → 대분류(container)로 취급, header 아님

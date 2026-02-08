@@ -75,6 +75,37 @@ export const authService = {
   },
 
   /**
+   * 계정 복구 완료 (Recovery)
+   * POST /auth/recovery/complete
+   */
+  completeRecovery: async (data: SignupCompleteRequest): Promise<void> => {
+    await apiClient.post('/auth/signup/recovery/complete', data, {
+      withCredentials: true,
+    });
+  },
+
+  /**
+   * 계정 복구 인증코드 발송
+   * POST /auth/recovery/send-code
+   */
+  sendRecoveryCode: async (data: { email: string }): Promise<void> => {
+    await apiClient.post('/auth/signup/recovery/send-code', data, {
+      withCredentials: true,
+    });
+  },
+
+  /**
+   * 계정 복구 인증코드 검증
+   * POST /auth/signup/recovery/verify-code
+   */
+  verifyRecoveryCode: async (data: { email: string; code: string }): Promise<{ verified: boolean }> => {
+    const response = await apiClient.post<{ verified: boolean }>('/auth/signup/recovery/verify-code', data, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
+  /**
    * Access Token 재발급
    * POST /auth/refresh
    * Cookie(refresh_token) 사용 (Body 없음)

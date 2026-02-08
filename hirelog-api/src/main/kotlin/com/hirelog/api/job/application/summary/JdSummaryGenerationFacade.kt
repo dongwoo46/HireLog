@@ -1,19 +1,13 @@
 package com.hirelog.api.job.application.summary.pipeline
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.hirelog.api.brand.application.command.BrandWriteService
+import com.hirelog.api.brand.application.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.brandposition.application.BrandPositionWriteService
-import com.hirelog.api.brandposition.domain.BrandPositionSource
+import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
+import com.hirelog.api.relation.domain.type.BrandPositionSource
 import com.hirelog.api.company.application.CompanyCandidateWriteService
 import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.company.domain.CompanyCandidateSource
-import com.hirelog.api.common.application.outbox.OutboxEventWriteService
-import com.hirelog.api.common.domain.outbox.AggregateType
-import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
@@ -23,18 +17,15 @@ import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
-import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
-import com.hirelog.api.job.application.summary.JobSummaryWriteService
-import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
+import com.hirelog.api.job.application.summary.JobSummaryCreationService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
+import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.JobSummary
+import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
-import com.hirelog.api.position.application.view.PositionSummaryView
-import com.hirelog.api.relation.application.jobsummary.MemberJobSummaryWriteService
+import com.hirelog.api.position.domain.Position
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -56,17 +47,17 @@ import java.util.concurrent.TimeoutException
 class JdSummaryGenerationFacade(
     private val processingWriteService: JdSummaryProcessingWriteService,
     private val snapshotWriteService: JobSnapshotWriteService,
-    private val snapshotQuery: JobSnapshotQuery,
     private val jdIntakePolicy: JdIntakePolicy,
     private val llmClient: JobSummaryLlm,
-    private val summaryWriteService: JobSummaryWriteService,
+    private val summaryCreationService: JobSummaryCreationService,
+    private val summaryQuery: JobSummaryQuery,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
-    private val outboxEventWriteService: OutboxEventWriteService,
-    private val memberJobSummaryWriteService: MemberJobSummaryWriteService,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
-    private val companyQuery: CompanyQuery
+    private val companyQuery: CompanyQuery,
+    private val objectMapper: ObjectMapper,
+    private val positionCommand: PositionCommand
 ) {
 
     companion object {
@@ -105,7 +96,7 @@ class JdSummaryGenerationFacade(
             }
 
             if (command.source == JobSourceType.URL && command.sourceUrl != null) {
-                if (snapshotQuery.loadSnapshotsByUrl(command.sourceUrl).isNotEmpty()) {
+                if (summaryQuery.existsBySourceUrl(command.sourceUrl)) {
                     processingWriteService.markDuplicate(
                         processingId = processing.id,
                         reason = "URL_DUPLICATE"
@@ -117,10 +108,14 @@ class JdSummaryGenerationFacade(
             val hashes = jdIntakePolicy.generateIntakeHashes(command.canonicalMap)
             val decision = jdIntakePolicy.decideDuplicate(command, hashes)
 
-            if (decision != DuplicateDecision.NOT_DUPLICATE) {
+            if (decision is DuplicateDecision.Duplicate) {
                 processingWriteService.markDuplicate(
                     processingId = processing.id,
-                    reason = decision.name
+                    reason = decision.reason.name
+                )
+                log.info(
+                    "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
+                    decision.reason, decision.existingSnapshotId, decision.existingSummaryId
                 )
                 return CompletableFuture.completedFuture(null)
             }
@@ -140,7 +135,7 @@ class JdSummaryGenerationFacade(
                     )
                 )
 
-            processingWriteService.markSummarizing(processing.id)
+            processingWriteService.markSummarizing(processing.id, snapshotId)
 
             positionCandidates =
                 positionQuery.findActiveNames()
@@ -164,9 +159,17 @@ class JdSummaryGenerationFacade(
             )
             .orTimeout(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .thenAccept { llmResult ->
-                executePostLlm(snapshotId, llmResult, processing.id, command)
-                processingWriteService.markCompleted(processing.id)
+                // LLM 결과 임시 저장 (별도 트랜잭션 - 복구용)
+                val llmResultJson = objectMapper.writeValueAsString(llmResult)
+                processingWriteService.saveLlmResult(
+                    processingId = processing.id,
+                    llmResultJson = llmResultJson,
+                    commandBrandName = command.brandName,
+                    commandPositionName = command.positionName // 사용자가 입력한 position명 = brandPosition
+                )
 
+                // Post-LLM 처리 (단일 트랜잭션: Summary + Outbox + Processing 완료)
+                executePostLlm(snapshotId, llmResult, processing.id, command)
             }
             .exceptionally { ex ->
                 handleFailure(processing.id, ex, command.requestId, "LLM_OR_POST_LLM")
@@ -180,12 +183,11 @@ class JdSummaryGenerationFacade(
         snapshotId: Long,
         llmResult: JobSummaryLlmResult,
         processingId: UUID,
-        command: JobSummaryGenerateCommand
+        command: JobSummaryGenerateCommand // command.positionName = brandPositionName
     ) {
         val brand =
             brandWriteService.getOrCreate(
                 name = llmResult.brandName,
-                normalizedName = Normalizer.normalizeBrand(llmResult.brandName),
                 companyId = null,
                 source = BrandSource.INFERRED
             )
@@ -194,40 +196,41 @@ class JdSummaryGenerationFacade(
         val normalizedPositionName =
             Normalizer.normalizePosition(llmResult.positionName)
 
-        val position: PositionSummaryView =
-            positionQuery.findByNormalizedName(normalizedPositionName)
-                ?: positionQuery.findByNormalizedName(
+        val position: Position =
+            positionCommand.findByNormalizedName(normalizedPositionName)
+                ?: positionCommand.findByNormalizedName(
                     Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
                 )
                 ?: throw IllegalStateException("UNKNOWN position not found")
 
+        val resolvedBrandPositionName =
+            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
+                ?: command.positionName
+
         // command에 입력된 데이터 positionName는 사용자가 입력한 데이터 즉 BrandPositionName
-        brandPositionWriteService.getOrCreate(
+        val brandPosition = brandPositionWriteService.getOrCreate(
             brandId = brand.id,
             positionId = position.id,
-            displayName = command.positionName,
+            displayName = resolvedBrandPositionName,
             source = BrandPositionSource.LLM
         )
 
-        val summary = summaryWriteService.save(
+        // 단일 트랜잭션: JobSummary + Outbox + Processing 완료
+        val summary = summaryCreationService.createWithOutbox(
+            processingId = processingId,
             snapshotId = snapshotId,
             brand = brand,
             positionId = position.id,
             positionName = position.name,
+            brandPositionId = brandPosition.id,
+            positionCategoryId = position.category.id,
+            positionCategoryName = position.category.name,
             llmResult = llmResult,
-            brandPositionName = command.positionName
+            brandPositionName = resolvedBrandPositionName, // llmResult.brandPositionName이 없으면 사용자가 입력한 positionName으로
+            sourceUrl = command.sourceUrl
         )
 
-        outboxEventWriteService.append(
-            OutboxEvent.occurred(
-                aggregateType = AggregateType.JOB_SUMMARY,
-                aggregateId = summary.id.toString(),
-                eventType = EventType.CREATED,
-                payload = buildEventPayload(summary)
-            )
-        )
-
-        // CompanyCandidate 생성 (비필수 - 실패해도 트랜잭션 롤백 안함)
+        // CompanyCandidate 생성 (비필수 - 실패해도 파이프라인에 영향 없음)
         tryCreateCompanyCandidate(
             jdSummaryId = summary.id,
             brandId = brand.id,
@@ -298,15 +301,4 @@ class JdSummaryGenerationFacade(
 
     private fun unwrap(ex: Throwable): Throwable =
         if (ex is CompletionException) ex.cause ?: ex else ex
-
-    private fun buildEventPayload(summary: JobSummary): String {
-        val payload = JobSummarySearchPayload.from(summary)
-        return objectMapper.writeValueAsString(payload)
-    }
-
-    private val objectMapper = ObjectMapper().apply {
-        registerKotlinModule()
-        registerModule(JavaTimeModule())
-        disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-    }
 }

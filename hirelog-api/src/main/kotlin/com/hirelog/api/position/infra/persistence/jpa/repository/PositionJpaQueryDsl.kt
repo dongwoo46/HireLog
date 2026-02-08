@@ -1,81 +1,96 @@
 package com.hirelog.api.position.infra.persistence.jpa.repository
 
+import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.position.application.view.PositionCategoryView
 import com.hirelog.api.position.application.view.PositionDetailView
-import com.hirelog.api.position.application.view.PositionSummaryView
+import com.hirelog.api.position.application.view.PositionListView
+import com.hirelog.api.position.application.view.PositionView
+import com.hirelog.api.position.domain.PositionStatus
 import com.hirelog.api.position.domain.QPosition.position
 import com.hirelog.api.position.domain.QPositionCategory.positionCategory
-import com.hirelog.api.userrequest.application.port.PagedResult
 import com.querydsl.core.types.Projections
+import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQueryFactory
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
+/**
+ * PositionJpaQueryDsl
+ *
+ * 책임:
+ * - QueryDSL 기반 실제 조회 로직
+ * - Port / Adapter 개념 ❌
+ */
 @Component
 class PositionJpaQueryDsl(
     private val queryFactory: JPAQueryFactory
 ) {
 
-    /**
-     * Position 목록 조회 (페이지네이션)
-     * - Category join
-     */
-    fun findAllPaged(page: Int, size: Int): PagedResult<PositionSummaryView> {
-        val offset = page * size
+    fun findAll(
+        status: String?,
+        categoryId: Long?,
+        name: String?,
+        pageable: Pageable
+    ): PagedResult<PositionListView> {
+
+        val conditions = mutableListOf<BooleanExpression>()
+
+        status?.let {
+            conditions += position.status.eq(PositionStatus.valueOf(it))
+        }
+
+        categoryId?.let {
+            conditions += position.category.id.eq(it)
+        }
+
+        name?.let {
+            conditions += position.name.containsIgnoreCase(it)
+        }
 
         val items = queryFactory
             .select(
                 Projections.constructor(
-                    PositionSummaryView::class.java,
+                    PositionListView::class.java,
                     position.id,
                     position.name,
-                    position.status,
-                    positionCategory.id,
-                    positionCategory.name
+                    position.status.stringValue()
                 )
             )
             .from(position)
-            .join(position.category, positionCategory)
+            .where(*conditions.toTypedArray())
             .orderBy(position.createdAt.desc())
-            .offset(offset.toLong())
-            .limit(size.toLong())
+            .offset(pageable.offset)
+            .limit(pageable.pageSize.toLong())
             .fetch()
 
         val total = queryFactory
             .select(position.count())
             .from(position)
+            .where(*conditions.toTypedArray())
             .fetchOne() ?: 0L
 
-        return PagedResult(
+        return PagedResult.of(
             items = items,
-            page = page,
-            size = size,
-            totalElements = total,
-            totalPages = if (size > 0) ((total + size - 1) / size).toInt() else 0,
-            hasNext = offset + size < total
+            page = pageable.pageNumber,
+            size = pageable.pageSize,
+            totalElements = total
         )
     }
 
-    /**
-     * Position 상세 조회
-     * - Category join
-     */
-    fun findDetailById(id: Long): PositionDetailView? {
-        return queryFactory
+    fun findDetailById(id: Long): PositionDetailView? =
+        queryFactory
             .select(
                 Projections.constructor(
                     PositionDetailView::class.java,
                     position.id,
                     position.name,
                     position.normalizedName,
-                    position.status,
+                    position.status.stringValue(),
                     position.description,
-                    position.createdAt,
                     Projections.constructor(
                         PositionCategoryView::class.java,
                         positionCategory.id,
                         positionCategory.name,
-                        positionCategory.normalizedName,
-                        positionCategory.status,
                         positionCategory.description
                     )
                 )
@@ -84,7 +99,33 @@ class PositionJpaQueryDsl(
             .join(position.category, positionCategory)
             .where(position.id.eq(id))
             .fetchOne()
-    }
+
+    fun findByNormalizedName(normalizedName: String): PositionView? =
+        queryFactory
+            .select(
+                Projections.constructor(
+                    PositionView::class.java,
+                    position.id,
+                    position.name,
+                    position.status.stringValue(),
+                    Projections.constructor(
+                        PositionCategoryView::class.java,
+                        positionCategory.id,
+                        positionCategory.name
+                    )
+                )
+            )
+            .from(position)
+            .join(position.category, positionCategory)
+            .where(position.normalizedName.eq(normalizedName))
+            .fetchOne()
+
+    fun findActiveNames(): List<String> =
+        queryFactory
+            .select(position.name)
+            .from(position)
+            .where(position.status.eq(PositionStatus.ACTIVE))
+            .fetch()
 
     fun existsById(id: Long): Boolean =
         queryFactory
@@ -99,36 +140,4 @@ class PositionJpaQueryDsl(
             .from(position)
             .where(position.normalizedName.eq(normalizedName))
             .fetchFirst() != null
-
-    /**
-     * normalizedName으로 Position 조회
-     */
-    fun findByNormalizedName(normalizedName: String): PositionSummaryView? {
-        return queryFactory
-            .select(
-                Projections.constructor(
-                    PositionSummaryView::class.java,
-                    position.id,
-                    position.name,
-                    position.status,
-                    positionCategory.id,
-                    positionCategory.name
-                )
-            )
-            .from(position)
-            .join(position.category, positionCategory)
-            .where(position.normalizedName.eq(normalizedName))
-            .fetchOne()
-    }
-
-    /**
-     * 활성 Position 이름 목록 조회 (LLM용)
-     */
-    fun findActiveNames(): List<String> {
-        return queryFactory
-            .select(position.name)
-            .from(position)
-            .where(position.status.eq(com.hirelog.api.position.domain.PositionStatus.ACTIVE))
-            .fetch()
-    }
 }

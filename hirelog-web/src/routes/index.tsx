@@ -3,6 +3,7 @@ import { RootLayout } from '../layouts/RootLayout';
 import MainPage from '../pages/MainPage';
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
+import RecoveryPage from '../pages/RecoveryPage';
 import JdSummaryPage from '../pages/JdSummaryPage';
 
 export const router = createBrowserRouter([
@@ -21,6 +22,10 @@ export const router = createBrowserRouter([
       {
         path: 'signup',
         element: <SignupPage />,
+      },
+      {
+        path: 'recovery',
+        element: <RecoveryPage />,
       },
       {
         path: 'tools/jd-summary',

@@ -14,6 +14,7 @@ object JdKafkaTopics {
     const val PREPROCESS_URL_REQUEST  = "jd.preprocess.url.request"
 
     const val PREPROCESS_RESPONSE     = "jd.preprocess.response"
+    const val PREPROCESS_RESPONSE_FAIL = "jd.preprocess.response.fail"
 
     // Debezium CDC Outbox Topics
     const val OUTBOX_JOB_SUMMARY      = "hirelog.outbox.JobSummary"
