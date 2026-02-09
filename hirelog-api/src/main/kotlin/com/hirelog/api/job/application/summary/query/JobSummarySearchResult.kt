@@ -34,23 +34,16 @@ data class JobSummarySearchResult(
 /**
  * 검색 결과 항목
  *
- * 리스트 조회에 필요한 필드만 포함
+ * 목록 조회에 필요한 최소 필드만 포함
+ * 상세 데이터는 GET /api/job-summary/{id}로 조회
  */
 data class JobSummarySearchItem(
     val id: Long,
-    val brandId: Long,
     val brandName: String,
-    val companyName: String?,
-    val positionId: Long,
-    val positionName: String,
-    val brandPositionId: Long?,
     val brandPositionName: String?,
-    val positionCategoryId: Long,
     val positionCategoryName: String,
     val careerType: String,
-    val careerYears: String?,
     val summaryText: String,
-    val techStack: String?,
     val techStackParsed: List<String>?,
     val createdAt: LocalDateTime
 )

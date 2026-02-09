@@ -6,6 +6,7 @@ import com.hirelog.api.job.application.intake.JdIntakeService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
+import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummarySearchReq
@@ -42,6 +43,24 @@ class JobSummaryController(
         return ResponseEntity.ok(result)
     }
 
+
+    /**
+     * JobSummary 상세 조회
+     *
+     * 응답:
+     * - JobSummary 전체 필드 + Insight + Reviews
+     * - 현재 사용자의 저장 상태 (memberJobSummaryId, memberSaveType)
+     * - 비활성화된 JobSummary는 조회 불가
+     */
+    @GetMapping("/{id}")
+    fun getDetail(
+        @PathVariable id: Long,
+        @CurrentUser member: AuthenticatedMember
+    ): ResponseEntity<JobSummaryDetailView> {
+        val detail = jobSummaryQuery.findDetailById(id, member.memberId)
+            ?: throw IllegalArgumentException("JobSummary not found: $id")
+        return ResponseEntity.ok(detail)
+    }
 
     /**
      * JobSummary 최신 1건 조회

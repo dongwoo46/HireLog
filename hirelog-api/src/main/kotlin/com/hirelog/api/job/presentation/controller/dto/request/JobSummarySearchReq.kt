@@ -9,11 +9,20 @@ import com.hirelog.api.job.domain.type.CareerType
 data class JobSummarySearchReq(
     val keyword: String? = null,
     val careerType: String? = null,
+
+    // ID 필터
     val brandId: Long? = null,
     val companyId: Long? = null,
     val positionId: Long? = null,
     val brandPositionId: Long? = null,
     val positionCategoryId: Long? = null,
+
+    // Name 필터 (match)
+    val brandName: String? = null,
+    val positionName: String? = null,
+    val brandPositionName: String? = null,
+    val positionCategoryName: String? = null,
+
     val techStacks: List<String>? = null,
     val page: Int = 0,
     val size: Int = 20,
@@ -28,6 +37,10 @@ data class JobSummarySearchReq(
             positionId = positionId,
             brandPositionId = brandPositionId,
             positionCategoryId = positionCategoryId,
+            brandName = brandName?.takeIf { it.isNotBlank() },
+            positionName = positionName?.takeIf { it.isNotBlank() },
+            brandPositionName = brandPositionName?.takeIf { it.isNotBlank() },
+            positionCategoryName = positionCategoryName?.takeIf { it.isNotBlank() },
             techStacks = techStacks?.takeIf { it.isNotEmpty() },
             page = page,
             size = size.coerceIn(1, 100),

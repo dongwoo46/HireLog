@@ -1,6 +1,7 @@
 package com.hirelog.api.job.application.summary.port
 
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
+import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -24,6 +25,15 @@ interface JobSummaryQuery {
         condition: JobSummarySearchCondition,
         pageable: Pageable
     ): Page<JobSummaryView>
+
+    /**
+     * JobSummary 상세 조회 (리뷰 + 사용자 저장 상태 포함)
+     *
+     * @param jobSummaryId JobSummary ID
+     * @param memberId 현재 로그인 사용자 ID
+     * @return 상세 View (없으면 null)
+     */
+    fun findDetailById(jobSummaryId: Long, memberId: Long): JobSummaryDetailView?
 
     /**
      * URL 기반 중복 체크
