@@ -5,6 +5,7 @@ import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
 import RecoveryPage from '../pages/RecoveryPage';
 import JdSummaryPage from '../pages/JdSummaryPage';
+import JdListPage from '../pages/JdListPage';
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
       {
         path: 'tools/jd-summary',
         element: <JdSummaryPage />,
+      },
+      {
+        path: 'tools/jd-list',
+        element: <JdListPage />,
       },
     ],
   },
