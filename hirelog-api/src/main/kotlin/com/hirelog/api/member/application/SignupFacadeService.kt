@@ -77,30 +77,36 @@ class SignupFacadeService(
     }
 
     /**
-     * 인증코드 검증
+     * 인증코드 검증 (회원가입)
+     *
+     * - 성공: 정상 종료
+     * - 실패: 예외 발생
      */
-    fun verifyCode(signupToken: String, email: String, code: String): VerifyCodeResponse {
+    fun verifyCode(signupToken: String, email: String, code: String) {
         sessionService.validate(signupToken)
 
-        val verified = emailVerificationService.verify(signupToken, email, code)
-
-        return VerifyCodeResponse(verified = verified)
+        emailVerificationService.verifyOrThrow(
+            token = signupToken,
+            email = email,
+            code = code
+        )
     }
 
+    /**
+     * 인증코드 검증 (복구 플로우)
+     */
     fun verifyRecoveryCode(
         recoveryToken: String,
         email: String,
         code: String
-    ): VerifyCodeResponse {
+    ) {
         recoverySessionService.validate(recoveryToken)
 
-        val verified = emailVerificationService.verify(
+        emailVerificationService.verifyOrThrow(
             token = recoveryToken,
             email = email,
             code = code
         )
-
-        return VerifyCodeResponse(verified = verified)
     }
 
     /**

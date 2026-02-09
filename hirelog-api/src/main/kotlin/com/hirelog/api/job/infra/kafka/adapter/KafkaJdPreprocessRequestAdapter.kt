@@ -2,7 +2,7 @@ package com.hirelog.api.job.infra.kafka.adapter
 
 import com.hirelog.api.job.application.intake.port.JdPreprocessRequestPort
 import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
-import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.job.infra.kafka.publisher.JdPreprocessOcrRequestPublisher
 import com.hirelog.api.job.infra.kafka.publisher.JdPreprocessTextRequestPublisher
 import com.hirelog.api.job.infra.kafka.publisher.JdPreprocessUrlRequestPublisher

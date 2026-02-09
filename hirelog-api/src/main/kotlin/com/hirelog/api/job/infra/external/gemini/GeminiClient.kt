@@ -1,6 +1,7 @@
 package com.hirelog.api.job.infrastructure.external.gemini
 
 import com.hirelog.api.common.config.properties.GeminiProperties
+import com.hirelog.api.common.config.properties.LlmProviderProperties
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import java.time.Duration
@@ -8,21 +9,10 @@ import java.util.concurrent.CompletableFuture
 
 /**
  * Gemini API HTTP Client
- *
- * 책임:
- * - Gemini REST API 호출
- * - 인증 파라미터(apiKey) 적용
- * - 요청/응답 포맷 구성
- * - 네트워크 타임아웃 관리
- *
- * 설계 원칙:
- * - Gemini API 사용법을 캡슐화한다
- * - WebClient 생성/설정은 외부(Config)에서 주입받는다
- * - 비즈니스 로직 또는 도메인 로직을 포함하지 않는다
  */
 class GeminiClient(
     private val webClient: WebClient,
-    private val geminiProperties: GeminiProperties
+    private val properties: LlmProviderProperties
 ) {
 
     /**
@@ -62,8 +52,8 @@ class GeminiClient(
         return webClient.post()
             .uri {
                 it.path("/models/{model}:generateContent")
-                    .queryParam("key", geminiProperties.apiKey)
-                    .build(geminiProperties.model)
+                    .queryParam("key", properties.apiKey)
+                    .build(properties.model)
             }
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(requestBody)

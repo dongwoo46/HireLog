@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.messaging
 
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import com.hirelog.api.job.domain.RecruitmentPeriodTypeMapper
+import com.hirelog.api.job.domain.type.RecruitmentPeriodTypeMapper
 import org.springframework.stereotype.Component
 
 /**

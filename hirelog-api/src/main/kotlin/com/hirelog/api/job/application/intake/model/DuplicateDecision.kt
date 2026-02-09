@@ -22,6 +22,18 @@ sealed class DuplicateDecision {
         val existingSummaryId: Long?
     ) : DuplicateDecision()
 
+    /**
+     * 재처리 대상
+     *
+     * Snapshot은 존재하지만 활성 JobSummary가 없는 경우
+     * 기존 Snapshot을 재사용하여 LLM 단계부터 재진행
+     *
+     * @param existingSnapshotId 재사용할 기존 Snapshot ID
+     */
+    data class Reprocessable(
+        val existingSnapshotId: Long
+    ) : DuplicateDecision()
+
     val isDuplicate: Boolean
         get() = this is Duplicate
 }

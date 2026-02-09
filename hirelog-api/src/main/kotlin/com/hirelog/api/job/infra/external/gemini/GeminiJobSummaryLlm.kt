@@ -6,11 +6,13 @@ import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.infra.external.gemini.GeminiResponseParser
-import com.hirelog.api.job.infra.external.gemini.JobSummaryLlmResultAssembler
+import com.hirelog.api.job.infra.external.common.LlmResponseParser
+import com.hirelog.api.job.infra.external.common.JobSummaryLlmResultAssembler
 import com.hirelog.api.job.intake.similarity.CanonicalTextNormalizer
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import org.springframework.stereotype.Component
 
 /**
  * Gemini 기반 JD 요약 LLM Adapter
@@ -27,8 +29,9 @@ import java.util.concurrent.CompletionException
  */
 class GeminiJobSummaryLlm(
     private val geminiClient: GeminiClient,
-    private val responseParser: GeminiResponseParser,
-    private val assembler: JobSummaryLlmResultAssembler
+    private val responseParser: LlmResponseParser,
+    private val assembler: JobSummaryLlmResultAssembler,
+    private val circuitBreaker: CircuitBreaker,
 ) : JobSummaryLlm {
 
     override fun summarizeJobDescriptionAsync(
@@ -49,23 +52,37 @@ class GeminiJobSummaryLlm(
             jdText = jdText
         )
 
-        return geminiClient.generateContentAsync(prompt)
+        log.info(
+            "[GEMINI_LLM_ENTRY] brand={}, position={}, circuitBreakerState={}",
+            brandName, positionName, circuitBreaker.state
+        )
+
+        // CircuitBreaker로 감싼 supplier
+        val decoratedSupplier = circuitBreaker.decorateCompletionStage {
+            geminiClient.generateContentAsync(prompt)
+        }
+
+        return decoratedSupplier.get()
+            .toCompletableFuture()
             .handle { rawText, callEx ->
                 if (callEx != null) {
+                    val cause = unwrap(callEx)
                     log.error(
-                        "Gemini API call failed. brand={}, position={}",
-                        brandName, positionName, unwrap(callEx)
+                        "[GEMINI_LLM_FAILED] brand={}, position={}, exceptionType={}, message={}",
+                        brandName, positionName, cause.javaClass.simpleName, cause.message
                     )
-                    throw GeminiCallException(unwrap(callEx))
+                    throw GeminiCallException(cause)
                 }
+
+                log.info("[GEMINI_LLM_SUCCESS] brand={}, position={}", brandName, positionName)
 
                 try {
                     val rawResult = responseParser.parseRawJobSummary(rawText)
                     assembler.assemble(raw = rawResult, provider = LlmProvider.GEMINI)
                 } catch (ex: Exception) {
                     log.error(
-                        "Gemini response parsing failed. brand={}, position={}",
-                        brandName, positionName, ex
+                        "[GEMINI_PARSE_FAILED] brand={}, position={}, message={}",
+                        brandName, positionName, ex.message
                     )
                     throw GeminiParseException(ex)
                 }

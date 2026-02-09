@@ -1,7 +1,7 @@
 package com.hirelog.api.job.infra.persistence.jpa.mapper
 
 import com.hirelog.api.job.application.snapshot.view.JobSnapshotView
-import com.hirelog.api.job.domain.JobSnapshot
+import com.hirelog.api.job.domain.model.JobSnapshot
 
 /**
  * JobSnapshot JPA Entity → Read Model(View) 변환 Mapper

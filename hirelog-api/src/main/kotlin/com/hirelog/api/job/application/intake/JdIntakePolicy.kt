@@ -1,23 +1,19 @@
 package com.hirelog.api.job.application.intake
 
-import com.hirelog.api.common.infra.storage.FileStorageService
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.intake.model.DuplicateReason
 import com.hirelog.api.job.application.intake.model.IntakeHashes
 import com.hirelog.api.job.application.intake.model.JdIntakeInput
-import com.hirelog.api.job.application.intake.port.JdPreprocessRequestPort
-import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
+import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
-import com.hirelog.api.job.domain.JobSnapshot
-import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.model.JobSnapshot
+import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.job.intake.similarity.SimHashCalculator
 import com.hirelog.api.job.intake.similarity.SimHashSimilarity
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import org.springframework.web.multipart.MultipartFile
-import java.util.*
 
 /**
  * JdIntakePolicy
@@ -38,6 +34,7 @@ import java.util.*
  */
 @Service
 class JdIntakePolicy(
+    private val snapshotCommand: JobSnapshotCommand,
     private val snapshotQuery: JobSnapshotQuery,
     private val summaryQuery: JobSummaryQuery
 ) {
@@ -172,12 +169,12 @@ class JdIntakePolicy(
 
         // 4-1. URL 기준 의심 후보
         if (command.source == JobSourceType.URL && command.sourceUrl != null) {
-            result += snapshotQuery.loadSnapshotsByUrl(command.sourceUrl)
+            result += snapshotCommand.findAllBySourceUrl(command.sourceUrl)
         }
 
         // 4-2. 날짜 기준 의심 후보
         if (command.openedDate != null || command.closedDate != null) {
-            result += snapshotQuery.loadSnapshotsByDateRange(
+            result += snapshotCommand.findAllByDateRange(
                 openedDate = command.openedDate,
                 closedDate = command.closedDate
             )
@@ -217,20 +214,23 @@ class JdIntakePolicy(
     }
 
     /**
-     * Hash 기반 중복 판정
+     * Hash 기반 중복 판정 (public — Admin 등 외부에서도 사용)
      *
      * 정책:
-     * - Snapshot 존재 + JobSummary 존재 = 진짜 중복
-     * - Snapshot 존재 + JobSummary 없음 = 처리 실패한 것 → 재처리 허용
+     * - Snapshot 존재 + active JobSummary 존재 = 진짜 중복
+     * - Snapshot 존재 + active JobSummary 없음 = 재처리 대상 (기존 Snapshot 재사용)
+     * - Snapshot 자체가 없으면 null
      *
-     * @return 중복이면 DuplicateDecision.Duplicate, 아니면 null
+     * @return Duplicate / Reprocessable / null
      */
-    private fun findHashDuplicate(canonicalHash: String): DuplicateDecision.Duplicate? {
+    fun findHashDuplicate(canonicalHash: String): DuplicateDecision? {
         val snapshot = snapshotQuery.getSnapshotByCanonicalHash(canonicalHash)
             ?: return null
 
         val summaryId = summaryQuery.findIdByJobSnapshotId(snapshot.id)
-            ?: return null  // Snapshot만 있고 Summary 없음 → 재처리 허용
+            ?: return DuplicateDecision.Reprocessable(
+                existingSnapshotId = snapshot.id
+            )
 
         return DuplicateDecision.Duplicate(
             reason = DuplicateReason.HASH,
@@ -242,18 +242,20 @@ class JdIntakePolicy(
     /**
      * SimHash 기반 의미적 중복 판정
      *
-     * @return 중복이면 DuplicateDecision.Duplicate, 아니면 null
+     * @return Duplicate / Reprocessable / null
      */
     private fun findSimHashDuplicate(
         suspects: List<JobSnapshot>,
         inputSimHash: Long
-    ): DuplicateDecision.Duplicate? {
+    ): DuplicateDecision? {
         for (snapshot in suspects) {
             if (snapshot.simHash != null &&
                 SimHashSimilarity.isDuplicate(a = inputSimHash, b = snapshot.simHash)
             ) {
                 val summaryId = summaryQuery.findIdByJobSnapshotId(snapshot.id)
-                    ?: continue  // Summary 없으면 재처리 허용
+                    ?: return DuplicateDecision.Reprocessable(
+                        existingSnapshotId = snapshot.id
+                    )
 
                 return DuplicateDecision.Duplicate(
                     reason = DuplicateReason.SIMHASH,
@@ -268,19 +270,21 @@ class JdIntakePolicy(
     /**
      * pg_trgm 기반 텍스트 유사도 중복 판정
      *
-     * @return 중복이면 DuplicateDecision.Duplicate, 아니면 null
+     * @return Duplicate / Reprocessable / null
      */
     private fun findTrgmDuplicate(
         coreText: String,
         threshold: Double = 0.75
-    ): DuplicateDecision.Duplicate? {
+    ): DuplicateDecision? {
         if (coreText.isBlank()) return null
 
-        val similarSnapshots = snapshotQuery.findSimilarByCoreText(coreText, threshold)
+        val similarSnapshots = snapshotCommand.findSimilarByCoreText(coreText, threshold)
 
         for (snapshot in similarSnapshots) {
             val summaryId = summaryQuery.findIdByJobSnapshotId(snapshot.id)
-                ?: continue  // Summary 없으면 재처리 허용
+                ?: return DuplicateDecision.Reprocessable(
+                    existingSnapshotId = snapshot.id
+                )
 
             return DuplicateDecision.Duplicate(
                 reason = DuplicateReason.TRGM,

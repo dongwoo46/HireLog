@@ -33,20 +33,35 @@ class JobSummaryOpenSearchAdapter(
      * @param payload 인덱싱할 문서 데이터
      */
     fun index(payload: JobSummarySearchPayload) {
-        val request = IndexRequest.Builder<JobSummarySearchPayload>()
-            .index(INDEX_NAME)
-            .id(payload.id.toString())
-            .document(payload)
-            .build()
+        try {
+            val request = IndexRequest.Builder<JobSummarySearchPayload>()
+                .index(INDEX_NAME)
+                .id(payload.id.toString())
+                .document(payload)
+                .build()
 
-        val response = openSearchClient.index(request)
+            val response = openSearchClient.index(request)
 
-        log.info(
-            "[OPENSEARCH_INDEX] index={}, id={}, result={}",
-            INDEX_NAME,
-            payload.id,
-            response.result().name
-        )
+            log.info(
+                "[OPENSEARCH_INDEX_SUCCESS] index={}, id={}, result={}, version={}",
+                INDEX_NAME,
+                payload.id,
+                response.result().name,
+                response.version()
+            )
+        } catch (e: Exception) {
+            log.error(
+                "[OPENSEARCH_INDEX_FAILED] index={}, id={}, brandName={}, positionName={}, errorClass={}, errorMessage={}",
+                INDEX_NAME,
+                payload.id,
+                payload.brandName,
+                payload.positionName,
+                e.javaClass.simpleName,
+                e.message,
+                e
+            )
+            throw e
+        }
     }
 
     /**
@@ -59,19 +74,31 @@ class JobSummaryOpenSearchAdapter(
      * @param id 삭제할 문서 ID (JobSummary.id)
      */
     fun delete(id: Long) {
-        val request = org.opensearch.client.opensearch.core.DeleteRequest.Builder()
-            .index(INDEX_NAME)
-            .id(id.toString())
-            .build()
+        try {
+            val request = org.opensearch.client.opensearch.core.DeleteRequest.Builder()
+                .index(INDEX_NAME)
+                .id(id.toString())
+                .build()
 
-        val response = openSearchClient.delete(request)
+            val response = openSearchClient.delete(request)
 
-        log.info(
-            "[OPENSEARCH_DELETE] index={}, id={}, result={}",
-            INDEX_NAME,
-            id,
-            response.result().name
-        )
+            log.info(
+                "[OPENSEARCH_DELETE_SUCCESS] index={}, id={}, result={}",
+                INDEX_NAME,
+                id,
+                response.result().name
+            )
+        } catch (e: Exception) {
+            log.error(
+                "[OPENSEARCH_DELETE_FAILED] index={}, id={}, errorClass={}, errorMessage={}",
+                INDEX_NAME,
+                id,
+                e.javaClass.simpleName,
+                e.message,
+                e
+            )
+            throw e
+        }
     }
 
     /**

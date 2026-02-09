@@ -1,64 +1,95 @@
 package com.hirelog.api.common.application.outbox
 
+import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
 import io.mockk.*
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.lang.RuntimeException
+
 @DisplayName("OutboxEventWriteService 테스트")
 class OutboxEventWriteServiceTest {
 
-    private val command: OutboxEventCommand = mockk()
-    private val service = OutboxEventWriteService(command)
+    private lateinit var outboxEventWriteService: OutboxEventWriteService
+    private lateinit var outboxEventCommand: OutboxEventCommand
 
-    @Nested
-    @DisplayName("append")
-    inner class Append {
-
-        @Test
-        @DisplayName("정상: OutboxEvent를 저장한다")
-        fun should_save_outbox_event() {
-            // given
-            val event = createOutboxEvent()
-            every { command.save(event) } just Runs
-
-            // when
-            service.append(event)
-
-            // then
-            verify(exactly = 1) { command.save(event) }
-        }
-
-        @Test
-        @DisplayName("실패: 저장 중 예외가 발생하면 그대로 전파한다")
-        fun should_rethrow_exception_when_save_fails() {
-            // given
-            val event = createOutboxEvent()
-            val exception = RuntimeException("DB Error")
-
-            every { command.save(event) } throws exception
-
-            // when & then
-            val thrown = assertThrows(RuntimeException::class.java) {
-                service.append(event)
-            }
-
-            assertEquals("DB Error", thrown.message)
-        }
-
-
-
-
+    @BeforeEach
+    fun setUp() {
+        outboxEventCommand = mockk()
+        outboxEventWriteService = OutboxEventWriteService(outboxEventCommand)
     }
 
-    private fun createOutboxEvent(): OutboxEvent =
-        OutboxEvent.occurredWithString(
-            aggregateType = "TEST",
-            aggregateId = "1",
-            eventType = "CREATED",
-            payload = "{}"
-        )
+    @Nested
+    @DisplayName("append 메서드는")
+    inner class AppendTest {
+
+        @Test
+        @DisplayName("Outbox 이벤트를 저장한다")
+        fun shouldAppendOutboxEvent() {
+            // given
+            val event = OutboxEvent.occurred(
+                aggregateType = AggregateType.JOB_SUMMARY,
+                aggregateId = "123",
+                eventType = "MEMBER_CREATED",
+                payload = """{"id":123,"name":"test"}"""
+            )
+
+            every { outboxEventCommand.save(event) } just Runs
+
+            // when
+            outboxEventWriteService.append(event)
+
+            // then
+            verify(exactly = 1) { outboxEventCommand.save(event) }
+        }
+
+
+
+        @Test
+        @DisplayName("저장 실패 시 예외를 던진다")
+        fun shouldThrowExceptionWhenSaveFails() {
+            // given
+            val event = OutboxEvent.occurred(
+                aggregateType = AggregateType.JOB_SUMMARY,
+                aggregateId = "123",
+                eventType = "MEMBER_CREATED",
+                payload = "{}"
+            )
+
+            val exception = RuntimeException("Database connection failed")
+            every { outboxEventCommand.save(event) } throws exception
+
+            // when & then
+            assertThatThrownBy {
+                outboxEventWriteService.append(event)
+            }
+                .isInstanceOf(RuntimeException::class.java)
+                .hasMessage("Database connection failed")
+
+            verify(exactly = 1) { outboxEventCommand.save(event) }
+        }
+
+        @Test
+        @DisplayName("저장 실패 시에도 예외를 재throw한다")
+        fun shouldRethrowExceptionOnFailure() {
+            // given
+            val event = OutboxEvent.occurred(
+                aggregateType = AggregateType.JOB_SUMMARY,
+                aggregateId = "456",
+                eventType = "BRAND_REJECTED",
+                payload = "{}"
+            )
+
+            val exception = IllegalStateException("Invalid state")
+            every { outboxEventCommand.save(event) } throws exception
+
+            // when & then
+            assertThatThrownBy {
+                outboxEventWriteService.append(event)
+            }
+                .isSameAs(exception)
+        }
+    }
 }

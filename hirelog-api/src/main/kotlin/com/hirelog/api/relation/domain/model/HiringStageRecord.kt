@@ -1,6 +1,6 @@
 package com.hirelog.api.relation.domain.model
 
-import com.hirelog.api.job.domain.HiringStage
+import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.domain.type.HiringStageResult
 import jakarta.persistence.*
 import java.time.LocalDateTime

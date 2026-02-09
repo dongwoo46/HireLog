@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.summary.view
 
 import com.hirelog.api.common.domain.LlmProvider
-import com.hirelog.api.job.domain.CareerType
+import com.hirelog.api.job.domain.type.CareerType
 
 /**
  * JobSummaryLlmResult

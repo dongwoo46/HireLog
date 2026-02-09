@@ -68,11 +68,11 @@ class JobSummaryJpaQueryAdapter(
     }
 
     override fun existsByJobSnapshotId(jobSnapshotId: Long): Boolean {
-        return jpaRepository.existsByJobSnapshotId(jobSnapshotId)
+        return jpaRepository.existsByJobSnapshotIdAndIsActiveTrue(jobSnapshotId)
     }
 
     override fun findIdByJobSnapshotId(jobSnapshotId: Long): Long? {
-        return jpaRepository.findByJobSnapshotId(jobSnapshotId)?.id
+        return jpaRepository.findByJobSnapshotIdAndIsActiveTrue(jobSnapshotId)?.id
     }
 
     /**

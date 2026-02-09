@@ -1,7 +1,7 @@
 package com.hirelog.api.job.infra.persistence.jpa.repository
 
-import com.hirelog.api.job.domain.JobSnapshot
-import com.hirelog.api.job.domain.QJobSnapshot
+import com.hirelog.api.job.domain.model.JobSnapshot
+import com.hirelog.api.job.domain.model.QJobSnapshot
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.stereotype.Repository

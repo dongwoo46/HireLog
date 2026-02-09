@@ -88,3 +88,7 @@ Unless stated otherwise, assume:
 - Do NOT design or propose features that were not requested.
 - Do NOT increase response length for politeness or verbosity.
 - Do NOT switch response language under any circumstance.
+
+- Do NOT explore the codebase
+- Do NOT search files
+- Only reason based on the provided snippets

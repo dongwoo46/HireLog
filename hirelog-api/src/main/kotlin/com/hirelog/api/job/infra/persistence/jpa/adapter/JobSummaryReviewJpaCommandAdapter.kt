@@ -1,7 +1,7 @@
 package com.hirelog.api.job.infrastructure.review.adapter
 
 import com.hirelog.api.job.application.review.port.JobSummaryReviewCommand
-import com.hirelog.api.job.domain.JobSummaryReview
+import com.hirelog.api.job.domain.model.JobSummaryReview
 import com.hirelog.api.job.infrastructure.review.jpa.JobSummaryReviewJpaRepository
 import org.springframework.stereotype.Component
 

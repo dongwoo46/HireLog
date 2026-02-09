@@ -1,6 +1,6 @@
 package com.hirelog.api.job.infra.persistence.jpa.repository
 
-import com.hirelog.api.job.domain.QJobSummary
+import com.hirelog.api.job.domain.model.QJobSummary
 import com.hirelog.api.job.infra.persistence.jpa.projection.JobSummaryProjection
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.core.types.Projections

@@ -9,6 +9,7 @@ from url.section_extractor import extract_url_sections
 from preprocess.adapter.url_section_adapter import adapt_url_sections_to_sections
 from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
 from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
+from preprocess.post_validation.section_post_validator import validate_raw_sections
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,12 @@ class UrlPipeline:
 
         # 🔍 DEBUG: 섹션 분리 후
         logger.debug("[URL_PIPELINE] 3️⃣ 섹션 분리 후 (raw_sections)")
+        logger.debug(json.dumps(raw_sections, ensure_ascii=False, indent=2))
+
+        # 4.5️⃣ 섹션 구조 후보정
+        raw_sections = validate_raw_sections(raw_sections)
+
+        logger.debug("[URL_PIPELINE] 3.5️⃣ 섹션 후보정 결과")
         logger.debug(json.dumps(raw_sections, ensure_ascii=False, indent=2))
 
         if not raw_sections:

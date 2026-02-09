@@ -1,7 +1,7 @@
 package com.hirelog.api.job.presentation.controller.dto.request
 
 import com.hirelog.api.job.application.summary.query.JobSummarySearchQuery
-import com.hirelog.api.job.domain.CareerType
+import com.hirelog.api.job.domain.type.CareerType
 
 /**
  * JobSummary 검색 요청

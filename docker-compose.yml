@@ -64,8 +64,8 @@ services:
       - '9200:9200' # REST API
       - '9600:9600' # Performance Analyzer
 
-    volumes:
-      - ./opensearch_data:/usr/share/opensearch/data
+    # volumes:
+    #   - ./opensearch_data:/usr/share/opensearch/data
 
   kafka:
     image: apache/kafka:3.7.2
@@ -120,6 +120,9 @@ services:
       KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+
+      CONNECT_ERRORS_LOG_ENABLE: 'true'
+      CONNECT_ERRORS_LOG_INCLUDE_MESSAGES: 'true'
 
       TZ: Asia/Seoul
     depends_on:

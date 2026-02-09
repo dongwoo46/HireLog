@@ -1,7 +1,8 @@
 package com.hirelog.api.job.infra.persistence.jpa.repository
 
-import com.hirelog.api.job.domain.JdSummaryProcessing
-import com.hirelog.api.job.domain.JdSummaryProcessingStatus
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
+import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -27,16 +28,15 @@ interface JdSummaryProcessingJpaRepository :
      * - updatedAt < olderThan
      */
     @Query("""
-        SELECT p FROM JdSummaryProcessing p
-        WHERE p.status = :status
-          AND p.llmResultJson IS NOT NULL
-          AND p.updatedAt < :olderThan
-        ORDER BY p.updatedAt ASC
-        LIMIT :limit
-    """)
+    SELECT p FROM JdSummaryProcessing p
+    WHERE p.status = :status
+      AND p.llmResultJson IS NOT NULL
+      AND p.updatedAt < :olderThan
+    ORDER BY p.updatedAt ASC
+""")
     fun findStuckWithLlmResult(
         @Param("status") status: JdSummaryProcessingStatus,
         @Param("olderThan") olderThan: LocalDateTime,
-        @Param("limit") limit: Int
+        pageable: Pageable
     ): List<JdSummaryProcessing>
 }

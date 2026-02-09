@@ -1,6 +1,6 @@
 package com.hirelog.api.job.presentation.controller.dto.request
 
-import com.hirelog.api.job.domain.HiringStage
+import com.hirelog.api.job.domain.type.HiringStage
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank

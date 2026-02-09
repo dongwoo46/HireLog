@@ -3,7 +3,8 @@ package com.hirelog.api.job.application.intake
 import com.hirelog.api.common.infra.storage.FileStorageService
 import com.hirelog.api.job.application.intake.port.JdPreprocessRequestPort
 import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
-import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
+import com.hirelog.api.job.domain.type.JobSourceType
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.util.*
@@ -29,12 +30,14 @@ import java.util.*
 class JdIntakeService(
     private val fileStorageService: FileStorageService,
     private val jdPreprocessRequestPort: JdPreprocessRequestPort,
+    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService
 ) {
 
     /**
      * TEXT 기반 JD 전처리 요청
      */
     fun requestText(
+        memberId: Long,
         brandName: String,
         brandPositionName: String,
         text: String,
@@ -55,6 +58,7 @@ class JdIntakeService(
         )
 
         jdPreprocessRequestPort.send(message)
+        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
         return message.requestId
     }
 
@@ -62,6 +66,7 @@ class JdIntakeService(
      * OCR 기반 JD 전처리 요청
      */
     fun requestOcr(
+        memberId: Long,
         brandName: String,
         brandPositionName: String,
         imageFiles: List<MultipartFile>,
@@ -84,6 +89,7 @@ class JdIntakeService(
         )
 
         jdPreprocessRequestPort.send(message)
+        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
         return message.requestId
     }
 
@@ -91,6 +97,7 @@ class JdIntakeService(
      * URL 기반 JD 전처리 요청
      */
     fun requestUrl(
+        memberId: Long,
         brandName: String,
         brandPositionName: String,
         url: String,
@@ -111,6 +118,7 @@ class JdIntakeService(
         )
 
         jdPreprocessRequestPort.send(message)
+        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
         return message.requestId
     }
 

@@ -13,8 +13,8 @@ import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventTy
 import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.domain.JobSummary
-import com.hirelog.api.job.domain.JobSummaryInsight
+import com.hirelog.api.job.domain.model.JobSummary
+import com.hirelog.api.job.domain.model.JobSummaryInsight
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

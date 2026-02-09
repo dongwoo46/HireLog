@@ -73,7 +73,7 @@ class SignupController(
         @CookieValue("signup_token") signupToken: String,
     ): ResponseEntity<VerifyCodeResponse> {
         val response = signupFacadeService.verifyCode(signupToken, request.email, request.code)
-        return ResponseEntity.ok(response)
+        return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/recovery/verify-code")
@@ -86,7 +86,7 @@ class SignupController(
             email = request.email,
             code = request.code
         )
-        return ResponseEntity.ok(response)
+        return ResponseEntity.noContent().build()
     }
 
 

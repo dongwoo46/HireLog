@@ -4,8 +4,8 @@ package com.hirelog.api.job.application.messaging.mapper
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.job.application.messaging.JdPreprocessResponseMessage
-import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.RecruitmentPeriodType
+import com.hirelog.api.job.domain.type.JobSourceType
+import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import org.springframework.stereotype.Component
 import java.time.LocalDate
 

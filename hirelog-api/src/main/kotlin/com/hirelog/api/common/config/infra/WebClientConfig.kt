@@ -44,4 +44,15 @@ class WebClientConfig(
             maxInMemorySizeMb = 5,
             userAgent = "HireLog-Worknet/1.0"
         )
+
+    @Bean("openAiWebClient")
+    fun openAiWebClient(): WebClient =
+        WebClientFactory.create(
+            baseUrl = "https://api.openai.com/v1",
+            poolName = "openai-pool",
+            maxConnections = 50,
+            responseTimeoutSec = 30,
+            maxInMemorySizeMb = 4, // GPT 응답 크기 고려
+            userAgent = "HireLog-OpenAI/1.0"
+        )
 }

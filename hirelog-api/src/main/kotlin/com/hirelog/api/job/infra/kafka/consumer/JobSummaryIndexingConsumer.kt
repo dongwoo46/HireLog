@@ -61,26 +61,44 @@ class JobSummaryIndexingConsumer(
             record.offset()
         )
 
-        // Debezium + JsonConverter 조합에서 TEXT 컬럼은 이중 직렬화될 수 있음
-        // 예: "{\"id\":1,...}" (문자열로 감싸진 JSON)
-        val actualPayload = if (payload.startsWith("\"")) {
-            objectMapper.readValue<String>(payload)
-        } else {
-            payload
+        try {
+            when (eventType) {
+                EventType.DELETED -> handleDelete(aggregateId, payload)
+                else -> handleIndex(payload)
+            }
+
+            acknowledgment.acknowledge()
+
+            log.info(
+                "[JOB_SUMMARY_INDEXING_SUCCESS] aggregateId={}, eventType={}, offset committed",
+                aggregateId,
+                eventType
+            )
+        } catch (e: com.fasterxml.jackson.core.JsonProcessingException) {
+            log.error(
+                "[JOB_SUMMARY_INDEXING_PARSE_ERROR] aggregateId={}, eventType={}, partition={}, offset={}, payloadPreview={}, error={}",
+                aggregateId,
+                eventType,
+                record.partition(),
+                record.offset(),
+                payload?.take(500),
+                e.message,
+                e
+            )
+            throw e
+        } catch (e: Exception) {
+            log.error(
+                "[JOB_SUMMARY_INDEXING_ERROR] aggregateId={}, eventType={}, partition={}, offset={}, errorClass={}, error={}",
+                aggregateId,
+                eventType,
+                record.partition(),
+                record.offset(),
+                e.javaClass.simpleName,
+                e.message,
+                e
+            )
+            throw e
         }
-
-        when (eventType) {
-            EventType.DELETED -> handleDelete(aggregateId, actualPayload)
-            else -> handleIndex(actualPayload)
-        }
-
-        acknowledgment.acknowledge()
-
-        log.info(
-            "[JOB_SUMMARY_INDEXING_SUCCESS] aggregateId={}, eventType={}, offset committed",
-            aggregateId,
-            eventType
-        )
         // 예외 발생 시 ErrorHandler가 처리 (3회 재시도 → DLT 전송 → DB 기록)
     }
 
@@ -97,11 +115,27 @@ class JobSummaryIndexingConsumer(
 
     /**
      * CREATED 이벤트 처리 - OpenSearch 인덱싱
+     *
+     * Debezium Outbox EventRouter + TEXT 컬럼 조합에서
+     * payload가 이중 직렬화될 수 있음 (STRING → JsonConverter가 따옴표로 감싸기)
+     * 예: "{\"id\":1,...}" → 실제 JSON으로 언래핑 필요
      */
     private fun handleIndex(payload: String) {
-        val outboxPayload = objectMapper.readValue<JobSummaryOutboxPayload>(payload)
+        val actualPayload = unwrapDoubleSerializedJson(payload)
+        val outboxPayload = objectMapper.readValue<JobSummaryOutboxPayload>(actualPayload)
         val searchPayload = JobSummarySearchPayload.from(outboxPayload)
         openSearchAdapter.index(searchPayload)
+    }
+
+    /**
+     * Debezium TEXT 컬럼 이중 직렬화 방어
+     * 따옴표로 감싸진 JSON 문자열이면 한 번 언래핑
+     */
+    private fun unwrapDoubleSerializedJson(payload: String): String {
+        if (payload.startsWith("\"") && payload.endsWith("\"")) {
+            return objectMapper.readValue<String>(payload)
+        }
+        return payload
     }
 
     /**

@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.snapshot.command
 
-import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.RecruitmentPeriodType
+import com.hirelog.api.job.domain.type.JobSourceType
+import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import jakarta.validation.constraints.NotNull
 import java.time.LocalDate
 

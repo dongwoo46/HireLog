@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.messaging
 
-import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.type.JobSourceType
 
 data class JdPreprocessRequestMessage(
     // === Event Identity ===

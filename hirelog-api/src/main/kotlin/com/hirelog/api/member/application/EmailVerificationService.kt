@@ -1,5 +1,7 @@
 package com.hirelog.api.member.application
 
+import com.hirelog.api.common.exception.InvalidVerificationCodeException
+import com.hirelog.api.common.exception.VerificationCodeExpiredException
 import com.hirelog.api.common.infra.mail.EmailSender
 import com.hirelog.api.common.infra.redis.RedisService
 import com.hirelog.api.common.logging.log
@@ -70,16 +72,18 @@ class EmailVerificationService(
     /**
      * 인증코드 검증
      *
-     * @return 검증 성공 여부
+     * - 성공: 정상 종료
+     * - 실패: 원인별 예외 발생
      */
-    fun verify(token: String, email: String, code: String): Boolean {
+    fun verifyOrThrow(token: String, email: String, code: String) {
         val key = "$CODE_KEY_PREFIX$token"
 
         val codeData = redisService.get(key, CodeData::class.java)
-            ?: return false
+            ?: throw VerificationCodeExpiredException()
 
+        // 이메일 또는 코드 불일치 (외부에는 동일한 실패로 노출)
         if (codeData.email != email || codeData.code != code) {
-            return false
+            throw InvalidVerificationCodeException()
         }
 
         // 인증 성공 → 코드 삭제
@@ -91,8 +95,6 @@ class EmailVerificationService(
             value = VerifiedData(email),
             duration = VERIFIED_TTL
         )
-
-        return true
     }
 
 

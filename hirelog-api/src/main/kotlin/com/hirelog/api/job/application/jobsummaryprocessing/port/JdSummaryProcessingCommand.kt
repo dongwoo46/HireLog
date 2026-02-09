@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.jdsummaryprocessing.port
 
-import com.hirelog.api.job.domain.JdSummaryProcessing
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
 
 /**
  * JdSummaryProcessing Command Port

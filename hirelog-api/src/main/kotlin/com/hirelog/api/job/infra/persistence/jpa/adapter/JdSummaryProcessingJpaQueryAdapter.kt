@@ -1,9 +1,11 @@
 package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
-import com.hirelog.api.job.domain.JdSummaryProcessing
-import com.hirelog.api.job.domain.JdSummaryProcessingStatus
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
+import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
 import com.hirelog.api.job.infra.persistence.jpa.repository.JdSummaryProcessingJpaRepository
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
 import java.util.UUID
@@ -27,7 +29,18 @@ class JdSummaryProcessingJpaQueryAdapter(
         status: JdSummaryProcessingStatus,
         olderThan: LocalDateTime,
         limit: Int
-    ): List<JdSummaryProcessing> =
-        repository.findStuckWithLlmResult(status, olderThan, limit)
+    ): List<JdSummaryProcessing> {
+        val pageable = PageRequest.of(
+            0,
+            limit,
+            Sort.by(Sort.Direction.ASC, "updatedAt")
+        )
+
+        return repository.findStuckWithLlmResult(
+            status = status,
+            olderThan = olderThan,
+            pageable = pageable
+        )
+    }
 
 }

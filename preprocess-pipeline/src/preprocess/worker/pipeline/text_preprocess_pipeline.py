@@ -6,6 +6,7 @@ from preprocess.core_preprocess.core_preprocessor import CorePreprocessor
 from preprocess.structural_preprocess.structural_preprocessor import StructuralPreprocessor
 from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
 from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
+from preprocess.post_validation.section_post_validator import validate_section_objects
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,9 @@ class TextPreprocessPipeline:
         # 2️⃣ Structural
         # - 텍스트 레이아웃 기반 섹션 구조 생성
         sections = self.structural.process(core_lines)
+
+        # 2.5️⃣ 섹션 구조 후보정
+        sections = validate_section_objects(sections)
 
         # 🔍 DEBUG: 섹션 분리 후
         logger.debug("[TEXT_PIPELINE] 2️⃣ 섹션 분리 후 (sections)")

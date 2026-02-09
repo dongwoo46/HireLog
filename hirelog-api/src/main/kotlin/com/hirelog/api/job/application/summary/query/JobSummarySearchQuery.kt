@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.summary.query
 
-import com.hirelog.api.job.domain.CareerType
+import com.hirelog.api.job.domain.type.CareerType
 
 /**
  * JobSummary 검색 쿼리

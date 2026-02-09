@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.intake.model
 
-import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.RecruitmentPeriodType
+import com.hirelog.api.job.domain.type.JobSourceType
+import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import java.time.LocalDate
 
 /**

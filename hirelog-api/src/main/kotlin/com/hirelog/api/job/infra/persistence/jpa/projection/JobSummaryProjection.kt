@@ -1,6 +1,6 @@
 package com.hirelog.api.job.infra.persistence.jpa.projection
 
-import com.hirelog.api.job.domain.CareerType
+import com.hirelog.api.job.domain.type.CareerType
 
 /**
  * JobSummary 조회 전용 Projection

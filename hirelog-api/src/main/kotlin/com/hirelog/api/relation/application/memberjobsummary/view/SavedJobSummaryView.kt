@@ -1,6 +1,6 @@
 package com.hirelog.api.relation.application.memberjobsummary.view
 
-import com.hirelog.api.job.domain.CareerType
+import com.hirelog.api.job.domain.type.CareerType
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import java.time.LocalDateTime
 

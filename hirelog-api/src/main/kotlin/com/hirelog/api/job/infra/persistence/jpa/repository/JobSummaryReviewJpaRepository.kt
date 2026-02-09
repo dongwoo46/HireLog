@@ -1,6 +1,6 @@
 package com.hirelog.api.job.infrastructure.review.jpa
 
-import com.hirelog.api.job.domain.JobSummaryReview
+import com.hirelog.api.job.domain.model.JobSummaryReview
 import org.springframework.data.domain.Page
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.domain.Pageable
