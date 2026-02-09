@@ -1,3 +1,4 @@
+import { FaStar } from 'react-icons/fa';
 
 const LoginPage = () => {
   const handleLogin = (provider: 'google' | 'kakao') => {
@@ -6,21 +7,42 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="p-8 text-center">
-          <div className="w-12 h-12 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white text-xl mx-auto mb-4">
-            H
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h2>
-          <p className="text-gray-500 mb-8">Sign in to continue to HireLog</p>
+    <div className="flex min-h-screen font-sans">
+      {/* Left Side */}
+      <div className="hidden lg:flex w-1/2 bg-gray-100 flex-col items-center justify-center relative">
+        {/* Logo removed - handled by Global Header */}
+        <h1 className="text-4xl font-bold text-black tracking-tight">
+          리뷰 돌아가게 할거임 .
+        </h1>
+      </div>
 
-          <div className="space-y-4">
+      {/* Right Side */}
+      <div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center px-8">
+        <div className="w-full max-w-sm flex flex-col items-center">
+          {/* Star Icon */}
+          <div className="mb-12">
+            <FaStar className="w-24 h-24 text-cyan-300" />
+          </div>
+
+          {/* Divider */}
+          <div className="relative w-full flex items-center justify-center mb-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <span className="relative bg-white px-4 text-gray-500 text-sm">
+              소셜 계정으로 간편로그인
+            </span>
+          </div>
+
+          {/* Buttons */}
+          <div className="w-full space-y-4">
+            {/* Google Button - White with Border */}
             <button
               onClick={() => handleLogin('google')}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700 bg-white"
+              className="w-full h-14 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white group"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              {/* Reusing the SVG from previous code as an icon, but keeping it simple/centered as per the 'box' look */}
+              <svg className="w-6 h-6" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -38,30 +60,24 @@ const LoginPage = () => {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Continue with Google
             </button>
 
+            {/* Kakao Button - Yellow */}
             <button
               onClick={() => handleLogin('kakao')}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#FEE500] rounded-lg hover:bg-[#FDD835] transition-colors font-medium text-[#191919]"
+              className="w-full h-14 flex items-center justify-center rounded-lg hover:opacity-90 transition-colors bg-[#FFFF00]" // Using bright yellow as per image
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 3C5.9 3 1 6.9 1 11.8c0 3.2 2.1 6 5.3 7.6-.2.8-1.4 5.3-1.6 6 1.9-1.4 7-4.7 7.7-5.1.5.1 1.1.1 1.6.1 6.1 0 11-3.9 11-8.8S16.1 3 12 3z"/>
+              <svg className="w-6 h-6 text-[#3C1E1E]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3C5.9 3 1 6.9 1 11.8c0 3.2 2.1 6 5.3 7.6-.2.8-1.4 5.3-1.6 6 1.9-1.4 7-4.7 7.7-5.1.5.1 1.1.1 1.6.1 6.1 0 11-3.9 11-8.8S16.1 3 12 3z" />
               </svg>
-              Continue with Kakao
             </button>
           </div>
-        </div>
-        
-        <div className="bg-gray-50 px-8 py-4 border-t border-gray-100 text-center">
-          <p className="text-sm text-gray-500">
-            Don't have an account? <a href="/signup" className="text-blue-600 hover:underline">Sign up</a>
-          </p> 
-          {/* Typically signup is also via OAuth, but maybe we want to allow "entering code" manually? 
-              The user flow says: OAuth -> Signup page. 
-              So direct access to signup page might be empty or redirect back to login? 
-              Leaving it as a link for now.
-          */}
+
+          {/* Footer */}
+          <div className="w-full mt-8 pt-6 border-t border-gray-200 text-center">
+            <span className="text-gray-500 text-sm">아직 회원이 아니신가요? </span>
+            <a href="/signup" className="text-blue-500 text-sm font-medium hover:underline ml-2">회원가입</a>
+          </div>
         </div>
       </div>
     </div>

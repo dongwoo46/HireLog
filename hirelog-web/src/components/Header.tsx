@@ -1,80 +1,53 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { TbDoorExit } from 'react-icons/tb';
+import { TbMenu2 } from 'react-icons/tb';
 
 export function Header() {
-  const { isAuthenticated, user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
+  const location = useLocation();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+  const isAuthPage = ['/login', '/signup'].includes(location.pathname);
 
+  // Mode 1: Auth Pages (Logo Only)
+  if (isAuthPage) {
+    return (
+      <header className="fixed w-full z-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <Link to="/" className="text-2xl font-bold tracking-tight text-gray-900">
+            HireLog
+          </Link>
+        </div>
+      </header>
+    );
+  }
+
+  // Mode 2: Main App (Logo + Profile + Menu)
   return (
-    <header className="fixed w-full z-50 bg-slate-900/80 backdrop-blur-md border-b border-white/10 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          {/* Logo Area */}
-          <div className="flex">
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white text-lg shadow-lg group-hover:shadow-blue-500/30 transition-all">
-                H
-              </div>
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                HireLog
-              </span>
-            </Link>
-            
-            {/* Desktop Navigation */}
-            <div className="hidden sm:ml-10 sm:flex sm:space-x-8">
-              <Link
-                to="/"
-                className="text-slate-300 hover:text-white px-1 pt-1 text-sm font-medium transition-colors"
-              >
-                Home
-              </Link>
-              <Link
-                to="/tools/jd-summary"
-                className="text-slate-300 hover:text-white px-1 pt-1 text-sm font-medium transition-colors"
-              >
-                JD Summary
-              </Link>
+    <header className="fixed w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all duration-300">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
+        {/* Logo */}
+        <Link to="/" className="text-2xl font-bold tracking-tight text-gray-900">
+          HireLog
+        </Link>
+
+        {/* Right Side Actions */}
+        <div className="flex items-center gap-4">
+
+          {/* Profile Circle */}
+          {isAuthenticated ? (
+            <div className="w-10 h-10 rounded-full bg-teal-400 flex items-center justify-center text-white font-bold shadow-sm cursor-pointer" title={user?.name}>
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
-          </div>
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center shadow-sm cursor-pointer" title="Guest">
+              {/* Orange circle for Guest as requested */}
+            </div>
+          )}
 
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-4">
-            {isAuthenticated ? (
-              <>
-                {/* User Profile Preview */}
-                <div className="flex items-center gap-3 pl-4 border-l border-white/10">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-slate-800">
-                    {user?.name?.charAt(0).toUpperCase() ?? 'U'}
-                  </div>
-                  <span className="text-sm text-slate-200 font-medium hidden md:block">
-                    {user?.name || 'User'}
-                  </span>
-                </div>
-
-                {/* Door Logout Button */}
-                <button
-                  onClick={handleLogout}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-all flex items-center justify-center group relative"
-                  title="Logout"
-                >
-                  <TbDoorExit size={22} />
-                </button>
-              </>
-            ) : (
-                <Link
-                  to="/login"
-                  className="text-slate-300 hover:text-white text-sm font-medium transition-colors"
-                >
-                  Log in
-                </Link>
-            )}
-          </div>
+          {/* Menu Button (Hamburger) */}
+          <button className="p-2 text-gray-600 hover:text-black">
+            <TbMenu2 size={24} />
+          </button>
         </div>
       </div>
     </header>
