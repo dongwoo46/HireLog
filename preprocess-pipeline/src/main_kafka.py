@@ -42,9 +42,9 @@ from worker.base_kafka_worker import BaseKafkaWorker
 from utils.logger import setup_logging
 
 # 환경변수 LOG_LEVEL로 제어 (DEBUG / INFO / WARNING / ERROR)
-# 개발: LOG_LEVEL=DEBUG python main_kafka.py
+# 개발: LOG_LEVEL=DEBUG python main_kafka.py setup_logging("DEBUG")
 # 운영: LOG_LEVEL=INFO python main_kafka.py (기본값)
-setup_logging()
+setup_logging("DEBUG")
 
 logger = logging.getLogger(__name__)
 

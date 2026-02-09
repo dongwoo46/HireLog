@@ -6,11 +6,13 @@ import com.hirelog.api.brand.application.BrandWriteService
 import com.hirelog.api.brand.domain.BrandSource
 import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
 import com.hirelog.api.relation.domain.type.BrandPositionSource
+import com.hirelog.api.common.application.sse.SseEmitterManager
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.summary.JobSummaryCreationService
+import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
@@ -40,7 +42,9 @@ class StuckProcessingRecoveryScheduler(
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionCommand: PositionCommand,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService,
+    private val sseEmitterManager: SseEmitterManager
 ) {
 
     companion object {
@@ -171,6 +175,23 @@ class StuckProcessingRecoveryScheduler(
             errorMessage = "Stuck recovery failed: ${exception.message}"
         )
         processingCommand.update(processing)
+
+        // JobSummaryRequest 실패 처리 + SSE 알림
+        val memberId = jobSummaryRequestWriteService.failRequest(
+            requestId = processing.id.toString()
+        )
+
+        if (memberId != null) {
+            sseEmitterManager.send(
+                memberId = memberId,
+                eventName = "JOB_SUMMARY_FAILED",
+                data = mapOf(
+                    "requestId" to processing.id.toString(),
+                    "errorCode" to "RECOVERY_FAILED",
+                    "retryable" to false
+                )
+            )
+        }
 
         log.warn(
             "[STUCK_PROCESSING_MARKED_FAILED] processingId={}",

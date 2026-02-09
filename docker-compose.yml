@@ -64,8 +64,8 @@ services:
       - '9200:9200' # REST API
       - '9600:9600' # Performance Analyzer
 
-    volumes:
-      - ./opensearch_data:/usr/share/opensearch/data
+    # volumes:
+    #   - ./opensearch_data:/usr/share/opensearch/data
 
   kafka:
     image: apache/kafka:3.7.2
@@ -96,7 +96,7 @@ services:
       KAFKA_LOG_DIRS: /var/lib/kafka/data
 
       # 4. 개발 편의 설정
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false' # 👈 true로 변경 (테스트용)
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true' # 👈 true로 변경 (테스트용)
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       TZ: Asia/Seoul
@@ -120,6 +120,9 @@ services:
       KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+
+      CONNECT_ERRORS_LOG_ENABLE: 'true'
+      CONNECT_ERRORS_LOG_INCLUDE_MESSAGES: 'true'
 
       TZ: Asia/Seoul
     depends_on:

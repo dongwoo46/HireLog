@@ -1,6 +1,5 @@
 package com.hirelog.api.common.infra.jpa.entity
 
-import com.hirelog.api.common.domain.outbox.OutboxStatus
 import jakarta.persistence.*
 import java.time.LocalDateTime
 import java.util.UUID
@@ -102,12 +101,9 @@ class OutboxEventJpaEntity(
      * 이벤트 페이로드
      *
      * 특징:
-     * - JSON 문자열 (TEXT)
+     * - TEXT 타입 (Debezium Outbox EventRouter가 JSONB를 지원하지 않음)
+     * - Consumer에서 이중 직렬화 방어 처리 필요
      * - 스키마 검증은 애플리케이션 레벨 책임
-     *
-     * 설계 이유:
-     * - CDC 파이프라인 단순화
-     * - Kafka Consumer에서 그대로 역직렬화 가능
      */
     @Column(name = "payload", nullable = false, columnDefinition = "text")
     val payload: String,

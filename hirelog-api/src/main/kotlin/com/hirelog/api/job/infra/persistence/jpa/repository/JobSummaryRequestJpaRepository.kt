@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface JobSummaryRequestJpaRepository : JpaRepository<JobSummaryRequest, Long> {
 
-    fun findAllByRequestIdAndStatus(
+    fun findByRequestIdAndStatus(
         requestId: String,
         status: JobSummaryRequestStatus
-    ): List<JobSummaryRequest>
+    ): JobSummaryRequest?
 }

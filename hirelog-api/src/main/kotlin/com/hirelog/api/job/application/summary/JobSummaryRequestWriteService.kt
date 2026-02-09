@@ -2,7 +2,6 @@ package com.hirelog.api.job.application.summary
 
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryRequestCommand
-import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.job.domain.model.JobSummaryRequest
 import com.hirelog.api.job.domain.type.JobSummaryRequestStatus
 import com.hirelog.api.relation.application.memberjobsummary.MemberJobSummaryWriteService
@@ -17,6 +16,10 @@ import org.springframework.transaction.annotation.Transactional
  * - 요청 기록 생성
  * - 완료 시 요청 상태 업데이트 + MemberJobSummary 자동 생성
  * - 실패 시 요청 상태 업데이트
+ *
+ * 정책:
+ * - requestId:memberId = 1:1 (요청마다 고유 UUID)
+ * - 상태 전이만 담당, 알림(SSE)은 리스너에서 처리
  */
 @Service
 class JobSummaryRequestWriteService(
@@ -26,10 +29,6 @@ class JobSummaryRequestWriteService(
 
     /**
      * 요청 기록 생성
-     *
-     * 정책:
-     * - Controller에서 Kafka 전송 후 호출
-     * - 초기 상태 PENDING
      */
     @Transactional
     fun createRequest(memberId: Long, requestId: String): JobSummaryRequest {
@@ -51,66 +50,78 @@ class JobSummaryRequestWriteService(
     /**
      * 요청 완료 처리 + MemberJobSummary 생성
      *
+     * @return 완료된 요청의 memberId (PENDING 요청이 없으면 null)
+     *
      * 트랜잭션 정책:
-     * - JobSummaryCreationService.createWithOutbox() 트랜잭션에 참여
-     * - JobSummaryRequest 완료 + MemberJobSummary 생성이 원자적으로 처리
+     * - AFTER_COMMIT 리스너에서 호출 → 별도 트랜잭션
+     * - 핵심 트랜잭션(JobSummary + Outbox + Processing)과 분리
      */
-    fun completeRequests(requestId: String, summary: JobSummary) {
-        val pendingRequests = jobSummaryRequestCommand.findAllByRequestIdAndStatus(
+    @Transactional
+    fun completeRequest(
+        requestId: String,
+        jobSummaryId: Long,
+        brandName: String,
+        positionName: String,
+        brandPositionName: String,
+        positionCategoryName: String
+    ): Long? {
+        val request = jobSummaryRequestCommand.findByRequestIdAndStatus(
             requestId = requestId,
             status = JobSummaryRequestStatus.PENDING
         )
 
-        if (pendingRequests.isEmpty()) {
+        if (request == null) {
             log.info("[JOB_SUMMARY_REQUEST_NO_PENDING] requestId={}", requestId)
-            return
+            return null
         }
 
-        for (request in pendingRequests) {
-            request.complete(summary.id)
-            jobSummaryRequestCommand.save(request)
+        request.complete(jobSummaryId)
+        jobSummaryRequestCommand.save(request)
 
-            memberJobSummaryWriteService.save(
-                CreateMemberJobSummaryCommand(
-                    memberId = request.memberId,
-                    jobSummaryId = summary.id,
-                    brandName = summary.brandName,
-                    positionName = summary.positionName,
-                    brandPositionName = summary.brandPositionName,
-                    positionCategoryName = summary.positionCategoryName
-                )
+        memberJobSummaryWriteService.save(
+            CreateMemberJobSummaryCommand(
+                memberId = request.memberId,
+                jobSummaryId = jobSummaryId,
+                brandName = brandName,
+                positionName = positionName,
+                brandPositionName = brandPositionName,
+                positionCategoryName = positionCategoryName
             )
+        )
 
-            log.info(
-                "[JOB_SUMMARY_REQUEST_COMPLETED] requestId={}, memberId={}, jobSummaryId={}",
-                requestId, request.memberId, summary.id
-            )
-        }
+        log.info(
+            "[JOB_SUMMARY_REQUEST_COMPLETED] requestId={}, memberId={}, jobSummaryId={}",
+            requestId, request.memberId, jobSummaryId
+        )
+
+        return request.memberId
     }
 
     /**
      * 요청 실패 처리
      *
-     * 정책:
-     * - PENDING 상태인 요청만 FAILED로 전이
+     * @return 실패 처리된 요청의 memberId (PENDING 요청이 없으면 null)
      */
     @Transactional
-    fun failRequests(requestId: String) {
-        val pendingRequests = jobSummaryRequestCommand.findAllByRequestIdAndStatus(
+    fun failRequest(requestId: String): Long? {
+        val request = jobSummaryRequestCommand.findByRequestIdAndStatus(
             requestId = requestId,
             status = JobSummaryRequestStatus.PENDING
         )
 
-        if (pendingRequests.isEmpty()) return
-
-        for (request in pendingRequests) {
-            request.markFailed()
-            jobSummaryRequestCommand.save(request)
-
-            log.info(
-                "[JOB_SUMMARY_REQUEST_FAILED] requestId={}, memberId={}",
-                requestId, request.memberId
-            )
+        if (request == null) {
+            log.info("[JOB_SUMMARY_REQUEST_NO_PENDING] requestId={}", requestId)
+            return null
         }
+
+        request.markFailed()
+        jobSummaryRequestCommand.save(request)
+
+        log.info(
+            "[JOB_SUMMARY_REQUEST_FAILED] requestId={}, memberId={}",
+            requestId, request.memberId
+        )
+
+        return request.memberId
     }
 }

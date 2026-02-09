@@ -138,4 +138,44 @@ class GlobalExceptionHandler {
             )
         )
     }
+
+    @ExceptionHandler(VerificationCodeExpiredException::class)
+    fun handleVerificationCodeExpired(
+        ex: VerificationCodeExpiredException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.GONE
+
+        return ResponseEntity
+            .status(status)
+            .body(
+                ErrorResponse(
+                    timestamp = Instant.now(),
+                    status = status.value(),
+                    error = "VERIFICATION_CODE_EXPIRED",
+                    path = request.requestURI,
+                    message = "인증 코드가 만료되었습니다."
+                )
+            )
+    }
+
+    @ExceptionHandler(InvalidVerificationCodeException::class)
+    fun handleInvalidVerificationCode(
+        ex: InvalidVerificationCodeException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(
+                ErrorResponse(
+                    timestamp = Instant.now(),
+                    status = HttpStatus.BAD_REQUEST.value(),
+                    error = "INVALID_VERIFICATION_CODE",
+                    path = request.requestURI,
+                    message = ex.message
+                )
+            )
+    }
+
 }

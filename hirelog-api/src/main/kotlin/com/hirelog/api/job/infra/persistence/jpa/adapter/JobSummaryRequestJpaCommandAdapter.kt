@@ -15,10 +15,10 @@ class JobSummaryRequestJpaCommandAdapter(
         return repository.save(request)
     }
 
-    override fun findAllByRequestIdAndStatus(
+    override fun findByRequestIdAndStatus(
         requestId: String,
         status: JobSummaryRequestStatus
-    ): List<JobSummaryRequest> {
-        return repository.findAllByRequestIdAndStatus(requestId, status)
+    ): JobSummaryRequest? {
+        return repository.findByRequestIdAndStatus(requestId, status)
     }
 }

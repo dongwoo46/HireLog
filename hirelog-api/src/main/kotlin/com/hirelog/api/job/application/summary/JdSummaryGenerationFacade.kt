@@ -18,8 +18,8 @@ import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingW
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.summary.JobSummaryCreationService
-import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
+import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
@@ -28,6 +28,7 @@ import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.domain.Position
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -61,7 +62,7 @@ class JdSummaryGenerationFacade(
     private val companyQuery: CompanyQuery,
     private val objectMapper: ObjectMapper,
     private val positionCommand: PositionCommand,
-    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     companion object {
@@ -350,7 +351,12 @@ class JdSummaryGenerationFacade(
             errorMessage = cause.message ?: "Unknown error"
         )
 
-        jobSummaryRequestWriteService.failRequests(processingId.toString())
+        eventPublisher.publishEvent(
+            JobSummaryRequestEvent.Failed.of(
+                processingId = processingId.toString(),
+                errorCode = errorCode
+            )
+        )
     }
 
     private fun unwrap(ex: Throwable): Throwable =

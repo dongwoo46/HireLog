@@ -10,6 +10,7 @@ import com.hirelog.api.company.application.CompanyCandidateWriteService
 import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.company.domain.CompanyCandidateSource
 import com.hirelog.api.job.application.intake.JdIntakePolicy
+import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
@@ -95,8 +96,24 @@ class JobSummaryAdminService(
             throw IllegalStateException("Duplicate JD: sourceUrl already exists. url=$sourceUrl")
         }
 
-        // === 3. Hash 계산 (메모리) ===
+        // === 3. Hash 계산 + 중복/Reprocessable 판정 ===
         val hashes = jdIntakePolicy.generateIntakeHashes(canonicalMap)
+        val hashDecision = jdIntakePolicy.findHashDuplicate(hashes.canonicalHash)
+
+        when (hashDecision) {
+            is DuplicateDecision.Duplicate -> {
+                throw IllegalStateException(
+                    "Duplicate JD: hash duplicate. snapshotId=${hashDecision.existingSnapshotId}, summaryId=${hashDecision.existingSummaryId}"
+                )
+            }
+            is DuplicateDecision.Reprocessable -> {
+                log.info(
+                    "[ADMIN_JD_REPROCESS] existingSnapshotId={}",
+                    hashDecision.existingSnapshotId
+                )
+            }
+            else -> {} // NotDuplicate or null — 신규 생성 진행
+        }
 
         // === 4. Position 후보 + Company 목록 조회 (읽기 전용) ===
         val positionCandidates = positionQuery.findActiveNames()
@@ -135,35 +152,55 @@ class JobSummaryAdminService(
             source = BrandPositionSource.LLM
         )
 
-        // Snapshot 생성 람다 (createAllForAdmin 내부에서 실행됨)
-        val snapshotSupplier = JobSummaryCreationService.JobSnapshotCommand {
-            val snapshot = JobSnapshot.create(
-                sourceType = JobSourceType.TEXT,
-                sourceUrl = sourceUrl,
-                canonicalSections = canonicalMap,
-                recruitmentPeriodType = RecruitmentPeriodType.UNKNOWN,
-                openedDate = null,
-                closedDate = null,
-                canonicalHash = hashes.canonicalHash,
-                simHash = hashes.simHash,
-                coreText = hashes.coreText
+        val summary = if (hashDecision is DuplicateDecision.Reprocessable) {
+            // 기존 Snapshot 재사용
+            summaryCreationService.createAllForAdmin(
+                snapshotCommand = JobSummaryCreationService.JobSnapshotCommand {
+                    // Reprocessable: 기존 Snapshot을 조회하여 반환
+                    snapshotCommand.findById(hashDecision.existingSnapshotId)
+                        ?: throw IllegalStateException("Snapshot not found. id=${hashDecision.existingSnapshotId}")
+                },
+                llmResult = llmResult,
+                brand = brand,
+                positionId = position.id,
+                positionName = position.name,
+                brandPositionId = brandPosition.id,
+                positionCategoryId = position.category.id,
+                positionCategoryName = position.category.name,
+                brandPositionName = positionName,
+                sourceUrl = sourceUrl
             )
-            snapshotCommand.record(snapshot)
-            snapshot
-        }
+        } else {
+            // 신규 Snapshot 생성
+            val snapshotSupplier = JobSummaryCreationService.JobSnapshotCommand {
+                val snapshot = JobSnapshot.create(
+                    sourceType = JobSourceType.TEXT,
+                    sourceUrl = sourceUrl,
+                    canonicalSections = canonicalMap,
+                    recruitmentPeriodType = RecruitmentPeriodType.UNKNOWN,
+                    openedDate = null,
+                    closedDate = null,
+                    canonicalHash = hashes.canonicalHash,
+                    simHash = hashes.simHash,
+                    coreText = hashes.coreText
+                )
+                snapshotCommand.record(snapshot)
+                snapshot
+            }
 
-        val summary = summaryCreationService.createAllForAdmin(
-            snapshotCommand = snapshotSupplier,
-            llmResult = llmResult,
-            brand = brand,
-            positionId = position.id,
-            positionName = position.name,
-            brandPositionId = brandPosition.id,
-            positionCategoryId = position.category.id,
-            positionCategoryName = position.category.name,
-            brandPositionName = positionName,
-            sourceUrl = sourceUrl
-        )
+            summaryCreationService.createAllForAdmin(
+                snapshotCommand = snapshotSupplier,
+                llmResult = llmResult,
+                brand = brand,
+                positionId = position.id,
+                positionName = position.name,
+                brandPositionId = brandPosition.id,
+                positionCategoryId = position.category.id,
+                positionCategoryName = position.category.name,
+                brandPositionName = positionName,
+                sourceUrl = sourceUrl
+            )
+        }
 
         // CompanyCandidate 생성 (비필수 - 실패해도 영향 없음)
         tryCreateCompanyCandidate(

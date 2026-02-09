@@ -3,6 +3,7 @@ package com.hirelog.api.job.infra.external.gemini
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+import com.hirelog.api.job.infra.external.common.JobSummaryLlmResultAssembler
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiClient
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiJobSummaryLlm
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
@@ -11,16 +12,14 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.springframework.http.HttpHeaders
 import org.springframework.web.reactive.function.client.WebClientResponseException
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 
 @DisplayName("GeminiJobSummaryLlm Circuit Breaker 테스트")
 class GeminiJobSummaryLlmTest {
@@ -37,27 +36,20 @@ class GeminiJobSummaryLlmTest {
         responseParser = mockk()
         assembler = mockk()
 
-        // Circuit Breaker 설정 (테스트용)
         val config = CircuitBreakerConfig.custom()
             .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-            .slidingWindowSize(5)
+            .slidingWindowSize(5)  // 10 → 5로 축소
             .failureRateThreshold(50f)
-            .minimumNumberOfCalls(3)
-            .waitDurationInOpenState(Duration.ofSeconds(2))
+            .minimumNumberOfCalls(3)  // 최소 3번
+            .waitDurationInOpenState(Duration.ofSeconds(1))
             .permittedNumberOfCallsInHalfOpenState(2)
-            .recordExceptions(
-                WebClientResponseException.ServiceUnavailable::class.java,
-                GeminiCallException::class.java
-            )
+            .automaticTransitionFromOpenToHalfOpenEnabled(true)  // 추가!
             .build()
 
         val registry = CircuitBreakerRegistry.of(config)
-        circuitBreaker = registry.circuitBreaker("gemini-test")
+        circuitBreaker = registry.circuitBreaker("gemini-test-${System.nanoTime()}")
 
         llm = GeminiJobSummaryLlm(geminiClient, responseParser, assembler, circuitBreaker)
-
-        // 각 테스트 전 Circuit Breaker 리셋
-        circuitBreaker.reset()
     }
 
     @Nested
@@ -129,6 +121,7 @@ class GeminiJobSummaryLlmTest {
             every { geminiClient.generateContentAsync(any()) } returns
                     CompletableFuture.failedFuture(RuntimeException("Fail"))
 
+            // Step 1: 3번 실패시켜서 Circuit OPEN
             repeat(3) {
                 runCatching {
                     llm.summarizeJobDescriptionAsync(
@@ -141,14 +134,18 @@ class GeminiJobSummaryLlmTest {
             assertEquals(CircuitBreaker.State.OPEN, circuitBreaker.state)
 
             // when - OPEN 상태에서 추가 호출
-            assertThrows<GeminiCallException> {
+            val exception = assertThrows<ExecutionException> {
                 llm.summarizeJobDescriptionAsync(
                     "TestBrand", "TestPosition",
                     emptyList(), emptyList(), emptyMap()
                 ).get()
             }
 
-            // then - 더 이상 호출 안됨
+            // then
+            // Circuit이 OPEN이므로 CallNotPermittedException 발생
+            assertTrue(exception.cause is GeminiCallException)
+
+            // 중요: geminiClient는 처음 3번만 호출됨 (OPEN 후에는 호출 안됨!)
             verify(exactly = 3) { geminiClient.generateContentAsync(any()) }
         }
     }
@@ -164,7 +161,7 @@ class GeminiJobSummaryLlmTest {
             every { geminiClient.generateContentAsync(any()) } returns
                     CompletableFuture.failedFuture(RuntimeException("Fail"))
 
-            repeat(3) {
+            repeat(5) {
                 runCatching {
                     llm.summarizeJobDescriptionAsync(
                         "TestBrand", "TestPosition",
@@ -175,8 +172,8 @@ class GeminiJobSummaryLlmTest {
 
             assertEquals(CircuitBreaker.State.OPEN, circuitBreaker.state)
 
-            // when - 2초 대기
-            Thread.sleep(2100)
+            // when - 1초 대기
+            Thread.sleep(1100)
 
             val mockResult = mockk<JobSummaryLlmResult>()
             every { geminiClient.generateContentAsync(any()) } returns
@@ -200,7 +197,7 @@ class GeminiJobSummaryLlmTest {
             every { geminiClient.generateContentAsync(any()) } returns
                     CompletableFuture.failedFuture(RuntimeException("Fail"))
 
-            repeat(3) {
+            repeat(5) {
                 runCatching {
                     llm.summarizeJobDescriptionAsync(
                         "TestBrand", "TestPosition",
@@ -209,7 +206,7 @@ class GeminiJobSummaryLlmTest {
                 }
             }
 
-            Thread.sleep(2100)
+            Thread.sleep(1100)
 
             // when - 성공 응답
             val mockResult = mockk<JobSummaryLlmResult>()

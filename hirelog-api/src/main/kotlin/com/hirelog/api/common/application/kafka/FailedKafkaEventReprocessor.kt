@@ -18,6 +18,7 @@ import java.time.LocalDateTime
 
 /**
  * Failed Kafka Event 재처리 스케줄러
+ * outbox가 생성되었으나 opensearch에 등록 실패한 경우만 재시도
  *
  * 책임:
  * - DLT로 전송된 실패 이벤트 재처리
@@ -115,13 +116,12 @@ class FailedKafkaEventReprocessor(
             event.id, event.topic, event.recordKey
         )
 
-        // Debezium + JsonConverter 조합에서 이중 직렬화 처리
-        val actualPayload = if (payload.startsWith("\"")) {
+        // Debezium TEXT 컬럼 이중 직렬화 방어
+        val actualPayload = if (payload.startsWith("\"") && payload.endsWith("\"")) {
             objectMapper.readValue<String>(payload)
         } else {
             payload
         }
-
         val outboxPayload = objectMapper.readValue<JobSummaryOutboxPayload>(actualPayload)
         val searchPayload = JobSummarySearchPayload.from(outboxPayload)
 

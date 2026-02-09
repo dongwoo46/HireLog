@@ -14,7 +14,7 @@ import java.util.UUID
  * - 실패 시 요청자에게 알림 전달의 기반 데이터
  *
  * 정책:
- * - 동일 requestId에 여러 member가 요청할 수 있음 (전역 리소스)
+ * - requestId:memberId = 1:1 (요청마다 고유 UUID 생성)
  * - requestId == JdSummaryProcessing.id.toString()
  */
 @Entity

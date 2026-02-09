@@ -3,7 +3,6 @@ package com.hirelog.api.job.application.snapshot
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
-import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.domain.model.JobSnapshot
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
@@ -23,8 +22,7 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class JobSnapshotWriteService(
-    private val snapshotCommand: JobSnapshotCommand,
-    private val snapshotQuery: JobSnapshotQuery
+    private val snapshotCommand: JobSnapshotCommand
 ) {
 
     /**
@@ -85,7 +83,8 @@ class JobSnapshotWriteService(
          * - 조회(View) 목적 아님
          * - Aggregate 상태 변경을 위한 최소 로딩
          */
-        val snapshot = snapshotQuery.loadSnapshot(snapshotId)
+        val snapshot = snapshotCommand.findById(snapshotId)
+            ?: throw IllegalStateException("Snapshot not found: $snapshotId")
 
         /**
          * Domain 규칙에 따른 상태 변경

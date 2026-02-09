@@ -115,8 +115,8 @@ class JobSummaryController(
      */
     @PostMapping("/ocr")
     fun requestOcrSummary(
-        @RequestParam("brandName") brandName: String,
-        @RequestParam("positionName") brandPositionName: String,
+        @RequestPart("brandName") brandName: String,
+        @RequestPart("brandPositionName") brandPositionName: String,
         @RequestPart("images") images: List<MultipartFile>,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {

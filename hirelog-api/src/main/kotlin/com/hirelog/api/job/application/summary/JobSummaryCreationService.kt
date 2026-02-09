@@ -13,12 +13,14 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
+import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
 import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JobSnapshot
 import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.job.domain.model.JobSummaryInsight
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -41,7 +43,7 @@ class JobSummaryCreationService(
     private val processingCommand: JdSummaryProcessingCommand,
     private val processingQuery: JdSummaryProcessingQuery,
     private val llmProperties: LlmProperties,
-    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     private val objectMapper = ObjectMapper().apply {
@@ -140,10 +142,16 @@ class JobSummaryCreationService(
         processing.markCompleted(savedSummary.id)
         processingCommand.update(processing)
 
-        // 4. JobSummaryRequest 완료 + MemberJobSummary 자동 생성 (동일 트랜잭션)
-        jobSummaryRequestWriteService.completeRequests(
-            requestId = processingId.toString(),
-            summary = savedSummary
+        // 4. 트랜잭션 커밋 후 부가 작업 트리거 (Request 상태 전이 + SSE 알림)
+        eventPublisher.publishEvent(
+            JobSummaryRequestEvent.Completed(
+                processingId = processingId.toString(),
+                jobSummaryId = savedSummary.id,
+                brandName = savedSummary.brandName,
+                positionName = savedSummary.positionName,
+                brandPositionName = savedSummary.brandPositionName,
+                positionCategoryName = savedSummary.positionCategoryName
+            )
         )
 
         log.info(

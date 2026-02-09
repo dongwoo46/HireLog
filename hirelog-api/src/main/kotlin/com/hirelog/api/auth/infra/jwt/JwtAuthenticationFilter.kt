@@ -24,8 +24,15 @@ class JwtAuthenticationFilter(
         filterChain: FilterChain
     ) {
 
+        val uri = request.requestURI
+        val method = request.method
+
         // 1. Access Token 추출
         val token = extractAccessToken(request)
+
+        log.debug("[JWT_FILTER] {} {} | token={}", method, uri,
+            if (token != null) "present(${token.take(20)}...)" else "MISSING"
+        )
 
         if (token != null) {
             // 2. 토큰 검증 및 Claims 파싱 (1회)
@@ -37,7 +44,14 @@ class JwtAuthenticationFilter(
 
                 // 4. SecurityContext에 등록
                 SecurityContextHolder.getContext().authentication = authentication
+                log.debug("[JWT_FILTER] {} {} | authenticated memberId={}", method, uri, claims.subject)
+            } else {
+                log.debug("[JWT_FILTER] {} {} | token parse FAILED", method, uri)
             }
+        } else {
+            log.debug("[JWT_FILTER] {} {} | cookies={}", method, uri,
+                request.cookies?.map { it.name } ?: "null"
+            )
         }
 
         filterChain.doFilter(request, response)

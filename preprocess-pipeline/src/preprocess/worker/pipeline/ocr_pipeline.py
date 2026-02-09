@@ -6,8 +6,93 @@ from ocr.structure.header_grouping import extract_sections_by_header
 from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
 from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
 from preprocess.adapter.ocr_section_adapter import adapt_ocr_sections_to_sections
+from preprocess.post_validation.section_post_validator import validate_raw_sections
 
 logger = logging.getLogger(__name__)
+
+_SEPARATOR = "=" * 60
+
+
+def _debug_ocr_raw(ocr_result: dict) -> None:
+    """OCR 원본 추출 데이터"""
+    lines = ocr_result.get("lines", [])
+
+    logger.debug("\n%s", _SEPARATOR)
+    logger.debug("[OCR] 1단계: OCR 원본 추출 데이터")
+    logger.debug("%s", _SEPARATOR)
+    logger.debug("  status     : %s", ocr_result.get("status"))
+    logger.debug("  confidence : %s", ocr_result.get("confidence"))
+    logger.debug("  총 라인 수 : %d", len(lines))
+    logger.debug("  ────────────────────────────────")
+    for i, line in enumerate(lines):
+        text = line.get("text", "")
+        height = line.get("height", "-")
+        h_score = line.get("header_score", "-")
+        tokens = line.get("token_count", "-")
+        logger.debug("  [%03d] h=%s score=%s tok=%s | %s", i, height, h_score, tokens, text)
+    logger.debug("%s\n", _SEPARATOR)
+
+
+def _debug_preprocessed_sections(raw_sections: dict) -> None:
+    """Header 기반 구조화 결과 (전처리 후)"""
+    logger.debug("\n%s", _SEPARATOR)
+    logger.debug("[OCR] 2단계: Header 기반 구조화 (전처리 후)")
+    logger.debug("%s", _SEPARATOR)
+    logger.debug("  총 섹션 수 : %d", len(raw_sections))
+    logger.debug("")
+
+    for idx, (header, lines) in enumerate(raw_sections.items()):
+        logger.debug("  ┌─ 섹션 [%d] header: \"%s\"", idx, header)
+        logger.debug("  │  라인 수: %d", len(lines))
+        for j, line in enumerate(lines):
+            logger.debug("  │  [%02d] %s", j, line)
+        logger.debug("  └─────────────────────────────────")
+        logger.debug("")
+
+    logger.debug("%s\n", _SEPARATOR)
+
+
+def _debug_validated_sections(raw_sections: dict) -> None:
+    """후보정 결과"""
+    logger.debug("\n%s", _SEPARATOR)
+    logger.debug("[OCR] 2.5단계: 섹션 후보정 결과")
+    logger.debug("%s", _SEPARATOR)
+    logger.debug("  총 섹션 수 : %d", len(raw_sections))
+    logger.debug("")
+
+    for idx, (header, lines) in enumerate(raw_sections.items()):
+        logger.debug("  ┌─ 섹션 [%d] header: \"%s\"", idx, header)
+        logger.debug("  │  라인 수: %d", len(lines))
+        for j, line in enumerate(lines):
+            logger.debug("  │  [%02d] %s", j, line)
+        logger.debug("  └─────────────────────────────────")
+        logger.debug("")
+
+    logger.debug("%s\n", _SEPARATOR)
+
+
+def _debug_final_canonical(canonical_map: dict) -> None:
+    """최종 Canonical 섹션 분리 결과"""
+    logger.debug("\n%s", _SEPARATOR)
+    logger.debug("[OCR] 3단계: 최종 Canonical 섹션 매핑")
+    logger.debug("%s", _SEPARATOR)
+    logger.debug("  총 섹션 수 : %d", len(canonical_map))
+    logger.debug("")
+
+    for idx, (section_name, content) in enumerate(canonical_map.items()):
+        logger.debug("  ┌─ [%d] %s", idx, section_name)
+        if isinstance(content, str):
+            for line in content.split("\n"):
+                logger.debug("  │  %s", line)
+        elif isinstance(content, list):
+            for j, item in enumerate(content):
+                logger.debug("  │  [%02d] %s", j, item)
+        else:
+            logger.debug("  │  %s", json.dumps(content, ensure_ascii=False, default=str))
+        logger.debug("  └─────────────────────────────────")
+        logger.debug("")
+
+    logger.debug("%s\n", _SEPARATOR)
 
 
 class OcrPipeline:
@@ -34,12 +119,17 @@ class OcrPipeline:
         if ocr_result["status"] == "FAIL":
             raise RuntimeError("OCR failed: confidence too low")
 
+        _debug_ocr_raw(ocr_result)
+
         # 2️⃣ Header 기반 구조화 (OCR 전용)
         raw_sections = extract_sections_by_header(ocr_result["lines"])
 
-        # 🔍 DEBUG: 섹션 분리 후
-        logger.debug("[OCR_PIPELINE] 4️⃣ 섹션 분리 후 (raw_sections)")
-        logger.debug(json.dumps(raw_sections, ensure_ascii=False, indent=2))
+        _debug_preprocessed_sections(raw_sections)
+
+        # 2.5️⃣ 섹션 구조 후보정
+        raw_sections = validate_raw_sections(raw_sections)
+
+        _debug_validated_sections(raw_sections)
 
         if not raw_sections:
             return {
@@ -65,9 +155,7 @@ class OcrPipeline:
         # 5️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
         canonical_map = self.canonical.process(sections)
 
-        # 🔍 DEBUG: 최종 canonical_map
-        logger.debug("[OCR_PIPELINE] 5️⃣ 최종 canonical_map")
-        logger.debug(json.dumps(canonical_map, ensure_ascii=False, indent=2))
+        _debug_final_canonical(canonical_map)
 
         # 6️⃣ 최종 결과
         return {

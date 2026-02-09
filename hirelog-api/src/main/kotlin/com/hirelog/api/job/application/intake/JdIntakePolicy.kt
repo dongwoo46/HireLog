@@ -4,6 +4,7 @@ import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.intake.model.DuplicateReason
 import com.hirelog.api.job.application.intake.model.IntakeHashes
 import com.hirelog.api.job.application.intake.model.JdIntakeInput
+import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.model.JobSnapshot
@@ -33,6 +34,7 @@ import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
  */
 @Service
 class JdIntakePolicy(
+    private val snapshotCommand: JobSnapshotCommand,
     private val snapshotQuery: JobSnapshotQuery,
     private val summaryQuery: JobSummaryQuery
 ) {
@@ -167,12 +169,12 @@ class JdIntakePolicy(
 
         // 4-1. URL 기준 의심 후보
         if (command.source == JobSourceType.URL && command.sourceUrl != null) {
-            result += snapshotQuery.loadSnapshotsByUrl(command.sourceUrl)
+            result += snapshotCommand.findAllBySourceUrl(command.sourceUrl)
         }
 
         // 4-2. 날짜 기준 의심 후보
         if (command.openedDate != null || command.closedDate != null) {
-            result += snapshotQuery.loadSnapshotsByDateRange(
+            result += snapshotCommand.findAllByDateRange(
                 openedDate = command.openedDate,
                 closedDate = command.closedDate
             )
@@ -212,15 +214,16 @@ class JdIntakePolicy(
     }
 
     /**
-     * Hash 기반 중복 판정
+     * Hash 기반 중복 판정 (public — Admin 등 외부에서도 사용)
      *
      * 정책:
-     * - Snapshot 존재 + JobSummary 존재 = 진짜 중복
-     * - Snapshot 존재 + JobSummary 없음 = 재처리 대상 (기존 Snapshot 재사용)
+     * - Snapshot 존재 + active JobSummary 존재 = 진짜 중복
+     * - Snapshot 존재 + active JobSummary 없음 = 재처리 대상 (기존 Snapshot 재사용)
+     * - Snapshot 자체가 없으면 null
      *
-     * @return Duplicate / Reprocessable / null (Snapshot 자체가 없는 경우)
+     * @return Duplicate / Reprocessable / null
      */
-    private fun findHashDuplicate(canonicalHash: String): DuplicateDecision? {
+    fun findHashDuplicate(canonicalHash: String): DuplicateDecision? {
         val snapshot = snapshotQuery.getSnapshotByCanonicalHash(canonicalHash)
             ?: return null
 
@@ -275,7 +278,7 @@ class JdIntakePolicy(
     ): DuplicateDecision? {
         if (coreText.isBlank()) return null
 
-        val similarSnapshots = snapshotQuery.findSimilarByCoreText(coreText, threshold)
+        val similarSnapshots = snapshotCommand.findSimilarByCoreText(coreText, threshold)
 
         for (snapshot in similarSnapshots) {
             val summaryId = summaryQuery.findIdByJobSnapshotId(snapshot.id)

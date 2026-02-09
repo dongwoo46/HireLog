@@ -7,22 +7,13 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.stereotype.Component
 
-/**
- * CustomOAuth2UserService
- *
- * 책임:
- * - Spring Security OAuth2 로그인 후 Provider 응답을 CustomOAuth2User로 변환
- * - Provider별 응답 차이를 OAuth2ProviderRes 구현체로 정규화
- */
+
 /**
  * CustomOAuth2UserService
  *
  * 역할:
  * - OAuth Provider에서 내려준 사용자 정보를 수신
  * - Provider별 응답을 내부 표준(OAuthUser)으로 변환
- *
- * 주의:
- * - 회원 조회 / 생성 / 연결 로직은 절대 포함하지 않음
  */
 @Component
 class CustomOAuth2UserService : DefaultOAuth2UserService() {
