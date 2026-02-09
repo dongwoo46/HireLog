@@ -1,10 +1,11 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { TbMenu2 } from 'react-icons/tb';
 
 export function Header() {
   const { isAuthenticated, user } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isAuthPage = ['/login', '/signup'].includes(location.pathname);
 
@@ -39,7 +40,11 @@ export function Header() {
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center shadow-sm cursor-pointer" title="Guest">
+            <div
+              className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+              title="Login"
+              onClick={() => navigate('/login')}
+            >
               {/* Orange circle for Guest as requested */}
             </div>
           )}
