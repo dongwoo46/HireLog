@@ -1,6 +1,8 @@
-package com.hirelog.api.job.domain
+package com.hirelog.api.job.domain.model
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.job.domain.type.JobSourceType
+import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import jakarta.persistence.*
 import java.time.LocalDate
 import org.hibernate.annotations.JdbcTypeCode

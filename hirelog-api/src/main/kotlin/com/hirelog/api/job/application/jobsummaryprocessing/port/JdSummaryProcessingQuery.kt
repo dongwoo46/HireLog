@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.jdsummaryprocessing.port
 
-import com.hirelog.api.job.domain.JdSummaryProcessing
-import com.hirelog.api.job.domain.JdSummaryProcessingStatus
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
+import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
 import java.time.LocalDateTime
 import java.util.UUID
 

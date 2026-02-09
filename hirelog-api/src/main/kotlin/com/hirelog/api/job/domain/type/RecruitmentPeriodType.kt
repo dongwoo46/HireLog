@@ -1,4 +1,4 @@
-package com.hirelog.api.job.domain
+package com.hirelog.api.job.domain.type
 
 enum class RecruitmentPeriodType {
     FIXED,        // 명확한 날짜 범위

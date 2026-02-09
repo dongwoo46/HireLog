@@ -16,9 +16,9 @@ import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventTy
 import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.domain.JobSnapshot
-import com.hirelog.api.job.domain.JobSummary
-import com.hirelog.api.job.domain.JobSummaryInsight
+import com.hirelog.api.job.domain.model.JobSnapshot
+import com.hirelog.api.job.domain.model.JobSummary
+import com.hirelog.api.job.domain.model.JobSummaryInsight
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -40,7 +40,8 @@ class JobSummaryCreationService(
     private val outboxEventCommand: OutboxEventCommand,
     private val processingCommand: JdSummaryProcessingCommand,
     private val processingQuery: JdSummaryProcessingQuery,
-    private val llmProperties: LlmProperties
+    private val llmProperties: LlmProperties,
+    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService
 ) {
 
     private val objectMapper = ObjectMapper().apply {
@@ -138,6 +139,12 @@ class JobSummaryCreationService(
 
         processing.markCompleted(savedSummary.id)
         processingCommand.update(processing)
+
+        // 4. JobSummaryRequest 완료 + MemberJobSummary 자동 생성 (동일 트랜잭션)
+        jobSummaryRequestWriteService.completeRequests(
+            requestId = processingId.toString(),
+            summary = savedSummary
+        )
 
         log.info(
             "[JOB_SUMMARY_CREATE_WITH_OUTBOX_SUCCESS] summaryId={}, processingId={}",

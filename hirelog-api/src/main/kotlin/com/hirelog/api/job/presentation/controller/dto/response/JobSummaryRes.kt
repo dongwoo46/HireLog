@@ -1,7 +1,7 @@
 package com.hirelog.api.job.presentation.controller.dto.response
 
-import com.hirelog.api.job.domain.CareerType
-import com.hirelog.api.job.domain.JobSummary
+import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.model.JobSummary
 
 data class JobSummaryRes(
     val brandName: String,

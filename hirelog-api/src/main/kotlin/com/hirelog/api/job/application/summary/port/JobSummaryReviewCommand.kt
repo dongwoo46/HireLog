@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.review.port
 
-import com.hirelog.api.job.domain.JobSummaryReview
+import com.hirelog.api.job.domain.model.JobSummaryReview
 
 
 /**

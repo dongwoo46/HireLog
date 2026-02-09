@@ -96,7 +96,7 @@ services:
       KAFKA_LOG_DIRS: /var/lib/kafka/data
 
       # 4. 개발 편의 설정
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true' # 👈 true로 변경 (테스트용)
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false' # 👈 true로 변경 (테스트용)
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       TZ: Asia/Seoul

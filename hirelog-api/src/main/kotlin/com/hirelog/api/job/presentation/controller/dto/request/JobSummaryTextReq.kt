@@ -1,6 +1,5 @@
 package com.hirelog.api.job.presentation.controller.dto.request
 
-import com.hirelog.api.job.domain.JobSourceType
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 

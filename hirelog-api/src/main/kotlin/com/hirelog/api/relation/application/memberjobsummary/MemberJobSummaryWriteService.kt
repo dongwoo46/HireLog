@@ -1,6 +1,6 @@
 package com.hirelog.api.relation.application.memberjobsummary
 
-import com.hirelog.api.job.domain.HiringStage
+import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.application.view.CreateMemberJobSummaryCommand
 import com.hirelog.api.relation.domain.model.MemberJobSummary
 import com.hirelog.api.relation.domain.type.HiringStageResult

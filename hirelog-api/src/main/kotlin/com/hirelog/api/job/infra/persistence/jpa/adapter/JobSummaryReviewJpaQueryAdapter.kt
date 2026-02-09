@@ -2,7 +2,7 @@ package com.hirelog.api.job.infrastructure.review.adapter
 
 import com.hirelog.api.job.application.review.port.JobSummaryReviewQuery
 import com.hirelog.api.job.application.review.port.PagedView
-import com.hirelog.api.job.domain.JobSummaryReview
+import com.hirelog.api.job.domain.model.JobSummaryReview
 import com.hirelog.api.job.infrastructure.review.jpa.JobSummaryReviewJpaRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component

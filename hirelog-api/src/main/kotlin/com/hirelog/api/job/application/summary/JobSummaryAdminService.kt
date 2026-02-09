@@ -13,12 +13,13 @@ import com.hirelog.api.job.application.intake.JdIntakePolicy
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
-import com.hirelog.api.job.domain.JobSnapshot
-import com.hirelog.api.job.domain.JobSourceType
-import com.hirelog.api.job.domain.RecruitmentPeriodType
+import com.hirelog.api.job.domain.model.JobSnapshot
+import com.hirelog.api.job.domain.type.JobSourceType
+import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.domain.Position
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.nio.file.AccessDeniedException
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit
 class JobSummaryAdminService(
     private val jdIntakePolicy: JdIntakePolicy,
     private val snapshotCommand: JobSnapshotCommand,
+    @Qualifier("geminiJobSummaryLlm")
     private val llmClient: JobSummaryLlm,
     private val summaryCreationService: JobSummaryCreationService,
     private val summaryQuery: JobSummaryQuery,

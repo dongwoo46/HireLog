@@ -2,8 +2,8 @@ package com.hirelog.api.job.application.review
 
 import com.hirelog.api.job.application.review.port.JobSummaryReviewCommand
 import com.hirelog.api.job.application.review.port.JobSummaryReviewQuery
-import com.hirelog.api.job.domain.HiringStage
-import com.hirelog.api.job.domain.JobSummaryReview
+import com.hirelog.api.job.domain.type.HiringStage
+import com.hirelog.api.job.domain.model.JobSummaryReview
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

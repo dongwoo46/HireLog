@@ -1,4 +1,4 @@
-package com.hirelog.api.job.domain
+package com.hirelog.api.job.domain.type
 
 enum class HiringStage {
     DOCUMENT,        // 서류

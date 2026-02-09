@@ -1,18 +1,21 @@
-package com.hirelog.api.job.infra.external.gemini
+package com.hirelog.api.job.infra.external.common
 
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmRawResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.domain.CareerType
+import com.hirelog.api.job.domain.type.CareerType
 
 /**
- * JobSummaryLlmResultAssembler
+ * JobSummaryLlmResultAssembler (공통)
  *
  * 책임:
  * - Raw LLM 응답을 시스템이 신뢰 가능한 Result로 변환
  * - enum / 필수 필드 보정
  * - LLM Provider 주입
+ *
+ * 설계 원칙:
+ * - LLM 종류(Gemini, OpenAI)와 무관하게 동일 로직 적용
  */
 class JobSummaryLlmResultAssembler {
 

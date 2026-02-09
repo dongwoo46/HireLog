@@ -3,7 +3,7 @@ package com.hirelog.api.relation.presentation.controller
 import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.common.application.port.PagedResult
-import com.hirelog.api.job.domain.HiringStage
+import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.application.memberjobsummary.MemberJobSummaryReadService
 import com.hirelog.api.relation.application.memberjobsummary.MemberJobSummaryWriteService
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryDetailView
@@ -11,7 +11,6 @@ import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSumma
 import com.hirelog.api.relation.application.view.*
 
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
-import com.hirelog.api.relation.presentation.controller.dto.*
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

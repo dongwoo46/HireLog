@@ -4,7 +4,7 @@ import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
-import com.hirelog.api.job.domain.JobSnapshot
+import com.hirelog.api.job.domain.model.JobSnapshot
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional

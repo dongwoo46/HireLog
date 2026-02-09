@@ -22,6 +22,11 @@ import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.*
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
+import com.hirelog.api.job.domain.model.JobSummary
+import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.JobSourceType
+import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.application.view.PositionSummaryView
 import com.hirelog.api.position.domain.PositionStatus

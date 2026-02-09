@@ -1,7 +1,7 @@
 package com.hirelog.api.job.application.snapshot.port
 
 import com.hirelog.api.job.application.snapshot.view.JobSnapshotView
-import com.hirelog.api.job.domain.JobSnapshot
+import com.hirelog.api.job.domain.model.JobSnapshot
 import java.time.LocalDate
 
 /**

@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.summary.payload
 
-import com.hirelog.api.job.domain.JobSummary
+import com.hirelog.api.job.domain.model.JobSummary
 import java.time.format.DateTimeFormatter
 
 /**

@@ -18,14 +18,16 @@ import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingW
 import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.summary.JobSummaryCreationService
+import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.domain.JobSourceType
+import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
 import com.hirelog.api.position.domain.Position
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -48,7 +50,8 @@ class JdSummaryGenerationFacade(
     private val processingWriteService: JdSummaryProcessingWriteService,
     private val snapshotWriteService: JobSnapshotWriteService,
     private val jdIntakePolicy: JdIntakePolicy,
-    private val llmClient: JobSummaryLlm,
+    @Qualifier("geminiJobSummaryLlm") private val primaryLlm: JobSummaryLlm,
+    @Qualifier("openAiJobSummaryLlm") private val fallbackLlm: JobSummaryLlm,
     private val summaryCreationService: JobSummaryCreationService,
     private val summaryQuery: JobSummaryQuery,
     private val brandWriteService: BrandWriteService,
@@ -57,7 +60,8 @@ class JdSummaryGenerationFacade(
     private val companyCandidateWriteService: CompanyCandidateWriteService,
     private val companyQuery: CompanyQuery,
     private val objectMapper: ObjectMapper,
-    private val positionCommand: PositionCommand
+    private val positionCommand: PositionCommand,
+    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService
 ) {
 
     companion object {
@@ -108,32 +112,44 @@ class JdSummaryGenerationFacade(
             val hashes = jdIntakePolicy.generateIntakeHashes(command.canonicalMap)
             val decision = jdIntakePolicy.decideDuplicate(command, hashes)
 
-            if (decision is DuplicateDecision.Duplicate) {
-                processingWriteService.markDuplicate(
-                    processingId = processing.id,
-                    reason = decision.reason.name
-                )
-                log.info(
-                    "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
-                    decision.reason, decision.existingSnapshotId, decision.existingSummaryId
-                )
-                return CompletableFuture.completedFuture(null)
-            }
-
-            snapshotId =
-                snapshotWriteService.record(
-                    JobSnapshotCreateCommand(
-                        sourceType = command.source,
-                        sourceUrl = command.sourceUrl,
-                        canonicalMap = command.canonicalMap,
-                        coreText = hashes.coreText,
-                        recruitmentPeriodType = command.recruitmentPeriodType,
-                        openedDate = command.openedDate,
-                        closedDate = command.closedDate,
-                        canonicalHash = hashes.canonicalHash,
-                        simHash = hashes.simHash
+            when (decision) {
+                is DuplicateDecision.Duplicate -> {
+                    processingWriteService.markDuplicate(
+                        processingId = processing.id,
+                        reason = decision.reason.name
                     )
-                )
+                    log.info(
+                        "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
+                        decision.reason, decision.existingSnapshotId, decision.existingSummaryId
+                    )
+                    return CompletableFuture.completedFuture(null)
+                }
+
+                is DuplicateDecision.Reprocessable -> {
+                    snapshotId = decision.existingSnapshotId
+                    log.info(
+                        "[JD_REPROCESS] existingSnapshotId={}",
+                        decision.existingSnapshotId
+                    )
+                }
+
+                is DuplicateDecision.NotDuplicate -> {
+                    snapshotId =
+                        snapshotWriteService.record(
+                            JobSnapshotCreateCommand(
+                                sourceType = command.source,
+                                sourceUrl = command.sourceUrl,
+                                canonicalMap = command.canonicalMap,
+                                coreText = hashes.coreText,
+                                recruitmentPeriodType = command.recruitmentPeriodType,
+                                openedDate = command.openedDate,
+                                closedDate = command.closedDate,
+                                canonicalHash = hashes.canonicalHash,
+                                simHash = hashes.simHash
+                            )
+                        )
+                }
+            }
 
             processingWriteService.markSummarizing(processing.id, snapshotId)
 
@@ -148,17 +164,17 @@ class JdSummaryGenerationFacade(
             return CompletableFuture.completedFuture(null)
         }
 
-        // ── LLM Phase ────────────────────────────────────────────────
-        return llmClient
-            .summarizeJobDescriptionAsync(
-                brandName = command.brandName,
-                positionName = command.positionName,
-                positionCandidates = positionCandidates,
-                existCompanies = existCompanies,
-                canonicalMap = command.canonicalMap
-            )
+        // ── LLM Phase (Primary: Gemini → Fallback: OpenAI) ───────────
+        log.info("[LLM_PHASE_START] requestId={}, snapshotId={}", command.requestId, snapshotId)
+
+        return callLlmWithFallback(command, positionCandidates, existCompanies)
             .orTimeout(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .thenAccept { llmResult ->
+                log.info(
+                    "[LLM_PHASE_COMPLETE] requestId={}, provider={}",
+                    command.requestId, llmResult.llmProvider
+                )
+
                 // LLM 결과 임시 저장 (별도 트랜잭션 - 복구용)
                 val llmResultJson = objectMapper.writeValueAsString(llmResult)
                 processingWriteService.saveLlmResult(
@@ -174,6 +190,42 @@ class JdSummaryGenerationFacade(
             .exceptionally { ex ->
                 handleFailure(processing.id, ex, command.requestId, "LLM_OR_POST_LLM")
                 null
+            }
+    }
+
+    /**
+     * LLM 호출 (Primary → Fallback)
+     *
+     * 정책:
+     * - Primary(Gemini) 호출 시도
+     * - 실패 시 Fallback(OpenAI)으로 전환
+     * - Fallback도 실패하면 예외 전파
+     */
+    private fun callLlmWithFallback(
+        command: JobSummaryGenerateCommand,
+        positionCandidates: List<String>,
+        existCompanies: List<String>
+    ): CompletableFuture<JobSummaryLlmResult> {
+        return primaryLlm
+            .summarizeJobDescriptionAsync(
+                brandName = command.brandName,
+                positionName = command.positionName,
+                positionCandidates = positionCandidates,
+                existCompanies = existCompanies,
+                canonicalMap = command.canonicalMap
+            )
+            .exceptionallyCompose { primaryEx ->
+                log.warn(
+                    "[LLM_PRIMARY_FAILED] Gemini failed, falling back to OpenAI. error={}",
+                    unwrap(primaryEx).message
+                )
+                fallbackLlm.summarizeJobDescriptionAsync(
+                    brandName = command.brandName,
+                    positionName = command.positionName,
+                    positionCandidates = positionCandidates,
+                    existCompanies = existCompanies,
+                    canonicalMap = command.canonicalMap
+                )
             }
     }
 
@@ -297,6 +349,8 @@ class JdSummaryGenerationFacade(
             errorCode = errorCode,
             errorMessage = cause.message ?: "Unknown error"
         )
+
+        jobSummaryRequestWriteService.failRequests(processingId.toString())
     }
 
     private fun unwrap(ex: Throwable): Throwable =

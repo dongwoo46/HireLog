@@ -40,6 +40,9 @@ dependencies {
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 
+	// 기존 것 제거하고 이것만 추가
+	implementation("io.github.resilience4j:resilience4j-spring-boot3:2.1.0")
+
 
 	// OpenSearch Java Client (버전 명시 필수	)
 	implementation("org.opensearch.client:opensearch-java:2.13.0")

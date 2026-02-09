@@ -114,6 +114,9 @@ class MemberWriteService(
             throw IllegalArgumentException("이미 사용 중인 email 입니다.")
         }
 
+        val policy = usernameValidationPolicyResolver.resolve(email)
+        policy.validate(username)
+
         val member = getRequired(memberId)
 
         member.updateDisplayName(username)
@@ -135,6 +138,8 @@ class MemberWriteService(
     @Transactional
     fun updateDisplayName(memberId: Long, username: String) {
         val member = getRequired(memberId)
+        val policy = usernameValidationPolicyResolver.resolve(member.email)
+        policy.validate(username)
         member.updateDisplayName(username)
     }
 

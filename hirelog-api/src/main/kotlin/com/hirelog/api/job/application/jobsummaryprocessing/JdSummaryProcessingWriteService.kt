@@ -2,7 +2,7 @@ package com.hirelog.api.job.application.jobsummaryprocessing
 
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
-import com.hirelog.api.job.domain.JdSummaryProcessing
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional

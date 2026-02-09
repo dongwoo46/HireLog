@@ -97,6 +97,7 @@ class JobSummaryController(
     ): ResponseEntity<Void> {
 
         jdIntakeService.requestText(
+            memberId = member.memberId,
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             text = request.jdText,
@@ -116,11 +117,12 @@ class JobSummaryController(
     fun requestOcrSummary(
         @RequestParam("brandName") brandName: String,
         @RequestParam("positionName") brandPositionName: String,
-        @RequestParam("images") images: List<MultipartFile>,
+        @RequestPart("images") images: List<MultipartFile>,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
         val requestId = jdIntakeService.requestOcr(
+            memberId = member.memberId,
             brandName = brandName,
             brandPositionName = brandPositionName,
             imageFiles = images,
@@ -149,6 +151,7 @@ class JobSummaryController(
         }
 
         val requestId = jdIntakeService.requestUrl(
+            memberId = member.memberId,
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             url = request.url,

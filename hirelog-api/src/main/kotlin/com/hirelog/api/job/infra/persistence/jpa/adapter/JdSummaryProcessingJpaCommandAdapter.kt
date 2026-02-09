@@ -1,7 +1,7 @@
 package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
-import com.hirelog.api.job.domain.JdSummaryProcessing
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import com.hirelog.api.job.infra.persistence.jpa.repository.JdSummaryProcessingJpaRepository
 import org.springframework.stereotype.Component
 

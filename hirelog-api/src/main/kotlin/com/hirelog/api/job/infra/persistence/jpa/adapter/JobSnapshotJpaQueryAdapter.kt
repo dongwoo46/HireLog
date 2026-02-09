@@ -2,7 +2,7 @@ package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotQuery
 import com.hirelog.api.job.application.snapshot.view.JobSnapshotView
-import com.hirelog.api.job.domain.JobSnapshot
+import com.hirelog.api.job.domain.model.JobSnapshot
 import com.hirelog.api.job.infra.persistence.jpa.mapper.toSnapshotView
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSnapshotJpaQueryDslRepository
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSnapshotJpaRepository

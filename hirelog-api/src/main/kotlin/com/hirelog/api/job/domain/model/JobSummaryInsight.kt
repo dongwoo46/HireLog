@@ -1,4 +1,4 @@
-package com.hirelog.api.job.domain
+package com.hirelog.api.job.domain.model
 
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable

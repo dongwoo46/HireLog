@@ -85,13 +85,17 @@ spring:
 # LLM 공통 설정 (핵심)
 llm:
   provider: GEMINI              #  현재 활성 LLM
-  model: gemini-2.5-flash-lite  #  공통 기본 모델 (optional)
+  model: gemini-2.5-flash-lite #  공통 기본 모델 (optional)
 
-# Gemini 전용 설정
-gemini:
-  api-key: ${GEMINI_API_KEY}
-  model: gemini-2.5-flash-lite       # fallback 기본값
-  timeout-ms: 10000
+ai:
+  gemini:
+    api-key: ${GEMINI_API_KEY}
+    model: gemini-2.5-flash-lite
+    timeout-ms: 10000
+  openai:
+    api-key: ${OPENAI_API_KEY}
+    model: gpt-4o-mini
+    timeout-ms: 15000
 
 logging:
   level:
@@ -146,3 +150,52 @@ auth:
 admin:
   verify:
     password: ${ADMIN_VERIFY_PASSWORD}
+
+resilience4j:
+  ratelimiter:
+    instances:
+      gemini:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1m
+        timeoutDuration: 0s   # ← 즉시 실패
+      openai:
+        limitForPeriod: 3
+        limitRefreshPeriod: 1m
+        timeoutDuration: 0s   # 즉시 실패
+
+  circuitbreaker:
+    instances:
+      gemini:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 2
+
+        recordExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.util.concurrent.TimeoutException
+
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+
+      openai:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 2
+
+        recordExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.util.concurrent.TimeoutException
+
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+

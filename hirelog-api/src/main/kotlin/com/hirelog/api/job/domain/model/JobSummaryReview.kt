@@ -1,6 +1,7 @@
-package com.hirelog.api.job.domain
+package com.hirelog.api.job.domain.model
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
+import com.hirelog.api.job.domain.type.HiringStage
 import jakarta.persistence.*
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min

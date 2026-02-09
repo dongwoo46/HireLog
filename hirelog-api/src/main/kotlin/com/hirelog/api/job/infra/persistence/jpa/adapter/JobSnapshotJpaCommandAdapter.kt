@@ -1,7 +1,7 @@
 package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
-import com.hirelog.api.job.domain.JobSnapshot
+import com.hirelog.api.job.domain.model.JobSnapshot
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSnapshotJpaRepository
 import org.springframework.stereotype.Component
 

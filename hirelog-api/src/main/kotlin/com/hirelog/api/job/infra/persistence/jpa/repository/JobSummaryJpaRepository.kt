@@ -1,6 +1,6 @@
 package com.hirelog.api.job.infra.persistence.jpa.repository
 
-import com.hirelog.api.job.domain.JobSummary
+import com.hirelog.api.job.domain.model.JobSummary
 import org.springframework.data.jpa.repository.JpaRepository
 
 /**
@@ -21,9 +21,9 @@ interface JobSummaryJpaRepository : JpaRepository<JobSummary, Long> {
      */
     fun existsBySourceUrl(sourceUrl: String): Boolean
 
-    fun existsByJobSnapshotId(jobSnapshotId: Long): Boolean
+    fun existsByJobSnapshotIdAndIsActiveTrue(jobSnapshotId: Long): Boolean
 
-    fun findByJobSnapshotId(jobSnapshotId: Long): JobSummary?
+    fun findByJobSnapshotIdAndIsActiveTrue(jobSnapshotId: Long): JobSummary?
 
     /**
      * sourceUrl로 조회 (활성화된 것만)

@@ -12,8 +12,8 @@ import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcess
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.summary.JobSummaryCreationService
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.domain.JdSummaryProcessing
-import com.hirelog.api.job.domain.JdSummaryProcessingStatus
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
+import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
 import com.hirelog.api.position.application.port.PositionCommand
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component

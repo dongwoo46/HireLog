@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.snapshot.port
 
-import com.hirelog.api.job.domain.JobSnapshot
+import com.hirelog.api.job.domain.model.JobSnapshot
 
 /**
  * JobSnapshot Command Port
