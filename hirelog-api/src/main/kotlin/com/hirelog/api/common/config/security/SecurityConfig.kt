@@ -112,7 +112,7 @@ class SecurityConfig(
             "http://localhost:5173"
         )
         configuration.allowedMethods = listOf(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         )
         configuration.allowedHeaders = listOf("*")
         configuration.allowCredentials = true
