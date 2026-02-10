@@ -23,7 +23,6 @@ import com.hirelog.api.job.domain.model.JobSummaryInsight
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.UUID
 
 /**
@@ -143,16 +142,21 @@ class JobSummaryCreationService(
         processing.markCompleted(savedSummary.id)
         processingCommand.update(processing)
 
-        log.debug(
-            "EVENT_PUBLISH_CHECK thread={}, txActive={}, syncActive={}",
-            Thread.currentThread().name,
-            TransactionSynchronizationManager.isActualTransactionActive(),
-            TransactionSynchronizationManager.isSynchronizationActive()
-        )
-
         log.info(
             "[JOB_SUMMARY_CREATE_WITH_OUTBOX_SUCCESS] summaryId={}, processingId={}",
             savedSummary.id, processingId
+        )
+
+        // @TransactionalEventListener(AFTER_COMMIT)에 의해 커밋 후 처리
+        eventPublisher.publishEvent(
+            JobSummaryRequestEvent.Completed(
+                processingId = processingId.toString(),
+                jobSummaryId = savedSummary.id,
+                brandName = savedSummary.brandName,
+                positionName = savedSummary.positionName,
+                brandPositionName = savedSummary.brandPositionName,
+                positionCategoryName = savedSummary.positionCategoryName
+            )
         )
 
         return savedSummary

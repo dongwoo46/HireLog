@@ -3,7 +3,6 @@ package com.hirelog.api.job.application.summary.event
 import com.hirelog.api.common.application.sse.SseEmitterManager
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
-import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
@@ -27,7 +26,7 @@ class JobSummaryLifecycleListener(
     private val sseEmitterManager: SseEmitterManager
 ) {
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onCompleted(event: JobSummaryRequestEvent.Completed) {
         log.info(
             "[JOB_SUMMARY_LIFECYCLE_COMPLETED] processingId={}, jobSummaryId={}, thread={}",

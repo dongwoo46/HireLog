@@ -6,6 +6,7 @@ import com.hirelog.api.relation.domain.model.MemberJobSummary
 import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 /**
  * MemberJobSummary Write Service
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service
  * - Entity는 Service 내부에서만 사용
  */
 @Service
+@Transactional
 class MemberJobSummaryWriteService(
     private val memberJobSummaryCommand: MemberJobSummaryCommand
 ) {
@@ -43,19 +45,6 @@ class MemberJobSummaryWriteService(
             positionCategoryName = command.positionCategoryName
         )
 
-        memberJobSummaryCommand.save(summary)
-    }
-
-    fun unsave(
-        memberId: Long,
-        jobSummaryId: Long
-    ) {
-        val summary = memberJobSummaryCommand.findEntityByMemberIdAndJobSummaryId(
-            memberId = memberId,
-            jobSummaryId = jobSummaryId
-        ) ?: return   // Idempotent
-
-        summary.changeStatus(MemberJobSummarySaveType.UNSAVED)
         memberJobSummaryCommand.save(summary)
     }
 

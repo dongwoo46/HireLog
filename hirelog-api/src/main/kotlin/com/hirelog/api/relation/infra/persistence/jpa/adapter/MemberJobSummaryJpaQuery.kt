@@ -2,7 +2,7 @@ package com.hirelog.api.relation.infra.persistence.adapter
 
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
-import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryDetailView
+import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import com.hirelog.api.relation.infra.persistence.jpa.repository.MemberJobSummaryJpaQueryDsl
@@ -36,15 +36,13 @@ class MemberJobSummaryJpaQuery(
         )
     }
 
-    override fun findDetail(
+    override fun findStages(
         memberId: Long,
         jobSummaryId: Long
-    ): MemberJobSummaryDetailView {
-        return querydslRepository.findDetail(
+    ): List<HiringStageView> {
+        return querydslRepository.findStages(
             memberId = memberId,
             jobSummaryId = jobSummaryId
-        ) ?: throw NoSuchElementException(
-            "MemberJobSummary not found (memberId=$memberId, jobSummaryId=$jobSummaryId)"
         )
     }
 

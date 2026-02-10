@@ -1,40 +1,14 @@
-package com.hirelog.api.job.application.summary.pipeline
+package com.hirelog.api.job.application.summary
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.hirelog.api.brand.application.BrandWriteService
-import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
-import com.hirelog.api.relation.domain.type.BrandPositionSource
-import com.hirelog.api.company.application.CompanyCandidateWriteService
-import com.hirelog.api.company.application.port.CompanyQuery
-import com.hirelog.api.company.domain.CompanyCandidateSource
-import com.hirelog.api.common.exception.GeminiCallException
-import com.hirelog.api.common.exception.GeminiParseException
-import com.hirelog.api.common.logging.log
-import com.hirelog.api.common.utils.Normalizer
-import com.hirelog.api.job.application.intake.JdIntakePolicy
-import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
-import com.hirelog.api.job.application.snapshot.JobSnapshotWriteService
-import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
-import com.hirelog.api.job.application.summary.JobSummaryCreationService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
-import com.hirelog.api.job.application.summary.port.JobSummaryLlm
-import com.hirelog.api.job.application.summary.port.JobSummaryQuery
-import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
-import com.hirelog.api.job.domain.model.JobSummary
-import com.hirelog.api.job.domain.type.JobSourceType
-import com.hirelog.api.position.application.port.PositionCommand
-import com.hirelog.api.position.application.port.PositionQuery
-import com.hirelog.api.position.domain.Position
+import com.hirelog.api.job.application.summary.pipeline.LlmInvocationService
+import com.hirelog.api.job.application.summary.pipeline.PipelineErrorHandler
+import com.hirelog.api.job.application.summary.pipeline.PostLlmProcessor
+import com.hirelog.api.job.application.summary.pipeline.PreLlmProcessor
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
-import org.springframework.transaction.support.TransactionSynchronization
-import org.springframework.transaction.support.TransactionSynchronizationManager
-import org.springframework.transaction.support.TransactionTemplate
-import java.util.UUID
 import java.util.concurrent.*
 
 /**
@@ -49,346 +23,41 @@ import java.util.concurrent.*
  */
 @Service
 class JdSummaryGenerationFacade(
+    private val preLlm: PreLlmProcessor,
+    private val llmInvoker: LlmInvocationService,
+    private val postLlm: PostLlmProcessor,
+    private val errorHandler: PipelineErrorHandler,
     private val processingWriteService: JdSummaryProcessingWriteService,
-    private val snapshotWriteService: JobSnapshotWriteService,
-    private val jdIntakePolicy: JdIntakePolicy,
-    @Qualifier("geminiJobSummaryLlm") private val primaryLlm: JobSummaryLlm,
-    @Qualifier("openAiJobSummaryLlm") private val fallbackLlm: JobSummaryLlm,
-    private val summaryCreationService: JobSummaryCreationService,
-    private val summaryQuery: JobSummaryQuery,
-    private val brandWriteService: BrandWriteService,
-    private val brandPositionWriteService: BrandPositionWriteService,
-    private val positionQuery: PositionQuery,
-    private val companyCandidateWriteService: CompanyCandidateWriteService,
-    private val companyQuery: CompanyQuery,
     private val objectMapper: ObjectMapper,
-    private val positionCommand: PositionCommand,
-    private val eventPublisher: ApplicationEventPublisher,
-    @Qualifier("blockingExecutor")
-    private val blockingExecutor: Executor,
-    private val transactionTemplate: TransactionTemplate,
+    @Qualifier("blockingExecutor") private val executor: Executor
+) {
 
-    ) {
-
-    companion object {
-        private const val LLM_TIMEOUT_SECONDS = 45L
-        private const val UNKNOWN_POSITION_NAME = "UNKNOWN"
-        private const val LLM_COMPANY_CONFIDENCE_SCORE = 0.7
-    }
-
-    /**
-     * JD 요약 파이프라인 실행
-     *
-     * @return
-     * - 정상 완료: completedFuture(null)
-     * - 인프라 장애: exceptionally 완료
-     */
     fun execute(command: JobSummaryGenerateCommand): CompletableFuture<Void> {
+        val processing = processingWriteService.startProcessing(command.requestId)
 
-        val processing =
-            processingWriteService.startProcessing(command.requestId)
-
-        val snapshotId: Long
-        val positionCandidates: List<String>
-        val existCompanies: List<String>
-
-        log.info("[JD_SUMMARY_PIPELINE_STARTED] JobSummaryGenerateCommand={}", command)
-
-        // ── Pre-LLM Phase (동기 / 즉시 실행) ─────────────────────────
-        try {
-            if (!jdIntakePolicy.isValidJd(command)) {
-                processingWriteService.markFailed(
-                    processingId = processing.id,
-                    errorCode = "INVALID_INPUT",
-                    errorMessage = "JD 유효성 검증 실패"
-                )
-                return CompletableFuture.completedFuture(null)
-            }
-
-            if (command.source == JobSourceType.URL && command.sourceUrl != null) {
-                if (summaryQuery.existsBySourceUrl(command.sourceUrl)) {
-                    processingWriteService.markDuplicate(
-                        processingId = processing.id,
-                        reason = "URL_DUPLICATE"
-                    )
-                    return CompletableFuture.completedFuture(null)
-                }
-            }
-
-            val hashes = jdIntakePolicy.generateIntakeHashes(command.canonicalMap)
-            val decision = jdIntakePolicy.decideDuplicate(command, hashes)
-
-            snapshotId =
-                when (decision) {
-                    is DuplicateDecision.Duplicate -> {
-                        processingWriteService.markDuplicate(
-                            processingId = processing.id,
-                            reason = decision.reason.name
-                        )
-                        log.info(
-                            "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
-                            decision.reason, decision.existingSnapshotId, decision.existingSummaryId
-                        )
-                        return CompletableFuture.completedFuture(null)
-                    }
-
-                    is DuplicateDecision.Reprocessable -> {
-                        log.info("[JD_REPROCESS] existingSnapshotId={}", decision.existingSnapshotId)
-                        decision.existingSnapshotId
-                    }
-
-                    is DuplicateDecision.NotDuplicate -> {
-                        snapshotWriteService.record(
-                            JobSnapshotCreateCommand(
-                                sourceType = command.source,
-                                sourceUrl = command.sourceUrl,
-                                canonicalMap = command.canonicalMap,
-                                coreText = hashes.coreText,
-                                recruitmentPeriodType = command.recruitmentPeriodType,
-                                openedDate = command.openedDate,
-                                closedDate = command.closedDate,
-                                canonicalHash = hashes.canonicalHash,
-                                simHash = hashes.simHash
-                            )
-                        )
-                    }
-                }
-
-            processingWriteService.markSummarizing(processing.id, snapshotId)
-
-            positionCandidates = positionQuery.findActiveNames()
-            existCompanies = companyQuery.findAllNames().map { it.name }
-
+        val preResult = try {
+            preLlm.execute(processing.id, command)
+                ?: return CompletableFuture.completedFuture(null)
         } catch (e: Exception) {
-            handleFailure(processing.id, e, command.requestId, "PRE_LLM")
+            errorHandler.handle(processing.id, e, command.requestId, "PRE_LLM")
             return CompletableFuture.completedFuture(null)
         }
 
-        return callLlmWithFallback(command, positionCandidates, existCompanies)
-            .orTimeout(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-
-            // ⭐ 여기서 실행 모델을 "강제로" 전환한다
-            .thenAcceptAsync(
-                { llmResult ->
-                    log.info(
-                        "[LLM_PHASE_COMPLETE] requestId={}, provider={}",
-                        command.requestId, llmResult.llmProvider
-                    )
-
-                    // LLM 결과 임시 저장 (별도 트랜잭션)
-                    val llmResultJson = objectMapper.writeValueAsString(llmResult)
-                    processingWriteService.saveLlmResult(
-                        processingId = processing.id,
-                        llmResultJson = llmResultJson,
-                        commandBrandName = command.brandName,
-                        commandPositionName = command.positionName
-                    )
-
-                    // ✅ 트랜잭션 컨텍스트에서 실행
-                    transactionTemplate.executeWithoutResult {
-                        // Post-LLM 처리 (단일 트랜잭션: Summary + Outbox + Processing 완료)
-                        val summary = executePostLlm(snapshotId, llmResult, processing.id, command)
-
-                        // 커밋 성공 후에만 이벤트 발행 (afterCommit 콜백 등록)
-                        TransactionSynchronizationManager.registerSynchronization(
-                            object : TransactionSynchronization {
-                                override fun afterCommit() {
-                                    log.info(
-                                        "[AFTER_COMMIT_FIRED] processingId={}, summaryId={}, thread={}",
-                                        processing.id, summary.id, Thread.currentThread().name
-                                    )
-                                    eventPublisher.publishEvent(
-                                        JobSummaryRequestEvent.Completed(
-                                            processingId = processing.id.toString(),
-                                            jobSummaryId = summary.id,
-                                            brandName = summary.brandName,
-                                            positionName = summary.positionName,
-                                            brandPositionName = summary.brandPositionName,
-                                            positionCategoryName = summary.positionCategoryName
-                                        )
-                                    )
-                                }
-                            }
-                        )
-                    }
-
-
-                },
-                blockingExecutor   // ⭐ 핵심
-            )
-            .exceptionally { ex ->
-                handleFailure(processing.id, ex, command.requestId, "LLM_OR_POST_LLM")
+        return llmInvoker
+            .invoke(command, preResult.positionCandidates, preResult.existCompanies)
+            .thenAcceptAsync({ llmResult ->
+                processingWriteService.saveLlmResult(
+                    processing.id,
+                    objectMapper.writeValueAsString(llmResult),
+                    command.brandName,
+                    command.positionName
+                )
+                postLlm.execute(preResult.snapshotId, llmResult, processing.id, command)
+            }, executor)
+            .exceptionally {
+                errorHandler.handle(processing.id, it, command.requestId, "LLM_OR_POST_LLM")
                 null
             }
     }
-
-    /**
-     * LLM 호출 (Primary → Fallback)
-     *
-     * 정책:
-     * - Primary(Gemini) 호출 시도
-     * - 실패 시 Fallback(OpenAI)으로 전환
-     * - Fallback도 실패하면 예외 전파
-     */
-    private fun callLlmWithFallback(
-        command: JobSummaryGenerateCommand,
-        positionCandidates: List<String>,
-        existCompanies: List<String>
-    ): CompletableFuture<JobSummaryLlmResult> {
-        return primaryLlm
-            .summarizeJobDescriptionAsync(
-                brandName = command.brandName,
-                positionName = command.positionName,
-                positionCandidates = positionCandidates,
-                existCompanies = existCompanies,
-                canonicalMap = command.canonicalMap
-            )
-            .exceptionallyCompose { primaryEx ->
-                log.warn(
-                    "[LLM_PRIMARY_FAILED] Gemini failed, falling back to OpenAI. error={}",
-                    unwrap(primaryEx).message
-                )
-                fallbackLlm.summarizeJobDescriptionAsync(
-                    brandName = command.brandName,
-                    positionName = command.positionName,
-                    positionCandidates = positionCandidates,
-                    existCompanies = existCompanies,
-                    canonicalMap = command.canonicalMap
-                )
-            }
-    }
-
-    // ── Post-LLM Phase ─────────────────────────────────────────────
-    // brandPositionName은 사용자가 실제로 입력한 이름 / positionName은 llm을 통해 position 후보중 선택된 이름
-    private fun executePostLlm(
-        snapshotId: Long,
-        llmResult: JobSummaryLlmResult,
-        processingId: UUID,
-        command: JobSummaryGenerateCommand // command.positionName = brandPositionName
-    ): JobSummary {
-        val brand =
-            brandWriteService.getOrCreate(
-                name = llmResult.brandName,
-                companyId = null,
-                source = BrandSource.INFERRED
-            )
-
-        // llmResult.positionName은 LLM이 후보군에서 선택한 이름
-        val normalizedPositionName =
-            Normalizer.normalizePosition(llmResult.positionName)
-
-        val position: Position =
-            positionCommand.findByNormalizedName(normalizedPositionName)
-                ?: positionCommand.findByNormalizedName(
-                    Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
-                )
-                ?: throw IllegalStateException("UNKNOWN position not found")
-
-        val resolvedBrandPositionName =
-            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
-                ?: command.positionName
-
-        // command에 입력된 데이터 positionName는 사용자가 입력한 데이터 즉 BrandPositionName
-        val brandPosition = brandPositionWriteService.getOrCreate(
-            brandId = brand.id,
-            positionId = position.id,
-            displayName = resolvedBrandPositionName,
-            source = BrandPositionSource.LLM
-        )
-
-        // 단일 트랜잭션: JobSummary + Outbox + Processing 완료
-        val summary = summaryCreationService.createWithOutbox(
-            processingId = processingId,
-            snapshotId = snapshotId,
-            brand = brand,
-            positionId = position.id,
-            positionName = position.name,
-            brandPositionId = brandPosition.id,
-            positionCategoryId = position.category.id,
-            positionCategoryName = position.category.name,
-            llmResult = llmResult,
-            brandPositionName = resolvedBrandPositionName, // llmResult.brandPositionName이 없으면 사용자가 입력한 positionName으로
-            sourceUrl = command.sourceUrl
-        )
-
-        // CompanyCandidate 생성 (비필수 - 실패해도 파이프라인에 영향 없음)
-        tryCreateCompanyCandidate(
-            jdSummaryId = summary.id,
-            brandId = brand.id,
-            companyCandidate = llmResult.companyCandidate
-        )
-
-        return summary
-    }
-
-    /**
-     * CompanyCandidate 생성 시도
-     *
-     * 정책:
-     * - LLM이 추론한 companyCandidate가 있는 경우에만 생성
-     * - 실패해도 파이프라인 전체에 영향 없음
-     */
-    private fun tryCreateCompanyCandidate(
-        jdSummaryId: Long,
-        brandId: Long,
-        companyCandidate: String?
-    ) {
-        if (companyCandidate.isNullOrBlank()) {
-            return
-        }
-
-        try {
-            companyCandidateWriteService.createCandidate(
-                jdSummaryId = jdSummaryId,
-                brandId = brandId,
-                candidateName = companyCandidate,
-                source = CompanyCandidateSource.LLM,
-                confidenceScore = LLM_COMPANY_CONFIDENCE_SCORE
-            )
-            log.info("[COMPANY_CANDIDATE_CREATED] jdSummaryId={}, brandId={}, companyCandidate={}",
-                jdSummaryId, brandId, companyCandidate)
-        } catch (e: Exception) {
-            log.warn("[COMPANY_CANDIDATE_FAILED] jdSummaryId={}, brandId={}, companyCandidate={}, error={}",
-                jdSummaryId, brandId, companyCandidate, e.message)
-        }
-    }
-
-    // ── Error Handling ─────────────────────────────────────────────
-    private fun handleFailure(
-        processingId: UUID,
-        throwable: Throwable,
-        requestId: String,
-        phase: String
-    ) {
-        val cause = unwrap(throwable)
-
-        val errorCode =
-            when (cause) {
-                is GeminiCallException -> "LLM_CALL_FAILED"
-                is GeminiParseException -> "LLM_PARSE_FAILED"
-                is TimeoutException -> "LLM_TIMEOUT"
-                else -> "FAILED_AT_$phase"
-            }
-
-        log.error(
-            "[JD_PIPELINE_FAILED] requestId={}, phase={}, errorCode={}, message={}",
-            requestId, phase, errorCode, cause.message, cause
-        )
-
-        processingWriteService.markFailed(
-            processingId = processingId,
-            errorCode = errorCode,
-            errorMessage = cause.message ?: "Unknown error"
-        )
-
-        eventPublisher.publishEvent(
-            JobSummaryRequestEvent.Failed.of(
-                processingId = processingId.toString(),
-                errorCode = errorCode
-            )
-        )
-    }
-
-    private fun unwrap(ex: Throwable): Throwable =
-        if (ex is CompletionException) ex.cause ?: ex else ex
 }
+
