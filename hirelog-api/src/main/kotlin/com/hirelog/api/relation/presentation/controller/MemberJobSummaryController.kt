@@ -6,7 +6,7 @@ import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.application.memberjobsummary.MemberJobSummaryReadService
 import com.hirelog.api.relation.application.memberjobsummary.MemberJobSummaryWriteService
-import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryDetailView
+import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.application.view.*
 
@@ -17,7 +17,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/member-job-summaries")
+@RequestMapping("/api/member-job-summary")
 class MemberJobSummaryController(
     private val writeService: MemberJobSummaryWriteService,
     private val readService: MemberJobSummaryReadService
@@ -48,27 +48,6 @@ class MemberJobSummaryController(
         )
 
         return ResponseEntity.status(HttpStatus.CREATED).build()
-    }
-
-    /**
-     * JD 저장 해제
-     *
-     * 정책:
-     * - Idempotent
-     * - 존재하지 않아도 204
-     */
-    @DeleteMapping("/{jobSummaryId}")
-    fun unsave(
-        @PathVariable jobSummaryId: Long,
-        @CurrentUser member: AuthenticatedMember
-    ): ResponseEntity<Void> {
-
-        writeService.unsave(
-            memberId = member.memberId,
-            jobSummaryId = jobSummaryId
-        )
-
-        return ResponseEntity.noContent().build()
     }
 
     /**
@@ -175,20 +154,20 @@ class MemberJobSummaryController(
     }
 
     /**
-     * 저장 JD 상세 조회
+     * 채용 단계 목록 조회
      */
-    @GetMapping("/{jobSummaryId}")
-    fun getDetail(
+    @GetMapping("/{jobSummaryId}/stages")
+    fun getStages(
         @PathVariable jobSummaryId: Long,
         @CurrentUser member: AuthenticatedMember
-    ): ResponseEntity<MemberJobSummaryDetailView> {
+    ): ResponseEntity<List<HiringStageView>> {
 
-        val result = readService.getDetail(
+        val stages = readService.getStages(
             memberId = member.memberId,
             jobSummaryId = jobSummaryId
         )
 
-        return ResponseEntity.ok(result)
+        return ResponseEntity.ok(stages)
     }
 
     /**

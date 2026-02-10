@@ -1,25 +1,17 @@
 package com.hirelog.api.job.application.summary
 
-import com.hirelog.api.brand.application.BrandWriteService
-import com.hirelog.api.brand.domain.BrandSource
-import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
-import com.hirelog.api.relation.domain.type.BrandPositionSource
 import com.hirelog.api.common.logging.log
-import com.hirelog.api.common.utils.Normalizer
-import com.hirelog.api.company.application.CompanyCandidateWriteService
-import com.hirelog.api.company.application.port.CompanyQuery
-import com.hirelog.api.company.domain.CompanyCandidateSource
 import com.hirelog.api.job.application.intake.JdIntakePolicy
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
+import com.hirelog.api.job.application.summary.pipeline.PostLlmProcessor
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.model.JobSnapshot
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.job.domain.type.RecruitmentPeriodType
-import com.hirelog.api.position.application.port.PositionCommand
+import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.position.application.port.PositionQuery
-import com.hirelog.api.position.domain.Position
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -44,23 +36,16 @@ class JobSummaryAdminService(
     private val snapshotCommand: JobSnapshotCommand,
     @Qualifier("geminiJobSummaryLlm")
     private val llmClient: JobSummaryLlm,
-    private val summaryCreationService: JobSummaryCreationService,
     private val summaryQuery: JobSummaryQuery,
-    private val brandWriteService: BrandWriteService,
-    private val brandPositionWriteService: BrandPositionWriteService,
     private val positionQuery: PositionQuery,
-    private val companyCandidateWriteService: CompanyCandidateWriteService,
     private val companyQuery: CompanyQuery,
+    private val postLlmProcessor: PostLlmProcessor,
     @Value("\${admin.verify.password}")
-    private val adminVerifyPassword: String,
-    private val positionCommand: PositionCommand
-
+    private val adminVerifyPassword: String
 ) {
 
     companion object {
         private const val LLM_TIMEOUT_SECONDS = 60L
-        private const val UNKNOWN_POSITION_NAME = "UNKNOWN"
-        private const val LLM_COMPANY_CONFIDENCE_SCORE = 0.7
     }
 
     /**
@@ -72,7 +57,7 @@ class JobSummaryAdminService(
      * 3. Hash 계산 (메모리)
      * 4. Position 후보 + Company 목록 조회 (읽기 전용)
      * 5. Gemini 동기 호출 (DB 커넥션 점유 없음)
-     * 6. 단일 트랜잭션: Snapshot + Brand/Position + JobSummary + Outbox 저장
+     * 6. PostLlmProcessor 위임: Brand/Position 해석 + 단일 트랜잭션 저장
      *
      * @return 생성된 JobSummary ID
      */
@@ -107,12 +92,9 @@ class JobSummaryAdminService(
                 )
             }
             is DuplicateDecision.Reprocessable -> {
-                log.info(
-                    "[ADMIN_JD_REPROCESS] existingSnapshotId={}",
-                    hashDecision.existingSnapshotId
-                )
+                log.info("[ADMIN_JD_REPROCESS] existingSnapshotId={}", hashDecision.existingSnapshotId)
             }
-            else -> {} // NotDuplicate or null — 신규 생성 진행
+            else -> {}
         }
 
         // === 4. Position 후보 + Company 목록 조회 (읽기 전용) ===
@@ -130,49 +112,37 @@ class JobSummaryAdminService(
             )
             .get(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
 
-        // === 6. 단일 트랜잭션: 모든 데이터 저장 ===
-        val brand = brandWriteService.getOrCreate(
-            name = llmResult.brandName,
-            companyId = null,
-            source = BrandSource.INFERRED
+        // === 6. PostLlmProcessor 위임 ===
+        val snapshotSupplier = buildSnapshotCommand(hashDecision, canonicalMap, hashes, sourceUrl)
+
+        val summary = postLlmProcessor.executeForAdmin(
+            snapshotCommand = snapshotSupplier,
+            llmResult = llmResult,
+            fallbackPositionName = positionName,
+            sourceUrl = sourceUrl
         )
 
-        val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
-        val position: Position =
-            positionCommand.findByNormalizedName(normalizedPositionName)
-                ?: positionCommand.findByNormalizedName(
-                    Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
-                )
-                ?: throw IllegalStateException("UNKNOWN position not found")
-
-        val brandPosition = brandPositionWriteService.getOrCreate(
-            brandId = brand.id,
-            positionId = position.id,
-            displayName = positionName,
-            source = BrandPositionSource.LLM
+        log.info(
+            "[ADMIN_JOB_SUMMARY_CREATE_SUCCESS] summaryId={}, brandName={}, positionName={}",
+            summary.id, llmResult.brandName, llmResult.positionName
         )
 
-        val summary = if (hashDecision is DuplicateDecision.Reprocessable) {
-            // 기존 Snapshot 재사용
-            summaryCreationService.createAllForAdmin(
-                snapshotCommand = JobSummaryCreationService.JobSnapshotCommand {
-                    // Reprocessable: 기존 Snapshot을 조회하여 반환
-                    snapshotCommand.findById(hashDecision.existingSnapshotId)
-                        ?: throw IllegalStateException("Snapshot not found. id=${hashDecision.existingSnapshotId}")
-                },
-                llmResult = llmResult,
-                brand = brand,
-                positionId = position.id,
-                positionName = position.name,
-                brandPositionId = brandPosition.id,
-                positionCategoryId = position.category.id,
-                positionCategoryName = position.category.name,
-                brandPositionName = positionName,
-                sourceUrl = sourceUrl
-            )
+        return summary.id
+    }
+
+    private fun buildSnapshotCommand(
+        hashDecision: DuplicateDecision?,
+        canonicalMap: Map<String, List<String>>,
+        hashes: com.hirelog.api.job.application.intake.model.IntakeHashes,
+        sourceUrl: String?
+    ): JobSummaryWriteService.JobSnapshotCommand {
+        return if (hashDecision is DuplicateDecision.Reprocessable) {
+            JobSummaryWriteService.JobSnapshotCommand {
+                snapshotCommand.findById(hashDecision.existingSnapshotId)
+                    ?: throw IllegalStateException("Snapshot not found. id=${hashDecision.existingSnapshotId}")
+            }
         } else {
-            // 신규 Snapshot 생성
-            val snapshotSupplier = JobSummaryCreationService.JobSnapshotCommand {
+            JobSummaryWriteService.JobSnapshotCommand {
                 val snapshot = JobSnapshot.create(
                     sourceType = JobSourceType.TEXT,
                     sourceUrl = sourceUrl,
@@ -187,44 +157,9 @@ class JobSummaryAdminService(
                 snapshotCommand.record(snapshot)
                 snapshot
             }
-
-            summaryCreationService.createAllForAdmin(
-                snapshotCommand = snapshotSupplier,
-                llmResult = llmResult,
-                brand = brand,
-                positionId = position.id,
-                positionName = position.name,
-                brandPositionId = brandPosition.id,
-                positionCategoryId = position.category.id,
-                positionCategoryName = position.category.name,
-                brandPositionName = positionName,
-                sourceUrl = sourceUrl
-            )
         }
-
-        // CompanyCandidate 생성 (비필수 - 실패해도 영향 없음)
-        tryCreateCompanyCandidate(
-            jdSummaryId = summary.id,
-            brandId = brand.id,
-            companyCandidate = llmResult.companyCandidate
-        )
-
-        log.info(
-            "[ADMIN_JOB_SUMMARY_CREATE_SUCCESS] summaryId={}, brandName={}, positionName={}",
-            summary.id, llmResult.brandName, llmResult.positionName
-        )
-
-        return summary.id
     }
 
-    /**
-     * Admin용 canonicalMap 생성
-     *
-     * 정책:
-     * - 전처리 없이 원문 그대로 사용
-     * - 섹션 구분 없이 raw 섹션에 전체 텍스트 저장
-     * - LLM이 섹션 구분을 담당
-     */
     private fun buildAdminCanonicalMap(jdText: String): Map<String, List<String>> {
         val lines = jdText
             .split("\n")
@@ -239,13 +174,6 @@ class JobSummaryAdminService(
         )
     }
 
-    /**
-     * Admin 액션 수행 전 비밀번호 검증
-     *
-     * 정책:
-     * - 설정된 admin verify password와 일치해야 함
-     * - 실패 시 AccessDeniedException 발생
-     */
     fun verify(password: String) {
         if (password != adminVerifyPassword) {
             log.warn("[ADMIN_VERIFY_FAILED]")
@@ -253,28 +181,5 @@ class JobSummaryAdminService(
         }
 
         log.info("[ADMIN_VERIFY_SUCCESS]")
-    }
-
-    private fun tryCreateCompanyCandidate(
-        jdSummaryId: Long,
-        brandId: Long,
-        companyCandidate: String?
-    ) {
-        if (companyCandidate.isNullOrBlank()) return
-
-        try {
-            companyCandidateWriteService.createCandidate(
-                jdSummaryId = jdSummaryId,
-                brandId = brandId,
-                candidateName = companyCandidate,
-                source = CompanyCandidateSource.LLM,
-                confidenceScore = LLM_COMPANY_CONFIDENCE_SCORE
-            )
-        } catch (e: Exception) {
-            log.warn(
-                "[ADMIN_COMPANY_CANDIDATE_FAILED] jdSummaryId={}, error={}",
-                jdSummaryId, e.message
-            )
-        }
     }
 }

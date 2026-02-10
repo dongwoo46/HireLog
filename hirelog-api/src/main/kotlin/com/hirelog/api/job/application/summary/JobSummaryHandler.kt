@@ -1,7 +1,6 @@
 package com.hirelog.api.job.application.summary
 
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
-import com.hirelog.api.job.application.summary.pipeline.JdSummaryGenerationFacade
 import org.springframework.stereotype.Service
 import java.util.concurrent.CompletableFuture
 

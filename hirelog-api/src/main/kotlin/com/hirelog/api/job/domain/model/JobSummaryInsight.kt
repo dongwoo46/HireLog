@@ -2,7 +2,6 @@ package com.hirelog.api.job.domain.model
 
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
-import jakarta.persistence.Lob
 
 /**
  * JobSummary Insight VO
@@ -19,84 +18,34 @@ import jakarta.persistence.Lob
 @Embeddable
 class JobSummaryInsight protected constructor(
 
-    /**
-     * 이상적인 지원자 프로필
-     * 2~4문장, 기술 프로필 + 문제해결 스타일 + 협업 특성
-     */
-    @Lob
-    @Column(name = "ideal_candidate", updatable = false)
+    @Column(name = "ideal_candidate", updatable = false, columnDefinition = "TEXT")
     val idealCandidate: String? = null,
 
-    /**
-     * 필수 신호/역량
-     * newline-separated, 필수 자격에서 추출한 비협상 요건
-     */
-    @Lob
-    @Column(name = "must_have_signals", updatable = false)
+    @Column(name = "must_have_signals", updatable = false, columnDefinition = "TEXT")
     val mustHaveSignals: String? = null,
 
-    /**
-     * 준비 포인트
-     * newline-separated, 이력서/면접에서 강조할 키워드
-     */
-    @Lob
-    @Column(name = "preparation_focus", updatable = false)
+    @Column(name = "preparation_focus", updatable = false, columnDefinition = "TEXT")
     val preparationFocus: String? = null,
 
-    /**
-     * 전환 가능 강점 및 보완 계획
-     * Format: "[강점]\n...\n\n[보완]\n..."
-     */
-    @Lob
-    @Column(name = "transferable_strengths_and_gap_plan", updatable = false)
+    @Column(name = "transferable_strengths_and_gap_plan", updatable = false, columnDefinition = "TEXT")
     val transferableStrengthsAndGapPlan: String? = null,
 
-    /**
-     * 증거 및 지표
-     * Format: "[증거]\n...\n\n[지표]\n..."
-     */
-    @Lob
-    @Column(name = "proof_points_and_metrics", updatable = false)
+    @Column(name = "proof_points_and_metrics", updatable = false, columnDefinition = "TEXT")
     val proofPointsAndMetrics: String? = null,
 
-    /**
-     * 스토리 앵글
-     * newline-separated, 문제→접근→해결→결과 서사
-     */
-    @Lob
-    @Column(name = "story_angles", updatable = false)
+    @Column(name = "story_angles", updatable = false, columnDefinition = "TEXT")
     val storyAngles: String? = null,
 
-    /**
-     * 핵심 도전과제
-     * newline-separated, JD에서 추론한 핵심 미션/문제
-     */
-    @Lob
-    @Column(name = "key_challenges", updatable = false)
+    @Column(name = "key_challenges", updatable = false, columnDefinition = "TEXT")
     val keyChallenges: String? = null,
 
-    /**
-     * 기술적 맥락
-     * 2~4문장, 기술 노력이 집중되는 영역
-     */
-    @Lob
-    @Column(name = "technical_context", updatable = false)
+    @Column(name = "technical_context", updatable = false, columnDefinition = "TEXT")
     val technicalContext: String? = null,
 
-    /**
-     * 면접 질문
-     * newline-separated, 중립적 면접 질문 목록
-     */
-    @Lob
-    @Column(name = "questions_to_ask", updatable = false)
+    @Column(name = "questions_to_ask", updatable = false, columnDefinition = "TEXT")
     val questionsToAsk: String? = null,
 
-    /**
-     * 고려사항
-     * newline-separated, 현실적 준비 포인트
-     */
-    @Lob
-    @Column(name = "considerations", updatable = false)
+    @Column(name = "considerations", updatable = false, columnDefinition = "TEXT")
     val considerations: String? = null
 
 ) {

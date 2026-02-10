@@ -2,7 +2,7 @@ package com.hirelog.api.relation.application.memberjobsummary
 
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
-import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryDetailView
+import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import org.springframework.stereotype.Service
@@ -37,11 +37,11 @@ class MemberJobSummaryReadService(
         )
     }
 
-    fun getDetail(
+    fun getStages(
         memberId: Long,
         jobSummaryId: Long
-    ): MemberJobSummaryDetailView {
-        return query.findDetail(
+    ): List<HiringStageView> {
+        return query.findStages(
             memberId = memberId,
             jobSummaryId = jobSummaryId
         )
