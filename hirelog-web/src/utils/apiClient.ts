@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 export const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: '/api',
+  withCredentials: true,
 });
 
 // Flag to prevent infinite retry loops
@@ -26,13 +27,15 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
         })
           .then(() => {
+            originalRequest._retry = true;
             return apiClient(originalRequest);
           })
           .catch((err) => {
@@ -44,13 +47,10 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Attempt to refresh token
-        // We use a new axios instance or direct call to avoid interceptor loop loop if this also 401s (though distinct path helps)
-        // But the main reason is to avoid circular dependency if we imported authService.
-        // Also, we need withCredentials: true.
+        // Attempt to refresh token using direct axios to avoid interceptor loop
         await axios.post(
-          'http://localhost:8080/api/auth/refresh',
-          {}, // Empty body
+          '/api/auth/refresh',
+          {},
           { withCredentials: true }
         );
 
@@ -63,7 +63,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null);
         isRefreshing = false;
         
-        // If refresh fails, trigger logout
+        // If refresh fails, trigger global logout
         window.dispatchEvent(new Event('auth:logout'));
         return Promise.reject(refreshError);
       }

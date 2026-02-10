@@ -1,1 +1,51 @@
 @import 'tailwindcss';
+
+@theme {
+  --color-primary-600: #276db8;
+  --color-mint-400: #89cbb6;
+  
+  --shadow-log: 0 4px 20px -4px rgba(0, 0, 0, 0.05), 0 1px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-log-hover: 0 12px 40px -8px rgba(137, 203, 182, 0.15), 0 4px 12px -2px rgba(39, 109, 184, 0.05);
+}
+
+@layer base {
+  body {
+    @apply text-gray-900 selection:bg-[#89cbb6]/30;
+  }
+}
+
+@layer components {
+  .log-card {
+    @apply bg-white border border-gray-100 rounded-[32px] shadow-log hover:shadow-log-hover transition-all duration-500 hover:-translate-y-1;
+  }
+  
+  .log-badge {
+    @apply px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-current;
+  }
+  
+  .mint-gradient-text {
+    @apply bg-gradient-to-r from-[#276db8] to-[#89cbb6] bg-clip-text text-transparent;
+  }
+  
+  .mint-gradient-bg {
+    @apply bg-gradient-to-tr from-[#276db8] to-[#89cbb6];
+  }
+}
+
+/* Custom scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E5E7EB;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D1D5DB;
+}
