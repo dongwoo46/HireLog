@@ -11,7 +11,7 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
-import com.hirelog.api.job.application.summary.JobSummaryCreationService
+import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
@@ -38,7 +38,7 @@ import java.time.LocalDateTime
 class StuckProcessingRecoveryScheduler(
     private val processingQuery: JdSummaryProcessingQuery,
     private val processingCommand: JdSummaryProcessingCommand,
-    private val summaryCreationService: JobSummaryCreationService,
+    private val summaryWriteService: JobSummaryWriteService,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionCommand: PositionCommand,
@@ -141,7 +141,7 @@ class StuckProcessingRecoveryScheduler(
         )
 
         // 단일 트랜잭션으로 Summary + Outbox + Processing 완료
-        summaryCreationService.createWithOutbox(
+        summaryWriteService.createWithOutbox(
             processingId = processing.id,
             snapshotId = snapshotId,
             brand = brand,

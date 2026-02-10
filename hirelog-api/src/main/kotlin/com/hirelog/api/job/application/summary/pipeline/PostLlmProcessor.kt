@@ -1,16 +1,20 @@
 package com.hirelog.api.job.application.summary.pipeline
 
 import com.hirelog.api.brand.application.BrandWriteService
+import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.brand.domain.BrandSource
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.company.application.CompanyCandidateWriteService
 import com.hirelog.api.company.domain.CompanyCandidateSource
-import com.hirelog.api.job.application.summary.JobSummaryCreationService
+import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.domain.Position
 import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
+import com.hirelog.api.relation.domain.model.BrandPosition
 import com.hirelog.api.relation.domain.type.BrandPositionSource
 import org.springframework.stereotype.Service
 import java.util.*
@@ -21,30 +25,35 @@ class PostLlmProcessor(
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionCommand: PositionCommand,
     private val companyCandidateWriteService: CompanyCandidateWriteService,
-    private val summaryCreationService: JobSummaryCreationService
+    private val summaryWriteService: JobSummaryWriteService
 ) {
+
     companion object {
-        private const val LLM_TIMEOUT_SECONDS = 45L
         private const val UNKNOWN_POSITION_NAME = "UNKNOWN"
         private const val LLM_COMPANY_CONFIDENCE_SCORE = 0.7
     }
 
-    fun execute(
-        snapshotId: Long,
-        llmResult: JobSummaryLlmResult,
-        processingId: UUID,
-        command: JobSummaryGenerateCommand
-    ) {
-        val brand =
-            brandWriteService.getOrCreate(
-                name = llmResult.brandName,
-                companyId = null,
-                source = BrandSource.INFERRED
-            )
+    /**
+     * LLM 결과에서 Brand, Position, BrandPosition 해석
+     */
+    data class ResolvedEntities(
+        val brand: Brand,
+        val position: Position,
+        val brandPosition: BrandPosition,
+        val resolvedBrandPositionName: String
+    )
 
-        // llmResult.positionName은 LLM이 후보군에서 선택한 이름
-        val normalizedPositionName =
-            Normalizer.normalizePosition(llmResult.positionName)
+    fun resolve(
+        llmResult: JobSummaryLlmResult,
+        fallbackPositionName: String
+    ): ResolvedEntities {
+        val brand = brandWriteService.getOrCreate(
+            name = llmResult.brandName,
+            companyId = null,
+            source = BrandSource.INFERRED
+        )
+
+        val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
 
         val position: Position =
             positionCommand.findByNormalizedName(normalizedPositionName)
@@ -55,9 +64,8 @@ class PostLlmProcessor(
 
         val resolvedBrandPositionName =
             llmResult.brandPositionName?.takeIf { it.isNotBlank() }
-                ?: command.positionName
+                ?: fallbackPositionName
 
-        // command에 입력된 데이터 positionName는 사용자가 입력한 데이터 즉 BrandPositionName
         val brandPosition = brandPositionWriteService.getOrCreate(
             brandId = brand.id,
             positionId = position.id,
@@ -65,31 +73,95 @@ class PostLlmProcessor(
             source = BrandPositionSource.LLM
         )
 
-        // 단일 트랜잭션: JobSummary + Outbox + Processing 완료
-        val summary = summaryCreationService.createWithOutbox(
+        return ResolvedEntities(
+            brand = brand,
+            position = position,
+            brandPosition = brandPosition,
+            resolvedBrandPositionName = resolvedBrandPositionName
+        )
+    }
+
+    /**
+     * 파이프라인용: createWithOutbox + CompanyCandidate
+     */
+    fun execute(
+        snapshotId: Long,
+        llmResult: JobSummaryLlmResult,
+        processingId: UUID,
+        command: JobSummaryGenerateCommand
+    ) {
+        val resolved = resolve(llmResult, command.positionName)
+
+        val summary = summaryWriteService.createWithOutbox(
             processingId = processingId,
             snapshotId = snapshotId,
-            brand = brand,
-            positionId = position.id,
-            positionName = position.name,
-            brandPositionId = brandPosition.id,
-            positionCategoryId = position.category.id,
-            positionCategoryName = position.category.name,
+            brand = resolved.brand,
+            positionId = resolved.position.id,
+            positionName = resolved.position.name,
+            brandPositionId = resolved.brandPosition.id,
+            positionCategoryId = resolved.position.category.id,
+            positionCategoryName = resolved.position.category.name,
             llmResult = llmResult,
-            brandPositionName = resolvedBrandPositionName, // llmResult.brandPositionName이 없으면 사용자가 입력한 positionName으로
+            brandPositionName = resolved.resolvedBrandPositionName,
             sourceUrl = command.sourceUrl
         )
 
-        llmResult.companyCandidate?.let {
-            runCatching {
-                companyCandidateWriteService.createCandidate(
-                    summary.id,
-                    brand.id,
-                    it,
-                    CompanyCandidateSource.LLM,
-                    0.7
-                )
-            }
+        tryCreateCompanyCandidate(summary.id, resolved.brand.id, llmResult.companyCandidate)
+    }
+
+    /**
+     * Admin용: createAllForAdmin + CompanyCandidate
+     */
+    fun executeForAdmin(
+        snapshotCommand: JobSummaryWriteService.JobSnapshotCommand,
+        llmResult: JobSummaryLlmResult,
+        fallbackPositionName: String,
+        sourceUrl: String?
+    ): JobSummary {
+        val resolved = resolve(llmResult, fallbackPositionName)
+
+        val summary = summaryWriteService.createAllForAdmin(
+            snapshotCommand = snapshotCommand,
+            llmResult = llmResult,
+            brand = resolved.brand,
+            positionId = resolved.position.id,
+            positionName = resolved.position.name,
+            brandPositionId = resolved.brandPosition.id,
+            brandPositionName = resolved.resolvedBrandPositionName,
+            positionCategoryId = resolved.position.category.id,
+            positionCategoryName = resolved.position.category.name,
+            sourceUrl = sourceUrl
+        )
+
+        tryCreateCompanyCandidate(summary.id, resolved.brand.id, llmResult.companyCandidate)
+
+        return summary
+    }
+
+    private fun tryCreateCompanyCandidate(
+        jdSummaryId: Long,
+        brandId: Long,
+        companyCandidate: String?
+    ) {
+        if (companyCandidate.isNullOrBlank()) return
+
+        try {
+            companyCandidateWriteService.createCandidate(
+                jdSummaryId = jdSummaryId,
+                brandId = brandId,
+                candidateName = companyCandidate,
+                source = CompanyCandidateSource.LLM,
+                confidenceScore = LLM_COMPANY_CONFIDENCE_SCORE
+            )
+            log.info(
+                "[COMPANY_CANDIDATE_CREATED] jdSummaryId={}, brandId={}, companyCandidate={}",
+                jdSummaryId, brandId, companyCandidate
+            )
+        } catch (e: Exception) {
+            log.warn(
+                "[COMPANY_CANDIDATE_FAILED] jdSummaryId={}, brandId={}, companyCandidate={}, error={}",
+                jdSummaryId, brandId, companyCandidate, e.message
+            )
         }
     }
 }

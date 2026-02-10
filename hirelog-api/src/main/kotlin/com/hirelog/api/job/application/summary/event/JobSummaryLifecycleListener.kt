@@ -16,7 +16,7 @@ import org.springframework.transaction.event.TransactionalEventListener
  * - SSE 알림 전송
  *
  * 설계 원칙:
- * - 도메인 서비스(JobSummaryCreationService)는 상태 전이에만 집중
+ * - 도메인 서비스(JobSummaryWriteService)는 상태 전이에만 집중
  * - 알림/부가 작업은 이 리스너에서 처리
  * - 리스너 실패가 핵심 비즈니스에 영향 없음
  */
