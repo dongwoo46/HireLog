@@ -3,6 +3,7 @@ package com.hirelog.api.job.presentation.controller
 import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.job.application.intake.JdIntakeService
+import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
@@ -10,21 +11,25 @@ import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummarySearchReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryOcrReq
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryTextReq
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryUrlReq
 import com.hirelog.api.job.presentation.controller.dto.response.JobSummaryUrlRes
 import jakarta.validation.Valid
 import org.springframework.data.domain.PageRequest
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.multipart.MultipartFile
+
 
 @RestController
 @RequestMapping("/api/job-summary")
 class JobSummaryController(
     private val jobSummaryQuery: JobSummaryQuery,
     private val jdIntakeService: JdIntakeService,
-    private val openSearchQuery: JobSummaryOpenSearchQuery
+    private val openSearchQuery: JobSummaryOpenSearchQuery,
+    private val jobSummaryWriteService: JobSummaryWriteService
 ) {
 
     /**
@@ -63,43 +68,6 @@ class JobSummaryController(
     }
 
     /**
-     * JobSummary 최신 1건 조회
-     *
-     * 조회 정책:
-     * - brandId, positionId 둘 다 없으면 전체 중 최신 1건
-     * - 하나만 있으면 해당 조건 기준 최신 1건
-     * - 둘 다 있으면 해당 조합 기준 최신 1건
-     */
-    @GetMapping("/latest")
-    fun getLatest(
-        @RequestParam(required = false) brandId: Long?,
-        @RequestParam(required = false) positionId: Long?
-    ): ResponseEntity<JobSummaryView> {
-
-        // 1️⃣ 조회 조건 구성 (유스케이스 모델)
-        val condition = JobSummarySearchCondition(
-            brandId = brandId,
-            positionId = positionId,
-            keyword = null
-        )
-
-        // 2️⃣ 최신 1건 조회용 Pageable
-        val pageable = PageRequest.of(
-            0,
-            1   // 최신 1건만 필요
-        )
-
-        // 3️⃣ 조회 실행
-        val result = jobSummaryQuery
-            .search(condition, pageable)
-            .content
-            .firstOrNull()
-            ?: throw IllegalArgumentException("JobSummary not found")
-
-        return ResponseEntity.ok(result)
-    }
-
-    /**
      * JD 텍스트 요약 요청
      *
      * 처리 방식:
@@ -132,19 +100,20 @@ class JobSummaryController(
      * - 이미지 파일 저장 후 비동기 파이프라인 진입
      * - 즉시 200 반환
      */
-    @PostMapping("/ocr")
+    @PostMapping(
+        value = ["/ocr"],
+        consumes = [MediaType.MULTIPART_FORM_DATA_VALUE]
+    )
     fun requestOcrSummary(
-        @RequestPart("brandName") brandName: String,
-        @RequestPart("brandPositionName") brandPositionName: String,
-        @RequestPart("images") images: List<MultipartFile>,
+        @ModelAttribute @Valid request: JobSummaryOcrReq,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<Map<String, String>> {
 
         val requestId = jdIntakeService.requestOcr(
             memberId = member.memberId,
-            brandName = brandName,
-            brandPositionName = brandPositionName,
-            imageFiles = images,
+            brandName = request.brandName,
+            brandPositionName = request.brandPositionName,
+            imageFiles = request.images,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))
@@ -177,5 +146,33 @@ class JobSummaryController(
         )
 
         return ResponseEntity.ok(JobSummaryUrlRes.newRequest(requestId))
+    }
+
+    /**
+     * JobSummary 비활성화 (admin 전용)
+     *
+     * 처리 방식:
+     * - isActive = false 설정
+     * - Outbox 이벤트 발행 → OpenSearch 문서 삭제
+     */
+    @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun deactivate(@PathVariable id: Long): ResponseEntity<Void> {
+        jobSummaryWriteService.deactivate(id)
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * JobSummary 재활성화 (admin 전용)
+     *
+     * 처리 방식:
+     * - isActive = true 설정
+     * - Outbox 이벤트 발행 → OpenSearch 문서 재인덱싱
+     */
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun activate(@PathVariable id: Long): ResponseEntity<Void> {
+        jobSummaryWriteService.activate(id)
+        return ResponseEntity.noContent().build()
     }
 }

@@ -23,6 +23,7 @@ import com.hirelog.api.job.domain.model.JobSummaryInsight
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.UUID
 
 /**
@@ -142,16 +143,11 @@ class JobSummaryCreationService(
         processing.markCompleted(savedSummary.id)
         processingCommand.update(processing)
 
-        // 4. 트랜잭션 커밋 후 부가 작업 트리거 (Request 상태 전이 + SSE 알림)
-        eventPublisher.publishEvent(
-            JobSummaryRequestEvent.Completed(
-                processingId = processingId.toString(),
-                jobSummaryId = savedSummary.id,
-                brandName = savedSummary.brandName,
-                positionName = savedSummary.positionName,
-                brandPositionName = savedSummary.brandPositionName,
-                positionCategoryName = savedSummary.positionCategoryName
-            )
+        log.debug(
+            "EVENT_PUBLISH_CHECK thread={}, txActive={}, syncActive={}",
+            Thread.currentThread().name,
+            TransactionSynchronizationManager.isActualTransactionActive(),
+            TransactionSynchronizationManager.isSynchronizationActive()
         )
 
         log.info(

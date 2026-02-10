@@ -7,7 +7,9 @@ import com.hirelog.api.job.domain.type.JobSummaryRequestStatus
 import com.hirelog.api.relation.application.memberjobsummary.MemberJobSummaryWriteService
 import com.hirelog.api.relation.application.view.CreateMemberJobSummaryCommand
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * JobSummaryRequest Write Service
@@ -56,7 +58,7 @@ class JobSummaryRequestWriteService(
      * - AFTER_COMMIT 리스너에서 호출 → 별도 트랜잭션
      * - 핵심 트랜잭션(JobSummary + Outbox + Processing)과 분리
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun completeRequest(
         requestId: String,
         jobSummaryId: Long,
@@ -65,18 +67,43 @@ class JobSummaryRequestWriteService(
         brandPositionName: String,
         positionCategoryName: String
     ): Long? {
+
+        log.info(
+            "[COMPLETE_REQUEST_START] requestId={}, jobSummaryId={}, thread={}, txActive={}, txName={}",
+            requestId, jobSummaryId,
+            Thread.currentThread().name,
+            TransactionSynchronizationManager.isActualTransactionActive(),
+            TransactionSynchronizationManager.getCurrentTransactionName()
+        )
+
         val request = jobSummaryRequestCommand.findByRequestIdAndStatus(
             requestId = requestId,
             status = JobSummaryRequestStatus.PENDING
         )
 
         if (request == null) {
-            log.info("[JOB_SUMMARY_REQUEST_NO_PENDING] requestId={}", requestId)
+            log.warn(
+                "[COMPLETE_REQUEST_NOT_FOUND] requestId={}, status=PENDING → 해당 요청 없음",
+                requestId
+            )
             return null
         }
 
+        log.info(
+            "[COMPLETE_REQUEST_FOUND] requestId={}, memberId={}, currentStatus={}",
+            requestId, request.memberId, request.status
+        )
+
         request.complete(jobSummaryId)
+
+        log.info(
+            "[COMPLETE_REQUEST_AFTER_COMPLETE] requestId={}, newStatus={}, jobSummaryId={}",
+            requestId, request.status, jobSummaryId
+        )
+
         jobSummaryRequestCommand.save(request)
+
+        log.info("[COMPLETE_REQUEST_SAVED] requestId={}", requestId)
 
         memberJobSummaryWriteService.save(
             CreateMemberJobSummaryCommand(
@@ -90,7 +117,7 @@ class JobSummaryRequestWriteService(
         )
 
         log.info(
-            "[JOB_SUMMARY_REQUEST_COMPLETED] requestId={}, memberId={}, jobSummaryId={}",
+            "[COMPLETE_REQUEST_DONE] requestId={}, memberId={}, jobSummaryId={}",
             requestId, request.memberId, jobSummaryId
         )
 
@@ -102,7 +129,7 @@ class JobSummaryRequestWriteService(
      *
      * @return 실패 처리된 요청의 memberId (PENDING 요청이 없으면 null)
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun failRequest(requestId: String): Long? {
         val request = jobSummaryRequestCommand.findByRequestIdAndStatus(
             requestId = requestId,

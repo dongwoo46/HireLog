@@ -23,6 +23,7 @@ import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
+import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.position.application.port.PositionQuery
@@ -30,11 +31,11 @@ import com.hirelog.api.position.domain.Position
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
+import java.util.concurrent.*
 
 /**
  * SummaryGenerationPipeline
@@ -62,8 +63,12 @@ class JdSummaryGenerationFacade(
     private val companyQuery: CompanyQuery,
     private val objectMapper: ObjectMapper,
     private val positionCommand: PositionCommand,
-    private val eventPublisher: ApplicationEventPublisher
-) {
+    private val eventPublisher: ApplicationEventPublisher,
+    @Qualifier("blockingExecutor")
+    private val blockingExecutor: Executor,
+    private val transactionTemplate: TransactionTemplate,
+
+    ) {
 
     companion object {
         private const val LLM_TIMEOUT_SECONDS = 45L
@@ -89,7 +94,7 @@ class JdSummaryGenerationFacade(
 
         log.info("[JD_SUMMARY_PIPELINE_STARTED] JobSummaryGenerateCommand={}", command)
 
-        // ── Pre-LLM Phase ─────────────────────────────────────────────
+        // ── Pre-LLM Phase (동기 / 즉시 실행) ─────────────────────────
         try {
             if (!jdIntakePolicy.isValidJd(command)) {
                 processingWriteService.markFailed(
@@ -113,29 +118,26 @@ class JdSummaryGenerationFacade(
             val hashes = jdIntakePolicy.generateIntakeHashes(command.canonicalMap)
             val decision = jdIntakePolicy.decideDuplicate(command, hashes)
 
-            when (decision) {
-                is DuplicateDecision.Duplicate -> {
-                    processingWriteService.markDuplicate(
-                        processingId = processing.id,
-                        reason = decision.reason.name
-                    )
-                    log.info(
-                        "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
-                        decision.reason, decision.existingSnapshotId, decision.existingSummaryId
-                    )
-                    return CompletableFuture.completedFuture(null)
-                }
+            snapshotId =
+                when (decision) {
+                    is DuplicateDecision.Duplicate -> {
+                        processingWriteService.markDuplicate(
+                            processingId = processing.id,
+                            reason = decision.reason.name
+                        )
+                        log.info(
+                            "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
+                            decision.reason, decision.existingSnapshotId, decision.existingSummaryId
+                        )
+                        return CompletableFuture.completedFuture(null)
+                    }
 
-                is DuplicateDecision.Reprocessable -> {
-                    snapshotId = decision.existingSnapshotId
-                    log.info(
-                        "[JD_REPROCESS] existingSnapshotId={}",
+                    is DuplicateDecision.Reprocessable -> {
+                        log.info("[JD_REPROCESS] existingSnapshotId={}", decision.existingSnapshotId)
                         decision.existingSnapshotId
-                    )
-                }
+                    }
 
-                is DuplicateDecision.NotDuplicate -> {
-                    snapshotId =
+                    is DuplicateDecision.NotDuplicate -> {
                         snapshotWriteService.record(
                             JobSnapshotCreateCommand(
                                 sourceType = command.source,
@@ -149,45 +151,71 @@ class JdSummaryGenerationFacade(
                                 simHash = hashes.simHash
                             )
                         )
+                    }
                 }
-            }
 
             processingWriteService.markSummarizing(processing.id, snapshotId)
 
-            positionCandidates =
-                positionQuery.findActiveNames()
-
-            existCompanies =
-                companyQuery.findAllNames().map { it.name }
+            positionCandidates = positionQuery.findActiveNames()
+            existCompanies = companyQuery.findAllNames().map { it.name }
 
         } catch (e: Exception) {
             handleFailure(processing.id, e, command.requestId, "PRE_LLM")
             return CompletableFuture.completedFuture(null)
         }
 
-        // ── LLM Phase (Primary: Gemini → Fallback: OpenAI) ───────────
-        log.info("[LLM_PHASE_START] requestId={}, snapshotId={}", command.requestId, snapshotId)
-
         return callLlmWithFallback(command, positionCandidates, existCompanies)
             .orTimeout(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .thenAccept { llmResult ->
-                log.info(
-                    "[LLM_PHASE_COMPLETE] requestId={}, provider={}",
-                    command.requestId, llmResult.llmProvider
-                )
 
-                // LLM 결과 임시 저장 (별도 트랜잭션 - 복구용)
-                val llmResultJson = objectMapper.writeValueAsString(llmResult)
-                processingWriteService.saveLlmResult(
-                    processingId = processing.id,
-                    llmResultJson = llmResultJson,
-                    commandBrandName = command.brandName,
-                    commandPositionName = command.positionName // 사용자가 입력한 position명 = brandPosition
-                )
+            // ⭐ 여기서 실행 모델을 "강제로" 전환한다
+            .thenAcceptAsync(
+                { llmResult ->
+                    log.info(
+                        "[LLM_PHASE_COMPLETE] requestId={}, provider={}",
+                        command.requestId, llmResult.llmProvider
+                    )
 
-                // Post-LLM 처리 (단일 트랜잭션: Summary + Outbox + Processing 완료)
-                executePostLlm(snapshotId, llmResult, processing.id, command)
-            }
+                    // LLM 결과 임시 저장 (별도 트랜잭션)
+                    val llmResultJson = objectMapper.writeValueAsString(llmResult)
+                    processingWriteService.saveLlmResult(
+                        processingId = processing.id,
+                        llmResultJson = llmResultJson,
+                        commandBrandName = command.brandName,
+                        commandPositionName = command.positionName
+                    )
+
+                    // ✅ 트랜잭션 컨텍스트에서 실행
+                    transactionTemplate.executeWithoutResult {
+                        // Post-LLM 처리 (단일 트랜잭션: Summary + Outbox + Processing 완료)
+                        val summary = executePostLlm(snapshotId, llmResult, processing.id, command)
+
+                        // 커밋 성공 후에만 이벤트 발행 (afterCommit 콜백 등록)
+                        TransactionSynchronizationManager.registerSynchronization(
+                            object : TransactionSynchronization {
+                                override fun afterCommit() {
+                                    log.info(
+                                        "[AFTER_COMMIT_FIRED] processingId={}, summaryId={}, thread={}",
+                                        processing.id, summary.id, Thread.currentThread().name
+                                    )
+                                    eventPublisher.publishEvent(
+                                        JobSummaryRequestEvent.Completed(
+                                            processingId = processing.id.toString(),
+                                            jobSummaryId = summary.id,
+                                            brandName = summary.brandName,
+                                            positionName = summary.positionName,
+                                            brandPositionName = summary.brandPositionName,
+                                            positionCategoryName = summary.positionCategoryName
+                                        )
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+
+                },
+                blockingExecutor   // ⭐ 핵심
+            )
             .exceptionally { ex ->
                 handleFailure(processing.id, ex, command.requestId, "LLM_OR_POST_LLM")
                 null
@@ -237,7 +265,7 @@ class JdSummaryGenerationFacade(
         llmResult: JobSummaryLlmResult,
         processingId: UUID,
         command: JobSummaryGenerateCommand // command.positionName = brandPositionName
-    ) {
+    ): JobSummary {
         val brand =
             brandWriteService.getOrCreate(
                 name = llmResult.brandName,
@@ -289,6 +317,8 @@ class JdSummaryGenerationFacade(
             brandId = brand.id,
             companyCandidate = llmResult.companyCandidate
         )
+
+        return summary
     }
 
     /**

@@ -1,13 +1,16 @@
-package com.hirelog.api.job.presentation.controller.review
+package com.hirelog.api.job.presentation.controller
 
+import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.common.config.security.AuthenticatedMember
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.review.JobSummaryReviewWriteService
-import com.hirelog.api.job.application.review.port.JobSummaryReviewQuery
-import com.hirelog.api.job.application.review.port.PagedView
+import com.hirelog.api.job.application.summary.JobSummaryReviewReadService
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryReviewSearchReq
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryReviewWriteReq
 import com.hirelog.api.job.presentation.controller.dto.response.JobSummaryReviewRes
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
@@ -15,27 +18,28 @@ import org.springframework.web.bind.annotation.*
  * JobSummaryReview Controller
  *
  * 책임:
- * - 리뷰 작성/조회 HTTP API 제공
- * - jobSummaryId는 메서드 단위에서만 사용
+ * - 리뷰 작성/조회/삭제 HTTP API 제공
  */
 @RestController
-@RequestMapping("/api/job-summaries/review")
+@RequestMapping("/api/job-summary/review")
 class JobSummaryReviewController(
     private val writerService: JobSummaryReviewWriteService,
-    private val query: JobSummaryReviewQuery
+    private val readService: JobSummaryReviewReadService
 ) {
 
     /**
-     * 리뷰 작성 또는 수정
+     * 리뷰 작성 (1회만 가능, 수정 불가)
      *
-     * POST /job-summaries/review/{jobSummaryId}
+     * POST /api/job-summary/review/{jobSummaryId}
      */
     @PostMapping("/{jobSummaryId}")
     fun writeReview(
         @PathVariable jobSummaryId: Long,
         @AuthenticationPrincipal member: AuthenticatedMember,
         @RequestBody @Valid request: JobSummaryReviewWriteReq
-    ): ResponseEntity<JobSummaryReviewRes> {
+    ): ResponseEntity<Map<String, Long>> {
+
+        log.info("[JobSummaryReview create 0]: anaymonus:{}", request.anonymous)
 
         val review =
             writerService.write(
@@ -49,50 +53,66 @@ class JobSummaryReviewController(
                 interviewTip = request.interviewTip
             )
 
-        return ResponseEntity.ok(
-            JobSummaryReviewRes.from(review)
-        )
+        return ResponseEntity.status(201).body(mapOf("id" to review.id))
     }
 
     /**
-     * 특정 JD 리뷰 목록 조회
+     * 특정 JobSummary 리뷰 페이징 + 필터 조회
      *
-     * GET /job-summaries/review/{jobSummaryId}
+     * GET /api/job-summary/review/{jobSummaryId}
+     *
+     * 필터:
+     * - hiringStage: 전형 단계
+     * - minDifficultyRating / maxDifficultyRating: 난이도 범위
+     * - minSatisfactionRating / maxSatisfactionRating: 만족도 범위
      */
     @GetMapping("/{jobSummaryId}")
     fun getReviewsByJobSummary(
-        @PathVariable jobSummaryId: Long
-    ): ResponseEntity<List<JobSummaryReviewRes>> {
+        @PathVariable jobSummaryId: Long,
+        @Valid request: JobSummaryReviewSearchReq
+    ): ResponseEntity<PagedResult<JobSummaryReviewRes>> {
 
-        val reviews =
-            query.findAllByJobSummaryId(jobSummaryId)
-                .map(JobSummaryReviewRes::from)
+        request.validate()
 
-        return ResponseEntity.ok(reviews)
+        val result = readService.findByJobSummaryId(
+            jobSummaryId = jobSummaryId,
+            hiringStage = request.hiringStage,
+            minDifficultyRating = request.minDifficultyRating,
+            maxDifficultyRating = request.maxDifficultyRating,
+            minSatisfactionRating = request.minSatisfactionRating,
+            maxSatisfactionRating = request.maxSatisfactionRating,
+            page = request.page,
+            size = request.size
+        )
+
+        return ResponseEntity.ok(result)
     }
 
     /**
-     * 전체 리뷰 페이징 조회 (관리자)
+     * 리뷰 삭제 (admin 전용, soft delete)
      *
-     * GET /job-summaries/review/admin
+     * DELETE /api/job-summary/review/{reviewId}
      */
-    @GetMapping("/admin")
-    fun getAllReviewsPaged(
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "20") size: Int
-    ): ResponseEntity<PagedView<JobSummaryReviewRes>> {
+    @DeleteMapping("/{reviewId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun deleteReview(
+        @PathVariable reviewId: Long
+    ): ResponseEntity<Void> {
+        writerService.delete(reviewId)
+        return ResponseEntity.noContent().build()
+    }
 
-        val result = query.findAllPaged(page, size)
-
-        return ResponseEntity.ok(
-            PagedView(
-                items = result.items.map(JobSummaryReviewRes::from),
-                page = result.page,
-                size = result.size,
-                totalElements = result.totalElements,
-                totalPages = result.totalPages,
-                hasNext = result.hasNext
-            )
-        )
+    /**
+     * 리뷰 복구 (admin 전용)
+     *
+     * PUT /api/job-summary/review/{reviewId}/restore
+     */
+    @PatchMapping("/{reviewId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun restoreReview(
+        @PathVariable reviewId: Long
+    ): ResponseEntity<Void> {
+        writerService.restore(reviewId)
+        return ResponseEntity.noContent().build()
     }
 }

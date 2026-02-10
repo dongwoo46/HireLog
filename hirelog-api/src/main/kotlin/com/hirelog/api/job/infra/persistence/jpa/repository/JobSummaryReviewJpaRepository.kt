@@ -1,9 +1,7 @@
 package com.hirelog.api.job.infrastructure.review.jpa
 
 import com.hirelog.api.job.domain.model.JobSummaryReview
-import org.springframework.data.domain.Page
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.domain.Pageable
 
 
 /**
@@ -16,16 +14,8 @@ import org.springframework.data.domain.Pageable
 interface JobSummaryReviewJpaRepository :
     JpaRepository<JobSummaryReview, Long> {
 
-    fun findByJobSummaryIdAndMemberId(
+    fun findByJobSummaryIdAndMemberIdAndDeletedFalse(
         jobSummaryId: Long,
         memberId: Long
     ): JobSummaryReview?
-
-    fun findAllByJobSummaryId(
-        jobSummaryId: Long
-    ): List<JobSummaryReview>
-
-    fun findAllByOrderByIdDesc(
-        pageable: Pageable
-    ): Page<JobSummaryReview>
 }

@@ -3,6 +3,7 @@ package com.hirelog.api.job.application.summary.event
 import com.hirelog.api.common.application.sse.SseEmitterManager
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
+import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
@@ -26,11 +27,11 @@ class JobSummaryLifecycleListener(
     private val sseEmitterManager: SseEmitterManager
 ) {
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun onCompleted(event: JobSummaryRequestEvent.Completed) {
         log.info(
-            "[JOB_SUMMARY_LIFECYCLE_COMPLETED] processingId={}, jobSummaryId={}",
-            event.processingId, event.jobSummaryId
+            "[JOB_SUMMARY_LIFECYCLE_COMPLETED] processingId={}, jobSummaryId={}, thread={}",
+            event.processingId, event.jobSummaryId, Thread.currentThread().name
         )
 
         try {
@@ -41,7 +42,20 @@ class JobSummaryLifecycleListener(
                 positionName = event.positionName,
                 brandPositionName = event.brandPositionName,
                 positionCategoryName = event.positionCategoryName
-            ) ?: return
+            )
+
+            if (memberId == null) {
+                log.warn(
+                    "[JOB_SUMMARY_LIFECYCLE_COMPLETED_NO_MEMBER] processingId={} → completeRequest returned null",
+                    event.processingId
+                )
+                return
+            }
+
+            log.info(
+                "[JOB_SUMMARY_LIFECYCLE_SSE_SEND] memberId={}, processingId={}",
+                memberId, event.processingId
+            )
 
             sseEmitterManager.send(
                 memberId = memberId,

@@ -8,12 +8,12 @@ import java.time.LocalDateTime
  *
  * 용도:
  * - 단건 상세 조회 전용
- * - JobSummary 전체 필드 + Insight(flat) + Reviews 포함
+ * - JobSummary 전체 필드 + Insight(flat) 포함
  *
  * 설계:
  * - Projections.fields() 매핑을 위해 전체 필드 기본값 포함
  * - Insight 필드는 flat으로 펼침 (QueryDSL Projection 호환)
- * - reviews는 별도 쿼리 후 copy()로 합산
+ * - Review는 별도 API로 분리
  */
 data class JobSummaryDetailView(
 
@@ -60,9 +60,6 @@ data class JobSummaryDetailView(
 
     // 원본 URL
     val sourceUrl: String? = null,
-
-    // 리뷰
-    val reviews: List<JobSummaryReviewView> = emptyList(),
 
     // 현재 사용자의 저장 상태
     val memberJobSummaryId: Long? = null,
