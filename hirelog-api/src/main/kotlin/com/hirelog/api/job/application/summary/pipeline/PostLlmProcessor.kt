@@ -40,45 +40,46 @@ class PostLlmProcessor(
         val brand: Brand,
         val position: Position,
         val brandPosition: BrandPosition,
-        val resolvedBrandPositionName: String
     )
 
     fun resolve(
         llmResult: JobSummaryLlmResult,
-        fallbackPositionName: String
+        brandPositionName: String
     ): ResolvedEntities {
-        val brand = brandWriteService.getOrCreate(
-            name = llmResult.brandName,
-            companyId = null,
-            source = BrandSource.INFERRED
-        )
+        try {
+            val brand = brandWriteService.getOrCreate(
+                name = llmResult.brandName,
+                companyId = null,
+                source = BrandSource.INFERRED
+            )
 
-        val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
+            val normalizedPositionName =
+                Normalizer.normalizePosition(llmResult.positionName)
 
-        val position: Position =
-            positionCommand.findByNormalizedName(normalizedPositionName)
-                ?: positionCommand.findByNormalizedName(
-                    Normalizer.normalizePosition(UNKNOWN_POSITION_NAME)
-                )
-                ?: throw IllegalStateException("UNKNOWN position not found")
+            val position: Position =
+                positionCommand.findByNormalizedName(normalizedPositionName)
+                    ?: throw IllegalStateException("UNKNOWN position not found")
 
-        val resolvedBrandPositionName =
-            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
-                ?: fallbackPositionName
 
-        val brandPosition = brandPositionWriteService.getOrCreate(
-            brandId = brand.id,
-            positionId = position.id,
-            displayName = resolvedBrandPositionName,
-            source = BrandPositionSource.LLM
-        )
+            val brandPosition = brandPositionWriteService.getOrCreate(
+                brandId = brand.id,
+                positionId = position.id,
+                displayName = brandPositionName,
+                source = BrandPositionSource.LLM
+            )
 
-        return ResolvedEntities(
-            brand = brand,
-            position = position,
-            brandPosition = brandPosition,
-            resolvedBrandPositionName = resolvedBrandPositionName
-        )
+            return ResolvedEntities(
+                brand = brand,
+                position = position,
+                brandPosition = brandPosition
+            )
+        } catch (e: Exception) {
+            log.error(
+                "[RESOLVE_ENTITIES_FAILED] brandName='{}', positionName='{}', fallback='{}', error={}",
+                llmResult.brandName, llmResult.positionName, brandPositionName, e.message, e
+            )
+            throw e
+        }
     }
 
     /**
@@ -90,23 +91,31 @@ class PostLlmProcessor(
         processingId: UUID,
         command: JobSummaryGenerateCommand
     ) {
-        val resolved = resolve(llmResult, command.positionName)
+        try {
+            val resolved = resolve(llmResult, command.positionName)
 
-        val summary = summaryWriteService.createWithOutbox(
-            processingId = processingId,
-            snapshotId = snapshotId,
-            brand = resolved.brand,
-            positionId = resolved.position.id,
-            positionName = resolved.position.name,
-            brandPositionId = resolved.brandPosition.id,
-            positionCategoryId = resolved.position.category.id,
-            positionCategoryName = resolved.position.category.name,
-            llmResult = llmResult,
-            brandPositionName = resolved.resolvedBrandPositionName,
-            sourceUrl = command.sourceUrl
-        )
+            val summary = summaryWriteService.createWithOutbox(
+                processingId = processingId,
+                snapshotId = snapshotId,
+                brand = resolved.brand,
+                positionId = resolved.position.id,
+                positionName = resolved.position.name,
+                brandPositionId = resolved.brandPosition.id,
+                positionCategoryId = resolved.position.category.id,
+                positionCategoryName = resolved.position.category.name,
+                llmResult = llmResult,
+                brandPositionName = resolved.brandPosition.displayName,
+                sourceUrl = command.sourceUrl
+            )
 
-        tryCreateCompanyCandidate(summary.id, resolved.brand.id, llmResult.companyCandidate)
+            tryCreateCompanyCandidate(summary.id, resolved.brand.id, llmResult.companyCandidate)
+        } catch (e: Exception) {
+            log.error(
+                "[EXECUTE_FAILED] snapshotId={}, processingId={}, brandName='{}', error={}",
+                snapshotId, processingId, llmResult.brandName, e.message, e
+            )
+            throw e
+        }
     }
 
     /**
@@ -115,27 +124,35 @@ class PostLlmProcessor(
     fun executeForAdmin(
         snapshotCommand: JobSummaryWriteService.JobSnapshotCommand,
         llmResult: JobSummaryLlmResult,
-        fallbackPositionName: String,
+        brandPositionName: String,
         sourceUrl: String?
     ): JobSummary {
-        val resolved = resolve(llmResult, fallbackPositionName)
+        try {
+            val resolved = resolve(llmResult, brandPositionName)
 
-        val summary = summaryWriteService.createAllForAdmin(
-            snapshotCommand = snapshotCommand,
-            llmResult = llmResult,
-            brand = resolved.brand,
-            positionId = resolved.position.id,
-            positionName = resolved.position.name,
-            brandPositionId = resolved.brandPosition.id,
-            brandPositionName = resolved.resolvedBrandPositionName,
-            positionCategoryId = resolved.position.category.id,
-            positionCategoryName = resolved.position.category.name,
-            sourceUrl = sourceUrl
-        )
+            val summary = summaryWriteService.createAllForAdmin(
+                snapshotCommand = snapshotCommand,
+                llmResult = llmResult,
+                brand = resolved.brand,
+                positionId = resolved.position.id,
+                positionName = resolved.position.name,
+                brandPositionId = resolved.brandPosition.id,
+                brandPositionName = resolved.brandPosition.displayName,
+                positionCategoryId = resolved.position.category.id,
+                positionCategoryName = resolved.position.category.name,
+                sourceUrl = sourceUrl
+            )
 
-        tryCreateCompanyCandidate(summary.id, resolved.brand.id, llmResult.companyCandidate)
+            tryCreateCompanyCandidate(summary.id, resolved.brand.id, llmResult.companyCandidate)
 
-        return summary
+            return summary
+        } catch (e: Exception) {
+            log.error(
+                "[EXECUTE_FOR_ADMIN_FAILED] brandName='{}', brandPositionName='{}', error={}",
+                llmResult.brandName, brandPositionName, e.message, e
+            )
+            throw e
+        }
     }
 
     private fun tryCreateCompanyCandidate(

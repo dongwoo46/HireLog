@@ -118,7 +118,7 @@ class JobSummaryAdminService(
         val summary = postLlmProcessor.executeForAdmin(
             snapshotCommand = snapshotSupplier,
             llmResult = llmResult,
-            fallbackPositionName = positionName,
+            brandPositionName = positionName,
             sourceUrl = sourceUrl
         )
 

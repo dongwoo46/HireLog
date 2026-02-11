@@ -40,7 +40,6 @@ class JobSummaryLlmResultAssembler {
                 ?: throw IllegalStateException("brandName missing"),
             positionName = raw.positionName
                 ?: throw IllegalStateException("positionName missing"),
-            brandPositionName = raw.brandPositionName,
             companyCandidate = raw.companyCandidate,
 
             careerType = CareerType.from(raw.careerType),

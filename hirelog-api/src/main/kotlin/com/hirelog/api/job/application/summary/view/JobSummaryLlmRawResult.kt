@@ -15,7 +15,6 @@ data class JobSummaryLlmRawResult(
 
     val brandName: String?,
     val positionName: String?,
-    val brandPositionName: String?,
 
     // 추론된 법인명 후보 (예: "토스" → "(주)비바리퍼블리카")
     val companyCandidate: String?,
