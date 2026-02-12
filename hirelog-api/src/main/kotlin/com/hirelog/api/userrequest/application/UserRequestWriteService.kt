@@ -1,9 +1,12 @@
 package com.hirelog.api.userrequest.application
 
-import com.hirelog.api.common.config.security.AuthenticatedMember
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.member.application.port.MemberQuery
 import com.hirelog.api.member.domain.MemberRole
 import com.hirelog.api.member.domain.MemberStatus
+import com.hirelog.api.notification.application.NotificationWriteService
+import com.hirelog.api.notification.domain.type.NotificationReferenceType
+import com.hirelog.api.notification.domain.type.NotificationType
 import com.hirelog.api.userrequest.application.port.UserRequestCommand
 import com.hirelog.api.userrequest.application.port.UserRequestQuery
 import com.hirelog.api.userrequest.domain.*
@@ -21,7 +24,8 @@ import org.springframework.transaction.annotation.Transactional
 class UserRequestWriteService(
     private val command: UserRequestCommand,
     private val query: UserRequestQuery,
-    private val memberQuery: MemberQuery
+    private val memberQuery: MemberQuery,
+    private val notificationWriteService: NotificationWriteService
 ) {
 
     /**
@@ -76,7 +80,26 @@ class UserRequestWriteService(
 
         command.save(userRequest)
 
-        return comment.id;
+        // 요청자에게 답변 알림 (본인 댓글은 제외)
+        if (userRequest.memberId != memberId) {
+            try {
+                notificationWriteService.create(
+                    memberId = userRequest.memberId,
+                    type = NotificationType.USER_REQUEST_REPLIED,
+                    title = "내 요청에 답변이 등록되었습니다",
+                    message = userRequest.title,
+                    referenceType = NotificationReferenceType.USER_REQUEST,
+                    referenceId = userRequest.id
+                )
+            } catch (e: Exception) {
+                log.error(
+                    "[NOTIFICATION_CREATE_FAILED] userRequestId={}, memberId={}, error={}",
+                    userRequestId, userRequest.memberId, e.message, e
+                )
+            }
+        }
+
+        return comment.id
     }
 
     /**

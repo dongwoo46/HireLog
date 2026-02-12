@@ -12,11 +12,13 @@ class UserRequestReadService(
 ) {
 
     /**
-     * 내 요청 목록 조회
+     * 내 요청 목록 조회 (페이징)
      */
     fun getMyRequests(
-        memberId: Long
-    ) = userRequestQuery.findAllByMemberId(memberId)
+        memberId: Long,
+        page: Int,
+        size: Int
+    ) = userRequestQuery.findByMemberId(memberId, page, size)
 
     /**
      * 요청 상세 조회 (댓글 포함)

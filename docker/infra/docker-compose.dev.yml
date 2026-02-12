@@ -1,0 +1,225 @@
+services:
+  # PostgreSQL - CDC 설정 + 외부 접근 허용 (개발)
+  postgres:
+    image: postgres:16
+    container_name: pg_hirelog_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: Asia/Seoul
+    ports:
+      - '5432:5432'
+    volumes:
+      - ../../data/postgres:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    networks:
+      - hirelog_infra
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PgBouncer - 커넥션 풀링
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer_hirelog_dev
+    restart: unless-stopped
+    ports:
+      - '6432:5432'
+    volumes:
+      - ./postgres/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./postgres/userlist.txt:/etc/pgbouncer/userlist.txt
+    depends_on:
+      - postgres
+    networks:
+      - hirelog_infra
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '5432']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka - 외부 접근 허용 (개발)
+  kafka:
+    image: apache/kafka:3.7.2
+    container_name: kafka_hirelog_dev
+    restart: unless-stopped
+    ports:
+      - '19092:19092' # 외부 접근 (Dev)
+      - '9092:9092' # 내부 통신
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # Listener
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      # SASL 설정
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_LISTENER_NAME_INTERNAL_PLAIN_SASL_JAAS_CONFIG: |
+        org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="${KAFKA_USERNAME}" \
+        password="${KAFKA_PASSWORD}" \
+        user_${KAFKA_USERNAME}="${KAFKA_PASSWORD}";
+
+      KAFKA_LISTENER_NAME_EXTERNAL_PLAIN_SASL_JAAS_CONFIG: |
+        org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="${KAFKA_USERNAME}" \
+        password="${KAFKA_PASSWORD}" \
+        user_${KAFKA_USERNAME}="${KAFKA_PASSWORD}";
+
+      # Topic 설정
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+
+      TZ: Asia/Seoul
+    volumes:
+      - ../../data/kafka:/var/lib/kafka/data
+    networks:
+      - hirelog_infra
+
+  # Debezium - 외부 접근 허용 (개발)
+  debezium:
+    image: debezium/connect:2.6
+    container_name: debezium_hirelog_dev
+    restart: unless-stopped
+    ports:
+      - '8083:8083' # 개발: 외부 접근 가능
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: hirelog-debezium
+
+      CONFIG_STORAGE_TOPIC: hirelog_debezium_config
+      OFFSET_STORAGE_TOPIC: hirelog_debezium_offset
+      STATUS_STORAGE_TOPIC: hirelog_debezium_status
+
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+
+      CONNECT_ERRORS_LOG_ENABLE: 'true'
+      CONNECT_ERRORS_LOG_INCLUDE_MESSAGES: 'true'
+      CONNECT_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_SASL_MECHANISM: PLAIN
+      CONNECT_SASL_JAAS_CONFIG: >
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="${KAFKA_USERNAME}"
+        password="${KAFKA_PASSWORD}";
+
+      CONNECT_PRODUCER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_PRODUCER_SASL_MECHANISM: PLAIN
+      CONNECT_PRODUCER_SASL_JAAS_CONFIG: >
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="${KAFKA_USERNAME}"
+        password="${KAFKA_PASSWORD}";
+
+      CONNECT_CONSUMER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_CONSUMER_SASL_MECHANISM: PLAIN
+      CONNECT_CONSUMER_SASL_JAAS_CONFIG: >
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="${KAFKA_USERNAME}"
+        password="${KAFKA_PASSWORD}";
+
+      TZ: Asia/Seoul
+    depends_on:
+      - kafka
+      - postgres # 같은 서버의 PostgreSQL
+    networks:
+      - hirelog_infra
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8083/']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenSearch - 비밀번호 설정 (개발)
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: opensearch_hirelog_dev
+    restart: unless-stopped
+    environment:
+      - cluster.name=hirelog-opensearch
+      - node.name=opensearch-node-1
+      - discovery.type=single-node
+
+      # 보안 활성화 (개발에서도!)
+      - DISABLE_SECURITY_PLUGIN=false
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD}
+
+      # JVM 메모리
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+
+      - TZ=Asia/Seoul
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - '9200:9200' # 개발: 외부 접근 가능
+      - '9600:9600' # Performance Analyzer
+    volumes:
+      - ../../data/opensearch:/usr/share/opensearch/data
+    networks:
+      - hirelog_infra
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          '-u',
+          'admin:${OPENSEARCH_PASSWORD}',
+          'https://localhost:9200/_cluster/health',
+          '-k',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenSearch Dashboards (개발용)
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.13.0
+    container_name: opensearch_dashboards_dev
+    restart: unless-stopped
+    ports:
+      - '5601:5601'
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+      OPENSEARCH_USERNAME: admin
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+    depends_on:
+      - opensearch
+    networks:
+      - hirelog_infra
+
+networks:
+  hirelog_infra:
+    driver: bridge

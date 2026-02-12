@@ -1,0 +1,124 @@
+services:
+  # Redis - 비밀번호 + ACL 설정
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: redis_hirelog_prod
+    restart: unless-stopped
+    environment:
+      REDIS_ARGS: >-
+        --requirepass ${REDIS_PASSWORD}
+        --maxmemory 512mb
+        --maxmemory-policy allkeys-lru
+      TZ: Asia/Seoul
+    # 운영: 외부 노출 안 함
+    expose:
+      - '6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - hirelog_internal
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Blue (현재 운영)
+  api-blue:
+    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+    container_name: hirelog_api_blue_prod
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP (예: 172.20.0.10)
+      DB_PORT: 6432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS} # Server 2 Kafka
+      KAFKA_SASL_USERNAME: ${KAFKA_USERNAME}
+      KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD}
+      OPENSEARCH_HOST: ${OPENSEARCH_HOST} # Server 2 OpenSearch
+      OPENSEARCH_USERNAME: admin
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+      TZ: Asia/Seoul
+      # JVM 옵션
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+    # 운영: 외부 노출 안 함 (nginx를 통해서만)
+    expose:
+      - '8080'
+    depends_on:
+      - redis
+    networks:
+      - hirelog_internal
+      - hirelog_external # Server 2 접근용
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # Spring Boot Green (배포 대기)
+  api-green:
+    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+    container_name: hirelog_api_green_prod
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP
+      DB_PORT: 6432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_SASL_USERNAME: ${KAFKA_USERNAME}
+      KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD}
+      OPENSEARCH_HOST: ${OPENSEARCH_HOST}
+      OPENSEARCH_USERNAME: admin
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+      TZ: Asia/Seoul
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+    expose:
+      - '8080'
+    depends_on:
+      - redis
+    networks:
+      - hirelog_internal
+      - hirelog_external
+    profiles: ['green'] # 배포 시에만 활성화
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  redis_data:
+
+networks:
+  hirelog_internal:
+    driver: bridge
+    internal: true # 외부 인터넷 접근 차단
+  hirelog_external:
+    driver: bridge # Server 2와 통신용
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

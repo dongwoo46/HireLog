@@ -43,10 +43,12 @@ class UserRequestQueryDslAdapter(
     }
 
     /**
-     * 특정 회원의 요청 목록
+     * 특정 회원의 요청 목록 (페이징)
      */
-    override fun findAllByMemberId(memberId: Long): List<UserRequestView> {
-        return queryFactory
+    override fun findByMemberId(memberId: Long, page: Int, size: Int): PagedResult<UserRequestView> {
+        val offset = page.toLong() * size
+
+        val items = queryFactory
             .select(
                 Projections.constructor(
                     UserRequestView::class.java,
@@ -61,7 +63,22 @@ class UserRequestQueryDslAdapter(
             .from(ur)
             .where(ur.memberId.eq(memberId))
             .orderBy(ur.id.desc())
+            .offset(offset)
+            .limit(size.toLong())
             .fetch()
+
+        val totalElements = queryFactory
+            .select(ur.count())
+            .from(ur)
+            .where(ur.memberId.eq(memberId))
+            .fetchOne() ?: 0L
+
+        return PagedResult.of(
+            items = items,
+            page = page,
+            size = size,
+            totalElements = totalElements
+        )
     }
 
     /**

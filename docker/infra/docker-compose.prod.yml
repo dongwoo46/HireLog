@@ -1,0 +1,278 @@
+services:
+  # PostgreSQL - CDC 설정 + 내부 접근만 (운영)
+  postgres:
+    image: postgres:16
+    container_name: pg_hirelog_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: Asia/Seoul
+    # 운영: 외부 노출 안 함
+    expose:
+      - '5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - hirelog_internal
+      - hirelog_external # Server 1이 PgBouncer를 통해 접근
+    command:
+      - 'postgres'
+      - '-c'
+      - 'wal_level=logical' # Debezium CDC 필수
+      - '-c'
+      - 'max_connections=200'
+      - '-c'
+      - 'shared_buffers=512MB'
+      - '-c'
+      - 'effective_cache_size=1GB'
+      - '-c'
+      - 'maintenance_work_mem=128MB'
+      - '-c'
+      - 'checkpoint_completion_target=0.9'
+      - '-c'
+      - 'wal_buffers=16MB'
+      - '-c'
+      - 'default_statistics_target=100'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PgBouncer - 커넥션 풀링 (Server 1이 접근하는 진입점)
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer_hirelog_prod
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 40
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 10
+      ADMIN_USERS: ${POSTGRES_USER}
+      AUTH_TYPE: md5
+      SERVER_IDLE_TIMEOUT: 600
+      SERVER_LIFETIME: 3600
+      SERVER_RESET_QUERY: DISCARD ALL
+    # 운영: Server 1(외부)에서만 접근 가능
+    ports:
+      - '6432:5432' # 운영: Server 1 전용 (방화벽으로 제한)
+    depends_on:
+      - postgres
+    networks:
+      - hirelog_internal
+      - hirelog_external
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '5432']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka - SASL 인증 + 내부 접근만
+  kafka:
+    image: apache/kafka:3.7.2
+    container_name: kafka_hirelog_prod
+    restart: unless-stopped
+    # 운영: 외부 노출 안 함 (Server 1에서만 접근)
+    expose:
+      - '9092'
+      - '9093'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # Listener - SASL 인증 추가
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,SASL_PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: SASL_PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,SASL_PLAINTEXT:SASL_PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
+
+      # SASL 인증 설정
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_LISTENER_NAME_SASL_PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: |
+        org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="${KAFKA_USERNAME}" \
+        password="${KAFKA_PASSWORD}" \
+        user_${KAFKA_USERNAME}="${KAFKA_PASSWORD}";
+
+      # Topic 설정
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # 성능 설정
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false' # 운영에서는 수동 생성
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168 # 7일
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824 # 1GB
+
+      TZ: Asia/Seoul
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - hirelog_internal
+      - hirelog_external # Server 1과 통신
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'kafka-broker-api-versions.sh',
+          '--bootstrap-server',
+          'localhost:9092',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Debezium - 내부 접근만
+  debezium:
+    image: debezium/connect:2.6
+    container_name: debezium_hirelog_prod
+    restart: unless-stopped
+    # 운영: 외부 노출 안 함
+    expose:
+      - '8083'
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: hirelog-debezium
+
+      # Kafka SASL 인증
+      CONNECT_SASL_MECHANISM: PLAIN
+      CONNECT_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+
+      # Producer/Consumer도 동일 설정
+      CONNECT_PRODUCER_SASL_MECHANISM: PLAIN
+      CONNECT_PRODUCER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_PRODUCER_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+
+      CONNECT_CONSUMER_SASL_MECHANISM: PLAIN
+      CONNECT_CONSUMER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_CONSUMER_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+
+      # Topic 설정
+      CONFIG_STORAGE_TOPIC: hirelog_debezium_config
+      OFFSET_STORAGE_TOPIC: hirelog_debezium_offset
+      STATUS_STORAGE_TOPIC: hirelog_debezium_status
+
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+
+      # Converter
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+
+      # Error Handling
+      CONNECT_ERRORS_LOG_ENABLE: 'true'
+      CONNECT_ERRORS_LOG_INCLUDE_MESSAGES: 'true'
+      CONNECT_ERRORS_RETRY_TIMEOUT: 300000
+      CONNECT_ERRORS_RETRY_DELAY_MAX_MS: 60000
+
+      TZ: Asia/Seoul
+    depends_on:
+      - kafka
+      - postgres # 같은 서버의 PostgreSQL
+    networks:
+      - hirelog_internal
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8083/']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenSearch - 보안 활성화
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: opensearch_hirelog_prod
+    restart: unless-stopped
+    environment:
+      - cluster.name=hirelog-opensearch-prod
+      - node.name=opensearch-node-1
+      - discovery.type=single-node
+
+      # 보안 활성화
+      - DISABLE_SECURITY_PLUGIN=false
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD}
+
+      # JVM 메모리 (운영 최적화)
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+
+      # 성능 설정
+      - bootstrap.memory_lock=true
+
+      - TZ=Asia/Seoul
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    # 운영: 외부 노출 안 함
+    expose:
+      - '9200'
+      - '9300'
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    networks:
+      - hirelog_internal
+      - hirelog_external # Server 1에서 검색 요청
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          '-u',
+          'admin:${OPENSEARCH_PASSWORD}',
+          'https://localhost:9200/_cluster/health',
+          '-k',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka Exporter - 모니터링용 (선택)
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka_exporter_prod
+    restart: unless-stopped
+    command:
+      - '--kafka.server=kafka:9092'
+      - '--sasl.enabled'
+      - '--sasl.username=${KAFKA_USERNAME}'
+      - '--sasl.password=${KAFKA_PASSWORD}'
+      - '--sasl.mechanism=plain'
+    expose:
+      - '9308'
+    depends_on:
+      - kafka
+    networks:
+      - hirelog_internal
+
+volumes:
+  postgres_data:
+  kafka_data:
+  opensearch_data:
+
+networks:
+  hirelog_internal:
+    driver: bridge
+    internal: true
+
+  hirelog_external:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

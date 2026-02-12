@@ -1,19 +1,12 @@
 spring:
   datasource:
     hikari:
-      maximum-pool-size: 10
-
-      # 커넥션 최대 수명 (DB보다 짧게)
-      max-lifetime: 600000        # 10분
-
-      # 유휴 커넥션 정리
-      idle-timeout: 300000        # 5분
-
-      # 커넥션 검증 타임아웃
-      validation-timeout: 3000
-
-      # DB down 시 빠른 실패
-      connection-timeout: 3000
+      hikari:
+        maximum-pool-size: 5
+        minimum-idle: 2
+        max-lifetime: 300000
+        idle-timeout: 300000
+        connection-timeout: 3000
   mail:
     host: ${MAIL_HOST}
     port: 587

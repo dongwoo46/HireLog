@@ -45,14 +45,16 @@ class UserRequestController(
      */
     @GetMapping("/my")
     fun getMyUserRequests(
-        @CurrentUser member: AuthenticatedMember
-    ): ResponseEntity<List<UserRequestListRes>> {
+        @CurrentUser member: AuthenticatedMember,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): ResponseEntity<PagedResult<UserRequestListRes>> {
 
-        val requests = userRequestReadService
-            .getMyRequests(member.memberId)
+        val result = userRequestReadService
+            .getMyRequests(member.memberId, page, size)
             .map(UserRequestListRes::from)
 
-        return ResponseEntity.ok(requests)
+        return ResponseEntity.ok(result)
     }
 
     /**

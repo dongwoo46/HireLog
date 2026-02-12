@@ -1,0 +1,81 @@
+services:
+  # Redis - 비밀번호 설정
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: redis_hirelog_dev
+    restart: unless-stopped
+    environment:
+      REDIS_ARGS: --requirepass ${REDIS_PASSWORD}
+      TZ: Asia/Seoul
+    ports:
+      - '6379:6379' # 개발: 외부 접근 가능
+    volumes:
+      - redis_data:/data
+    networks:
+      - hirelog_network
+
+  # # Spring Boot Blue (운영)
+  # api-blue:
+  #   image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+  #   container_name: hirelog_api_blue_dev
+  #   restart: unless-stopped
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: dev
+  #     DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP
+  #     DB_PORT: 6432
+  #     DB_NAME: ${POSTGRES_DB}
+  #     DB_USER: ${POSTGRES_USER}
+  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #     KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS} # Server 2 Kafka
+  #     TZ: Asia/Seoul
+  #   ports:
+  #     - '8080:8080'
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - hirelog_network
+  #   healthcheck:
+  #     test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # # Spring Boot Green (대기)
+  # api-green:
+  # image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+  # container_name: hirelog_api_green_dev
+  # restart: unless-stopped
+  # environment:
+  #   SPRING_PROFILES_ACTIVE: dev
+  #   DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP
+  #   DB_PORT: 6432
+  #   DB_NAME: ${POSTGRES_DB}
+  #   DB_USER: ${POSTGRES_USER}
+  #   DB_PASSWORD: ${POSTGRES_PASSWORD}
+  #   REDIS_HOST: redis
+  #   REDIS_PORT: 6379
+  #   REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #   KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+  #   TZ: Asia/Seoul
+  # ports:
+  #   - '8081:8080'
+  # depends_on:
+  #   - redis
+  # networks:
+  #   - hirelog_network
+  # profiles: ['green'] # 기본적으로 실행 안 함
+  # healthcheck:
+  #   test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
+  #   interval: 10s
+  #   timeout: 5s
+  #   retries: 5
+
+volumes:
+  redis_data:
+
+# networks:
+#   hirelog_network:
+#     driver: bridge

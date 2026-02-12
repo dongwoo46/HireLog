@@ -15,9 +15,9 @@ spring:
     client:
       factory: http_components
   datasource:
-    url: jdbc:postgresql://localhost:5432/hirelog
-    username: postgres
-    password: 1234
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   flyway:
@@ -25,7 +25,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update # ⭐ local 핵심
+      ddl-auto: create # ⭐ local 핵심
 
   data:
     redis:
