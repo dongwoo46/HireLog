@@ -1,122 +1,240 @@
 import { useNavigate } from 'react-router-dom';
-import { JobSummarySearch } from '../components/JobSummarySearch';
-import { JobSummaryCard } from '../components/JobSummaryCard';
-import type { JobSummarySearchReq, JobSummaryView } from '../types/jobSummary';
 import { useEffect, useState } from 'react';
-import { jdSummaryService } from '../services/jdSummaryService';
-import { TbPlus } from 'react-icons/tb';
+import { TbChevronDown, TbAdjustmentsHorizontal } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
-import { GuestLanding } from '../components/GuestLanding';
+import { jdSummaryService } from '../services/jdSummaryService';
+import type { JobSummaryView, CareerType } from '../types/jobSummary';
+import FilterModal from '../components/FilterModal';
 
 const MainPage = () => {
   const navigate = useNavigate();
-  const [featuredJds, setFeaturedJds] = useState<JobSummaryView[]>([]);
   const { isInitialized, isAuthenticated } = useAuthStore();
+
+  const [featuredJds, setFeaturedJds] = useState<JobSummaryView[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [career, setCareer] = useState<CareerType>('ANY');
+  const [keyword, setKeyword] = useState('');
+  const [sortBy, setSortBy] = useState('CREATED_AT_DESC');
+  const [isCareerOpen, setIsCareerOpen] = useState(false);
 
   useEffect(() => {
     if (!isInitialized) return;
 
     const loadFeatured = async () => {
-      try {
-        const result = await jdSummaryService.search({ size: 3, sortBy: 'CREATED_AT_DESC' });
-        setFeaturedJds(result?.items || []);
-      } catch (error) {
-        console.error('Failed to load featured JDs', error);
-      }
+      const result = await jdSummaryService.search({
+        size: 3,
+        sortBy: 'CREATED_AT_DESC',
+      });
+      setFeaturedJds(result?.items || []);
     };
+
     loadFeatured();
   }, [isInitialized]);
 
-  const handleSearch = (params: JobSummarySearchReq) => {
-    const query = new URLSearchParams();
-    if (params.keyword) query.append('keyword', params.keyword);
-    if (params.careerType) query.append('careerType', params.careerType);
-    navigate(`/jd?${query.toString()}`);
+  const handleSearch = () => {
+    navigate(`/jd?keyword=${keyword}&careerType=${career}&sortBy=${sortBy}`);
   };
 
   if (!isInitialized) return null;
 
   if (!isAuthenticated) {
-    return <GuestLanding />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        로그인이 필요합니다.
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <section className="relative pt-40 pb-32 overflow-hidden border-b border-gray-50">
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#89cbb6]/10 border border-[#89cbb6]/20 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-              <span className="w-2 h-2 rounded-full bg-[#276db8] animate-pulse" />
-              <span className="text-[10px] font-black text-[#276db8] uppercase tracking-[0.3em]">스마트 채용 로그북</span>
-            </div>
-            
-            <h1 className="text-6xl md:text-8xl font-black text-gray-900 leading-[1.0] mb-10 tracking-tighter italic">
-              당신의 성장을 <br />
-              <span className="mint-gradient-text">기록하세요.</span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-gray-400 mb-16 leading-relaxed font-medium max-w-2xl mx-auto">
-              HireLog는 단순한 요약을 넘어, 당신의 성장을 <br />
-              기록하고 분석하는 AI 커리어 일지입니다.
-            </p>
+    <div className="min-h-screen bg-[#f5f7f8]">
 
-            <JobSummarySearch onSearch={handleSearch} />
-          </div>
-        </div>
+      {/* HERO */}
+      <section className="pt-32 pb-24 text-center px-6">
 
-        {/* Decorative elements */}
-        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-[#276db8]/5 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#89cbb6]/5 rounded-full blur-[150px] pointer-events-none" />
-      </section>
+        <p className="text-xs tracking-widest text-gray-400 mb-8">
+          SMART CAREER LOGBOOK
+        </p>
 
-      {/* Featured Entry Section */}
-      <section className="py-24 bg-[#F8F9FA]/50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-end justify-between mb-16">
-            <div>
-              <h2 className="text-xs font-black text-[#89cbb6] uppercase tracking-[0.4em] mb-4 italic">Recent Logs</h2>
-              <h3 className="text-4xl font-black text-gray-900 tracking-tight">최근 수집된 채용 기록</h3>
-            </div>
-            <button 
-              onClick={() => navigate('/jd')}
-              className="group flex items-center gap-2 text-sm font-black text-[#276db8] uppercase tracking-widest hover:text-[#89cbb6] transition-colors"
+        <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-8">
+          당신의 성장을
+          <br />
+          <span className="text-[#2ec4b6] block mt-3">
+            기록하세요.
+          </span>
+        </h1>
+
+        <p className="text-gray-500 mb-14 max-w-2xl mx-auto">
+          HireLog는 단순한 요약을 넘어,
+          당신의 성장을 기록하고 분석하는 AI 커리어 일지입니다.
+        </p>
+
+        {/* 검색바 */}
+        <div className="max-w-4xl mx-auto bg-white shadow-md rounded-2xl p-3 flex items-center gap-4 border border-[#2ec4b6]/40 relative">
+
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="키워드로 검색 (예: 상장, 백엔드...)"
+            className="flex-1 px-4 py-3 rounded-xl outline-none"
+          />
+
+          {/* 경력 필터 */}
+          <div className="relative">
+            <button
+              onClick={() => setIsCareerOpen(!isCareerOpen)}
+              className="flex items-center gap-1 text-gray-600 font-medium"
             >
-              전체 기록 보기
-              <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center group-hover:border-[#89cbb6] group-hover:bg-[#89cbb6]/5 transition-all">
-                →
-              </div>
+              {career === 'NEW'
+                ? '신입'
+                : career === 'EXPERIENCED'
+                  ? '경력'
+                  : '경력 전체'}
+              <TbChevronDown />
             </button>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {(featuredJds || []).length > 0 ? (
-              featuredJds.map((jd) => (
-                <JobSummaryCard key={jd.id} summary={jd} />
-              ))
-            ) : (
-              [1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-3xl h-80 border border-gray-100 animate-pulse shadow-log" />
-              ))
+            {isCareerOpen && (
+              <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-xl w-28 p-2 z-50">
+                <button
+                  onClick={() => {
+                    setCareer('NEW');
+                    setIsCareerOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded"
+                >
+                  신입
+                </button>
+                <button
+                  onClick={() => {
+                    setCareer('EXPERIENCED');
+                    setIsCareerOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded"
+                >
+                  경력
+                </button>
+                <button
+                  onClick={() => {
+                    setCareer('ANY');
+                    setIsCareerOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded"
+                >
+                  전체
+                </button>
+              </div>
             )}
           </div>
-        </div>
-      </section>
 
-      {/* Quick Action Footer */}
-      <section className="bg-white border-t border-gray-100 py-32">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.5em] mb-8">도움이 필요하신가요?</h2>
-          <h3 className="text-4xl font-black text-gray-900 mb-12 italic uppercase tracking-tight">맞춤형 채용 공고 분석 요청</h3>
+          {/* 상세 필터 */}
           <button
-            onClick={() => navigate('/jd/request')}
-            className="px-16 py-6 rounded-[24px] bg-[#0f172a] text-white font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-4 mx-auto"
+            onClick={() => setIsFilterOpen(true)}
+            className="flex items-center gap-1 text-gray-600 font-medium"
           >
-            <TbPlus size={24} />
-            요청 시작하기
+            <TbAdjustmentsHorizontal />
+            상세 필터
+          </button>
+
+          <button
+            onClick={handleSearch}
+            className="bg-[#2ec4b6] text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition"
+          >
+            검색하기
           </button>
         </div>
       </section>
+
+      {/* 최근 수집된 채용 기록 */}
+      <section className="max-w-6xl mx-auto px-6 pb-24">
+
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">
+            최근 수집된 채용 기록
+          </h2>
+
+          <button
+            onClick={() => navigate('/jd')}
+            className="text-[#2ec4b6] font-semibold"
+          >
+            더보기 →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {featuredJds.map((jd) => (
+            <div
+              key={jd.id}
+              className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition cursor-pointer"
+              onClick={() => navigate(`/jd/${jd.id}`)}
+            >
+              <h3 className="font-semibold text-lg">
+                {jd.brandName}
+              </h3>
+
+              <p className="text-gray-500 text-sm mt-2">
+                {jd.brandPositionName}
+              </p>
+
+              <p className="text-xs text-gray-400 mt-4">
+                {jd.createdAt?.slice(0, 10)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 서비스 소개 섹션 */}
+      <section className="bg-white py-24 mt-10">
+        <div className="max-w-5xl mx-auto px-6 text-center">
+
+          <h3 className="text-2xl font-bold mb-12">
+            HireLog와 함께 성장하세요
+          </h3>
+
+          <div className="grid md:grid-cols-3 gap-10">
+
+            <div>
+              <div className="w-14 h-14 mx-auto bg-[#2ec4b6]/20 rounded-full flex items-center justify-center mb-4">
+                📊
+              </div>
+              <p className="font-semibold mb-2">JD 분석 자동화</p>
+              <p className="text-sm text-gray-500">
+                AI가 공고를 분석하여 핵심을 정리합니다.
+              </p>
+            </div>
+
+            <div>
+              <div className="w-14 h-14 mx-auto bg-[#2ec4b6]/20 rounded-full flex items-center justify-center mb-4">
+                🧠
+              </div>
+              <p className="font-semibold mb-2">면접 대비 전략</p>
+              <p className="text-sm text-gray-500">
+                기록된 데이터를 기반으로 전략을 세웁니다.
+              </p>
+            </div>
+
+            <div>
+              <div className="w-14 h-14 mx-auto bg-[#2ec4b6]/20 rounded-full flex items-center justify-center mb-4">
+                📈
+              </div>
+              <p className="font-semibold mb-2">커리어 자산화</p>
+              <p className="text-sm text-gray-500">
+                지원 이력을 자산처럼 관리하세요.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 필터 모달 */}
+      {isFilterOpen && (
+        <FilterModal
+          onClose={() => setIsFilterOpen(false)}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+        />
+      )}
+
     </div>
   );
 };
