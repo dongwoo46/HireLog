@@ -1,12 +1,19 @@
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD}
   datasource:
     hikari:
-      hikari:
-        maximum-pool-size: 5
-        minimum-idle: 2
-        max-lifetime: 300000
-        idle-timeout: 300000
-        connection-timeout: 3000
+      maximum-pool-size: 5
+      minimum-idle: 2
+      max-lifetime: 300000
+      idle-timeout: 300000
+      connection-timeout: 3000
+      data-source-properties:
+        prepareThreshold: 0
+        binaryTransfer: false
   mail:
     host: ${MAIL_HOST}
     port: 587
@@ -20,19 +27,19 @@ spring:
             enable: true
 
   kafka:
-    bootstrap-servers: localhost:19092  # 'kafka:9092'를 'localhost:9092'로 변경
+    bootstrap-servers: localhost:19092
+    consumer:
+      enable-auto-commit: false
+      group-id: hirelog-consumer-group
+      auto-offset-reset: earliest
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        enable.idempotence: true
-        acks: all
-        retries: 2147483647
-        max.in.flight.requests.per.connection: 5
-
-    consumer:
-      enable-auto-commit: false
-      auto-offset-reset: earliest
+    properties:
+      security.protocol: SASL_PLAINTEXT
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
 
   security:
     oauth2:
@@ -94,6 +101,8 @@ logging:
   level:
     root: INFO
     com.hirelog.api: DEBUG
+    org.apache.kafka: WARN
+    org.apache.kafka.clients.consumer.ConsumerConfig: ERROR
 
 server:
   tomcat:

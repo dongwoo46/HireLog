@@ -5,36 +5,29 @@ logger = logging.getLogger(__name__)
 
 
 class KafkaStreamConsumer:
-    """confluent-kafka 기반 Consumer"""
+    """
+    confluent-kafka 기반 Consumer 래퍼
+
+    책임:
+    - 메시지 polling 및 에러 핸들링
+    - 수동 offset commit
+    - 연결/인증 설정은 KafkaClientFactory가 담당
+    """
 
     def __init__(
             self,
-            bootstrap_servers: str,
+            consumer: Consumer,
             topic: str,
-            group_id: str,
-            client_id: str,
             poll_timeout_sec: float = 1.0,
-            auto_offset_reset: str = "earliest",  # 설정 가능하게
     ):
-        config = {
-            "bootstrap.servers": bootstrap_servers,
-            "group.id": group_id,
-            "client.id": client_id,
-            "enable.auto.commit": False,
-            "auto.offset.reset": auto_offset_reset,
-            # 추가 권장 설정
-            "session.timeout.ms": 45000,
-            "max.poll.interval.ms": 300000,
-        }
-
-        self.consumer = Consumer(config)
-        self.consumer.subscribe([topic])
+        self._consumer = consumer
         self.poll_timeout_sec = poll_timeout_sec
-        logger.info(f"Consumer initialized - topic: {topic}, group: {group_id}")
+        self._consumer.subscribe([topic])
+        logger.info("Consumer subscribed - topic: %s", topic)
 
     def poll(self):
         """메시지 polling"""
-        msg = self.consumer.poll(self.poll_timeout_sec)
+        msg = self._consumer.poll(self.poll_timeout_sec)
         if msg is None:
             return None
 
@@ -42,7 +35,7 @@ class KafkaStreamConsumer:
             if msg.error().code() == KafkaError._PARTITION_EOF:
                 logger.debug("Reached end of partition")
                 return None
-            logger.error(f"Consumer error: {msg.error()}")
+            logger.error("Consumer error: %s", msg.error())
             raise RuntimeError(msg.error())
 
         return msg
@@ -50,13 +43,13 @@ class KafkaStreamConsumer:
     def commit(self, msg):
         """동기 커밋"""
         try:
-            self.consumer.commit(message=msg, asynchronous=False)
-            logger.debug(f"Committed offset: {msg.offset()}")
+            self._consumer.commit(message=msg, asynchronous=False)
+            logger.debug("Committed offset: %s", msg.offset())
         except Exception as e:
-            logger.error(f"Commit failed: {e}")
+            logger.error("Commit failed: %s", e)
             raise
 
     def close(self):
         """Consumer 종료"""
         logger.info("Closing consumer")
-        self.consumer.close()
+        self._consumer.close()

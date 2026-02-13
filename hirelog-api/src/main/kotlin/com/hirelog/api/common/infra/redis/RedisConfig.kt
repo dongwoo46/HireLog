@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.redis.connection.RedisConnectionFactory
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.core.StringRedisTemplate
@@ -32,16 +33,18 @@ class RedisConfig(
     /**
      * Redis 연결 팩토리
      *
-     * 주의:
-     * - 단일 Redis 인스턴스 기준
-     * - Sentinel / Cluster는 추후 확장
+     * 수정사항:
+     * - RedisStandaloneConfiguration을 사용하여 비밀번호 설정
      */
     @Bean
     fun redisConnectionFactory(): RedisConnectionFactory {
-        return LettuceConnectionFactory(
-            redisProperties.host,
-            redisProperties.port
-        )
+        val config = RedisStandaloneConfiguration().apply {
+            hostName = redisProperties.host
+            port = redisProperties.port
+            setPassword(redisProperties.password)  // ✅ 비밀번호 설정
+        }
+
+        return LettuceConnectionFactory(config)
     }
 
     /* =========================

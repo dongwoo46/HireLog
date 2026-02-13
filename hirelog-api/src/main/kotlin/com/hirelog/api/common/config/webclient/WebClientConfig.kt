@@ -1,4 +1,4 @@
-package com.hirelog.api.common.config.infra
+package com.hirelog.api.common.config.webclient
 
 import com.hirelog.api.common.config.properties.WorknetApiProperties
 import com.hirelog.api.config.infra.webclient.WebClientFactory

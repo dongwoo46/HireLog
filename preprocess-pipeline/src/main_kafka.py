@@ -29,6 +29,7 @@ from infra.config.kafka_config import (
     load_kafka_worker_config,
     KafkaConfig,
 )
+from infra.kafka.kafka_client_factory import KafkaClientFactory
 from infra.kafka.kafka_consumer import KafkaStreamConsumer
 from infra.kafka.kafka_producer import KafkaStreamProducer
 from worker.text_kafka_worker import TextKafkaWorker
@@ -47,32 +48,6 @@ from utils.logger import setup_logging
 setup_logging("DEBUG")
 
 logger = logging.getLogger(__name__)
-
-
-def create_kafka_consumer(
-    kafka_config: KafkaConfig,
-    topic: str,
-    client_id: str,
-) -> KafkaStreamConsumer:
-    """Kafka Consumer 생성"""
-    return KafkaStreamConsumer(
-        bootstrap_servers=kafka_config.bootstrap_servers,
-        topic=topic,
-        group_id=kafka_config.consumer_group,
-        client_id=client_id,
-        poll_timeout_sec=kafka_config.poll_timeout_sec,
-    )
-
-
-def create_kafka_producer(
-    kafka_config: KafkaConfig,
-    client_id: str,
-) -> KafkaStreamProducer:
-    """Kafka Producer 생성"""
-    return KafkaStreamProducer(
-        bootstrap_servers=kafka_config.bootstrap_servers,
-        client_id=client_id,
-    )
 
 
 def run_worker(worker: BaseKafkaWorker):
@@ -120,14 +95,20 @@ def main():
     logger.info("[CONFIG] Instance ID: %s", instance_id)
 
     # ==================================================
+    # KafkaClientFactory 생성
+    # - 연결/인증 설정을 단일 지점에서 관리
+    # ==================================================
+    factory = KafkaClientFactory(kafka_config.connection)
+
+    # ==================================================
     # 공유 Producer 생성
     # - 모든 Worker가 단일 Producer를 공유
     # - Thread-safe (confluent-kafka 보장)
     # ==================================================
-    producer = create_kafka_producer(
-        kafka_config=kafka_config,
+    raw_producer = factory.create_producer(
         client_id=f"producer-{instance_id}",
     )
+    producer = KafkaStreamProducer(raw_producer)
 
     # ==================================================
     # Worker 생성
@@ -135,10 +116,13 @@ def main():
     workers: List[BaseKafkaWorker] = []
 
     # TEXT Worker
-    text_consumer = create_kafka_consumer(
-        kafka_config=kafka_config,
+    text_consumer = KafkaStreamConsumer(
+        consumer=factory.create_consumer(
+            group_id=kafka_config.consumer_group,
+            client_id=f"text-consumer-{instance_id}",
+        ),
         topic=kafka_config.text_topic,
-        client_id=f"text-consumer-{instance_id}",
+        poll_timeout_sec=kafka_config.poll_timeout_sec,
     )
     text_worker = TextKafkaWorker(
         consumer=text_consumer,
@@ -150,10 +134,13 @@ def main():
     workers.append(text_worker)
 
     # OCR Worker
-    ocr_consumer = create_kafka_consumer(
-        kafka_config=kafka_config,
+    ocr_consumer = KafkaStreamConsumer(
+        consumer=factory.create_consumer(
+            group_id=kafka_config.consumer_group,
+            client_id=f"ocr-consumer-{instance_id}",
+        ),
         topic=kafka_config.ocr_topic,
-        client_id=f"ocr-consumer-{instance_id}",
+        poll_timeout_sec=kafka_config.poll_timeout_sec,
     )
     ocr_worker = OcrKafkaWorker(
         consumer=ocr_consumer,
@@ -165,10 +152,13 @@ def main():
     workers.append(ocr_worker)
 
     # URL Worker
-    url_consumer = create_kafka_consumer(
-        kafka_config=kafka_config,
+    url_consumer = KafkaStreamConsumer(
+        consumer=factory.create_consumer(
+            group_id=kafka_config.consumer_group,
+            client_id=f"url-consumer-{instance_id}",
+        ),
         topic=kafka_config.url_topic,
-        client_id=f"url-consumer-{instance_id}",
+        poll_timeout_sec=kafka_config.poll_timeout_sec,
     )
     url_worker = UrlKafkaWorker(
         consumer=url_consumer,
