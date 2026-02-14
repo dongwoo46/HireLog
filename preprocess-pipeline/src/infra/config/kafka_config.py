@@ -59,6 +59,7 @@ class KafkaConfig:
 
     consumer_group: str
     poll_timeout_sec: float
+    consumer_concurrency: int
 
     @property
     def bootstrap_servers(self) -> str:
@@ -90,6 +91,7 @@ def load_kafka_config() -> KafkaConfig:
         fail_topic=os.getenv("KAFKA_FAIL_TOPIC", "jd.preprocess.response.fail"),
         consumer_group=os.getenv("KAFKA_CONSUMER_GROUP", "preprocess-group"),
         poll_timeout_sec=float(os.getenv("KAFKA_POLL_TIMEOUT_SEC", "1.0")),
+        consumer_concurrency=int(os.getenv("KAFKA_CONSUMER_CONCURRENCY", "3")),
     )
 
 

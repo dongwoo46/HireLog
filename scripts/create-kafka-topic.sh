@@ -2,10 +2,7 @@
 
 set -e
 
-# 스크립트 디렉토리 기준으로 경로 계산
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-
-# .env.dev 경로 지정 (프로젝트 루트에 있다고 가정)
 ENV_FILE="${SCRIPT_DIR}/.env.dev"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -28,7 +25,6 @@ EOF"
 echo "✅ client.properties created"
 echo ""
 
-# 토픽 생성
 TOPICS=(
   "jd.preprocess.ocr.request"
   "jd.preprocess.text.request"
@@ -46,14 +42,19 @@ echo ""
 for topic in "${TOPICS[@]}"
 do
   echo "Creating topic: $topic"
-  docker exec kafka_hirelog_dev /opt/kafka/bin/kafka-topics.sh \
-    --bootstrap-server localhost:9092 \
-    --command-config /tmp/client.properties \
-    --create \
-    --topic "$topic" \
-    --partitions 3 \
-    --replication-factor 1 \
-    --if-not-exists
+
+  docker exec kafka_hirelog_dev sh -c "
+    unset KAFKA_OPTS && \
+    /opt/kafka/bin/kafka-topics.sh \
+      --bootstrap-server localhost:9092 \
+      --command-config /tmp/client.properties \
+      --create \
+      --topic \"$topic\" \
+      --partitions 3 \
+      --replication-factor 1 \
+      --if-not-exists
+  "
+
   echo ""
 done
 
@@ -62,28 +63,36 @@ echo "✅ All topics created!"
 echo "=========================================="
 echo ""
 
-# 생성된 토픽 확인
 echo "=========================================="
 echo "Listing all topics:"
 echo "=========================================="
-docker exec kafka_hirelog_dev /opt/kafka/bin/kafka-topics.sh \
-  --bootstrap-server localhost:9092 \
-  --command-config /tmp/client.properties \
-  --list
+
+docker exec kafka_hirelog_dev sh -c "
+  unset KAFKA_OPTS && \
+  /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server localhost:9092 \
+    --command-config /tmp/client.properties \
+    --list
+"
 
 echo ""
 echo "=========================================="
 echo "Topic Details:"
 echo "=========================================="
+
 for topic in "${TOPICS[@]}"
 do
   echo ""
   echo "--- Topic: $topic ---"
-  docker exec kafka_hirelog_dev /opt/kafka/bin/kafka-topics.sh \
-    --bootstrap-server localhost:9092 \
-    --command-config /tmp/client.properties \
-    --describe \
-    --topic "$topic"
+
+  docker exec kafka_hirelog_dev sh -c "
+    unset KAFKA_OPTS && \
+    /opt/kafka/bin/kafka-topics.sh \
+      --bootstrap-server localhost:9092 \
+      --command-config /tmp/client.properties \
+      --describe \
+      --topic \"$topic\"
+  "
 done
 
 echo ""

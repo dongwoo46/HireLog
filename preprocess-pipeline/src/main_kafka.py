@@ -112,62 +112,36 @@ def main():
 
     # ==================================================
     # Worker 생성
+    # - 토픽당 consumer_concurrency개의 Worker를 생성
+    # - 동일 group_id이므로 Kafka가 partition을 분배
     # ==================================================
+    concurrency = kafka_config.consumer_concurrency
     workers: List[BaseKafkaWorker] = []
 
-    # TEXT Worker
-    text_consumer = KafkaStreamConsumer(
-        consumer=factory.create_consumer(
-            group_id=kafka_config.consumer_group,
-            client_id=f"text-consumer-{instance_id}",
-        ),
-        topic=kafka_config.text_topic,
-        poll_timeout_sec=kafka_config.poll_timeout_sec,
-    )
-    text_worker = TextKafkaWorker(
-        consumer=text_consumer,
-        producer=producer,
-        result_topic=kafka_config.result_topic,
-        fail_topic=kafka_config.fail_topic,
-        config=worker_config,
-    )
-    workers.append(text_worker)
+    worker_specs = [
+        ("text", kafka_config.text_topic, TextKafkaWorker),
+        ("ocr", kafka_config.ocr_topic, OcrKafkaWorker),
+        ("url", kafka_config.url_topic, UrlKafkaWorker),
+    ]
 
-    # OCR Worker
-    ocr_consumer = KafkaStreamConsumer(
-        consumer=factory.create_consumer(
-            group_id=kafka_config.consumer_group,
-            client_id=f"ocr-consumer-{instance_id}",
-        ),
-        topic=kafka_config.ocr_topic,
-        poll_timeout_sec=kafka_config.poll_timeout_sec,
-    )
-    ocr_worker = OcrKafkaWorker(
-        consumer=ocr_consumer,
-        producer=producer,
-        result_topic=kafka_config.result_topic,
-        fail_topic=kafka_config.fail_topic,
-        config=worker_config,
-    )
-    workers.append(ocr_worker)
-
-    # URL Worker
-    url_consumer = KafkaStreamConsumer(
-        consumer=factory.create_consumer(
-            group_id=kafka_config.consumer_group,
-            client_id=f"url-consumer-{instance_id}",
-        ),
-        topic=kafka_config.url_topic,
-        poll_timeout_sec=kafka_config.poll_timeout_sec,
-    )
-    url_worker = UrlKafkaWorker(
-        consumer=url_consumer,
-        producer=producer,
-        result_topic=kafka_config.result_topic,
-        fail_topic=kafka_config.fail_topic,
-        config=worker_config,
-    )
-    workers.append(url_worker)
+    for prefix, topic, worker_cls in worker_specs:
+        for i in range(concurrency):
+            consumer = KafkaStreamConsumer(
+                consumer=factory.create_consumer(
+                    group_id=kafka_config.consumer_group,
+                    client_id=f"{prefix}-consumer-{instance_id}-{i}",
+                ),
+                topic=topic,
+                poll_timeout_sec=kafka_config.poll_timeout_sec,
+            )
+            worker = worker_cls(
+                consumer=consumer,
+                producer=producer,
+                result_topic=kafka_config.result_topic,
+                fail_topic=kafka_config.fail_topic,
+                config=worker_config,
+            )
+            workers.append(worker)
 
     # ==================================================
     # Shutdown 핸들러

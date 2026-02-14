@@ -57,28 +57,43 @@ class PreLlmProcessor(
         }
 
         val hashes = jdIntakePolicy.generateIntakeHashes(command.canonicalMap)
-        val decision = jdIntakePolicy.decideDuplicate(command, hashes)
-
-        val snapshotId = when (decision) {
-            is DuplicateDecision.Duplicate -> {
-                processingWriteService.markDuplicate(
-                    processingId = processingId,
-                    reason = decision.reason.name
-                )
-                log.info(
-                    "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
-                    decision.reason, decision.existingSnapshotId, decision.existingSummaryId
-                )
-                return null
-            }
-
-            is DuplicateDecision.Reprocessable -> {
-                log.info("[JD_REPROCESS] existingSnapshotId={}", decision.existingSnapshotId)
-                decision.existingSnapshotId
-            }
-
-            is DuplicateDecision.NotDuplicate -> {
-                snapshotWriteService.record(
+//        val decision = jdIntakePolicy.decideDuplicate(command, hashes)
+//
+//        val snapshotId = when (decision) {
+//            is DuplicateDecision.Duplicate -> {
+//                processingWriteService.markDuplicate(
+//                    processingId = processingId,
+//                    reason = decision.reason.name
+//                )
+//                log.info(
+//                    "[JD_DUPLICATE_DETECTED] reason={}, existingSnapshotId={}, existingSummaryId={}",
+//                    decision.reason, decision.existingSnapshotId, decision.existingSummaryId
+//                )
+//                return null
+//            }
+//
+//            is DuplicateDecision.Reprocessable -> {
+//                log.info("[JD_REPROCESS] existingSnapshotId={}", decision.existingSnapshotId)
+//                decision.existingSnapshotId
+//            }
+//
+//            is DuplicateDecision.NotDuplicate -> {
+//                snapshotWriteService.record(
+//                    JobSnapshotCreateCommand(
+//                        sourceType = command.source,
+//                        sourceUrl = command.sourceUrl,
+//                        canonicalMap = command.canonicalMap,
+//                        coreText = hashes.coreText,
+//                        recruitmentPeriodType = command.recruitmentPeriodType,
+//                        openedDate = command.openedDate,
+//                        closedDate = command.closedDate,
+//                        canonicalHash = hashes.canonicalHash,
+//                        simHash = hashes.simHash
+//                    )
+//                )
+//            }
+//        }
+        val snapshotId = snapshotWriteService.record(
                     JobSnapshotCreateCommand(
                         sourceType = command.source,
                         sourceUrl = command.sourceUrl,
@@ -91,8 +106,6 @@ class PreLlmProcessor(
                         simHash = hashes.simHash
                     )
                 )
-            }
-        }
 
         processingWriteService.markSummarizing(processingId, snapshotId)
 

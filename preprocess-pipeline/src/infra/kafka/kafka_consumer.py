@@ -32,8 +32,12 @@ class KafkaStreamConsumer:
             return None
 
         if msg.error():
-            if msg.error().code() == KafkaError._PARTITION_EOF:
+            code = msg.error().code()
+            if code == KafkaError._PARTITION_EOF:
                 logger.debug("Reached end of partition")
+                return None
+            if code == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                logger.warning("Topic not yet available, retrying: %s", msg.error())
                 return None
             logger.error("Consumer error: %s", msg.error())
             raise RuntimeError(msg.error())

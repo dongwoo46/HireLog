@@ -60,8 +60,13 @@ services:
     container_name: kafka_hirelog_dev
     restart: unless-stopped
     ports:
-      - '19092:19092' # 외부 접근 (Dev)
-      - '9092:9092' # 내부 통신
+      - '19092:19092'
+      - '9092:9092'
+      - '9405:9405' # Prometheus JMX agent
+    volumes:
+      - ../../data/kafka:/var/lib/kafka/data
+      - ./jmx_exporter/jmx_prometheus_javaagent.jar:/opt/jmx_prometheus_javaagent.jar
+      - ./jmx_exporter/kafka.yml:/opt/kafka.yml
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -100,11 +105,32 @@ services:
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
 
+      KAFKA_OPTS: >
+        -javaagent:/opt/jmx_prometheus_javaagent.jar=9405:/opt/kafka.yml
+
       TZ: Asia/Seoul
-    volumes:
-      - ../../data/kafka:/var/lib/kafka/data
     networks:
       - hirelog_infra
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka_ui
+    restart: unless-stopped
+    ports:
+      - '8085:8080'
+    environment:
+      KAFKA_CLUSTERS_0_NAME: hirelog
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: PLAIN
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: >
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="${KAFKA_USERNAME}"
+        password="${KAFKA_PASSWORD}";
+    networks:
+      - hirelog_infra
+    depends_on:
+      - kafka
 
   # Debezium - 외부 접근 허용 (개발)
   debezium:
@@ -113,6 +139,10 @@ services:
     restart: unless-stopped
     ports:
       - '8083:8083' # 개발: 외부 접근 가능
+      - '9404:9404' # Prometheus JMX agent
+    volumes:
+      - ./jmx_exporter/jmx_prometheus_javaagent.jar:/opt/jmx_prometheus_javaagent.jar
+      - ./jmx_exporter/debezium.yml:/opt/debezium.yml
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: hirelog-debezium
@@ -152,10 +182,13 @@ services:
         username="${KAFKA_USERNAME}"
         password="${KAFKA_PASSWORD}";
 
+      KAFKA_OPTS: >
+        -javaagent:/opt/jmx_prometheus_javaagent.jar=9404:/opt/debezium.yml
+
       TZ: Asia/Seoul
     depends_on:
       - kafka
-      - postgres # 같은 서버의 PostgreSQL
+      - postgres
     networks:
       - hirelog_infra
     healthcheck:
@@ -280,6 +313,14 @@ services:
       - hirelog_infra
     depends_on:
       - opensearch
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    ports:
+      - '9100:9100'
+    networks:
+      - hirelog_infra
 
 networks:
   hirelog_infra:

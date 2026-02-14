@@ -3,6 +3,7 @@ package com.hirelog.api.job.application.summary
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.common.application.outbox.OutboxEventCommand
+import com.hirelog.api.common.application.outbox.OutboxEventWriteService
 import com.hirelog.api.common.config.properties.LlmProperties
 import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
@@ -34,11 +35,11 @@ import java.util.UUID
 class JobSummaryWriteService(
     private val objectMapper: ObjectMapper,
     private val summaryCommand: JobSummaryCommand,
-    private val outboxEventCommand: OutboxEventCommand,
+    private val outboxEventWriteService: OutboxEventWriteService,
     private val processingCommand: JdSummaryProcessingCommand,
     private val processingQuery: JdSummaryProcessingQuery,
     private val llmProperties: LlmProperties,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     /**
@@ -225,7 +226,7 @@ class JobSummaryWriteService(
             eventType = EventType.DELETED,
             payload = """{"id":${summary.id}}"""
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
 
         log.info("[JOB_SUMMARY_DEACTIVATED] summaryId={}", summaryId)
     }
@@ -248,7 +249,7 @@ class JobSummaryWriteService(
             eventType = EventType.CREATED,
             payload = objectMapper.writeValueAsString(payload)
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
 
         log.info("[JOB_SUMMARY_ACTIVATED] summaryId={}", summaryId)
     }
@@ -314,6 +315,6 @@ class JobSummaryWriteService(
             eventType = EventType.CREATED,
             payload = objectMapper.writeValueAsString(payload)
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
     }
 }

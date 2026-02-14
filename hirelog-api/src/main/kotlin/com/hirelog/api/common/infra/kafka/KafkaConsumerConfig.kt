@@ -79,7 +79,7 @@ class KafkaConsumerConfig(
             setBatchListener(false)
             containerProperties.ackMode = ContainerProperties.AckMode.MANUAL
             setCommonErrorHandler(createErrorHandler("jd-preprocess-response-consumer"))
-            setConcurrency(1)
+            setConcurrency(3)
             setAutoStartup(true)
         }
     }
@@ -117,7 +117,7 @@ class KafkaConsumerConfig(
             setBatchListener(false)
             containerProperties.ackMode = ContainerProperties.AckMode.MANUAL
             setCommonErrorHandler(createErrorHandler("string-consumer"))
-            setConcurrency(1)
+            setConcurrency(3)
             setAutoStartup(true)
         }
     }

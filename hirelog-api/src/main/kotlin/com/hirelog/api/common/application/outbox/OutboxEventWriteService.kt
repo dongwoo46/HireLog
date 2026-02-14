@@ -2,8 +2,13 @@ package com.hirelog.api.common.application.outbox
 
 import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.logging.log
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * OutboxEventWriteService
@@ -18,8 +23,11 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class OutboxEventWriteService(
-    private val outboxEventCommand: OutboxEventCommand
+    private val outboxEventCommand: OutboxEventCommand,
+    private val meterRegistry: MeterRegistry
 ) {
+
+    private val counterCache = ConcurrentHashMap<String, Counter>()
 
     /**
      * Outbox 이벤트 생성
@@ -32,6 +40,22 @@ class OutboxEventWriteService(
     fun append(event: OutboxEvent) {
         try {
             outboxEventCommand.save(event)
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+
+                TransactionSynchronizationManager.registerSynchronization(
+                    object : TransactionSynchronization {
+                        override fun afterCommit() {
+                            val counter = counterCache.computeIfAbsent(event.eventType) {
+                                Counter.builder("outbox_insert_total")
+                                    .description("Total committed outbox inserts")
+                                    .tag("eventType", it)
+                                    .register(meterRegistry)
+                            }
+                            counter.increment()
+                        }
+                    }
+                )
+            }
         } catch (e: Exception) {
             log.error("[OUTBOX_SAVE_FAILED] aggregateType={}, aggregateId={}, eventType={}, error={}",
                 event.aggregateType, event.aggregateId, event.eventType, e.message, e)
