@@ -64,6 +64,10 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                    // Actuator
+                    .requestMatchers("/actuator/**").permitAll()
+
                     // OAuth2 로그인 흐름
                     .requestMatchers(
                         "/oauth2/**",

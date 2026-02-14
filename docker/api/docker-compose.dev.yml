@@ -12,7 +12,41 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - hirelog_network
+      - hirelog_infra
+
+  redis-exporter:
+    image: oliver006/redis_exporter
+    container_name: redis_exporter_hirelog_dev
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - '9121:9121'
+    networks:
+      - hirelog_infra
+    depends_on:
+      - redis
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - '9090:9090'
+    networks:
+      - hirelog_infra
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - '3000:3000'
+    environment:
+      - GRAFANA_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - hirelog_infra
 
   # # Spring Boot Blue (운영)
   # api-blue:
@@ -73,9 +107,9 @@ services:
   #   timeout: 5s
   #   retries: 5
 
+networks:
+  hirelog_infra:
+    driver: bridge
+
 volumes:
   redis_data:
-
-networks:
-  hirelog_network:
-    driver: bridge

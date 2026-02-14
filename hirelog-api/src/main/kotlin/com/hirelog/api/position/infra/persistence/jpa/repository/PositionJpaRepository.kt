@@ -36,5 +36,8 @@ interface PositionJpaRepository : JpaRepository<Position, Long> {
         normalizedName: String
     ): Position?
 
+    @Query("select p.name from Position p")
+    fun findAllNames(): List<String>
+
 
 }

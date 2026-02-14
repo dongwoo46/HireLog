@@ -230,6 +230,57 @@ services:
     networks:
       - hirelog_infra
 
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka_exporter_hirelog_dev
+    restart: unless-stopped
+    environment:
+      KAFKA_USERNAME: ${KAFKA_USERNAME}
+      KAFKA_PASSWORD: ${KAFKA_PASSWORD}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        /bin/kafka_exporter \
+          --kafka.server=kafka:9092 \
+          --sasl.enabled \
+          --sasl.username="$${KAFKA_USERNAME}" \
+          --sasl.password="$${KAFKA_PASSWORD}" \
+          --sasl.mechanism=plain
+    ports:
+      - '9308:9308'
+    networks:
+      - hirelog_infra
+    depends_on:
+      - kafka
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_hirelog_dev
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable'
+    ports:
+      - '9187:9187'
+    networks:
+      - hirelog_infra
+    depends_on:
+      - postgres
+
+  opensearch-exporter:
+    image: justwatch/elasticsearch_exporter
+    container_name: opensearch_exporter_hirelog_dev
+    restart: unless-stopped
+    command:
+      - '--es.uri=https://admin:${OPENSEARCH_PASSWORD}@opensearch:9200'
+      - '--es.ssl-skip-verify'
+    ports:
+      - '9114:9114'
+    networks:
+      - hirelog_infra
+    depends_on:
+      - opensearch
+
 networks:
   hirelog_infra:
     driver: bridge

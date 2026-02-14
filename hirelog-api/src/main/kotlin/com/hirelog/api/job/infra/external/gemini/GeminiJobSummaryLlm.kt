@@ -12,8 +12,9 @@ import com.hirelog.api.job.intake.similarity.CanonicalTextNormalizer
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
-import org.springframework.stereotype.Component
-
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
+import io.micrometer.core.instrument.Counter
 /**
  * Gemini 기반 JD 요약 LLM Adapter
  *
@@ -32,7 +33,21 @@ class GeminiJobSummaryLlm(
     private val responseParser: LlmResponseParser,
     private val assembler: JobSummaryLlmResultAssembler,
     private val circuitBreaker: CircuitBreaker,
+    meterRegistry: MeterRegistry
 ) : JobSummaryLlm {
+
+    private val latencyTimer: Timer = Timer.builder("llm.call.latency")
+        .tag("provider", "gemini")
+        .publishPercentileHistogram()
+        .register(meterRegistry)
+
+    private val successCounter: Counter = Counter.builder("llm.call.success")
+        .tag("provider", "gemini")
+        .register(meterRegistry)
+
+    private val failCounter: Counter = Counter.builder("llm.call.fail")
+        .tag("provider", "gemini")
+        .register(meterRegistry)
 
     override fun summarizeJobDescriptionAsync(
         brandName: String,
@@ -42,22 +57,18 @@ class GeminiJobSummaryLlm(
         canonicalMap: Map<String, List<String>>
     ): CompletableFuture<JobSummaryLlmResult> {
 
+        val sample = Timer.start()
+
         val jdText = CanonicalTextNormalizer.toCanonicalText(canonicalMap)
 
         val prompt = GeminiPromptBuilder.buildJobSummaryPrompt(
-            brandName = brandName,
-            positionName = positionName,
-            positionCandidates = positionCandidates,
-            existCompanies = existCompanies,
-            jdText = jdText
+            brandName,
+            positionName,
+            positionCandidates,
+            existCompanies,
+            jdText
         )
 
-        log.info(
-            "[GEMINI_LLM_ENTRY] brand={}, position={}, circuitBreakerState={}",
-            brandName, positionName, circuitBreaker.state
-        )
-
-        // CircuitBreaker로 감싼 supplier
         val decoratedSupplier = circuitBreaker.decorateCompletionStage {
             geminiClient.generateContentAsync(prompt)
         }
@@ -65,25 +76,27 @@ class GeminiJobSummaryLlm(
         return decoratedSupplier.get()
             .toCompletableFuture()
             .handle { rawText, callEx ->
-                if (callEx != null) {
-                    val cause = unwrap(callEx)
-                    log.error(
-                        "[GEMINI_LLM_FAILED] brand={}, position={}, exceptionType={}, message={}",
-                        brandName, positionName, cause.javaClass.simpleName, cause.message
-                    )
-                    throw GeminiCallException(cause)
-                }
 
-                log.info("[GEMINI_LLM_SUCCESS] brand={}, position={}", brandName, positionName)
+                if (callEx != null) {
+                    failCounter.increment()
+                    sample.stop(latencyTimer)
+                    throw GeminiCallException(unwrap(callEx))
+                }
 
                 try {
                     val rawResult = responseParser.parseRawJobSummary(rawText)
-                    assembler.assemble(raw = rawResult, provider = LlmProvider.GEMINI)
-                } catch (ex: Exception) {
-                    log.error(
-                        "[GEMINI_PARSE_FAILED] brand={}, position={}, message={}",
-                        brandName, positionName, ex.message
+                    val result = assembler.assemble(
+                        raw = rawResult,
+                        provider = LlmProvider.GEMINI
                     )
+
+                    successCounter.increment()
+                    sample.stop(latencyTimer)
+                    result
+
+                } catch (ex: Exception) {
+                    failCounter.increment()
+                    sample.stop(latencyTimer)
                     throw GeminiParseException(ex)
                 }
             }

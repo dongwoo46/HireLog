@@ -3,7 +3,9 @@ package com.hirelog.api.job.infra.external.openai
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
-import com.hirelog.api.common.logging.log
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
+import io.micrometer.core.instrument.Counter
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.infra.external.common.LlmResponseParser
@@ -26,12 +28,27 @@ import java.util.concurrent.CompletionException
  * - 동일 응답 파싱 (GeminiResponseParser 재사용)
  * - 동일 결과 조립 (JobSummaryLlmResultAssembler 재사용)
  */
+
 class OpenAiJobSummaryLlm(
     private val openAiClient: OpenAiClient,
     private val responseParser: LlmResponseParser,
     private val assembler: JobSummaryLlmResultAssembler,
-    private val circuitBreaker: CircuitBreaker
+    private val circuitBreaker: CircuitBreaker,
+    meterRegistry: MeterRegistry
 ) : JobSummaryLlm {
+
+    private val latencyTimer: Timer = Timer.builder("llm.call.latency")
+        .tag("provider", "openai")
+        .publishPercentileHistogram()
+        .register(meterRegistry)
+
+    private val successCounter: Counter = Counter.builder("llm.call.success")
+        .tag("provider", "openai")
+        .register(meterRegistry)
+
+    private val failCounter: Counter = Counter.builder("llm.call.fail")
+        .tag("provider", "openai")
+        .register(meterRegistry)
 
     override fun summarizeJobDescriptionAsync(
         brandName: String,
@@ -40,6 +57,8 @@ class OpenAiJobSummaryLlm(
         existCompanies: List<String>,
         canonicalMap: Map<String, List<String>>
     ): CompletableFuture<JobSummaryLlmResult> {
+
+        val sample = Timer.start()
 
         val jdText = CanonicalTextNormalizer.toCanonicalText(canonicalMap)
 
@@ -51,11 +70,6 @@ class OpenAiJobSummaryLlm(
             jdText = jdText
         )
 
-        log.info(
-            "[OPENAI_LLM_ENTRY] brand={}, position={}, circuitBreakerState={}",
-            brandName, positionName, circuitBreaker.state
-        )
-
         val decoratedSupplier = circuitBreaker.decorateCompletionStage {
             openAiClient.generateContentAsync(prompt)
         }
@@ -63,25 +77,28 @@ class OpenAiJobSummaryLlm(
         return decoratedSupplier.get()
             .toCompletableFuture()
             .handle { rawText, callEx ->
+
                 if (callEx != null) {
                     val cause = unwrap(callEx)
-                    log.error(
-                        "[OPENAI_LLM_FAILED] brand={}, position={}, exceptionType={}, message={}",
-                        brandName, positionName, cause.javaClass.simpleName, cause.message
-                    )
+                    failCounter.increment()
+                    sample.stop(latencyTimer)
                     throw GeminiCallException(cause)
                 }
 
-                log.info("[OPENAI_LLM_SUCCESS] brand={}, position={}", brandName, positionName)
-
                 try {
                     val rawResult = responseParser.parseRawJobSummary(rawText)
-                    assembler.assemble(raw = rawResult, provider = LlmProvider.OPENAI)
-                } catch (ex: Exception) {
-                    log.error(
-                        "[OPENAI_PARSE_FAILED] brand={}, position={}, message={}",
-                        brandName, positionName, ex.message
+                    val result = assembler.assemble(
+                        raw = rawResult,
+                        provider = LlmProvider.OPENAI
                     )
+
+                    successCounter.increment()
+                    sample.stop(latencyTimer)
+
+                    result
+                } catch (ex: Exception) {
+                    failCounter.increment()
+                    sample.stop(latencyTimer)
                     throw GeminiParseException(ex)
                 }
             }

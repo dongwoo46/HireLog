@@ -25,7 +25,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create # ⭐ local 핵심
+      ddl-auto: update # ⭐ local 핵심
 
 
 hirelog:
@@ -43,3 +43,25 @@ opensearch:
 app:
   storage:
     base-dir: C:/Users/dw/Desktop/HireLog/storage
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: hirelog
+      profile: loadtest
+
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.95,0.99
+

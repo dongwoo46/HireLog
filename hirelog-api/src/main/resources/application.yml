@@ -1,6 +1,8 @@
 spring:
   data:
     redis:
+      repositories:
+        enabled: false
       host: localhost
       port: 6379
       password: ${REDIS_PASSWORD}
@@ -74,7 +76,7 @@ spring:
     name: hirelog
 
   profiles:
-    active: local
+    active: local,loadtest
 
   config:
     import: optional:file:.env[.properties]
@@ -166,6 +168,8 @@ resilience4j:
         timeoutDuration: 0s   # 즉시 실패
 
   circuitbreaker:
+    metrics:
+      enabled: true
     instances:
       gemini:
         slidingWindowType: COUNT_BASED
@@ -200,4 +204,5 @@ resilience4j:
 
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
+
 
