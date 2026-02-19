@@ -58,7 +58,7 @@ def setup_logging(
             format_string = "%(asctime)s | %(levelname)-5s | %(message)s"
 
     # 3. 핸들러 설정
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter(format_string))
 
     # 4. 루트 로거 설정

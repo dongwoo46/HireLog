@@ -42,7 +42,7 @@ export const options = {
 // ---------- Target ----------
 const BASE_URL = 'http://localhost:8080';
 const ACCESS_TOKEN =
-  'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzcxMDc0ODE0LCJleHAiOjE3NzEwNzg0MTR9.Mh-5oZ_00WfDyhVEvuEknZBIGYtitHiWLbm_sCOiB8k';
+  'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzcxMDgxNDg2LCJleHAiOjE3NzEwODUwODZ9.xlzMQbSbeen7kXDHxwS5p_7slylfWk2bEYkhnYvuyN0';
 
 // ---------- Setup ----------
 export function setup() {

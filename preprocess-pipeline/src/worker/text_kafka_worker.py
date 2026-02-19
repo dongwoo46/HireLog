@@ -47,6 +47,7 @@ class TextKafkaWorker(BaseKafkaWorker):
         result_topic: str,
         fail_topic: str,
         config: WorkerConfig,
+        shutdown_event=None,
     ):
         super().__init__(
             consumer=consumer,
@@ -55,6 +56,7 @@ class TextKafkaWorker(BaseKafkaWorker):
             fail_topic=fail_topic,
             config=config,
             worker_name="TEXT_KAFKA_WORKER",
+            shutdown_event=shutdown_event,
         )
         self.jd_worker = KafkaJdPreprocessTextWorker()
 

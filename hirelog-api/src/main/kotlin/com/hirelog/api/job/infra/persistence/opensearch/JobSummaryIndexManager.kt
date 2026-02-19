@@ -173,10 +173,11 @@ class JobSummaryIndexManager(
     private fun dateProperty(): Property {
         return Property.of { p ->
             p.date(DateProperty.Builder()
-                .format("yyyy-MM-dd'T'HH:mm:ss.SSSSSS||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd||epoch_millis")
+                .format("strict_date_optional_time||epoch_millis")
                 .build())
         }
     }
+
 
     /**
      * 검색 가능한 텍스트 필드 빌드

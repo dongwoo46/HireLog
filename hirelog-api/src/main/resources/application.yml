@@ -76,7 +76,7 @@ spring:
     name: hirelog
 
   profiles:
-    active: local,loadtest
+    active: local, loadtest
 
   config:
     import: optional:file:.env[.properties]

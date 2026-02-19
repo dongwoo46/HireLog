@@ -21,13 +21,14 @@ export const options = {
     kafka_chaos: {
       executor: 'constant-vus',
       vus: 70, // baseline보다 약간 높은 수준
-      duration: '5m', // 정상 → 장애 → 복구 구간 확보
+      duration: '10s', // 정상 → 장애 → 복구 구간 확보
     },
   },
 };
 
 const BASE_URL = 'http://localhost:8080';
-const ACCESS_TOKEN = 'YOUR_TOKEN';
+const ACCESS_TOKEN =
+  'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzcxMDg2NDcwLCJleHAiOjE3NzEwOTAwNzB9.6Wg3dDT0F8EYtX0hj2W1aJlJgShs6KYHsd4SCaLnbQ4';
 
 export function setup() {
   console.log('===== KAFKA CHAOS TEST START =====');

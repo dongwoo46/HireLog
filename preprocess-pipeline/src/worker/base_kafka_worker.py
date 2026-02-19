@@ -69,6 +69,7 @@ class BaseKafkaWorker(ABC):
         fail_topic: str,
         config: WorkerConfig,
         worker_name: str,
+        shutdown_event=None,
     ):
         self.consumer = consumer
         self.producer = producer
@@ -76,7 +77,7 @@ class BaseKafkaWorker(ABC):
         self.fail_topic = fail_topic
         self.config = config
         self.worker_name = worker_name
-        self._shutdown_requested = threading.Event()
+        self._shutdown_requested = shutdown_event or threading.Event()
         self._fail_backup = get_fail_backup_writer()
 
     @abstractmethod

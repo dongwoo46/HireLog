@@ -47,6 +47,7 @@ class OcrKafkaWorker(BaseKafkaWorker):
         result_topic: str,
         fail_topic: str,
         config: WorkerConfig,
+        shutdown_event=None,
     ):
         super().__init__(
             consumer=consumer,
@@ -55,6 +56,7 @@ class OcrKafkaWorker(BaseKafkaWorker):
             fail_topic=fail_topic,
             config=config,
             worker_name="OCR_KAFKA_WORKER",
+            shutdown_event=shutdown_event,
         )
         self.jd_worker = KafkaJdPreprocessOcrWorker()
 
