@@ -1,124 +1,167 @@
 services:
-  # Redis - 비밀번호 + ACL 설정
+  # ──────────────────────────────────────────────
+  # Redis (prod: 외부 노출 없음, redis-stack)
+  # REDIS_ARGS 는 .env.prod 에 정의:
+  # REDIS_ARGS=--requirepass <password> --maxmemory 512mb --maxmemory-policy allkeys-lru
+  # ──────────────────────────────────────────────
   redis:
     image: redis/redis-stack-server:latest
     container_name: redis_hirelog_prod
     restart: unless-stopped
-    environment:
-      REDIS_ARGS: >-
-        --requirepass ${REDIS_PASSWORD}
-        --maxmemory 512mb
-        --maxmemory-policy allkeys-lru
-      TZ: Asia/Seoul
-    # 운영: 외부 노출 안 함
+    env_file:
+      - .env.prod
     expose:
       - '6379'
     volumes:
-      - redis_data:/data
+      - ./data/redis:/data
     networks:
       - hirelog_internal
     healthcheck:
-      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep PONG']
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Spring Boot Blue (현재 운영)
+  redis-exporter:
+    image: oliver006/redis_exporter
+    container_name: redis_exporter_hirelog_prod
+    env_file:
+      - .env.prod
+    expose:
+      - '9121'
+    networks:
+      - hirelog_internal
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ──────────────────────────────────────────────
+  # Monitoring (prod: 외부 노출 없음)
+  # ──────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    expose:
+      - '9090'
+    networks:
+      - hirelog_internal
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3000:3000'
+    env_file:
+      - .env.prod
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - hirelog_internal
+    depends_on:
+      - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - '10.0.0.116:3100:3100'  # Server2 promtail → Server1 Loki 수신
+    volumes:
+      - ./data/loki:/loki
+      - ./loki-config.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - hirelog_internal
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    restart: unless-stopped
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - ./data/promtail:/var/lib/promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - hirelog_internal
+    depends_on:
+      - loki
+
+  # ──────────────────────────────────────────────
+  # Spring Boot API (prod: Blue-Green, ghcr.io 이미지)
+  # ──────────────────────────────────────────────
   api-blue:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
     container_name: hirelog_api_blue_prod
     restart: unless-stopped
-    environment:
-      SPRING_PROFILES_ACTIVE: prod
-      DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP (예: 172.20.0.10)
-      DB_PORT: 6432
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS} # Server 2 Kafka
-      KAFKA_SASL_USERNAME: ${KAFKA_USERNAME}
-      KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD}
-      OPENSEARCH_HOST: ${OPENSEARCH_HOST} # Server 2 OpenSearch
-      OPENSEARCH_USERNAME: admin
-      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
-      TZ: Asia/Seoul
-      # JVM 옵션
-      JAVA_OPTS: >-
-        -Xms512m
-        -Xmx1024m
-        -XX:+UseG1GC
-        -XX:MaxGCPauseMillis=200
-    # 운영: 외부 노출 안 함 (nginx를 통해서만)
-    expose:
-      - '8080'
+    env_file:
+      - .env.prod
+    ports:
+      - '127.0.0.1:8080:8080'
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - hirelog_internal
-      - hirelog_external # Server 2 접근용
+      - hirelog_external
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
 
-  # Spring Boot Green (배포 대기)
   api-green:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
     container_name: hirelog_api_green_prod
     restart: unless-stopped
-    environment:
-      SPRING_PROFILES_ACTIVE: prod
-      DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP
-      DB_PORT: 6432
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-      KAFKA_SASL_USERNAME: ${KAFKA_USERNAME}
-      KAFKA_SASL_PASSWORD: ${KAFKA_PASSWORD}
-      OPENSEARCH_HOST: ${OPENSEARCH_HOST}
-      OPENSEARCH_USERNAME: admin
-      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
-      TZ: Asia/Seoul
-      JAVA_OPTS: >-
-        -Xms512m
-        -Xmx1024m
-        -XX:+UseG1GC
-        -XX:MaxGCPauseMillis=200
-    expose:
-      - '8080'
+    env_file:
+      - .env.prod
+    ports:
+      - '127.0.0.1:8081:8080'
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - hirelog_internal
       - hirelog_external
-    profiles: ['green'] # 배포 시에만 활성화
+    profiles: ['green']
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
 
-volumes:
-  redis_data:
+  # ──────────────────────────────────────────────
+  # Python 전처리 파이프라인 (prod: ghcr.io 이미지)
+  # Kafka consumer → Blue-Green 불필요, 단일 인스턴스
+  # Server2(10.0.1.6) Kafka 직접 연결 → hirelog_external 필요
+  # ──────────────────────────────────────────────
+  preprocess:
+    image: ghcr.io/${GITHUB_USERNAME}/hirelog-preprocess:latest
+    container_name: hirelog_preprocess_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    networks:
+      - hirelog_external
 
 networks:
   hirelog_internal:
     driver: bridge
-    internal: true # 외부 인터넷 접근 차단
+    internal: true   # Redis, 모니터링 등 외부 접근 차단
   hirelog_external:
-    driver: bridge # Server 2와 통신용
+    driver: bridge   # Server2(10.0.1.6) 접근용
     ipam:
       config:
         - subnet: 172.20.0.0/16
+

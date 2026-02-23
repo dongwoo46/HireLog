@@ -8,11 +8,12 @@ COPY gradlew .
 COPY gradle gradle
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
+RUN chmod +x gradlew
 RUN ./gradlew dependencies --no-daemon || true
 
 # 소스 복사 및 빌드
 COPY src src
-RUN ./gradlew bootJar -x test --no-daemon
+RUN ./gradlew bootJar -x test -x jar --no-daemon
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-alpine
@@ -21,7 +22,7 @@ WORKDIR /app
 
 RUN addgroup -S hirelog && adduser -S hirelog -G hirelog
 
-COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=builder /app/build/libs/hirelog-api-*.jar app.jar
 
 RUN chown hirelog:hirelog app.jar
 

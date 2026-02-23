@@ -12,6 +12,23 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+  kafka:
+    admin:
+      auto-create: false  # 운영환경에서는 false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: ${OAUTH_REDIRECT_BASE_URL}/login/oauth2/code/google
+          kakao:
+            redirect-uri: ${OAUTH_REDIRECT_BASE_URL}/login/oauth2/code/kakao
+
+  http:
+    client:
+      factory: http_components
+
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -43,3 +60,28 @@ hirelog:
   worker:
     job-summary:
       enabled: true
+
+app:
+  storage:
+    base-dir: ${APP_STORAGE_BASE_DIR:/app/storage}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: hirelog
+      profile: dev
+
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.95,0.99

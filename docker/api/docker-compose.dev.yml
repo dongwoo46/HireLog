@@ -1,5 +1,7 @@
 services:
-  # Redis - 비밀번호 설정
+  # ──────────────────────────────────────────────
+  # Redis (dev: 포트 노출)
+  # ──────────────────────────────────────────────
   redis:
     image: redis:7.2
     container_name: redis_hirelog_dev
@@ -11,15 +13,21 @@ services:
       - '6379:6379'
     volumes:
       - redis_data:/data
+    env_file:
+      - .env.dev
     networks:
       - hirelog_infra
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis-exporter:
     image: oliver006/redis_exporter
     container_name: redis_exporter_hirelog_dev
-    environment:
-      REDIS_ADDR: redis://redis:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    env_file:
+      - .env.dev
     ports:
       - '9121:9121'
     networks:
@@ -27,6 +35,9 @@ services:
     depends_on:
       - redis
 
+  # ──────────────────────────────────────────────
+  # Monitoring
+  # ──────────────────────────────────────────────
   prometheus:
     image: prom/prometheus
     container_name: prometheus
@@ -44,11 +55,8 @@ services:
     restart: unless-stopped
     ports:
       - '3000:3000'
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3000
+    env_file:
+      - .env.dev
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -66,7 +74,7 @@ services:
       - '3100:3100'
     volumes:
       - loki_data:/loki
-      - ./loki-config.yml:/etc/loki/local-config.yaml # 단일 인스턴스 설정 (스케줄러 에러 방지)
+      - ./loki-config.yml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - hirelog_infra
@@ -87,64 +95,45 @@ services:
     depends_on:
       - loki
 
-  # # Spring Boot Blue (운영)
-  # api-blue:
-  #   image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
-  #   container_name: hirelog_api_blue_dev
-  #   restart: unless-stopped
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: dev
-  #     DB_HOST: ${DB_HOST}
-  #     DB_PORT: 6432
-  #     DB_NAME: ${POSTGRES_DB}
-  #     DB_USER: ${POSTGRES_USER}
-  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
-  #     REDIS_HOST: redis
-  #     REDIS_PORT: 6379
-  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
-  #     KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-  #     TZ: Asia/Seoul
-  #   ports:
-  #     - '8080:8080'
-  #   depends_on:
-  #     - redis
-  #   networks:
-  #     - hirelog_infra
-  #   healthcheck:
-  #     test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  # ──────────────────────────────────────────────
+  # Spring Boot API (dev: 로컬 빌드, 단일 인스턴스)
+  # ──────────────────────────────────────────────
+  api:
+    build:
+      context: ../../hirelog-api
+      dockerfile: Dockerfile
+    container_name: hirelog_api_dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - '8080:8080'
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - hirelog_infra
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
-  # # Spring Boot Green (대기)
-  # api-green:
-  #   image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
-  #   container_name: hirelog_api_green_dev
-  #   restart: unless-stopped
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: dev
-  #     DB_HOST: ${DB_HOST}
-  #     DB_PORT: 6432
-  #     DB_NAME: ${POSTGRES_DB}
-  #     DB_USER: ${POSTGRES_USER}
-  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
-  #     REDIS_HOST: redis
-  #     REDIS_PORT: 6379
-  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
-  #     KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-  #     TZ: Asia/Seoul
-  #   ports:
-  #     - '8081:8080'
-  #   depends_on:
-  #     - redis
-  #   networks:
-  #     - hirelog_infra
-  #   profiles: ['green']
-  #   healthcheck:
-  #     test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  # ──────────────────────────────────────────────
+  # Python 전처리 파이프라인 (dev: 로컬 빌드)
+  # 주의: 첫 빌드 시 PaddleOCR 모델 + Playwright Chromium 다운로드로 수십 분 소요
+  # ──────────────────────────────────────────────
+  preprocess:
+    build:
+      context: ../../preprocess-pipeline
+      dockerfile: Dockerfile
+    container_name: hirelog_preprocess_dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    networks:
+      - hirelog_infra
 
 networks:
   hirelog_infra:
@@ -155,3 +144,4 @@ volumes:
   loki_data:
   promtail_positions:
   grafana_data:
+

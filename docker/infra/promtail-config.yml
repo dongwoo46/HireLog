@@ -6,8 +6,8 @@ positions:
   filename: /var/lib/promtail/positions.yaml
 
 clients:
-  # server1의 Loki로 전송 - LOKI_HOST를 server1 IP로 변경
-  - url: http://localhost:3100/loki/api/v1/push
+  # Server1(10.0.0.116) Loki로 전송
+  - url: http://10.0.0.116:3100/loki/api/v1/push
 
 scrape_configs:
   - job_name: docker
