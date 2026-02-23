@@ -30,6 +30,7 @@ services:
   prometheus:
     image: prom/prometheus
     container_name: prometheus
+    restart: unless-stopped
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -40,13 +41,51 @@ services:
   grafana:
     image: grafana/grafana
     container_name: grafana
+    restart: unless-stopped
     ports:
       - '3000:3000'
     environment:
-      - GRAFANA_USER=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
     networks:
       - hirelog_infra
+    depends_on:
+      - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - '3100:3100'
+    volumes:
+      - loki_data:/loki
+      - ./loki-config.yml:/etc/loki/local-config.yaml # 단일 인스턴스 설정 (스케줄러 에러 방지)
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - hirelog_infra
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    restart: unless-stopped
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - promtail_positions:/var/lib/promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - hirelog_infra
+    depends_on:
+      - loki
 
   # # Spring Boot Blue (운영)
   # api-blue:
@@ -55,7 +94,7 @@ services:
   #   restart: unless-stopped
   #   environment:
   #     SPRING_PROFILES_ACTIVE: dev
-  #     DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP
+  #     DB_HOST: ${DB_HOST}
   #     DB_PORT: 6432
   #     DB_NAME: ${POSTGRES_DB}
   #     DB_USER: ${POSTGRES_USER}
@@ -63,14 +102,14 @@ services:
   #     REDIS_HOST: redis
   #     REDIS_PORT: 6379
   #     REDIS_PASSWORD: ${REDIS_PASSWORD}
-  #     KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS} # Server 2 Kafka
+  #     KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
   #     TZ: Asia/Seoul
   #   ports:
   #     - '8080:8080'
   #   depends_on:
   #     - redis
   #   networks:
-  #     - hirelog_network
+  #     - hirelog_infra
   #   healthcheck:
   #     test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
   #     interval: 10s
@@ -79,33 +118,33 @@ services:
 
   # # Spring Boot Green (대기)
   # api-green:
-  # image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
-  # container_name: hirelog_api_green_dev
-  # restart: unless-stopped
-  # environment:
-  #   SPRING_PROFILES_ACTIVE: dev
-  #   DB_HOST: ${DB_HOST} # Server 2의 PgBouncer IP
-  #   DB_PORT: 6432
-  #   DB_NAME: ${POSTGRES_DB}
-  #   DB_USER: ${POSTGRES_USER}
-  #   DB_PASSWORD: ${POSTGRES_PASSWORD}
-  #   REDIS_HOST: redis
-  #   REDIS_PORT: 6379
-  #   REDIS_PASSWORD: ${REDIS_PASSWORD}
-  #   KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-  #   TZ: Asia/Seoul
-  # ports:
-  #   - '8081:8080'
-  # depends_on:
-  #   - redis
-  # networks:
-  #   - hirelog_network
-  # profiles: ['green'] # 기본적으로 실행 안 함
-  # healthcheck:
-  #   test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
-  #   interval: 10s
-  #   timeout: 5s
-  #   retries: 5
+  #   image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+  #   container_name: hirelog_api_green_dev
+  #   restart: unless-stopped
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: dev
+  #     DB_HOST: ${DB_HOST}
+  #     DB_PORT: 6432
+  #     DB_NAME: ${POSTGRES_DB}
+  #     DB_USER: ${POSTGRES_USER}
+  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #     KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+  #     TZ: Asia/Seoul
+  #   ports:
+  #     - '8081:8080'
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - hirelog_infra
+  #   profiles: ['green']
+  #   healthcheck:
+  #     test: ['CMD', 'curl', '-f', 'http://localhost:8080/actuator/health']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
 networks:
   hirelog_infra:
@@ -113,3 +152,6 @@ networks:
 
 volumes:
   redis_data:
+  loki_data:
+  promtail_positions:
+  grafana_data:

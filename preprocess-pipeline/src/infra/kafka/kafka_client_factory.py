@@ -15,9 +15,8 @@ class KafkaClientFactory:
     책임:
     - 연결 설정(bootstrap, SASL)을 단일 지점에서 관리
     - Producer/Consumer별 운영 파라미터 적용
+    - confluent-kafka 내부 에러를 Python logging으로 노출 (error_cb)
     - confluent-kafka 네이티브 인스턴스 반환
-
-    연결 설정 변경(SASL_SSL 전환 등)은 KafkaConnectionConfig만 수정하면 됨
     """
 
     def __init__(self, connection_config: KafkaConnectionConfig) -> None:
@@ -28,6 +27,12 @@ class KafkaClientFactory:
         client_id: str,
         compression_type: str = "snappy",
     ) -> Producer:
+        def _error_cb(err):
+            logger.error(
+                "Kafka producer internal error",
+                extra={"client_id": client_id, "error": str(err)},
+            )
+
         config = {
             **self._connection_config.to_confluent_config(),
             "client.id": client_id,
@@ -37,12 +42,15 @@ class KafkaClientFactory:
             "compression.type": compression_type,
             "delivery.timeout.ms": 120000,
             "request.timeout.ms": 30000,
+            "error_cb": _error_cb,
         }
         logger.info(
-            "[KAFKA_FACTORY] Producer created - servers=%s client_id=%s protocol=%s",
-            self._connection_config.bootstrap_servers,
-            client_id,
-            config["security.protocol"],
+            "Producer created",
+            extra={
+                "bootstrap_servers": self._connection_config.bootstrap_servers,
+                "client_id": client_id,
+                "protocol": config["security.protocol"],
+            },
         )
         return Producer(config)
 
@@ -52,6 +60,12 @@ class KafkaClientFactory:
         client_id: str,
         auto_offset_reset: str = "earliest",
     ) -> Consumer:
+        def _error_cb(err):
+            logger.error(
+                "Kafka consumer internal error",
+                extra={"group_id": group_id, "client_id": client_id, "error": str(err)},
+            )
+
         config = {
             **self._connection_config.to_confluent_config(),
             "group.id": group_id,
@@ -60,12 +74,15 @@ class KafkaClientFactory:
             "auto.offset.reset": auto_offset_reset,
             "session.timeout.ms": 45000,
             "max.poll.interval.ms": 300000,
+            "error_cb": _error_cb,
         }
         logger.info(
-            "[KAFKA_FACTORY] Consumer created - servers=%s group=%s client_id=%s protocol=%s",
-            self._connection_config.bootstrap_servers,
-            group_id,
-            client_id,
-            config["security.protocol"],
+            "Consumer created",
+            extra={
+                "bootstrap_servers": self._connection_config.bootstrap_servers,
+                "group_id": group_id,
+                "client_id": client_id,
+                "protocol": config["security.protocol"],
+            },
         )
         return Consumer(config)

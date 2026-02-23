@@ -1,41 +1,42 @@
 package com.hirelog.api.job.application.intake
 
+import com.hirelog.api.common.application.outbox.OutboxEventWriteService
+import com.hirelog.api.common.domain.outbox.AggregateType
+import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.infra.storage.FileStorageService
-import com.hirelog.api.job.application.intake.port.JdPreprocessRequestPort
 import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.domain.type.JobSourceType
+import com.hirelog.api.common.logging.log
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import java.util.*
 
 /**
- * JdIntakePolicy
+ * JdIntakeService
  *
  * 역할:
- * - JD 유입 정책 결정자
- * - 파이프라인 진입 여부 판단
+ * - JD 유입 요청 처리
+ * - JobSummaryRequest + Outbox 원자적 저장
  *
- * 책임:
- * - canonicalHash 생성
- * - JD 중복 판정
- * - 요약 결과 중복 판정
- *
- * 비책임:
- * - DB 저장 ❌
- * - 상태 변경 ❌
- * - 도메인 생성 ❌
+ * 트랜잭션 정책:
+ * - JobSummaryRequest 생성과 Outbox 이벤트 저장을 하나의 트랜잭션에서 처리
+ * - Debezium CDC가 Outbox를 감지하여 Kafka 전송 (dual-write 방지)
  */
 @Service
 class JdIntakeService(
     private val fileStorageService: FileStorageService,
-    private val jdPreprocessRequestPort: JdPreprocessRequestPort,
-    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService
+    private val jobSummaryRequestWriteService: JobSummaryRequestWriteService,
+    private val outboxEventWriteService: OutboxEventWriteService,
+    private val objectMapper: ObjectMapper
 ) {
 
     /**
      * TEXT 기반 JD 전처리 요청
      */
+    @Transactional
     fun requestText(
         memberId: Long,
         brandName: String,
@@ -57,14 +58,21 @@ class JdIntakeService(
             text = text,
         )
 
-        jdPreprocessRequestPort.send(message)
+        log.info(
+            "[JD_INTAKE_TEXT_REQUESTED] memberId={}, requestId={}, brandName={}, positionName={}",
+            memberId, message.requestId, brandName, brandPositionName
+        )
+
         jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        appendOutbox(AggregateType.JD_PREPROCESS_TEXT, message)
+
         return message.requestId
     }
 
     /**
      * OCR 기반 JD 전처리 요청
      */
+    @Transactional
     fun requestOcr(
         memberId: Long,
         brandName: String,
@@ -88,14 +96,21 @@ class JdIntakeService(
             images = savedPaths,
         )
 
-        jdPreprocessRequestPort.send(message)
+        log.info(
+            "[JD_INTAKE_OCR_REQUESTED] memberId={}, requestId={}, brandName={}, positionName={}, imageCount={}",
+            memberId, message.requestId, brandName, brandPositionName, imageFiles.size
+        )
+
         jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        appendOutbox(AggregateType.JD_PREPROCESS_OCR, message)
+
         return message.requestId
     }
 
     /**
      * URL 기반 JD 전처리 요청
      */
+    @Transactional
     fun requestUrl(
         memberId: Long,
         brandName: String,
@@ -117,9 +132,28 @@ class JdIntakeService(
             url = url,
         )
 
-        jdPreprocessRequestPort.send(message)
+        log.info(
+            "[JD_INTAKE_URL_REQUESTED] memberId={}, requestId={}, brandName={}, positionName={}, url={}",
+            memberId, message.requestId, brandName, brandPositionName, url
+        )
+
         jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        appendOutbox(AggregateType.JD_PREPROCESS_URL, message)
+
         return message.requestId
+    }
+
+    private fun appendOutbox(
+        aggregateType: AggregateType,
+        message: JdPreprocessRequestMessage
+    ) {
+        val outboxEvent = OutboxEvent.occurred(
+            aggregateType = aggregateType,
+            aggregateId = message.requestId,
+            eventType = "JD_PREPROCESS_REQUESTED",
+            payload = objectMapper.writeValueAsString(message)
+        )
+        outboxEventWriteService.append(outboxEvent)
     }
 
     private fun isValidUrl(url: String): Boolean {
@@ -130,5 +164,4 @@ class JdIntakeService(
             false
         }
     }
-
 }

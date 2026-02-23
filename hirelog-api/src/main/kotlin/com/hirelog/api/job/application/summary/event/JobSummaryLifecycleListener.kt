@@ -2,6 +2,7 @@ package com.hirelog.api.job.application.summary.event
 
 import com.hirelog.api.common.application.sse.SseEmitterManager
 import com.hirelog.api.common.logging.log
+import org.slf4j.MDC
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.notification.application.NotificationWriteService
 import com.hirelog.api.notification.domain.type.NotificationReferenceType
@@ -33,71 +34,81 @@ class JobSummaryLifecycleListener(
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onCompleted(event: JobSummaryRequestEvent.Completed) {
-        log.info(
-            "[JOB_SUMMARY_LIFECYCLE_COMPLETED] processingId={}, jobSummaryId={}, thread={}",
-            event.processingId, event.jobSummaryId, Thread.currentThread().name
-        )
-
-        val memberId = completeRequest(event) ?: return
-        val sseData = mapOf(
-            "requestId" to event.processingId,
-            "jobSummaryId" to event.jobSummaryId,
-            "brandName" to event.brandName,
-            "positionName" to event.positionName,
-            "brandPositionName" to event.brandPositionName,
-            "positionCategoryName" to event.positionCategoryName
-        )
-
-        saveNotification {
-            notificationWriteService.create(
-                memberId = memberId,
-                type = NotificationType.JOB_SUMMARY_COMPLETED,
-                title = "${event.brandName} ${event.positionName} 분석 완료",
-                message = "요청하신 채용공고 분석이 완료되었습니다.",
-                referenceType = NotificationReferenceType.JOB_SUMMARY,
-                referenceId = event.jobSummaryId,
-                metadata = mapOf(
-                    "requestId" to event.processingId,
-                    "brandName" to event.brandName,
-                    "positionName" to event.positionName,
-                    "brandPositionName" to event.brandPositionName,
-                    "positionCategoryName" to event.positionCategoryName
-                )
+        MDC.put("requestId", event.requestId)
+        try {
+            log.info(
+                "[JOB_SUMMARY_LIFECYCLE_COMPLETED] processingId={}, jobSummaryId={}, thread={}",
+                event.processingId, event.jobSummaryId, Thread.currentThread().name
             )
-        }
 
-        sendSse(memberId, "JOB_SUMMARY_COMPLETED", sseData)
+            val memberId = completeRequest(event) ?: return
+            val sseData = mapOf(
+                "requestId" to event.processingId,
+                "jobSummaryId" to event.jobSummaryId,
+                "brandName" to event.brandName,
+                "positionName" to event.positionName,
+                "brandPositionName" to event.brandPositionName,
+                "positionCategoryName" to event.positionCategoryName
+            )
+
+            saveNotification {
+                notificationWriteService.create(
+                    memberId = memberId,
+                    type = NotificationType.JOB_SUMMARY_COMPLETED,
+                    title = "${event.brandName} ${event.positionName} 분석 완료",
+                    message = "요청하신 채용공고 분석이 완료되었습니다.",
+                    referenceType = NotificationReferenceType.JOB_SUMMARY,
+                    referenceId = event.jobSummaryId,
+                    metadata = mapOf(
+                        "requestId" to event.processingId,
+                        "brandName" to event.brandName,
+                        "positionName" to event.positionName,
+                        "brandPositionName" to event.brandPositionName,
+                        "positionCategoryName" to event.positionCategoryName
+                    )
+                )
+            }
+
+            sendSse(memberId, "JOB_SUMMARY_COMPLETED", sseData)
+        } finally {
+            MDC.clear()
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     fun onFailed(event: JobSummaryRequestEvent.Failed) {
-        log.info(
-            "[JOB_SUMMARY_LIFECYCLE_FAILED] processingId={}, errorCode={}, retryable={}",
-            event.processingId, event.errorCode, event.retryable
-        )
-
-        val memberId = failRequest(event) ?: return
-        val sseData = mapOf(
-            "requestId" to event.processingId,
-            "errorCode" to event.errorCode,
-            "retryable" to event.retryable
-        )
-
-        saveNotification {
-            notificationWriteService.create(
-                memberId = memberId,
-                type = NotificationType.JOB_SUMMARY_FAILED,
-                title = "채용공고 분석 실패",
-                message = "요청하신 채용공고 분석에 실패했습니다.",
-                metadata = mapOf(
-                    "requestId" to event.processingId,
-                    "errorCode" to event.errorCode,
-                    "retryable" to event.retryable
-                )
+        MDC.put("requestId", event.requestId)
+        try {
+            log.warn(
+                "[JOB_SUMMARY_LIFECYCLE_FAILED] processingId={}, errorCode={}, retryable={}",
+                event.processingId, event.errorCode, event.retryable
             )
-        }
 
-        sendSse(memberId, "JOB_SUMMARY_FAILED", sseData)
+            val memberId = failRequest(event) ?: return
+            val sseData = mapOf(
+                "requestId" to event.processingId,
+                "errorCode" to event.errorCode,
+                "retryable" to event.retryable
+            )
+
+            saveNotification {
+                notificationWriteService.create(
+                    memberId = memberId,
+                    type = NotificationType.JOB_SUMMARY_FAILED,
+                    title = "채용공고 분석 실패",
+                    message = "요청하신 채용공고 분석에 실패했습니다.",
+                    metadata = mapOf(
+                        "requestId" to event.processingId,
+                        "errorCode" to event.errorCode,
+                        "retryable" to event.retryable
+                    )
+                )
+            }
+
+            sendSse(memberId, "JOB_SUMMARY_FAILED", sseData)
+        } finally {
+            MDC.clear()
+        }
     }
 
     private fun completeRequest(event: JobSummaryRequestEvent.Completed): Long? {

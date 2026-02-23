@@ -322,6 +322,20 @@ services:
     networks:
       - hirelog_infra
 
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail_server2
+    restart: unless-stopped
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - ../../data/promtail:/var/lib/promtail # named volume → 로컬 경로로 변경
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - hirelog_infra
+
 networks:
   hirelog_infra:
     driver: bridge

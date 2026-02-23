@@ -26,7 +26,7 @@ class GlobalExceptionHandler {
         val status = HttpStatus.NOT_FOUND
 
         log.warn(
-            "[ENTITY_NOT_FOUND] path={} message={}",
+            "[ENTITY_NOT_FOUND] path={}, message={}",
             request.requestURI,
             ex.message
         )
@@ -50,7 +50,7 @@ class GlobalExceptionHandler {
         val status = HttpStatus.CONFLICT
 
         log.warn(
-            "[ENTITY_ALREADY_EXISTS] path={} message={}",
+            "[ENTITY_ALREADY_EXISTS] path={}, message={}",
             request.requestURI,
             ex.message
         )
@@ -100,7 +100,7 @@ class GlobalExceptionHandler {
 
         val status = HttpStatus.BAD_REQUEST
 
-        log.error(
+        log.warn(
             "[ILLEGAL_ARGUMENT] path={}, method={}, message={}",
             request.requestURI,
             request.method,

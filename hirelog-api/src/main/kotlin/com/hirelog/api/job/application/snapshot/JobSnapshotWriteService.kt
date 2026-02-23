@@ -1,6 +1,7 @@
 package com.hirelog.api.job.application.snapshot
 
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.snapshot.command.JobSnapshotCreateCommand
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.domain.model.JobSnapshot
@@ -51,7 +52,9 @@ class JobSnapshotWriteService(
                 coreText = command.coreText
             )
 
-            snapshotCommand.record(snapshot)
+            val snapshotId = snapshotCommand.record(snapshot)
+            log.debug("[SNAPSHOT_RECORDED] snapshotId={}, sourceType={}", snapshotId, command.sourceType)
+            snapshotId
 
         } catch (ex: DataIntegrityViolationException) {
             throw EntityAlreadyExistsException(
@@ -98,5 +101,6 @@ class JobSnapshotWriteService(
          * 변경된 상태 영속화
          */
         snapshotCommand.update(snapshot)
+        log.debug("[SNAPSHOT_BRAND_POSITION_ATTACHED] snapshotId={}, brandId={}, positionId={}", snapshotId, brandId, positionId)
     }
 }

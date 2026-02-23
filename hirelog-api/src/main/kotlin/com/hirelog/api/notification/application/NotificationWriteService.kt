@@ -52,6 +52,6 @@ class NotificationWriteService(
 
         notifications.forEach { it.markAsRead() }
 
-        log.info("[NOTIFICATION_READ] memberId={}, ids={}", memberId, notifications.map { it.id })
+        log.debug("[NOTIFICATION_READ] memberId={}, ids={}", memberId, notifications.map { it.id })
     }
 }

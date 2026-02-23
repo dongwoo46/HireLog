@@ -44,6 +44,11 @@ class JdPreprocessFailHandler(
         if (request != null) {
             request.markFailed()
             jobSummaryRequestCommand.save(request)
+        } else {
+            log.warn(
+                "[JD_PREPROCESS_FAIL_REQUEST_NOT_FOUND] requestId={} - PENDING 상태 없음, 이미 상태 전이됐거나 데이터 불일치",
+                event.requestId
+            )
         }
 
         log.info(

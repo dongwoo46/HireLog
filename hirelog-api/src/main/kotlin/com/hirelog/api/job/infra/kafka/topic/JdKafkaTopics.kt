@@ -9,9 +9,6 @@ package com.hirelog.api.job.infra.kafka.topic
  */
 object JdKafkaTopics {
 
-    const val PREPROCESS_TEXT_REQUEST = "jd.preprocess.text.request"
-    const val PREPROCESS_OCR_REQUEST  = "jd.preprocess.ocr.request"
-    const val PREPROCESS_URL_REQUEST  = "jd.preprocess.url.request"
 
     const val PREPROCESS_RESPONSE     = "jd.preprocess.response"
     const val PREPROCESS_RESPONSE_FAIL = "jd.preprocess.response.fail"

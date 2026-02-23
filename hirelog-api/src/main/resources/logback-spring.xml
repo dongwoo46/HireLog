@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <springProperty scope="context" name="springAppName" source="spring.application.name" defaultValue="hirelog-api"/>
+    <springProperty scope="context" name="activeProfile"  source="spring.profiles.active"  defaultValue="default"/>
+
+    <!-- Local 프로파일: 사람이 읽기 편한 컬러 텍스트 -->
+    <springProfile name="local">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{36})%replace( [%X{requestId}]){' \[\]', ''} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <logger name="com.hirelog" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <!-- 그 외 프로파일: Loki 연동 JSON 포맷 -->
+    <springProfile name="!local">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app":"${springAppName}","env":"${activeProfile}"}</customFields>
+
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                    <maxLength>4096</maxLength>
+                </throwableConverter>
+
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <version>[ignore]</version>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <logger name="com.hirelog" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+
+</configuration>

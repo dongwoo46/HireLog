@@ -37,6 +37,7 @@ dependencies {
 	implementation("org.springframework.kafka:spring-kafka")
 	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
 	implementation("org.flywaydb:flyway-core")
+	implementation("net.logstash.logback:logstash-logback-encoder:8.0")
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 

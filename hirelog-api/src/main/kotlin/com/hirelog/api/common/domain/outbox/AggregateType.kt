@@ -13,10 +13,9 @@ package com.hirelog.api.common.domain.outbox
  */
 enum class AggregateType(val value: String) {
     JOB_SUMMARY("JobSummary"),
-    // 향후 추가될 Aggregate들
-    // MEMBER("Member"),
-    // BRAND("Brand"),
-    ;
+    JD_PREPROCESS_TEXT("JdPreprocessText"),
+    JD_PREPROCESS_OCR("JdPreprocessOcr"),
+    JD_PREPROCESS_URL("JdPreprocessUrl");
 
     override fun toString(): String = value
 }

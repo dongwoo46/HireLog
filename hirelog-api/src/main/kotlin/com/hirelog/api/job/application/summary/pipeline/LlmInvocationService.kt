@@ -1,5 +1,6 @@
 package com.hirelog.api.job.application.summary.pipeline
 
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
@@ -24,7 +25,11 @@ class LlmInvocationService(
             positionCandidates,
             existCompanies,
             command.canonicalMap
-        ).exceptionallyCompose {
+        ).exceptionallyCompose { ex ->
+            log.warn(
+                "[LLM_PRIMARY_FAILED_FALLBACK] brandName={}, positionName={}, error={}",
+                command.brandName, command.positionName, ex.message
+            )
             fallback.summarizeJobDescriptionAsync(
                 command.brandName,
                 command.positionName,

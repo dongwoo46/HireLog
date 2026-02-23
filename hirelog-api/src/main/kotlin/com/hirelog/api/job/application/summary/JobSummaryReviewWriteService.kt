@@ -39,8 +39,6 @@ class JobSummaryReviewWriteService(
         interviewTip: String?
     ): JobSummaryReview {
 
-        log.info("[JobSummaryReview create 1]: anaymonus:{}", anonymous)
-
         val existing = command.findByJobSummaryIdAndMemberId(
             jobSummaryId = jobSummaryId,
             memberId = memberId
@@ -61,7 +59,14 @@ class JobSummaryReviewWriteService(
             interviewTip = interviewTip
         )
 
-        return command.save(review)
+        val saved = command.save(review)
+
+        log.info(
+            "[JOB_SUMMARY_REVIEW_WRITTEN] jobSummaryId={}, memberId={}, reviewId={}, anonymous={}",
+            jobSummaryId, memberId, saved.id, anonymous
+        )
+
+        return saved
     }
 
     /**
@@ -81,6 +86,8 @@ class JobSummaryReviewWriteService(
 
         review.softDelete()
         command.save(review)
+
+        log.info("[JOB_SUMMARY_REVIEW_DELETED] reviewId={}", reviewId)
     }
 
     /**
@@ -101,5 +108,7 @@ class JobSummaryReviewWriteService(
 
         review.restore()
         command.save(review)
+
+        log.info("[JOB_SUMMARY_REVIEW_RESTORED] reviewId={}", reviewId)
     }
 }

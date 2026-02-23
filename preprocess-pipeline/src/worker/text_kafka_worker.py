@@ -4,7 +4,7 @@
 TEXT 소스 전용 Kafka Worker
 
 책임:
-- jd.preprocess.text.request 토픽 소비
+- hirelog.outbox.JdPreprocessText 토픽 소비
 - 메시지 파싱
 - KafkaJdPreprocessTextWorker.execute() 호출
 - 결과 DTO 반환
@@ -85,14 +85,16 @@ class TextKafkaWorker(BaseKafkaWorker):
                 cause=e,
             )
 
-        logger.info(
-            "[TEXT_KAFKA_WORKER] Processing | "
-            "offset=%s requestId=%s brand=%s position=%s source=%s",
-            offset,
-            jd_input.request_id,
-            jd_input.brand_name,
-            jd_input.position_name,
-            jd_input.source.value,
+        logger.debug(
+            "Processing",
+            extra={
+                "worker_name": self.worker_name,
+                "offset": offset,
+                "request_id": jd_input.request_id,
+                "brand_name": jd_input.brand_name,
+                "position_name": jd_input.position_name,
+                "source": jd_input.source.value,
+            },
         )
 
         # ==================================================

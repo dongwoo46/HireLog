@@ -119,19 +119,18 @@ def _run_ocr_process(
             result_topic, fail_topic, worker_config, client_id, shutdown_event,
         )
 
-        proc_logger.info("[OCR_PROCESS_START] pid=%d", multiprocessing.current_process().pid)
         worker.run()
 
     except KeyboardInterrupt:
-        proc_logger.info("[OCR_PROCESS_INTERRUPT]")
+        proc_logger.info("Process interrupted", extra={"process": "ocr"})
     except Exception as e:
-        proc_logger.error("[OCR_PROCESS_CRASH] %s", e, exc_info=True)
+        proc_logger.error("Process crashed", exc_info=True, extra={"process": "ocr", "error": str(e)})
     finally:
         try:
             producer.close()
         except Exception:
             pass
-        proc_logger.info("[OCR_PROCESS_EXIT]")
+        proc_logger.info("Process exiting", extra={"process": "ocr"})
 
 
 def _run_text_url_process(
@@ -178,7 +177,7 @@ def _run_text_url_process(
             daemon=True,
         )
         url_thread.start()
-        proc_logger.info("[URL_THREAD_START] within text_url process")
+        proc_logger.info("URL worker thread started")
 
         # TEXT Worker (메인 스레드, CPU-bound)
         text_worker, text_producer = _create_worker(
@@ -186,30 +185,31 @@ def _run_text_url_process(
             result_topic, fail_topic, worker_config, text_client_id, shutdown_event,
         )
 
-        proc_logger.info("[TEXT_URL_PROCESS_START] pid=%d", multiprocessing.current_process().pid)
         text_worker.run()
 
         # TEXT 종료 후 URL 스레드 대기
         url_thread.join(timeout=worker_config.shutdown_timeout_sec)
 
     except KeyboardInterrupt:
-        proc_logger.info("[TEXT_URL_PROCESS_INTERRUPT]")
+        proc_logger.info("Process interrupted", extra={"process": "text_url"})
     except Exception as e:
-        proc_logger.error("[TEXT_URL_PROCESS_CRASH] %s", e, exc_info=True)
+        proc_logger.error(
+            "Process crashed",
+            exc_info=True,
+            extra={"process": "text_url", "error": str(e)},
+        )
     finally:
         for p in [text_producer, url_producer]:
             try:
                 p.close()
             except Exception:
                 pass
-        proc_logger.info("[TEXT_URL_PROCESS_EXIT]")
+        proc_logger.info("Process exiting", extra={"process": "text_url"})
 
 
 def main():
     """메인 진입점"""
-    logger.info("=" * 60)
-    logger.info("Preprocess Pipeline (Kafka) Starting...")
-    logger.info("=" * 60)
+    logger.info("Preprocess Pipeline starting")
 
     # ==================================================
     # 설정 로드
@@ -217,22 +217,24 @@ def main():
     kafka_config = load_kafka_config()
     worker_config = load_kafka_worker_config()
 
-    logger.info("[CONFIG] Kafka: %s", kafka_config.bootstrap_servers)
     logger.info(
-        "[CONFIG] Topics: text=%s ocr=%s url=%s result=%s fail=%s group=%s",
-        kafka_config.text_topic,
-        kafka_config.ocr_topic,
-        kafka_config.url_topic,
-        kafka_config.result_topic,
-        kafka_config.fail_topic,
-        kafka_config.consumer_group,
+        "Config loaded",
+        extra={
+            "bootstrap_servers": kafka_config.bootstrap_servers,
+            "text_topic": kafka_config.text_topic,
+            "ocr_topic": kafka_config.ocr_topic,
+            "url_topic": kafka_config.url_topic,
+            "result_topic": kafka_config.result_topic,
+            "fail_topic": kafka_config.fail_topic,
+            "consumer_group": kafka_config.consumer_group,
+        },
     )
 
     # ==================================================
     # Instance 고유 ID
     # ==================================================
     instance_id = uuid.uuid4().hex[:8]
-    logger.info("[CONFIG] Instance ID: %s", instance_id)
+    logger.info("Instance created", extra={"instance_id": instance_id})
 
     # ==================================================
     # Shutdown Event (프로세스 간 공유)
@@ -287,7 +289,7 @@ def main():
     # ==================================================
     def shutdown_handler(signum, frame):
         sig_name = signal.Signals(signum).name
-        logger.info("[SHUTDOWN] Received %s, setting shutdown event...", sig_name)
+        logger.info("Shutdown signal received", extra={"signal": sig_name})
         shutdown_event.set()
 
     signal.signal(signal.SIGTERM, shutdown_handler)
@@ -300,11 +302,9 @@ def main():
 
     for p in processes:
         p.start()
-        logger.info("[STARTED] %s (pid=%d)", p.name, p.pid)
+        logger.info("Worker process started", extra={"process_name": p.name, "child_pid": p.pid})
 
-    logger.info("=" * 60)
-    logger.info("2 worker processes running (OCR + TEXT/URL). Press Ctrl+C to shutdown.")
-    logger.info("=" * 60)
+    logger.info("All worker processes running")
 
     # ==================================================
     # 메인 프로세스 대기
@@ -313,31 +313,35 @@ def main():
         while not shutdown_event.is_set():
             alive_count = sum(1 for p in processes if p.is_alive())
             if alive_count == 0:
-                logger.warning("[MAIN] All worker processes have stopped")
+                logger.warning("All worker processes have stopped unexpectedly")
                 break
             time.sleep(1)
 
     except KeyboardInterrupt:
-        logger.info("[MAIN] KeyboardInterrupt received")
+        logger.info("KeyboardInterrupt received")
         shutdown_event.set()
 
     # ==================================================
     # 프로세스 종료 대기
     # ==================================================
-    logger.info("[SHUTDOWN] Waiting for worker processes to finish...")
+    logger.info("Waiting for worker processes to finish")
 
     for p in processes:
         p.join(timeout=worker_config.shutdown_timeout_sec)
         if p.is_alive():
-            logger.warning("[SHUTDOWN] Process %s (pid=%d) did not finish, terminating", p.name, p.pid)
+            logger.warning(
+                "Process did not finish in time, terminating",
+                extra={"process_name": p.name, "child_pid": p.pid},
+            )
             p.terminate()
             p.join(timeout=5)
         else:
-            logger.info("[SHUTDOWN] Process %s finished (exit=%s)", p.name, p.exitcode)
+            logger.info(
+                "Process finished",
+                extra={"process_name": p.name, "exit_code": p.exitcode},
+            )
 
-    logger.info("=" * 60)
-    logger.info("Preprocess Pipeline (Kafka) Stopped")
-    logger.info("=" * 60)
+    logger.info("Preprocess Pipeline stopped")
 
 
 if __name__ == "__main__":

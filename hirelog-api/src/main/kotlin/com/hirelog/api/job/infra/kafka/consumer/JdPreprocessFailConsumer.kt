@@ -6,6 +6,7 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.messaging.JdPreprocessFailEvent
 import com.hirelog.api.job.application.messaging.JdPreprocessFailHandler
 import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
+import org.slf4j.MDC
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.kafka.support.KafkaHeaders
@@ -45,33 +46,51 @@ class JdPreprocessFailConsumer(
         @Header(KafkaHeaders.RECEIVED_PARTITION) partition: Int,
         @Header(KafkaHeaders.OFFSET) offset: Long
     ) {
-        log.info(
-            "[JD_PREPROCESS_FAIL_CONSUME_START] eventId={}, requestId={}, errorCode={}, pipelineStage={}",
-            event.eventId, event.requestId, event.errorCode, event.pipelineStage
-        )
+        MDC.put("eventId", event.eventId)
+        MDC.put("requestId", event.requestId)
+        MDC.put("errorCode", event.errorCode)
+        MDC.put("pipelineStage", event.pipelineStage)
+        MDC.put("topic", JdKafkaTopics.PREPROCESS_RESPONSE_FAIL)
 
-        // === 1. 멱등성 검사 ===
-        val processedEventId = ProcessedEventId.create(event.eventId)
-        val alreadyProcessed = processedEventService.isAlreadyProcessedOrMark(
-            eventId = processedEventId,
-            consumerGroup = CONSUMER_GROUP
-        )
+        try {
+            log.info(
+                "[JD_PREPROCESS_FAIL_CONSUME_START] eventId={}, requestId={}, errorCode={}, pipelineStage={}",
+                event.eventId, event.requestId, event.errorCode, event.pipelineStage
+            )
 
-        if (alreadyProcessed) {
-            log.info("[JD_PREPROCESS_FAIL_ALREADY_PROCESSED] eventId={}", event.eventId)
+            // === 1. 멱등성 검사 ===
+            val processedEventId = ProcessedEventId.create(event.eventId)
+            val alreadyProcessed = processedEventService.isAlreadyProcessedOrMark(
+                eventId = processedEventId,
+                consumerGroup = CONSUMER_GROUP
+            )
+
+            if (alreadyProcessed) {
+                log.debug("[JD_PREPROCESS_FAIL_ALREADY_PROCESSED] eventId={}", event.eventId)
+                acknowledgment.acknowledge()
+                return
+            }
+
+            // === 2. 도메인 상태 변경 (트랜잭션) ===
+            try {
+                jdPreprocessFailHandler.handle(event)
+            } catch (e: Exception) {
+                log.error(
+                    "[JD_PREPROCESS_FAIL_HANDLE_ERROR] eventId={}, requestId={}, errorCode={}, pipelineStage={}",
+                    event.eventId, event.requestId, event.errorCode, event.pipelineStage, e
+                )
+                throw e
+            }
+
+            // === 3. offset 커밋 ===
             acknowledgment.acknowledge()
-            return
+
+            log.info(
+                "[JD_PREPROCESS_FAIL_CONSUME_SUCCESS] eventId={}, requestId={}, errorCategory={}",
+                event.eventId, event.requestId, event.errorCategory
+            )
+        } finally {
+            MDC.clear()
         }
-
-        // === 2. 도메인 상태 변경 (트랜잭션) ===
-        jdPreprocessFailHandler.handle(event)
-
-        // === 3. offset 커밋 ===
-        acknowledgment.acknowledge()
-
-        log.info(
-            "[JD_PREPROCESS_FAIL_CONSUME_SUCCESS] eventId={}, requestId={}, errorCategory={}",
-            event.eventId, event.requestId, event.errorCategory
-        )
     }
 }

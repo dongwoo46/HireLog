@@ -26,13 +26,14 @@ echo "✅ client.properties created"
 echo ""
 
 TOPICS=(
-  "jd.preprocess.ocr.request"
-  "jd.preprocess.text.request"
-  "jd.preprocess.url.request"
   "jd.preprocess.response"
   "jd.preprocess.response.fail"
   "hirelog.outbox.JobSummary"
+  "hirelog.outbox.JdPreprocessText"
+  "hirelog.outbox.JdPreprocessOcr"
+  "hirelog.outbox.JdPreprocessUrl"
 )
+
 
 echo "=========================================="
 echo "Creating Kafka Topics..."

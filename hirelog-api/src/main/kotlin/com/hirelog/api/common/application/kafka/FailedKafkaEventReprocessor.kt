@@ -54,7 +54,7 @@ class FailedKafkaEventReprocessor(
         )
 
         if (failedEvents.isEmpty) {
-            log.info("[FAILED_EVENT_REPROCESS_SKIP] No failed events found")
+            log.debug("[FAILED_EVENT_REPROCESS_SKIP] No failed events found")
             return
         }
 
@@ -152,6 +152,8 @@ class FailedKafkaEventReprocessor(
      */
     @Transactional
     fun reprocessById(eventId: Long) {
+        log.info("[FAILED_EVENT_MANUAL_REPROCESS_START] eventId={}", eventId)
+
         val event = repository.findById(eventId)
             .orElseThrow { IllegalArgumentException("FailedKafkaEvent not found: $eventId") }
 
@@ -160,6 +162,8 @@ class FailedKafkaEventReprocessor(
         }
 
         reprocessSingleEvent(event)
+
+        log.info("[FAILED_EVENT_MANUAL_REPROCESS_SUCCESS] eventId={}", eventId)
     }
 
     /**
@@ -167,9 +171,13 @@ class FailedKafkaEventReprocessor(
      */
     @Transactional
     fun ignoreById(eventId: Long, reason: String) {
+        log.info("[FAILED_EVENT_MANUAL_IGNORE_START] eventId={}, reason={}", eventId, reason)
+
         val event = repository.findById(eventId)
             .orElseThrow { IllegalArgumentException("FailedKafkaEvent not found: $eventId") }
 
         markAsIgnored(event, reason)
+
+        log.info("[FAILED_EVENT_MANUAL_IGNORE_SUCCESS] eventId={}", eventId)
     }
 }

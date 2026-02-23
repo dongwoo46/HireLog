@@ -71,7 +71,7 @@ class KafkaConsumerConfig(
         jdPreprocessResponseConsumerFactory: ConsumerFactory<String, JdPreprocessResponseEvent>
     ): ConcurrentKafkaListenerContainerFactory<String, JdPreprocessResponseEvent> {
 
-        logger.info("Creating jdPreprocessResponseListenerContainerFactory with retry={}, interval={}ms",
+        logger.debug("Creating jdPreprocessResponseListenerContainerFactory with retry={}, interval={}ms",
             MAX_RETRY_COUNT, RETRY_INTERVAL_MS)
 
         return ConcurrentKafkaListenerContainerFactory<String, JdPreprocessResponseEvent>().apply {
@@ -109,7 +109,7 @@ class KafkaConsumerConfig(
         stringConsumerFactory: ConsumerFactory<String, String>
     ): ConcurrentKafkaListenerContainerFactory<String, String> {
 
-        logger.info("Creating stringListenerContainerFactory with retry={}, interval={}ms",
+        logger.debug("Creating stringListenerContainerFactory with retry={}, interval={}ms",
             MAX_RETRY_COUNT, RETRY_INTERVAL_MS)
 
         return ConcurrentKafkaListenerContainerFactory<String, String>().apply {
@@ -152,7 +152,7 @@ class KafkaConsumerConfig(
         jdPreprocessFailConsumerFactory: ConsumerFactory<String, JdPreprocessFailEvent>
     ): ConcurrentKafkaListenerContainerFactory<String, JdPreprocessFailEvent> {
 
-        logger.info("Creating jdPreprocessFailListenerContainerFactory (no DLT)")
+        logger.debug("Creating jdPreprocessFailListenerContainerFactory (no DLT)")
 
         return ConcurrentKafkaListenerContainerFactory<String, JdPreprocessFailEvent>().apply {
             consumerFactory = jdPreprocessFailConsumerFactory
@@ -201,7 +201,7 @@ class KafkaConsumerConfig(
                 key = record.key()?.toString(),
                 value = record.value()?.toString(),
                 consumerGroup = consumerGroup,
-                exception = exception as Exception,
+                exception = exception,
                 retryCount = MAX_RETRY_COUNT.toInt()
             )
 
@@ -211,7 +211,8 @@ class KafkaConsumerConfig(
                 record.partition(),
                 record.offset(),
                 consumerGroup,
-                exception.message
+                exception.message,
+                exception
             )
 
             // 2. DLT 토픽으로 전송 (원본토픽.DLT)

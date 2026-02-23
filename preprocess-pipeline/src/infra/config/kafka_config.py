@@ -84,9 +84,9 @@ def load_kafka_config() -> KafkaConfig:
 
     return KafkaConfig(
         connection=connection,
-        text_topic=os.getenv("KAFKA_TEXT_TOPIC", "jd.preprocess.text.request"),
-        ocr_topic=os.getenv("KAFKA_OCR_TOPIC", "jd.preprocess.ocr.request"),
-        url_topic=os.getenv("KAFKA_URL_TOPIC", "jd.preprocess.url.request"),
+        text_topic=os.getenv("KAFKA_TEXT_TOPIC", "hirelog.outbox.JdPreprocessText"),
+        ocr_topic=os.getenv("KAFKA_OCR_TOPIC", "hirelog.outbox.JdPreprocessOcr"),
+        url_topic=os.getenv("KAFKA_URL_TOPIC", "hirelog.outbox.JdPreprocessUrl"),
         result_topic=os.getenv("KAFKA_RESULT_TOPIC", "jd.preprocess.response"),
         fail_topic=os.getenv("KAFKA_FAIL_TOPIC", "jd.preprocess.response.fail"),
         consumer_group=os.getenv("KAFKA_CONSUMER_GROUP", "preprocess-group"),

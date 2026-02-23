@@ -4,7 +4,7 @@
 URL 소스 전용 Kafka Worker
 
 책임:
-- jd.preprocess.url.request 토픽 소비
+- hirelog.outbox.JdPreprocessUrl 토픽 소비
 - 메시지 파싱
 - KafkaJdPreprocessUrlWorker.execute() 호출
 - 결과 DTO 반환
@@ -85,14 +85,16 @@ class UrlKafkaWorker(BaseKafkaWorker):
                 cause=e,
             )
 
-        logger.info(
-            "[URL_KAFKA_WORKER] Processing | "
-            "offset=%s requestId=%s brand=%s url=%s source=%s",
-            offset,
-            jd_input.request_id,
-            jd_input.brand_name,
-            jd_input.url,
-            jd_input.source.value,
+        logger.debug(
+            "Processing",
+            extra={
+                "worker_name": self.worker_name,
+                "offset": offset,
+                "request_id": jd_input.request_id,
+                "brand_name": jd_input.brand_name,
+                "url": jd_input.url,
+                "source": jd_input.source.value,
+            },
         )
 
         # ==================================================
