@@ -119,7 +119,7 @@ class UrlParser:
             }
             
         except Exception as e:
-            logger.error(f"Failed to parse HTML: {e}")
+            logger.error("HTML parsing failed", extra={"error": str(e)})
             raise
 
     def _extract_clean_text_from_root(self, element) -> str:

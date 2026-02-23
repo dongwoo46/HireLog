@@ -124,9 +124,7 @@ def _absorb_non_keyword_intro(
             break
 
         # 키워드 미매칭 header → intro로 강제
-        logger.debug(
-            "[POST_VALIDATE] Rule1: header \"%s\" → intro 흡수", key,
-        )
+        logger.debug("Rule1: non-keyword header absorbed into intro", extra={"header": key})
         intro_lines.append(key)
         intro_lines.extend(lines)
         first_keyword_idx = i + 1
@@ -176,10 +174,7 @@ def _merge_empty_headers(
                 # content가 있는 header를 만나면 흡수 종료
                 break
 
-        logger.debug(
-            "[POST_VALIDATE] Rule2: 빈 header \"%s\" ← %d개 후속 header 흡수",
-            key, j - i - 1,
-        )
+        logger.debug("Rule2: empty header merged with successors", extra={"header": key, "merged_count": j - i - 1})
 
         result.append((key, merged_lines))
         i = j
@@ -212,10 +207,7 @@ def _strip_footer_noise(
 
     removed = len(last_lines) - cutoff
     if removed >= FOOTER_MIN_CONSECUTIVE:
-        logger.debug(
-            "[POST_VALIDATE] Rule3: 마지막 섹션 \"%s\" 푸터 %d줄 제거",
-            last_key, removed,
-        )
+        logger.debug("Rule3: footer noise stripped from last section", extra={"header": last_key, "removed_lines": removed})
         entries[-1] = (last_key, last_lines[:cutoff])
 
     return OrderedDict(entries)

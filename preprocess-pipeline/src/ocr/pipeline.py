@@ -1,6 +1,5 @@
 import os
 import logging
-import json
 from ocr.preprocess import preprocess_image
 from ocr.engine import run_ocr
 from ocr.lines import build_lines
@@ -122,23 +121,18 @@ def _process_single_image(image_path: str) -> dict:
     if not ocr_result.get("raw"):
         return _fail("ocr returned empty raw result")
 
-    # 🔍 DEBUG: OCR RAW (PaddleOCR 원본)
-    logger.debug("[OCR] 1️⃣ OCR RAW 데이터 (원본)")
-    logger.debug(json.dumps(
-        [{"text": item.get("text", ""), "confidence": item.get("confidence")}
-         for item in ocr_result["raw"]],
-        ensure_ascii=False, indent=2
-    ))
+    logger.debug(
+        "OCR raw result",
+        extra={
+            "raw_line_count": len(ocr_result["raw"]),
+            "confidence": round(ocr_result.get("confidence", 0), 2),
+        },
+    )
 
     # 2.5️⃣ OCR RAW → LINE 구조화 (아직 가공 없음)
     lines = build_lines(ocr_result["raw"])
 
-    # 🔍 DEBUG: LINE 구조화 후
-    logger.debug("[OCR] 2️⃣ LINE 구조화 후")
-    logger.debug(json.dumps(
-        [line.get("text", "") for line in lines],
-        ensure_ascii=False, indent=2
-    ))
+    logger.debug("OCR lines built", extra={"line_count": len(lines)})
 
     # 3️⃣ 헤더 감지
     lines = detect_visual_headers(lines)
@@ -167,12 +161,13 @@ def _process_single_image(image_path: str) -> dict:
     # 5. ocr로 처리한 raw 데이터 후처리
     ocr_lines = postprocess_ocr_lines(passed_lines)
 
-    # 🔍 DEBUG: 후처리 완료
-    logger.debug("[OCR] 3️⃣ 전처리 완료 후 최종 라인")
-    logger.debug(json.dumps(
-        [line.get("text", "") for line in ocr_lines],
-        ensure_ascii=False, indent=2
-    ))
+    logger.debug(
+        "OCR postprocess completed",
+        extra={
+            "passed_line_count": len(ocr_lines),
+            "dropped_line_count": len(dropped_lines),
+        },
+    )
 
     # 6. 최종 rawText 생성
     raw_text = build_raw_text(ocr_lines)

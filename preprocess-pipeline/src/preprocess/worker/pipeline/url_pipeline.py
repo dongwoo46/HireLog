@@ -1,5 +1,4 @@
 import logging
-import json
 from inputs.jd_preprocess_input import JdPreprocessInput
 from url.fetcher import UrlFetcher
 from url.playwright_fetcher import PlaywrightFetcher
@@ -50,11 +49,14 @@ class UrlPipeline:
 
             # Check for JS Rendering Requirement
             if self.fetcher._needs_js_rendering(html_content):
-                logger.info(f"JS Rendering required for {input.url}. Switching to Playwright.")
+                logger.debug("JS rendering required, switching to Playwright", extra={"url": input.url})
                 html_content = self.dynamic_fetcher.fetch(input.url)
 
         except Exception as e:
-            logger.warning(f"Static fetch failed for {input.url}, retrying with Playwright. Error: {e}")
+            logger.warning(
+                "Static fetch failed, retrying with Playwright",
+                extra={"url": input.url, "error": str(e)},
+            )
             html_content = self.dynamic_fetcher.fetch(input.url)
 
         # 2️⃣ Parse (HTML → 텍스트)
@@ -62,13 +64,18 @@ class UrlPipeline:
         title = parsed_data.get("title", "")
         body_text = parsed_data.get("body", "")
 
-        # 🔍 DEBUG: URL fetch 후 원본 데이터
-        logger.debug(f"[URL_PIPELINE] 1️⃣ URL fetch 후 (url={input.url})")
-        logger.debug(f"[URL_PIPELINE] title: {title}")
-        logger.debug(f"[URL_PIPELINE] body_text (first 2000 chars):\n{body_text[:2000]}")
+        logger.debug(
+            "URL fetched and parsed",
+            extra={
+                "url": input.url,
+                "title": title,
+                "fetched_length": len(html_content),
+                "parsed_length": len(body_text),
+            },
+        )
 
         if not body_text:
-            logger.warning(f"No body text extracted from URL: {input.url}")
+            logger.warning("No body text extracted from URL", extra={"url": input.url})
             return {
                 "url_meta": {
                     "url": input.url,
@@ -83,12 +90,16 @@ class UrlPipeline:
         # 3️⃣ URL 전용 전처리 (노이즈 제거)
         cleaned_lines = preprocess_url_text(body_text)
 
-        # 🔍 DEBUG: URL 전처리 후
-        logger.debug("[URL_PIPELINE] 2️⃣ URL 전처리 후 (cleaned_lines)")
-        logger.debug(json.dumps(cleaned_lines, ensure_ascii=False, indent=2))
+        logger.debug(
+            "URL text preprocessed",
+            extra={"url": input.url, "cleaned_line_count": len(cleaned_lines)},
+        )
 
         if not cleaned_lines:
-            logger.warning(f"No lines after URL preprocessing: {input.url}")
+            logger.warning(
+                "No lines after URL preprocessing",
+                extra={"url": input.url, "parsed_length": len(body_text)},
+            )
             return {
                 "url_meta": {
                     "url": input.url,
@@ -103,18 +114,19 @@ class UrlPipeline:
         # 4️⃣ Header 기반 섹션 분리 (OCR 방식)
         raw_sections = extract_url_sections(cleaned_lines)
 
-        # 🔍 DEBUG: 섹션 분리 후
-        logger.debug("[URL_PIPELINE] 3️⃣ 섹션 분리 후 (raw_sections)")
-        logger.debug(json.dumps(raw_sections, ensure_ascii=False, indent=2))
-
         # 4.5️⃣ 섹션 구조 후보정
         raw_sections = validate_raw_sections(raw_sections)
 
-        logger.debug("[URL_PIPELINE] 3.5️⃣ 섹션 후보정 결과")
-        logger.debug(json.dumps(raw_sections, ensure_ascii=False, indent=2))
+        logger.debug(
+            "URL sections extracted",
+            extra={"url": input.url, "section_count": len(raw_sections)},
+        )
 
         if not raw_sections:
-            logger.warning(f"No sections extracted from URL: {input.url}")
+            logger.warning(
+                "No sections extracted from URL",
+                extra={"url": input.url, "cleaned_line_count": len(cleaned_lines)},
+            )
             return {
                 "url_meta": {
                     "url": input.url,
@@ -135,9 +147,14 @@ class UrlPipeline:
         # 7️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
         canonical_map = self.canonical.process(sections)
 
-        # 🔍 DEBUG: 최종 canonical_map
-        logger.debug("[URL_PIPELINE] 4️⃣ 최종 canonical_map")
-        logger.debug(json.dumps(canonical_map, ensure_ascii=False, indent=2))
+        logger.debug(
+            "URL pipeline stages completed",
+            extra={
+                "url": input.url,
+                "section_count": len(raw_sections),
+                "canonical_zone_count": len(canonical_map),
+            },
+        )
 
         # 8️⃣ 최종 결과
         return {

@@ -75,9 +75,6 @@ spring:
   application:
     name: hirelog
 
-  profiles:
-    active: local
-
   config:
     import: optional:file:.env[.properties]
 
