@@ -280,11 +280,10 @@ class UserRequestTest {
         @DisplayName("반환된 리스트는 불변이다 (외부에서 수정 불가)")
         fun `returned list is immutable`() {
             val request = createOpenRequest()
+            request.addComment(UserRequestCommentWriterType.USER, 1L, "테스트")
 
             assertThatThrownBy {
-                (request.getComments() as MutableList).add(
-                    request.addComment(UserRequestCommentWriterType.USER, 1L, "테스트")
-                )
+                (request.getComments() as MutableList<*>).clear()
             }.isInstanceOf(UnsupportedOperationException::class.java)
         }
     }

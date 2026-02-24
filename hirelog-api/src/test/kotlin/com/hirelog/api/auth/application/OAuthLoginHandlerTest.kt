@@ -8,6 +8,7 @@ import com.hirelog.api.member.application.port.MemberOAuthAccountQuery
 import com.hirelog.api.member.domain.Member
 import com.hirelog.api.member.domain.MemberOAuthAccount
 import com.hirelog.api.member.domain.MemberRole
+import com.hirelog.api.member.domain.MemberStatus
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -35,6 +36,7 @@ class OAuthLoginHandlerTest {
         val member = mockk<Member>()
         every { member.id } returns 10L
         every { member.role } returns MemberRole.USER
+        every { member.status } returns MemberStatus.ACTIVE  // 추가
 
         val account = mockk<MemberOAuthAccount>()
         every { account.member } returns member

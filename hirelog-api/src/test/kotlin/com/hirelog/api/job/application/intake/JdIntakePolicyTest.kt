@@ -22,11 +22,22 @@ class JdIntakePolicyTest {
     private lateinit var summaryQuery: JobSummaryQuery
 
     private val validCanonicalMap = mapOf(
-        "responsibilities" to List(5) { "업무내용 ${it + 1}" },
-        "requirements" to List(5) { "필수요건 ${it + 1}" },
-        "preferred" to List(3) { "우대사항 ${it + 1}" },
-        "process" to listOf("서류 → 코딩테스트 → 기술면접 → 최종면접")
+        "responsibilities" to List(10) {
+            longText("업무내용 ${it + 1}에 대한 상세 설명입니다. ")
+        },
+        "requirements" to List(10) {
+            longText("필수요건 ${it + 1}에 대한 상세 설명입니다. ")
+        },
+        "preferred" to List(5) {
+            longText("우대사항 ${it + 1}에 대한 상세 설명입니다. ")
+        },
+        "process" to listOf(
+            longText("서류 → 코딩테스트 → 기술면접 → 최종면접 ")
+        )
     )
+
+    private fun longText(base: String): String =
+        base.repeat(20)   // 확실히 300자 넘게
 
     private val baseCommand = JobSummaryGenerateCommand(
         requestId = "req-001",

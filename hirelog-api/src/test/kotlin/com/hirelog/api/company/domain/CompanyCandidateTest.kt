@@ -27,8 +27,15 @@ class CompanyCandidateTest {
 
             assertThat(candidate.status).isEqualTo(CompanyCandidateStatus.PENDING)
             assertThat(candidate.candidateName).isEqualTo("(주)비바리퍼블리카")
-            // 내부 normalize: lowercase + 비허용문자 → '_'
             assertThat(candidate.normalizedName).isNotBlank()
+        }
+
+        @Test
+        @DisplayName("법인 접미사가 제거된 normalizedName을 반환한다")
+        fun shouldNormalizeCompanySuffix() {
+            assertThat(makeCandidate("(주)비바리퍼블리카").normalizedName).isEqualTo("비바리퍼블리카")
+            assertThat(makeCandidate("주식회사 카카오").normalizedName).isEqualTo("카카오")
+            assertThat(makeCandidate("Kakao Corp").normalizedName).isEqualTo("kakao")
         }
     }
 

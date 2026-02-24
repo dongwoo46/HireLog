@@ -1,6 +1,6 @@
 package com.hirelog.api.job.application.review
 
-import com.hirelog.api.job.application.summary.port.JobSummaryReviewCommand
+import com.hirelog.api.job.application.review.port.JobSummaryReviewCommand
 import com.hirelog.api.job.domain.model.JobSummaryReview
 import com.hirelog.api.job.domain.type.HiringStage
 import io.mockk.*
@@ -35,7 +35,7 @@ class JobSummaryReviewWriteServiceTest {
             val result = service.write(
                 jobSummaryId = 1L,
                 memberId = 10L,
-                hiringStage = HiringStage.RESUME,
+                hiringStage = HiringStage.INTERVIEW_1,
                 anonymous = false,
                 difficultyRating = 3,
                 satisfactionRating = 4,
@@ -57,7 +57,7 @@ class JobSummaryReviewWriteServiceTest {
                 service.write(
                     jobSummaryId = 1L,
                     memberId = 10L,
-                    hiringStage = HiringStage.RESUME,
+                    hiringStage = HiringStage.INTERVIEW_1,
                     anonymous = false,
                     difficultyRating = 3,
                     satisfactionRating = 4,
