@@ -3,8 +3,8 @@ import { TbBuilding, TbPencil, TbBook, TbLayoutCards, TbQuote } from 'react-icon
 const LoginPage = () => {
 
   const handleLogin = (provider: 'google' | 'kakao') => {
-    // Redirect to backend OAuth endpoint via proxy
-    window.location.href = `/oauth2/authorization/${provider}`;
+    // Redirect to backend OAuth endpoint using absolute URL
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/oauth2/authorization/${provider}`;
   };
 
   return (

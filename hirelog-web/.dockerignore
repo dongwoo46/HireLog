@@ -4,7 +4,6 @@ dist
 .vscode
 .idea
 *.log
-.env*
 README.md
 Dockerfile
 .dockerignore

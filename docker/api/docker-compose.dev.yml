@@ -146,10 +146,13 @@ services:
   # ──────────────────────────────────────────────
   # Frontend (dev: 로컬 빌드)
   # ──────────────────────────────────────────────
-  frontend:
+  web:
     build:
       context: ../../hirelog-web
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: https://hirelog.kro.kr
+        VITE_MODE: production
     container_name: frontend_dev
     restart: unless-stopped
     env_file:
