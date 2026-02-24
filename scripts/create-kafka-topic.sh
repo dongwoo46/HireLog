@@ -16,7 +16,7 @@ export MSYS_NO_PATHCONV=1
 
 echo "Creating client.properties..."
 
-docker exec kafka_hirelog_dev sh -c "cat > /tmp/client.properties <<EOF
+docker exec kafka_dev sh -c "cat > /tmp/client.properties <<EOF
 security.protocol=SASL_PLAINTEXT
 sasl.mechanism=PLAIN
 sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${KAFKA_USERNAME}\" password=\"${KAFKA_PASSWORD}\";
@@ -44,7 +44,7 @@ for topic in "${TOPICS[@]}"
 do
   echo "Creating topic: $topic"
 
-  docker exec kafka_hirelog_dev sh -c "
+  docker exec kafka_dev sh -c "
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
       --bootstrap-server localhost:9092 \
@@ -68,7 +68,7 @@ echo "=========================================="
 echo "Listing all topics:"
 echo "=========================================="
 
-docker exec kafka_hirelog_dev sh -c "
+docker exec kafka_dev sh -c "
   unset KAFKA_OPTS && \
   /opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server localhost:9092 \
@@ -86,7 +86,7 @@ do
   echo ""
   echo "--- Topic: $topic ---"
 
-  docker exec kafka_hirelog_dev sh -c "
+  docker exec kafka_dev sh -c "
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
       --bootstrap-server localhost:9092 \

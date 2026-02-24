@@ -26,7 +26,7 @@ set +a
 : "${POSTGRES_USER:?POSTGRES_USER is not set in .env.dev}"
 : "${POSTGRES_DB:?POSTGRES_DB is not set in .env.dev}"
 
-POSTGRES_CONTAINER=pg_hirelog_dev
+POSTGRES_CONTAINER=pg_dev
 DEBEZIUM_USER=debezium
 DEBEZIUM_PASSWORD=debezium
 

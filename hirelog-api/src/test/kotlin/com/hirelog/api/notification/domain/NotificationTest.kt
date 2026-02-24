@@ -44,7 +44,7 @@ class NotificationTest {
             assertThatThrownBy {
                 Notification.create(
                     memberId = 0L,
-                    type = NotificationType.JOB_SUMMARY_COMPLETE,
+                    type = NotificationType.JOB_SUMMARY_COMPLETED,
                     title = "알림"
                 )
             }.isInstanceOf(IllegalArgumentException::class.java)
@@ -57,7 +57,7 @@ class NotificationTest {
             assertThatThrownBy {
                 Notification.create(
                     memberId = 1L,
-                    type = NotificationType.JOB_SUMMARY_COMPLETE,
+                    type = NotificationType.JOB_SUMMARY_COMPLETED,
                     title = "  "
                 )
             }.isInstanceOf(IllegalArgumentException::class.java)
@@ -69,7 +69,7 @@ class NotificationTest {
         fun shouldCreateWithoutReference() {
             val notification = Notification.create(
                 memberId = 1L,
-                type = NotificationType.JOB_SUMMARY_COMPLETE,
+                type = NotificationType.JOB_SUMMARY_COMPLETED,
                 title = "시스템 알림"
             )
 

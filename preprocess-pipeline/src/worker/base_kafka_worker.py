@@ -109,8 +109,13 @@ class BaseKafkaWorker(ABC):
                 if kafka_msg is None:
                     idle_count += 1
                     if idle_count % 30 == 0:
-                        logger.info(
+                        logger.debug(
                             "Waiting for messages",
+                            extra={"worker_name": self.worker_name, "idle_polls": idle_count},
+                        )
+                    if idle_count % 86400 == 0:
+                        logger.warning(
+                            "Worker idle for extended period",
                             extra={"worker_name": self.worker_name, "idle_polls": idle_count},
                         )
                     continue

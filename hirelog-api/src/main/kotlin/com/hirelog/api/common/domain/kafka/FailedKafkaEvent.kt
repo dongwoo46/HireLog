@@ -42,8 +42,7 @@ class FailedKafkaEvent protected constructor(
     @Column(name = "record_key", length = 500)
     val recordKey: String?,
 
-    @Lob
-    @Column(name = "record_value")
+    @Column(name = "record_value", columnDefinition = "TEXT")
     val recordValue: String?,
 
     @Column(name = "consumer_group", nullable = false, length = 255)
@@ -52,12 +51,10 @@ class FailedKafkaEvent protected constructor(
     @Column(name = "exception_class", nullable = false, length = 500)
     val exceptionClass: String,
 
-    @Lob
-    @Column(name = "exception_message")
+    @Column(name = "exception_message", columnDefinition = "TEXT")
     val exceptionMessage: String?,
 
-    @Lob
-    @Column(name = "stack_trace")
+    @Column(name = "stack_trace", columnDefinition = "TEXT")
     val stackTrace: String?,
 
     @Column(name = "retry_count", nullable = false)

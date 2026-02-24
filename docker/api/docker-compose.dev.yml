@@ -4,7 +4,7 @@ services:
   # ──────────────────────────────────────────────
   redis:
     image: redis:7.2
-    container_name: redis_hirelog_dev
+    container_name: redis_dev
     restart: unless-stopped
     command: >
       redis-server
@@ -16,7 +16,7 @@ services:
     env_file:
       - .env.dev
     networks:
-      - hirelog_infra
+      - hirelog_network
     healthcheck:
       test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep PONG']
       interval: 10s
@@ -25,13 +25,13 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter
-    container_name: redis_exporter_hirelog_dev
+    container_name: redis_exporter_dev
     env_file:
       - .env.dev
     ports:
       - '9121:9121'
     networks:
-      - hirelog_infra
+      - hirelog_network
     depends_on:
       - redis
 
@@ -43,11 +43,11 @@ services:
     container_name: prometheus
     restart: unless-stopped
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-dev.yml:/etc/prometheus/prometheus.yml
     ports:
       - '9090:9090'
     networks:
-      - hirelog_infra
+      - hirelog_network
 
   grafana:
     image: grafana/grafana
@@ -61,7 +61,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
     networks:
-      - hirelog_infra
+      - hirelog_network
     depends_on:
       - prometheus
       - loki
@@ -77,7 +77,26 @@ services:
       - ./loki-config.yml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - hirelog_infra
+      - hirelog_network
+
+  # ──────────────────────────────────────────────
+  # Node Exporter (서버 시스템 메트릭: CPU, 메모리, 디스크, 네트워크)
+  # ──────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter_api
+    restart: unless-stopped
+    pid: host # 호스트 PID 네임스페이스 (정확한 메트릭 수집)
+    network_mode: host # 호스트 네트워크 (9100 포트 직접 노출)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
 
   promtail:
     image: grafana/promtail:2.9.4
@@ -91,7 +110,7 @@ services:
       - promtail_positions:/var/lib/promtail
     command: -config.file=/etc/promtail/config.yml
     networks:
-      - hirelog_infra
+      - hirelog_network
     depends_on:
       - loki
 
@@ -102,7 +121,7 @@ services:
     build:
       context: ../../hirelog-api
       dockerfile: Dockerfile
-    container_name: hirelog_api_dev
+    container_name: api_dev
     restart: unless-stopped
     env_file:
       - .env.dev
@@ -112,13 +131,36 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - hirelog_infra
+      - hirelog_network
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:8080/actuator/health || exit 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
+
+  # ──────────────────────────────────────────────
+  # Frontend (dev: 로컬 빌드)
+  # ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../../hirelog-web
+      dockerfile: Dockerfile
+    container_name: frontend_dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - '5173:5173'
+    networks:
+      - hirelog_network
+    depends_on:
+      api:
+        condition: service_healthy
 
   # ──────────────────────────────────────────────
   # Python 전처리 파이프라인 (dev: 로컬 빌드)
@@ -128,20 +170,19 @@ services:
     build:
       context: ../../preprocess-pipeline
       dockerfile: Dockerfile
-    container_name: hirelog_preprocess_dev
+    container_name: preprocess_dev
     restart: unless-stopped
     env_file:
       - .env.dev
     networks:
-      - hirelog_infra
+      - hirelog_network
 
 networks:
-  hirelog_infra:
-    driver: bridge
+  hirelog_network:
+    external: true
 
 volumes:
   redis_data:
   loki_data:
   promtail_positions:
   grafana_data:
-

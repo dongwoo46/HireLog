@@ -8,7 +8,8 @@
     <springProfile name="local">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{36})%replace( [%X{requestId}]){' \[\]', ''} - %msg%n</pattern>
+                <charset>UTF-8</charset>
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{36}) - %msg%n</pattern>
             </encoder>
         </appender>
 

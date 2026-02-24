@@ -23,7 +23,7 @@ class NotificationReadServiceTest {
 
     private fun makeView(id: Long, isRead: Boolean = false) = NotificationView(
         id = id,
-        type = NotificationType.JOB_SUMMARY_COMPLETE,
+        type = NotificationType.JOB_SUMMARY_COMPLETED,
         title = "알림 $id",
         message = null,
         referenceType = null,

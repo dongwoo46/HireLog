@@ -6,7 +6,7 @@ services:
   # ──────────────────────────────────────────────
   redis:
     image: redis/redis-stack-server:latest
-    container_name: redis_hirelog_prod
+    container_name: redis_prod
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -24,7 +24,7 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter
-    container_name: redis_exporter_hirelog_prod
+    container_name: redis_exporter_prod
     env_file:
       - .env.prod
     expose:
@@ -100,7 +100,7 @@ services:
   # ──────────────────────────────────────────────
   api-blue:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
-    container_name: hirelog_api_blue_prod
+    container_name: api_blue_prod
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -121,7 +121,7 @@ services:
 
   api-green:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
-    container_name: hirelog_api_green_prod
+    container_name: api_green_prod
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -148,7 +148,7 @@ services:
   # ──────────────────────────────────────────────
   preprocess:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-preprocess:latest
-    container_name: hirelog_preprocess_prod
+    container_name: preprocess_prod
     restart: unless-stopped
     env_file:
       - .env.prod

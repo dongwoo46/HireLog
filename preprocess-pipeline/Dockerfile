@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 # PaddleOCR / PaddlePaddle C++ 내부 로그 억제
 ENV GLOG_minloglevel=3 \

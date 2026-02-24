@@ -2,7 +2,7 @@ services:
   # PostgreSQL - CDC 설정 + 외부 접근 허용 (개발)
   postgres:
     image: postgres:16
-    container_name: pg_hirelog_dev
+    container_name: pg_dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -12,11 +12,11 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - ../../data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
       - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
     networks:
-      - hirelog_infra
+      - hirelog_network
     command:
       - postgres
       - -c
@@ -32,7 +32,7 @@ services:
     build:
       context: ./pgbouncer
       dockerfile: Dockerfile
-    container_name: pgbouncer_hirelog_dev
+    container_name: pgbouncer_dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -46,7 +46,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - hirelog_infra
+      - hirelog_network
     healthcheck:
       test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '5432']
       interval: 10s
@@ -57,14 +57,14 @@ services:
   # Kafka - 외부 접근 허용 (개발)
   kafka:
     image: apache/kafka:3.7.2
-    container_name: kafka_hirelog_dev
+    container_name: kafka_dev
     restart: unless-stopped
     ports:
       - '19092:19092'
       - '9092:9092'
       - '9405:9405' # Prometheus JMX agent
     volumes:
-      - ../../data/kafka:/var/lib/kafka/data
+      - kafka_data:/var/lib/kafka/data
       - ./jmx_exporter/jmx_prometheus_javaagent.jar:/opt/jmx_prometheus_javaagent.jar
       - ./jmx_exporter/kafka.yml:/opt/kafka.yml
     environment:
@@ -110,7 +110,7 @@ services:
 
       TZ: Asia/Seoul
     networks:
-      - hirelog_infra
+      - hirelog_network
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -128,14 +128,14 @@ services:
         username="${KAFKA_USERNAME}"
         password="${KAFKA_PASSWORD}";
     networks:
-      - hirelog_infra
+      - hirelog_network
     depends_on:
       - kafka
 
   # Debezium - 외부 접근 허용 (개발)
   debezium:
     image: debezium/connect:2.6
-    container_name: debezium_hirelog_dev
+    container_name: debezium_dev
     restart: unless-stopped
     ports:
       - '8083:8083' # 개발: 외부 접근 가능
@@ -190,7 +190,7 @@ services:
       - kafka
       - postgres
     networks:
-      - hirelog_infra
+      - hirelog_network
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8083/']
       interval: 10s
@@ -200,7 +200,7 @@ services:
   # OpenSearch - 비밀번호 설정 (개발)
   opensearch:
     image: opensearchproject/opensearch:2.13.0
-    container_name: opensearch_hirelog_dev
+    container_name: opensearch_dev
     restart: unless-stopped
     build:
       context: .
@@ -229,9 +229,9 @@ services:
       - '9200:9200' # 개발: 외부 접근 가능
       - '9600:9600' # Performance Analyzer
     volumes:
-      - ../../data/opensearch:/usr/share/opensearch/data
+      - opensearch_data:/usr/share/opensearch/data
     networks:
-      - hirelog_infra
+      - hirelog_network
     healthcheck:
       test:
         [
@@ -261,11 +261,11 @@ services:
     depends_on:
       - opensearch
     networks:
-      - hirelog_infra
+      - hirelog_network
 
   kafka-exporter:
     image: danielqsj/kafka-exporter
-    container_name: kafka_exporter_hirelog_dev
+    container_name: kafka_exporter_dev
     restart: unless-stopped
     environment:
       KAFKA_USERNAME: ${KAFKA_USERNAME}
@@ -283,26 +283,26 @@ services:
     ports:
       - '9308:9308'
     networks:
-      - hirelog_infra
+      - hirelog_network
     depends_on:
       - kafka
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter
-    container_name: postgres_exporter_hirelog_dev
+    container_name: postgres_exporter_dev
     restart: unless-stopped
     environment:
       DATA_SOURCE_NAME: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable'
     ports:
       - '9187:9187'
     networks:
-      - hirelog_infra
+      - hirelog_network
     depends_on:
       - postgres
 
   opensearch-exporter:
     image: justwatch/elasticsearch_exporter
-    container_name: opensearch_exporter_hirelog_dev
+    container_name: opensearch_exporter_dev
     restart: unless-stopped
     command:
       - '--es.uri=https://admin:${OPENSEARCH_PASSWORD}@opensearch:9200'
@@ -310,7 +310,7 @@ services:
     ports:
       - '9114:9114'
     networks:
-      - hirelog_infra
+      - hirelog_network
     depends_on:
       - opensearch
 
@@ -320,7 +320,7 @@ services:
     ports:
       - '9100:9100'
     networks:
-      - hirelog_infra
+      - hirelog_network
 
   promtail:
     image: grafana/promtail:2.9.4
@@ -331,11 +331,17 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./promtail-config.yml:/etc/promtail/config.yml
-      - ../../data/promtail:/var/lib/promtail # named volume → 로컬 경로로 변경
+      - promtail_positions:/var/lib/promtail
     command: -config.file=/etc/promtail/config.yml
     networks:
-      - hirelog_infra
+      - hirelog_network
 
 networks:
-  hirelog_infra:
-    driver: bridge
+  hirelog_network:
+    external: true
+
+volumes:
+  postgres_data:
+  kafka_data:
+  opensearch_data:
+  promtail_positions:
