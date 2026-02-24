@@ -66,32 +66,24 @@ class MemberJobSummaryJpaQueryDsl(
         return PagedResult.of(content, page, size, total)
     }
 
-    fun findDetail(
+    fun findStages(
         memberId: Long,
         jobSummaryId: Long
-    ): MemberJobSummaryDetailView? {
+    ): List<HiringStageView> {
 
-        val summaryTuple = queryFactory
-            .select(
-                memberJobSummary.id,
-                memberJobSummary.jobSummaryId,
-                memberJobSummary.brandName,
-                memberJobSummary.positionName,
-                memberJobSummary.brandPositionName,
-                memberJobSummary.positionCategoryName,
-                memberJobSummary.saveType,
-                memberJobSummary.createdAt,
-                memberJobSummary.updatedAt
-            )
+        val memberJobSummaryId = queryFactory
+            .select(memberJobSummary.id)
             .from(memberJobSummary)
             .where(
                 memberJobSummary.memberId.eq(memberId),
                 memberJobSummary.jobSummaryId.eq(jobSummaryId)
             )
             .fetchOne()
-            ?: return null
+            ?: throw NoSuchElementException(
+                "MemberJobSummary not found (memberId=$memberId, jobSummaryId=$jobSummaryId)"
+            )
 
-        val stages = queryFactory
+        return queryFactory
             .select(
                 hiringStageRecord.stage,
                 hiringStageRecord.note,
@@ -100,9 +92,7 @@ class MemberJobSummaryJpaQueryDsl(
             )
             .from(hiringStageRecord)
             .where(
-                hiringStageRecord.memberJobSummaryId.eq(
-                    summaryTuple[memberJobSummary.id]!!
-                )
+                hiringStageRecord.memberJobSummaryId.eq(memberJobSummaryId)
             )
             .orderBy(hiringStageRecord.recordedAt.asc())
             .fetch()
@@ -114,20 +104,6 @@ class MemberJobSummaryJpaQueryDsl(
                     recordedAt = it[hiringStageRecord.recordedAt]!!
                 )
             }
-            .takeIf { it.isNotEmpty() }
-
-        return MemberJobSummaryDetailView(
-            memberJobSummaryId = summaryTuple[memberJobSummary.id]!!,
-            jobSummaryId = summaryTuple[memberJobSummary.jobSummaryId]!!,
-            brandName = summaryTuple[memberJobSummary.brandName]!!,
-            positionName = summaryTuple[memberJobSummary.positionName]!!,
-            brandPositionName = summaryTuple[memberJobSummary.brandPositionName]!!,
-            positionCategoryName = summaryTuple[memberJobSummary.positionCategoryName]!!,
-            saveType = summaryTuple[memberJobSummary.saveType]!!,
-            stages = stages,
-            createdAt = summaryTuple[memberJobSummary.createdAt]!!,
-            updatedAt = summaryTuple[memberJobSummary.updatedAt]!!
-        )
     }
 
     fun exists(

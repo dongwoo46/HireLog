@@ -8,10 +8,11 @@ import com.hirelog.api.relation.application.brandposition.BrandPositionWriteServ
 import com.hirelog.api.relation.domain.type.BrandPositionSource
 import com.hirelog.api.common.application.sse.SseEmitterManager
 import com.hirelog.api.common.logging.log
+import org.slf4j.MDC
 import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
-import com.hirelog.api.job.application.summary.JobSummaryCreationService
+import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
@@ -38,7 +39,7 @@ import java.time.LocalDateTime
 class StuckProcessingRecoveryScheduler(
     private val processingQuery: JdSummaryProcessingQuery,
     private val processingCommand: JdSummaryProcessingCommand,
-    private val summaryCreationService: JobSummaryCreationService,
+    private val summaryWriteService: JobSummaryWriteService,
     private val brandWriteService: BrandWriteService,
     private val brandPositionWriteService: BrandPositionWriteService,
     private val positionCommand: PositionCommand,
@@ -70,7 +71,7 @@ class StuckProcessingRecoveryScheduler(
         )
 
         if (stuckList.isEmpty()) {
-            log.info("[STUCK_PROCESSING_RECOVERY_SKIP] No stuck processing found")
+            log.debug("[STUCK_PROCESSING_RECOVERY_SKIP] No stuck processing found")
             return
         }
 
@@ -100,6 +101,9 @@ class StuckProcessingRecoveryScheduler(
     }
 
     private fun recoverSingleProcessing(processing: JdSummaryProcessing) {
+        MDC.put("processingId", processing.id.toString())
+        try {
+
         val llmResultJson = processing.llmResultJson
             ?: throw IllegalStateException("llmResultJson is null for processing ${processing.id}")
 
@@ -141,7 +145,7 @@ class StuckProcessingRecoveryScheduler(
         )
 
         // 단일 트랜잭션으로 Summary + Outbox + Processing 완료
-        summaryCreationService.createWithOutbox(
+        summaryWriteService.createWithOutbox(
             processingId = processing.id,
             snapshotId = snapshotId,
             brand = brand,
@@ -159,6 +163,10 @@ class StuckProcessingRecoveryScheduler(
             "[STUCK_PROCESSING_RECOVERY_SUCCESS] processingId={}",
             processing.id
         )
+
+        } finally {
+            MDC.clear()
+        }
     }
 
     /**

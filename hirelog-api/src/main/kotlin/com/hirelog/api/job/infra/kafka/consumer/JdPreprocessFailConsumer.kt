@@ -1,12 +1,12 @@
 package com.hirelog.api.job.infra.kafka.consumer
 
-import com.hirelog.api.common.application.kafka.FailedKafkaEventService
 import com.hirelog.api.common.application.processed.ProcessedEventService
 import com.hirelog.api.common.domain.process.ProcessedEventId
-import com.hirelog.api.common.exception.PipelineFailedException
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.messaging.JdPreprocessFailEvent
+import com.hirelog.api.job.application.messaging.JdPreprocessFailHandler
 import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
+import org.slf4j.MDC
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.kafka.support.KafkaHeaders
@@ -18,16 +18,16 @@ import org.springframework.stereotype.Component
  *
  * 책임:
  * - Python 파이프라인에서 전처리 실패 시 발행한 이벤트 소비
- * - FailedKafkaEvent DB에 기록 (모니터링/재처리 용도)
+ * - 멱등성 검사 후 Application Service에 위임
  *
  * 정책:
  * - DLT 전송 없음 (이미 실패 이벤트이므로)
- * - DB 저장만 수행
+ * - 도메인 상태 변경은 JdPreprocessFailHandler에서 트랜잭션으로 처리
  */
 @Component
 class JdPreprocessFailConsumer(
     private val processedEventService: ProcessedEventService,
-    private val failedKafkaEventService: FailedKafkaEventService
+    private val jdPreprocessFailHandler: JdPreprocessFailHandler
 ) {
 
     companion object {
@@ -46,62 +46,51 @@ class JdPreprocessFailConsumer(
         @Header(KafkaHeaders.RECEIVED_PARTITION) partition: Int,
         @Header(KafkaHeaders.OFFSET) offset: Long
     ) {
-        log.info(
-            "[JD_PREPROCESS_FAIL_CONSUME_START] eventId={}, requestId={}, errorCode={}, pipelineStage={}",
-            event.eventId, event.requestId, event.errorCode, event.pipelineStage
-        )
+        MDC.put("eventId", event.eventId)
+        MDC.put("requestId", event.requestId)
+        MDC.put("errorCode", event.errorCode)
+        MDC.put("pipelineStage", event.pipelineStage)
+        MDC.put("topic", JdKafkaTopics.PREPROCESS_RESPONSE_FAIL)
 
-        // === 1. 멱등성 검사 ===
-        val processedEventId = ProcessedEventId.create(event.eventId)
-        val alreadyProcessed = processedEventService.isAlreadyProcessedOrMark(
-            eventId = processedEventId,
-            consumerGroup = CONSUMER_GROUP
-        )
+        try {
+            log.info(
+                "[JD_PREPROCESS_FAIL_CONSUME_START] eventId={}, requestId={}, errorCode={}, pipelineStage={}",
+                event.eventId, event.requestId, event.errorCode, event.pipelineStage
+            )
 
-        if (alreadyProcessed) {
-            log.info("[JD_PREPROCESS_FAIL_ALREADY_PROCESSED] eventId={}", event.eventId)
+            // === 1. 멱등성 검사 ===
+            val processedEventId = ProcessedEventId.create(event.eventId)
+            val alreadyProcessed = processedEventService.isAlreadyProcessedOrMark(
+                eventId = processedEventId,
+                consumerGroup = CONSUMER_GROUP
+            )
+
+            if (alreadyProcessed) {
+                log.debug("[JD_PREPROCESS_FAIL_ALREADY_PROCESSED] eventId={}", event.eventId)
+                acknowledgment.acknowledge()
+                return
+            }
+
+            // === 2. 도메인 상태 변경 (트랜잭션) ===
+            try {
+                jdPreprocessFailHandler.handle(event)
+            } catch (e: Exception) {
+                log.error(
+                    "[JD_PREPROCESS_FAIL_HANDLE_ERROR] eventId={}, requestId={}, errorCode={}, pipelineStage={}",
+                    event.eventId, event.requestId, event.errorCode, event.pipelineStage, e
+                )
+                throw e
+            }
+
+            // === 3. offset 커밋 ===
             acknowledgment.acknowledge()
-            return
+
+            log.info(
+                "[JD_PREPROCESS_FAIL_CONSUME_SUCCESS] eventId={}, requestId={}, errorCategory={}",
+                event.eventId, event.requestId, event.errorCategory
+            )
+        } finally {
+            MDC.clear()
         }
-
-        // === 2. FailedKafkaEvent DB 저장 ===
-        val exception = PipelineFailedException(
-            errorCode = event.errorCode,
-            errorMessage = event.errorMessage,
-            errorCategory = event.errorCategory,
-            pipelineStage = event.pipelineStage,
-            workerHost = event.workerHost
-        )
-
-        failedKafkaEventService.save(
-            topic = event.kafkaMetadata?.originalTopic ?: topic,
-            partition = event.kafkaMetadata?.originalPartition ?: partition,
-            offset = event.kafkaMetadata?.originalOffset ?: offset,
-            key = event.requestId,
-            value = buildEventSummary(event),
-            consumerGroup = CONSUMER_GROUP,
-            exception = exception,
-            retryCount = 0  // Python에서 이미 실패 판정된 이벤트
-        )
-
-        // === 3. offset 커밋 ===
-        acknowledgment.acknowledge()
-
-        log.info(
-            "[JD_PREPROCESS_FAIL_CONSUME_SUCCESS] eventId={}, requestId={}, errorCategory={}",
-            event.eventId, event.requestId, event.errorCategory
-        )
-    }
-
-    private fun buildEventSummary(event: JdPreprocessFailEvent): String {
-        return """
-            |requestId=${event.requestId}
-            |source=${event.source}
-            |errorCode=${event.errorCode}
-            |errorCategory=${event.errorCategory}
-            |pipelineStage=${event.pipelineStage}
-            |workerHost=${event.workerHost}
-            |processingDurationMs=${event.processingDurationMs}
-        """.trimMargin()
     }
 }

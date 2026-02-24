@@ -1,12 +1,9 @@
 import { create } from 'zustand';
 import { authService } from '../services/auth';
+import { memberService } from '../services/memberService';
+import type { MemberDetailView } from '../types/member';
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatarUrl?: string;
-}
+export type User = MemberDetailView;
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -39,17 +36,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async () => {
-    // Prevent double-execution is less critical here if triggered manually,
-    // but useful for the initial mount check. 
-    // We handle the "once" check in the component or via a flag here if we want.
-    // However, the store action itself should just do the work.
-    
     try {
-      await authService.refreshToken();
+      // Just try to get member info. 
+      // If 401 occurs, apiClient interceptor will handle one refresh and retry this call.
+      const userData = await memberService.getMe();
       set({ 
         isAuthenticated: true, 
         isInitialized: true,
-        user: { id: '1', email: 'user@example.com', name: 'Demo User' } // Mock
+        user: userData
       });
     } catch (error) {
       set({ isAuthenticated: false, user: null, isInitialized: true });

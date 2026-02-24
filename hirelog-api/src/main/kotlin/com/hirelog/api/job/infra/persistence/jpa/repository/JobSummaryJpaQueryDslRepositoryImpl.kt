@@ -1,5 +1,6 @@
 package com.hirelog.api.job.infra.persistence.jpa.repository
 
+import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.domain.model.QJobSummary
 import com.hirelog.api.job.infra.persistence.jpa.projection.JobSummaryProjection
 import com.querydsl.core.types.dsl.BooleanExpression
@@ -99,5 +100,77 @@ class JobSummaryJpaQueryDslRepositoryImpl(
             .fetchOne() ?: 0L
 
         return PageImpl(content, pageable, total)
+    }
+
+    /**
+     * JobSummary 상세 조회 (Projection 기반)
+     *
+     * 설계:
+     * - Entity 생성 없이 필요한 필드만 select
+     * - Embedded(Insight) 필드 flat으로 매핑
+     * - 활성화된 것만 조회
+     * - reviews는 포함하지 않음 (Adapter에서 별도 조회 후 copy)
+     */
+    override fun findDetailById(jobSummaryId: Long): JobSummaryDetailView? {
+        val q = QJobSummary.jobSummary
+
+        return queryFactory
+            .select(
+                Projections.fields(
+                    JobSummaryDetailView::class.java,
+
+                    // 식별자
+                    q.id.`as`("summaryId"),
+                    q.jobSnapshotId.`as`("snapshotId"),
+
+                    // 브랜드
+                    q.brandId,
+                    q.brandName,
+                    q.companyId,
+                    q.companyName,
+
+                    // 포지션
+                    q.positionId,
+                    q.positionName,
+                    q.brandPositionId,
+                    q.brandPositionName,
+                    q.positionCategoryId,
+                    q.positionCategoryName,
+
+                    // 경력
+                    q.careerType,
+                    q.careerYears,
+
+                    // JD 요약
+                    q.summaryText,
+                    q.responsibilities,
+                    q.requiredQualifications,
+                    q.preferredQualifications,
+                    q.techStack,
+                    q.recruitmentProcess,
+
+                    // Insight (flat)
+                    q.insight.idealCandidate,
+                    q.insight.mustHaveSignals,
+                    q.insight.preparationFocus,
+                    q.insight.transferableStrengthsAndGapPlan,
+                    q.insight.proofPointsAndMetrics,
+                    q.insight.storyAngles,
+                    q.insight.keyChallenges,
+                    q.insight.technicalContext,
+                    q.insight.questionsToAsk,
+                    q.insight.considerations,
+
+                    // 메타
+                    q.sourceUrl,
+                    q.createdAt
+                )
+            )
+            .from(q)
+            .where(
+                q.id.eq(jobSummaryId),
+                q.isActive.isTrue
+            )
+            .fetchOne()
     }
 }

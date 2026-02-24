@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class OpenSearchProperties(
     val host: String,
     val port: Int,
-    val scheme: String = "http",
-    val username: String = "",
-    val password: String = "",
+    val scheme: String,
+    val username: String,
+    val password: String,
 )

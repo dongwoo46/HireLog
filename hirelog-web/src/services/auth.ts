@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { apiClient } from '../utils/apiClient';
 
 export interface CheckEmailRequest {
@@ -27,9 +28,7 @@ export const authService = {
    * POST /auth/signup/check-email
    */
   checkEmail: async (data: CheckEmailRequest): Promise<CheckEmailResponse> => {
-    const response = await apiClient.post<CheckEmailResponse>('/auth/signup/check-email', data, {
-      withCredentials: true,
-    });
+    const response = await apiClient.post<CheckEmailResponse>('/auth/signup/check-email', data);
     return response.data;
   },
 
@@ -38,9 +37,7 @@ export const authService = {
    * POST /auth/signup/send-code
    */
   sendCode: async (data: { email: string }): Promise<void> => {
-    await apiClient.post('/auth/signup/send-code', data, {
-      withCredentials: true,
-    });
+    await apiClient.post('/auth/signup/send-code', data);
   },
 
   /**
@@ -48,9 +45,7 @@ export const authService = {
    * POST /auth/signup/verify-code
    */
   verifyCode: async (data: { email: string; code: string }): Promise<{ verified: boolean }> => {
-    const response = await apiClient.post<{ verified: boolean }>('/auth/signup/verify-code', data, {
-      withCredentials: true,
-    });
+    const response = await apiClient.post<{ verified: boolean }>('/auth/signup/verify-code', data);
     return response.data;
   },
 
@@ -59,9 +54,7 @@ export const authService = {
    * POST /auth/signup/bind
    */
   bind: async (data: BindRequest): Promise<void> => {
-    await apiClient.post('/auth/signup/bind', data, {
-      withCredentials: true,
-    });
+    await apiClient.post('/auth/signup/bind', data);
   },
 
   /**
@@ -69,9 +62,7 @@ export const authService = {
    * POST /auth/signup/complete
    */
   complete: async (data: SignupCompleteRequest): Promise<void> => {
-    await apiClient.post('/auth/signup/complete', data, {
-      withCredentials: true,
-    });
+    await apiClient.post('/auth/signup/complete', data);
   },
 
   /**
@@ -79,9 +70,7 @@ export const authService = {
    * POST /auth/recovery/complete
    */
   completeRecovery: async (data: SignupCompleteRequest): Promise<void> => {
-    await apiClient.post('/auth/signup/recovery/complete', data, {
-      withCredentials: true,
-    });
+    await apiClient.post('/auth/signup/recovery/complete', data);
   },
 
   /**
@@ -89,9 +78,7 @@ export const authService = {
    * POST /auth/recovery/send-code
    */
   sendRecoveryCode: async (data: { email: string }): Promise<void> => {
-    await apiClient.post('/auth/signup/recovery/send-code', data, {
-      withCredentials: true,
-    });
+    await apiClient.post('/auth/signup/recovery/send-code', data);
   },
 
   /**
@@ -99,9 +86,7 @@ export const authService = {
    * POST /auth/signup/recovery/verify-code
    */
   verifyRecoveryCode: async (data: { email: string; code: string }): Promise<{ verified: boolean }> => {
-    const response = await apiClient.post<{ verified: boolean }>('/auth/signup/recovery/verify-code', data, {
-      withCredentials: true,
-    });
+    const response = await apiClient.post<{ verified: boolean }>('/auth/signup/recovery/verify-code', data);
     return response.data;
   },
 
@@ -111,12 +96,10 @@ export const authService = {
    * Cookie(refresh_token) 사용 (Body 없음)
    */
   refreshToken: async (): Promise<{ accessToken: string }> => {
-    const response = await apiClient.post<{ accessToken: string; refreshToken: string }>(
-      '/auth/refresh',
-      {}, // Empty body
-      {
-        withCredentials: true,
-      }
+    const response = await axios.post<{ accessToken: string; refreshToken: string }>(
+      '/api/auth/refresh',
+      {},
+      { withCredentials: true }
     );
     return response.data;
   },
@@ -126,8 +109,6 @@ export const authService = {
    * POST /auth/logout
    */
   logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout', {}, {
-      withCredentials: true,
-    });
+    await apiClient.post('/auth/logout', {});
   },
 };

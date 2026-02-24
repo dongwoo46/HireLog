@@ -76,11 +76,13 @@ class BaseWorker(ABC):
         3. shutdown 요청 시 graceful 종료
         """
         logger.info(
-            "[%s] Worker started | stream=%s group=%s consumer=%s",
-            self.worker_name,
-            self.consumer.stream_key,
-            self.consumer.group,
-            self.consumer.consumer_name,
+            "Worker started",
+            extra={
+                "worker_name": self.worker_name,
+                "stream": self.consumer.stream_key,
+                "group": self.consumer.group,
+                "consumer": self.consumer.consumer_name,
+            },
         )
 
         # 시작 시 pending sweep 실행
@@ -103,12 +105,12 @@ class BaseWorker(ABC):
 
             except Exception as e:
                 logger.error(
-                    "[%s] Loop error: %s",
-                    self.worker_name, str(e),
-                    exc_info=True
+                    "Worker loop error",
+                    extra={"worker_name": self.worker_name, "error": str(e)},
+                    exc_info=True,
                 )
 
-        logger.info("[%s] Worker stopped", self.worker_name)
+        logger.info("Worker stopped", extra={"worker_name": self.worker_name})
 
     def _process_message(self, message: Dict[str, Any]):
         """
@@ -119,9 +121,9 @@ class BaseWorker(ABC):
         """
         message_id = message.get("id", "unknown")
 
-        logger.info(
-            "[%s] Processing message | id=%s",
-            self.worker_name, message_id
+        logger.debug(
+            "Message received",
+            extra={"worker_name": self.worker_name, "message_id": message_id},
         )
 
         self._processing.set()
@@ -132,20 +134,20 @@ class BaseWorker(ABC):
             if success:
                 self.consumer.ack(message_id)
                 logger.info(
-                    "[%s] Message ACKed | id=%s",
-                    self.worker_name, message_id
+                    "Message processed",
+                    extra={"worker_name": self.worker_name, "message_id": message_id},
                 )
             else:
                 logger.warning(
-                    "[%s] Message processing failed, skipping ACK | id=%s",
-                    self.worker_name, message_id
+                    "Message processing failed, skipping ACK",
+                    extra={"worker_name": self.worker_name, "message_id": message_id},
                 )
 
         except Exception as e:
             logger.error(
-                "[%s] Message processing error, skipping ACK | id=%s error=%s",
-                self.worker_name, message_id, str(e),
-                exc_info=True
+                "Message processing error, skipping ACK",
+                extra={"worker_name": self.worker_name, "message_id": message_id, "error": str(e)},
+                exc_info=True,
             )
 
         finally:
@@ -171,8 +173,8 @@ class BaseWorker(ABC):
                 return
 
             logger.info(
-                "[%s] Sweeping %d pending messages",
-                self.worker_name, len(pending_messages)
+                "Sweeping pending messages",
+                extra={"worker_name": self.worker_name, "pending_count": len(pending_messages)},
             )
 
             for message in pending_messages:
@@ -182,9 +184,9 @@ class BaseWorker(ABC):
 
         except Exception as e:
             logger.error(
-                "[%s] Pending sweep error: %s",
-                self.worker_name, str(e),
-                exc_info=True
+                "Pending sweep error",
+                extra={"worker_name": self.worker_name, "error": str(e)},
+                exc_info=True,
             )
 
     # ==================================================
@@ -201,8 +203,8 @@ class BaseWorker(ABC):
 
         if self._processing.is_set():
             logger.info(
-                "[%s] Waiting for current message processing to complete...",
-                self.worker_name
+                "Waiting for message processing to complete",
+                extra={"worker_name": self.worker_name},
             )
             self._processing.wait(timeout=self.config.shutdown_timeout_sec)
 

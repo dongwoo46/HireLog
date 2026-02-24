@@ -1,7 +1,7 @@
 package com.hirelog.api.relation.application.memberjobsummary.port
 
 import com.hirelog.api.common.application.port.PagedResult
-import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryDetailView
+import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 
@@ -29,14 +29,12 @@ interface MemberJobSummaryQuery {
     ): PagedResult<MemberJobSummaryListView>
 
     /**
-     * 저장된 JD 상세 조회
-     *
-     * - 채용 단계 포함
+     * 채용 단계 목록 조회
      */
-    fun findDetail(
+    fun findStages(
         memberId: Long,
         jobSummaryId: Long
-    ): MemberJobSummaryDetailView
+    ): List<HiringStageView>
 
     /**
      * 특정 JD 저장 여부 확인

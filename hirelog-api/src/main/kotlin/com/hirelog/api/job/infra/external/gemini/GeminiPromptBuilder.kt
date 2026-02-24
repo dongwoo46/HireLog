@@ -39,14 +39,11 @@ object GeminiPromptBuilder {
             - RULE: Sanitize special chars only. Maintain the brand's identity as accurately as possible.
             
             positionName:
-            - SOURCE: Use 'positionCandidates'.
-            - RULE: If candidates exist, select ONE that best fits the JD.
-            - CONSTRAINT: Output MUST exactly match the provided input string.
-            
-            
-            brandPositionName:
-            - Exact internal title from JD (e.g., "서버 개발자 (결제팀)")
-            - if u cant figure it out what it is, use 'positionName' from user input
+            - SOURCE: Choose ONE value from 'positionCandidates' ONLY.
+            - RULE: Select the closest canonical job role.
+            - CONSTRAINT:
+              - Output MUST exactly match one of the provided candidates.
+              - Do NOT add domain, product, or responsibility descriptions.
 
             companyCandidate:
             - SOURCE: 'existCompanies' (input) or Model Knowledge + JD clues.
@@ -136,7 +133,6 @@ object GeminiPromptBuilder {
             {
               "brandName": string,
               "positionName": string,
-              "brandPositionName": string | null,
               "companyCandidate": string | null,
               "careerType": "신입" | "경력" | "무관" | null,
               "careerYears": string | null,
@@ -165,7 +161,6 @@ object GeminiPromptBuilder {
             {
               "brandName": "토스",
               "positionName": "Backend Engineer",
-              "brandPositionName": "서버 개발자 (결제팀)",
               "companyCandidate": "(주)비바리퍼블리카",
               "careerType": "경력",
               "careerYears": "3년 이상",

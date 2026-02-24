@@ -178,8 +178,7 @@ class JobSummary protected constructor(
     /**
      * 우대 사항
      */
-    @Lob
-    @Column(name = "preferred_qualifications", updatable = false)
+    @Column(name = "preferred_qualifications", updatable = false, columnDefinition = "TEXT")
     val preferredQualifications: String? = null,
 
     /**
@@ -192,8 +191,7 @@ class JobSummary protected constructor(
     /**
      * 채용 과정 요약
      */
-    @Lob
-    @Column(name = "recruitment_process", updatable = false)
+    @Column(name = "recruitment_process", updatable = false, columnDefinition = "TEXT")
     val recruitmentProcess: String? = null,
 
     // =========================

@@ -3,6 +3,7 @@ package com.hirelog.api.job.infra.external.common
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.exception.GeminiParseException
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmRawResult
 
 /**
@@ -40,11 +41,14 @@ class LlmResponseParser(
             .trim()
 
         // 2️⃣ JSON 파싱
+        log.info("[LLM_RAW_RESPONSE] normalized={}", normalized)
+
         try {
-            return objectMapper.readValue(
+            val result = objectMapper.readValue(
                 normalized,
                 JobSummaryLlmRawResult::class.java
             )
+            return result
         } catch (e: JsonProcessingException) {
             throw GeminiParseException(e)
         }

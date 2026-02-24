@@ -11,6 +11,7 @@ import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.SortOptions
 import org.opensearch.client.opensearch._types.SortOrder
 import org.opensearch.client.opensearch._types.query_dsl.BoolQuery
+import org.opensearch.client.opensearch._types.query_dsl.MatchQuery
 import org.opensearch.client.opensearch._types.query_dsl.MultiMatchQuery
 import org.opensearch.client.opensearch._types.query_dsl.Query
 import org.opensearch.client.opensearch._types.query_dsl.TermQuery
@@ -25,14 +26,10 @@ import java.time.format.DateTimeFormatter
 /**
  * JobSummary OpenSearch 검색 쿼리
  *
- * 책임:
- * - OpenSearch 검색 쿼리 실행
- * - 검색 결과 매핑
- *
  * 검색 전략:
- * - multi_match: 여러 필드에서 키워드 검색
- * - cross_fields: 한글/영어 multi-field 지원
- * - filter: 필터 조건 (careerType, brandId 등)
+ * - keyword: multi_match + best_fields + should + minimum_should_match
+ * - ID 필터: term (filter context, AND)
+ * - Name 필터: match (filter context, AND)
  */
 @Component
 class JobSummaryOpenSearchQuery(
@@ -109,14 +106,16 @@ class JobSummaryOpenSearchQuery(
     private fun buildQuery(query: JobSummarySearchQuery): Query {
         val boolQuery = BoolQuery.Builder()
 
-        // 키워드 검색
+        // 키워드 검색 (should + minimum_should_match)
         if (!query.keyword.isNullOrBlank()) {
-            boolQuery.must(buildKeywordQuery(query.keyword))
+            boolQuery.should(buildKeywordQuery(query.keyword))
+            boolQuery.minimumShouldMatch("1")
         }
 
-        // 필터 조건들
+        // 필터 조건들 (filter context, AND)
         val filters = mutableListOf<Query>()
 
+        // === ID 필터 (term) ===
         query.careerType?.let { careerType ->
             filters.add(Query.of { q ->
                 q.term(TermQuery.Builder()
@@ -171,6 +170,43 @@ class JobSummaryOpenSearchQuery(
             })
         }
 
+        // === Name 필터 (match) ===
+        query.brandName?.let { brandName ->
+            filters.add(Query.of { q ->
+                q.match(MatchQuery.Builder()
+                    .field(Fields.BRAND_NAME)
+                    .query(FieldValue.of(brandName))
+                    .build())
+            })
+        }
+
+        query.positionName?.let { positionName ->
+            filters.add(Query.of { q ->
+                q.match(MatchQuery.Builder()
+                    .field(Fields.POSITION_NAME)
+                    .query(FieldValue.of(positionName))
+                    .build())
+            })
+        }
+
+        query.brandPositionName?.let { brandPositionName ->
+            filters.add(Query.of { q ->
+                q.match(MatchQuery.Builder()
+                    .field(Fields.BRAND_POSITION_NAME)
+                    .query(FieldValue.of(brandPositionName))
+                    .build())
+            })
+        }
+
+        query.positionCategoryName?.let { positionCategoryName ->
+            filters.add(Query.of { q ->
+                q.match(MatchQuery.Builder()
+                    .field(Fields.POSITION_CATEGORY_NAME)
+                    .query(FieldValue.of(positionCategoryName))
+                    .build())
+            })
+        }
+
         // 기술스택 필터 (OR 조건)
         if (!query.techStacks.isNullOrEmpty()) {
             filters.add(Query.of { q ->
@@ -195,12 +231,20 @@ class JobSummaryOpenSearchQuery(
         }
     }
 
+    /**
+     * 키워드 검색 쿼리
+     *
+     * best_fields: 각 필드 독립적으로 매칭 → best score 사용
+     * - nori 필드에서 한글 매칭
+     * - english 필드에서 영어 매칭
+     * - analyzer 불일치 문제 없음
+     */
     private fun buildKeywordQuery(keyword: String): Query {
         return Query.of { q ->
             q.multiMatch(MultiMatchQuery.Builder()
                 .query(keyword)
                 .fields(SEARCH_FIELDS)
-                .type(TextQueryType.CrossFields)
+                .type(TextQueryType.BestFields)
                 .build())
         }
     }
@@ -227,19 +271,11 @@ class JobSummaryOpenSearchQuery(
         return try {
             JobSummarySearchItem(
                 id = (source[Fields.ID] as? Number)?.toLong() ?: return null,
-                brandId = (source[Fields.BRAND_ID] as? Number)?.toLong() ?: 0L,
                 brandName = source[Fields.BRAND_NAME] as? String ?: "",
-                companyName = source[Fields.COMPANY_NAME] as? String,
-                positionId = (source[Fields.POSITION_ID] as? Number)?.toLong() ?: 0L,
-                positionName = source[Fields.POSITION_NAME] as? String ?: "",
-                brandPositionId = (source[Fields.BRAND_POSITION_ID] as? Number)?.toLong(),
                 brandPositionName = source[Fields.BRAND_POSITION_NAME] as? String,
-                positionCategoryId = (source[Fields.POSITION_CATEGORY_ID] as? Number)?.toLong() ?: 0L,
                 positionCategoryName = source[Fields.POSITION_CATEGORY_NAME] as? String ?: "",
                 careerType = source[Fields.CAREER_TYPE] as? String ?: "UNKNOWN",
-                careerYears = source[Fields.CAREER_YEARS] as? String,
                 summaryText = source[Fields.SUMMARY_TEXT] as? String ?: "",
-                techStack = source[Fields.TECH_STACK] as? String,
                 techStackParsed = source[Fields.TECH_STACK_PARSED] as? List<String>,
                 createdAt = parseDateTime(source[Fields.CREATED_AT])
             )

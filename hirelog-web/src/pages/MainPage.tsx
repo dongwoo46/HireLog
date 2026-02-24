@@ -1,137 +1,136 @@
-import { useState } from 'react';
-import { TbSearch, TbBriefcase, TbClock, TbMapPin } from 'react-icons/tb';
-
-// Mock Data for JDs
-const MOCK_JDS = [
-  {
-    id: 1,
-    title: 'Senior Frontend Developer',
-    company: 'TechCorp Inc.',
-    location: 'Seoul, Korea (Remote)',
-    type: 'Full-time',
-    summary: 'We are looking for an experienced Frontend Developer to lead our web team...',
-    tags: ['React', 'TypeScript', 'Next.js'],
-    postedAt: '2025-02-01',
-  },
-  {
-    id: 2,
-    title: 'Product Designer',
-    company: 'DesignStudio',
-    location: 'Gangnam, Seoul',
-    type: 'Contract',
-    summary: 'Seeking a creative Product Designer to work on our new mobile application...',
-    tags: ['Figma', 'UI/UX', 'Mobile'],
-    postedAt: '2025-01-28',
-  },
-  {
-    id: 3,
-    title: 'Backend Engineer (Java/Kotlin)',
-    company: 'FinService',
-    location: 'Yeouido, Seoul',
-    type: 'Full-time',
-    summary: 'Join our core platform team building high-performance financial systems...',
-    tags: ['Java', 'Spring Boot', 'AWS'],
-    postedAt: '2025-01-25',
-  },
-  {
-    id: 4,
-    title: 'Data Analyst',
-    company: 'CommerceBig',
-    location: 'Pangyo',
-    type: 'Full-time',
-    summary: 'Analyze user behavior data to drive business growth and product improvements...',
-    tags: ['SQL', 'Python', 'Tableau'],
-    postedAt: '2025-01-20',
-  },
-];
+import { useNavigate } from 'react-router-dom';
+import { JobSummarySearch } from '../components/JobSummarySearch';
+import { JobSummaryCard } from '../components/JobSummaryCard';
+import type { JobSummarySearchReq, JobSummaryView } from '../types/jobSummary';
+import { useEffect, useState } from 'react';
+import { jdSummaryService } from '../services/jdSummaryService';
+import { TbPlus } from 'react-icons/tb';
+import { useAuthStore } from '../store/authStore';
+import { GuestLanding } from '../components/GuestLanding';
 
 const MainPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+  const [featuredJds, setFeaturedJds] = useState<JobSummaryView[]>([]);
+  const { isInitialized, isAuthenticated } = useAuthStore();
 
-  const filteredJDs = MOCK_JDS.filter((jd) =>
-    jd.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    jd.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    jd.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const loadFeatured = async () => {
+      try {
+        const result = await jdSummaryService.search({
+          size: 3,
+          sortBy: 'CREATED_AT_DESC',
+        });
+        setFeaturedJds(result?.items || []);
+      } catch (error) {
+        console.error('Failed to load featured JDs', error);
+      }
+    };
+    loadFeatured();
+  }, [isInitialized]);
+
+  const handleSearch = (params: JobSummarySearchReq) => {
+    const query = new URLSearchParams();
+    if (params.keyword) query.append('keyword', params.keyword);
+    if (params.careerType) query.append('careerType', params.careerType);
+    navigate(`/jd?${query.toString()}`);
+  };
+
+  if (!isInitialized) return null;
+
+  if (!isAuthenticated) {
+    return <GuestLanding />;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      <div className="max-w-5xl mx-auto px-6 pt-32 pb-20">
-        
-        {/* Header / Search Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold mb-6 text-gray-900">
-            Search Job Descriptions
-          </h1>
-          
-          <div className="max-w-2xl mx-auto relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <TbSearch className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <section className="relative pt-40 pb-32 overflow-hidden border-b border-gray-50">
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#89cbb6]/10 border border-[#89cbb6]/20 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              <span className="w-2 h-2 rounded-full bg-[#276db8] animate-pulse" />
+              <span className="text-[10px] font-black text-[#276db8] uppercase tracking-[0.3em]">
+                스마트 채용 로그북
+              </span>
             </div>
-            <input
-              type="text"
-              className="block w-full pl-11 pr-4 py-4 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all"
-              placeholder="Search by job title, company, or keywords..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+
+            <h1 className="text-6xl md:text-8xl font-black text-gray-900 leading-[1.0] mb-10 tracking-tighter italic">
+              당신의 성장을 <br />
+              <span className="mint-gradient-text">기록하세요.</span>
+            </h1>
+
+            <p className="text-xl md:text-2xl text-gray-400 mb-16 leading-relaxed font-medium max-w-2xl mx-auto">
+              HireLog는 단순한 요약을 넘어, 당신의 성장을 <br />
+              기록하고 분석하는 AI 커리어 일지입니다.
+            </p>
+
+            <JobSummarySearch onSearch={handleSearch} />
           </div>
         </div>
 
-        {/* JD List Section */}
-        <div className="grid gap-4">
-          {filteredJDs.length > 0 ? (
-            filteredJDs.map((jd) => (
-              <div 
-                key={jd.id} 
-                className="bg-white border border-gray-100 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer group"
-                onClick={() => alert(`Navigating to JD: ${jd.title}`)} // Placeholder for navigation
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                      {jd.title}
-                    </h3>
-                    <p className="text-gray-500 font-medium">{jd.company}</p>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                    {jd.type}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
-                  <span className="flex items-center gap-1">
-                    <TbMapPin className="w-4 h-4" />
-                    {jd.location}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <TbClock className="w-4 h-4" />
-                    {jd.postedAt}
-                  </span>
-                </div>
+        {/* Decorative elements */}
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-[#276db8]/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#89cbb6]/5 rounded-full blur-[150px] pointer-events-none" />
+      </section>
 
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                  {jd.summary}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {jd.tags.map(tag => (
-                    <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-dashed border-gray-200">
-              <TbBriefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>No job descriptions found matching "{searchTerm}"</p>
+      {/* Featured Entry Section */}
+      <section className="py-24 bg-[#F8F9FA]/50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-end justify-between mb-16">
+            <div>
+              <h2 className="text-xs font-black text-[#89cbb6] uppercase tracking-[0.4em] mb-4 italic">
+                Recent Logs
+              </h2>
+              <h3 className="text-4xl font-black text-gray-900 tracking-tight">
+                최근 수집된 채용 기록
+              </h3>
             </div>
-          )}
-        </div>
+            <button
+              onClick={() => navigate('/jd')}
+              className="group flex items-center gap-2 text-sm font-black text-[#276db8] uppercase tracking-widest hover:text-[#89cbb6] transition-colors"
+            >
+              전체 기록 보기
+              <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center group-hover:border-[#89cbb6] group-hover:bg-[#89cbb6]/5 transition-all">
+                →
+              </div>
+            </button>
+          </div>
 
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {(featuredJds || []).length > 0
+              ? featuredJds.map((jd) => (
+                  <JobSummaryCard key={jd.id} summary={jd} />
+                ))
+              : [1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-3xl h-80 border border-gray-100 animate-pulse shadow-log"
+                  />
+                ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Quick Action Footer */}
+      <section className="bg-white border-t border-gray-100 py-32">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.5em] mb-8">
+            도움이 필요하신가요?
+          </h2>
+          <h3 className="text-4xl font-black text-gray-900 mb-12 italic uppercase tracking-tight">
+            맞춤형 채용 공고 분석 요청
+          </h3>
+          <button
+            onClick={() => navigate('/jd/request')}
+            className="px-16 py-6 rounded-[24px] bg-[#0f172a] text-white font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-4 mx-auto"
+          >
+            <TbPlus size={24} />
+            요청 시작하기
+          </button>
+        </div>
+      </section>
     </div>
   );
 };

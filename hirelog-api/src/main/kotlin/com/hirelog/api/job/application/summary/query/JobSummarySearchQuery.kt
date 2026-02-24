@@ -5,11 +5,10 @@ import com.hirelog.api.job.domain.type.CareerType
 /**
  * JobSummary 검색 쿼리
  *
- * 검색 대상 필드:
- * - positionName, brandName, companyName, brandPositionName
- * - summaryText, responsibilities, requiredQualifications
- * - preferredQualifications, techStack
- * - Insight 필드들
+ * 검색 전략:
+ * - keyword: best_fields + should + minimum_should_match
+ * - ID 필터: term (filter context, AND)
+ * - Name 필터: match (filter context, AND)
  */
 data class JobSummarySearchQuery(
     /**
@@ -24,30 +23,18 @@ data class JobSummarySearchQuery(
      */
     val careerType: CareerType? = null,
 
-    /**
-     * 브랜드 ID 필터
-     */
+    // === ID 필터 (term) ===
     val brandId: Long? = null,
-
-    /**
-     * 회사 ID 필터
-     */
     val companyId: Long? = null,
-
-    /**
-     * 포지션 ID 필터
-     */
     val positionId: Long? = null,
-
-    /**
-     * BrandPosition ID 필터
-     */
     val brandPositionId: Long? = null,
-
-    /**
-     * PositionCategory ID 필터
-     */
     val positionCategoryId: Long? = null,
+
+    // === Name 필터 (match) ===
+    val brandName: String? = null,
+    val positionName: String? = null,
+    val brandPositionName: String? = null,
+    val positionCategoryName: String? = null,
 
     /**
      * 기술스택 필터 (정확한 매칭)
@@ -55,19 +42,8 @@ data class JobSummarySearchQuery(
      */
     val techStacks: List<String>? = null,
 
-    /**
-     * 페이지 번호 (0부터 시작)
-     */
     val page: Int = 0,
-
-    /**
-     * 페이지 크기
-     */
     val size: Int = 20,
-
-    /**
-     * 정렬 기준
-     */
     val sortBy: SortBy = SortBy.CREATED_AT_DESC
 ) {
     enum class SortBy {

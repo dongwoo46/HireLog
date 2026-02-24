@@ -45,7 +45,6 @@ class JdSummaryProcessing protected constructor(
      * - Post-LLM 진입 시 저장, 완료 시 null 처리
      * - 장애 복구용
      */
-    @Lob
     @Column(name = "llm_result_json", columnDefinition = "text")
     var llmResultJson: String? = null,
 
@@ -84,8 +83,7 @@ class JdSummaryProcessing protected constructor(
      *
      * - status == FAILED 인 경우에만 의미 있음
      */
-    @Lob
-    @Column(columnDefinition = "text")
+    @Column(name = "error_message", columnDefinition = "TEXT")
     var errorMessage: String? = null
 
 ) : VersionedEntity() {

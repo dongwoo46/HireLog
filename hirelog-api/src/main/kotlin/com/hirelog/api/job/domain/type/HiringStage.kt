@@ -6,7 +6,7 @@ enum class HiringStage {
     ASSIGNMENT,      // 과제
     INTERVIEW_1,     // 1차 면접
     INTERVIEW_2,     // 2차 면접
-    InTERVIEW_3,     // 3차 면접
+    INTERVIEW_3,     // 3차 면접
     FINAL_INTERVIEW, // 최종
     COFFEE_CHAT      // 커피챗
 }

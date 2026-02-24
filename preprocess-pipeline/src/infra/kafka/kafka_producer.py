@@ -21,39 +21,11 @@ class KafkaStreamProducer:
     - produce enqueue 실패 시 예외 발생
     - delivery 실패는 callback 로깅만 수행
     - 중복/멱등성 판단은 downstream consumer 책임
-
+    - 연결/인증 설정은 KafkaClientFactory가 담당
     """
 
-    def __init__(
-            self,
-            bootstrap_servers: str,
-            client_id: str,
-            compression_type: str = "snappy",
-    ):
-        # ✅ Producer 내부 설정 (외부로 노출 ❌)
-        config = {
-            "bootstrap.servers": bootstrap_servers,
-            "client.id": client_id,
-
-            # 신뢰성
-            "acks": "all",
-            "enable.idempotence": True,
-
-            # 성능
-            "linger.ms": 10,
-            "compression.type": compression_type,
-
-            # 전송 안정성
-            "delivery.timeout.ms": 120000,
-            "request.timeout.ms": 30000,
-        }
-
-        self._producer = Producer(config)
-        logger.info(
-            "[KAFKA_PRODUCER_INIT] servers=%s client_id=%s",
-            bootstrap_servers,
-            client_id,
-        )
+    def __init__(self, producer: Producer) -> None:
+        self._producer = producer
 
     def publish(
             self,

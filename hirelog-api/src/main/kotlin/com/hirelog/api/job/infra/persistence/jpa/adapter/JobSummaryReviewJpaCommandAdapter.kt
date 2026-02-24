@@ -19,4 +19,16 @@ class JobSummaryReviewJpaCommandAdapter(
     override fun save(review: JobSummaryReview): JobSummaryReview {
         return repository.save(review)
     }
+
+    override fun findByJobSummaryIdAndMemberId(
+        jobSummaryId: Long,
+        memberId: Long
+    ): JobSummaryReview? {
+        return repository.findByJobSummaryIdAndMemberIdAndDeletedFalse(jobSummaryId, memberId)
+    }
+
+    override fun findById(reviewId: Long): JobSummaryReview? {
+        return repository.findById(reviewId).orElse(null)
+    }
+
 }

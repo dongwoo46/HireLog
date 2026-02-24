@@ -1,0 +1,188 @@
+services:
+  # ──────────────────────────────────────────────
+  # Redis (dev: 포트 노출)
+  # ──────────────────────────────────────────────
+  redis:
+    image: redis:7.2
+    container_name: redis_dev
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    env_file:
+      - .env.dev
+    networks:
+      - hirelog_network
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-exporter:
+    image: oliver006/redis_exporter
+    container_name: redis_exporter_dev
+    env_file:
+      - .env.dev
+    ports:
+      - '9121:9121'
+    networks:
+      - hirelog_network
+    depends_on:
+      - redis
+
+  # ──────────────────────────────────────────────
+  # Monitoring
+  # ──────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus-dev.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - '9090:9090'
+    networks:
+      - hirelog_network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env.dev
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - hirelog_network
+    depends_on:
+      - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - '3100:3100'
+    volumes:
+      - loki_data:/loki
+      - ./loki-config.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - hirelog_network
+
+  # ──────────────────────────────────────────────
+  # Node Exporter (서버 시스템 메트릭: CPU, 메모리, 디스크, 네트워크)
+  # ──────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter_api
+    restart: unless-stopped
+    pid: host # 호스트 PID 네임스페이스 (정확한 메트릭 수집)
+    network_mode: host # 호스트 네트워크 (9100 포트 직접 노출)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    restart: unless-stopped
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - promtail_positions:/var/lib/promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - hirelog_network
+    depends_on:
+      - loki
+
+  # ──────────────────────────────────────────────
+  # Spring Boot API (dev: 로컬 빌드, 단일 인스턴스)
+  # ──────────────────────────────────────────────
+  api:
+    build:
+      context: ../../hirelog-api
+      dockerfile: Dockerfile
+    container_name: api_dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - '8080:8080'
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - hirelog_network
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:8080/actuator/health || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # ──────────────────────────────────────────────
+  # Frontend (dev: 로컬 빌드)
+  # ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../../hirelog-web
+      dockerfile: Dockerfile
+    container_name: frontend_dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - '5173:5173'
+    networks:
+      - hirelog_network
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ──────────────────────────────────────────────
+  # Python 전처리 파이프라인 (dev: 로컬 빌드)
+  # 주의: 첫 빌드 시 PaddleOCR 모델 + Playwright Chromium 다운로드로 수십 분 소요
+  # ──────────────────────────────────────────────
+  preprocess:
+    build:
+      context: ../../preprocess-pipeline
+      dockerfile: Dockerfile
+    container_name: preprocess_dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    networks:
+      - hirelog_network
+
+networks:
+  hirelog_network:
+    external: true
+
+volumes:
+  redis_data:
+  loki_data:
+  promtail_positions:
+  grafana_data:

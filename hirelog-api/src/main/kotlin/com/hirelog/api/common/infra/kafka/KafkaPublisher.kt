@@ -1,5 +1,6 @@
 package com.hirelog.api.common.infra.kafka
 
+import com.hirelog.api.common.logging.log
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Component
 
@@ -28,5 +29,20 @@ class KafkaPublisher(
         value: Any
     ) {
         kafkaTemplate.send(topic, key, value)
+            .whenComplete { result, ex ->
+                if (ex != null) {
+                    log.error(
+                        "[KAFKA_PUBLISH_FAILED] topic={}, key={}, error={}",
+                        topic, key, ex.message, ex
+                    )
+                } else {
+                    log.debug(
+                        "[KAFKA_PUBLISH_SUCCESS] topic={}, key={}, partition={}, offset={}",
+                        topic, key,
+                        result.recordMetadata.partition(),
+                        result.recordMetadata.offset()
+                    )
+                }
+            }
     }
 }

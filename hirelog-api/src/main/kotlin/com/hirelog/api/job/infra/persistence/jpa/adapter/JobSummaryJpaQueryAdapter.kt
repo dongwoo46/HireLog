@@ -2,10 +2,12 @@ package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
+import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.infra.persistence.jpa.mapper.summary.toSummaryView
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSummaryJpaQueryDslRepository
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSummaryJpaRepository
+import com.hirelog.api.relation.infra.persistence.jpa.repository.MemberJobSummaryJpaRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
@@ -26,7 +28,8 @@ import org.springframework.stereotype.Component
 @Component
 class JobSummaryJpaQueryAdapter(
     private val queryDslRepository: JobSummaryJpaQueryDslRepository,
-    private val jpaRepository: JobSummaryJpaRepository
+    private val jpaRepository: JobSummaryJpaRepository,
+    private val memberJobSummaryJpaRepository: MemberJobSummaryJpaRepository
 ) : JobSummaryQuery {
 
     /**
@@ -54,6 +57,29 @@ class JobSummaryJpaQueryAdapter(
             projectionPage.content.map { it.toSummaryView() }, // ✅ Projection → View
             pageable,
             projectionPage.totalElements
+        )
+    }
+
+    /**
+     * JobSummary 상세 조회 (사용자 저장 상태 포함)
+     *
+     * 흐름:
+     * 1. QueryDSL Projection으로 JobSummary 조회
+     * 2. 현재 사용자의 MemberJobSummary 조회
+     * 3. copy()로 합산
+     *
+     * 설계:
+     * - Review는 별도 API(/api/job-summary/review/{jobSummaryId})로 분리
+     */
+    override fun findDetailById(jobSummaryId: Long, memberId: Long): JobSummaryDetailView? {
+        val detail = queryDslRepository.findDetailById(jobSummaryId) ?: return null
+
+        val memberJobSummary = memberJobSummaryJpaRepository
+            .findByMemberIdAndJobSummaryId(memberId, jobSummaryId)
+
+        return detail.copy(
+            memberJobSummaryId = memberJobSummary?.id,
+            memberSaveType = memberJobSummary?.saveType?.name
         )
     }
 

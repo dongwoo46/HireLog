@@ -114,6 +114,7 @@ class JwtAuthenticationFilter(
                 path.startsWith("/login/oauth2/") ||
                 path.startsWith("/api/auth/") ||
                 path.startsWith("/api/public/") ||
-                path.startsWith("/api/health")
+                path.startsWith("/api/health") ||
+                path.startsWith("/actuator")
     }
 }

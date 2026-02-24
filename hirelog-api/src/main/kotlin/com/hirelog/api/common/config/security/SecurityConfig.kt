@@ -64,6 +64,10 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                    // Actuator
+                    .requestMatchers("/actuator/**").permitAll()
+
                     // OAuth2 로그인 흐름
                     .requestMatchers(
                         "/oauth2/**",
@@ -112,7 +116,7 @@ class SecurityConfig(
             "http://localhost:5173"
         )
         configuration.allowedMethods = listOf(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         )
         configuration.allowedHeaders = listOf("*")
         configuration.allowCredentials = true

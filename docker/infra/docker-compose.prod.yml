@@ -1,0 +1,332 @@
+services:
+  # ──────────────────────────────────────────────
+  # PostgreSQL - CDC 설정 + 내부 접근만 (운영)
+  # ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16
+    container_name: pg_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      TZ: Asia/Seoul
+    expose:
+      - '5432'
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    networks:
+      - hirelog_internal
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────
+  # PgBouncer - Server1(10.0.0.116)에서 접근하는 진입점
+  # 10.0.1.6:6432 에만 바인딩 → 인터넷 직접 접근 불가
+  # ──────────────────────────────────────────────
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 40
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 10
+      ADMIN_USERS: ${POSTGRES_USER}
+      AUTH_TYPE: md5
+      SERVER_IDLE_TIMEOUT: 600
+      SERVER_LIFETIME: 3600
+      SERVER_RESET_QUERY: DISCARD ALL
+    ports:
+      - '10.0.1.6:6432:5432'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hirelog_internal
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '5432']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────
+  # Kafka - SASL 인증 + Server1 접근용 포트 바인딩
+  # ADVERTISED_LISTENERS: Server1이 접근하는 실제 IP
+  # ──────────────────────────────────────────────
+  kafka:
+    image: apache/kafka:3.7.2
+    container_name: kafka_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    ports:
+      - '10.0.1.6:9092:9092'
+      - '10.0.1.6:9405:9405'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,SASL_PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: SASL_PLAINTEXT://10.0.1.6:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,SASL_PLAINTEXT:SASL_PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
+
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_LISTENER_NAME_SASL_PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: |
+        org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="${KAFKA_USERNAME}" \
+        password="${KAFKA_PASSWORD}" \
+        user_${KAFKA_USERNAME}="${KAFKA_PASSWORD}";
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_OPTS: >
+        -javaagent:/opt/jmx_prometheus_javaagent.jar=9405:/opt/kafka.yml
+
+      TZ: Asia/Seoul
+    volumes:
+      - ./data/kafka:/var/lib/kafka/data
+      - ./jmx_exporter/jmx_prometheus_javaagent.jar:/opt/jmx_prometheus_javaagent.jar
+      - ./jmx_exporter/kafka.yml:/opt/kafka.yml
+    networks:
+      - hirelog_internal
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -z localhost 9092 || exit 1']
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # ──────────────────────────────────────────────
+  # Debezium - 내부 접근만 (Kafka CDC)
+  # ──────────────────────────────────────────────
+  debezium:
+    image: debezium/connect:2.6
+    container_name: debezium_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    expose:
+      - '8083'
+    ports:
+      - '10.0.1.6:9404:9404'
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: hirelog-debezium
+
+      CONNECT_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_SASL_MECHANISM: PLAIN
+      CONNECT_SASL_JAAS_CONFIG: >
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="${KAFKA_USERNAME}"
+        password="${KAFKA_PASSWORD}";
+
+      CONNECT_PRODUCER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_PRODUCER_SASL_MECHANISM: PLAIN
+      CONNECT_PRODUCER_SASL_JAAS_CONFIG: >
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="${KAFKA_USERNAME}"
+        password="${KAFKA_PASSWORD}";
+
+      CONNECT_CONSUMER_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      CONNECT_CONSUMER_SASL_MECHANISM: PLAIN
+      CONNECT_CONSUMER_SASL_JAAS_CONFIG: >
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="${KAFKA_USERNAME}"
+        password="${KAFKA_PASSWORD}";
+
+      CONFIG_STORAGE_TOPIC: hirelog_debezium_config
+      OFFSET_STORAGE_TOPIC: hirelog_debezium_offset
+      STATUS_STORAGE_TOPIC: hirelog_debezium_status
+
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+
+      CONNECT_ERRORS_LOG_ENABLE: 'true'
+      CONNECT_ERRORS_LOG_INCLUDE_MESSAGES: 'true'
+      CONNECT_ERRORS_RETRY_TIMEOUT: 300000
+      CONNECT_ERRORS_RETRY_DELAY_MAX_MS: 60000
+
+      KAFKA_OPTS: >
+        -javaagent:/opt/jmx_prometheus_javaagent.jar=9404:/opt/debezium.yml
+
+      TZ: Asia/Seoul
+    volumes:
+      - ./jmx_exporter/jmx_prometheus_javaagent.jar:/opt/jmx_prometheus_javaagent.jar
+      - ./jmx_exporter/debezium.yml:/opt/debezium.yml
+    depends_on:
+      - kafka
+      - postgres
+    networks:
+      - hirelog_internal
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8083/']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────
+  # OpenSearch - Server1(10.0.0.116) 접근용 포트 바인딩
+  # ──────────────────────────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: opensearch_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      - cluster.name=hirelog-opensearch-prod
+      - node.name=opensearch-node-1
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=false
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD}
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - bootstrap.memory_lock=true
+      - TZ=Asia/Seoul
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - '10.0.1.6:9200:9200'
+    volumes:
+      - ./data/opensearch:/usr/share/opensearch/data
+    networks:
+      - hirelog_internal
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '-f',
+          '-u',
+          'admin:${OPENSEARCH_PASSWORD}',
+          'https://localhost:9200/_cluster/health',
+          '-k',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────
+  # Exporters - Prometheus(Server1)가 스크레이핑
+  # 10.0.1.6에만 바인딩 → Server1만 접근 가능
+  # ──────────────────────────────────────────────
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka_exporter_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    command:
+      - '--kafka.server=kafka:9092'
+      - '--sasl.enabled'
+      - '--sasl.username=${KAFKA_USERNAME}'
+      - '--sasl.password=${KAFKA_PASSWORD}'
+      - '--sasl.mechanism=plain'
+    ports:
+      - '10.0.1.6:9308:9308'
+    depends_on:
+      - kafka
+    networks:
+      - hirelog_internal
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      DATA_SOURCE_NAME: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable'
+    ports:
+      - '10.0.1.6:9187:9187'
+    networks:
+      - hirelog_internal
+    depends_on:
+      - postgres
+
+  opensearch-exporter:
+    image: justwatch/elasticsearch_exporter
+    container_name: opensearch_exporter_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    command:
+      - '--es.uri=https://admin:${OPENSEARCH_PASSWORD}@opensearch:9200'
+      - '--es.ssl-skip-verify'
+    ports:
+      - '10.0.1.6:9114:9114'
+    networks:
+      - hirelog_internal
+    depends_on:
+      - opensearch
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node_exporter_prod
+    restart: unless-stopped
+    ports:
+      - '10.0.1.6:9100:9100'
+    networks:
+      - hirelog_internal
+
+  # ──────────────────────────────────────────────
+  # Promtail - Server2 로그를 Server1 Loki로 전송
+  # hirelog_external: 10.0.0.116:3100 아웃바운드 필요
+  # ──────────────────────────────────────────────
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail_server2
+    restart: unless-stopped
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - ./data/promtail:/var/lib/promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - hirelog_external
+
+networks:
+  hirelog_internal:
+    driver: bridge
+    internal: true
+  hirelog_external:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
