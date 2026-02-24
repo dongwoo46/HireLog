@@ -89,12 +89,13 @@ class JdPreprocessUrlWorker(BaseJdPreprocessWorker):
             
             return output
 
-        except Exception as e:
+        except Exception:
             logger.exception(
-                "[JD_URL_PREPROCESS_FAILED] requestId=%s brand=%s url=%s error=%s",
-                input.request_id,
-                input.brand_name,
-                input.url,
-                str(e),
+                "URL preprocess failed",
+                extra={
+                    "request_id": input.request_id,
+                    "brand_name": input.brand_name,
+                    "url": input.url,
+                },
             )
             raise

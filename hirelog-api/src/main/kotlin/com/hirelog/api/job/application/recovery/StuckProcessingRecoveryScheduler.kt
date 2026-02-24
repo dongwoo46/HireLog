@@ -8,6 +8,7 @@ import com.hirelog.api.relation.application.brandposition.BrandPositionWriteServ
 import com.hirelog.api.relation.domain.type.BrandPositionSource
 import com.hirelog.api.common.application.sse.SseEmitterManager
 import com.hirelog.api.common.logging.log
+import org.slf4j.MDC
 import com.hirelog.api.common.utils.Normalizer
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
@@ -70,7 +71,7 @@ class StuckProcessingRecoveryScheduler(
         )
 
         if (stuckList.isEmpty()) {
-            log.info("[STUCK_PROCESSING_RECOVERY_SKIP] No stuck processing found")
+            log.debug("[STUCK_PROCESSING_RECOVERY_SKIP] No stuck processing found")
             return
         }
 
@@ -100,6 +101,9 @@ class StuckProcessingRecoveryScheduler(
     }
 
     private fun recoverSingleProcessing(processing: JdSummaryProcessing) {
+        MDC.put("processingId", processing.id.toString())
+        try {
+
         val llmResultJson = processing.llmResultJson
             ?: throw IllegalStateException("llmResultJson is null for processing ${processing.id}")
 
@@ -159,6 +163,10 @@ class StuckProcessingRecoveryScheduler(
             "[STUCK_PROCESSING_RECOVERY_SUCCESS] processingId={}",
             processing.id
         )
+
+        } finally {
+            MDC.clear()
+        }
     }
 
     /**

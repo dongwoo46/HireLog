@@ -69,6 +69,7 @@ class BaseKafkaWorker(ABC):
         fail_topic: str,
         config: WorkerConfig,
         worker_name: str,
+        shutdown_event=None,
     ):
         self.consumer = consumer
         self.producer = producer
@@ -76,7 +77,7 @@ class BaseKafkaWorker(ABC):
         self.fail_topic = fail_topic
         self.config = config
         self.worker_name = worker_name
-        self._shutdown_requested = threading.Event()
+        self._shutdown_requested = shutdown_event or threading.Event()
         self._fail_backup = get_fail_backup_writer()
 
     @abstractmethod
@@ -97,15 +98,29 @@ class BaseKafkaWorker(ABC):
 
     def run(self):
         """Worker 메인 루프"""
-        logger.info("[%s] Worker started", self.worker_name)
+        logger.info("Worker started", extra={"worker_name": self.worker_name})
+
+        idle_count = 0
 
         try:
             while not self._shutdown_requested.is_set():
                 kafka_msg = self.consumer.poll()
 
                 if kafka_msg is None:
+                    idle_count += 1
+                    if idle_count % 30 == 0:
+                        logger.debug(
+                            "Waiting for messages",
+                            extra={"worker_name": self.worker_name, "idle_polls": idle_count},
+                        )
+                    if idle_count % 86400 == 0:
+                        logger.warning(
+                            "Worker idle for extended period",
+                            extra={"worker_name": self.worker_name, "idle_polls": idle_count},
+                        )
                     continue
 
+                idle_count = 0
                 self._handle_message(kafka_msg)
 
         finally:
@@ -138,10 +153,12 @@ class BaseKafkaWorker(ABC):
             )
 
             logger.info(
-                "[%s] Processing | offset=%s requestId=%s",
-                self.worker_name,
-                context.kafka_meta.get("offset", "unknown"),
-                context.request_id,
+                "Message received",
+                extra={
+                    "worker_name": self.worker_name,
+                    "offset": context.kafka_meta.get("offset", "unknown"),
+                    "request_id": context.request_id,
+                },
             )
 
             # ==================================================
@@ -157,9 +174,8 @@ class BaseKafkaWorker(ABC):
             self._publish_success(result, context)
 
             logger.info(
-                "[%s] Success | requestId=%s",
-                self.worker_name,
-                context.request_id,
+                "Message processed",
+                extra={"worker_name": self.worker_name, "request_id": context.request_id},
             )
 
         except ProcessingError as e:
@@ -167,11 +183,13 @@ class BaseKafkaWorker(ABC):
             # 4. 처리 실패 → fail 토픽 발행
             # ==================================================
             logger.error(
-                "[%s] ProcessingError | requestId=%s errorCode=%s message=%s",
-                self.worker_name,
-                context.request_id if context else "unknown",
-                e.error_code.value,
-                e.message,
+                "Processing failed",
+                extra={
+                    "worker_name": self.worker_name,
+                    "request_id": context.request_id if context else "unknown",
+                    "error_code": e.error_code.value,
+                    "error_msg": e.message,
+                },
             )
             self._handle_failure(e, context)
 
@@ -180,9 +198,11 @@ class BaseKafkaWorker(ABC):
             # 5. 예상치 못한 예외 → ProcessingError로 래핑
             # ==================================================
             logger.exception(
-                "[%s] Unexpected error | requestId=%s",
-                self.worker_name,
-                context.request_id if context else "unknown",
+                "Unexpected error",
+                extra={
+                    "worker_name": self.worker_name,
+                    "request_id": context.request_id if context else "unknown",
+                },
             )
             wrapped = ProcessingError(
                 error_code=ErrorCode.UNKNOWN_001,
@@ -206,18 +226,22 @@ class BaseKafkaWorker(ABC):
                 key=result.request_id,
             )
             logger.debug(
-                "[%s] Published to %s | requestId=%s",
-                self.worker_name,
-                self.result_topic,
-                result.request_id,
+                "Published to result topic",
+                extra={
+                    "worker_name": self.worker_name,
+                    "topic": self.result_topic,
+                    "request_id": result.request_id,
+                },
             )
         except Exception as e:
             # result 토픽 발행 실패 → fail 토픽으로 전환
             logger.error(
-                "[%s] Failed to publish success | requestId=%s error=%s",
-                self.worker_name,
-                result.request_id,
-                str(e),
+                "Failed to publish result",
+                extra={
+                    "worker_name": self.worker_name,
+                    "request_id": result.request_id,
+                    "error": str(e),
+                },
             )
             wrapped = ProcessingError(
                 error_code=ErrorCode.INFRA_KAFKA_001,
@@ -264,20 +288,24 @@ class BaseKafkaWorker(ABC):
                 key=context.request_id,
             )
             logger.warning(
-                "[%s] Published to fail topic | requestId=%s errorCode=%s",
-                self.worker_name,
-                context.request_id,
-                error.error_code.value,
+                "Published to fail topic",
+                extra={
+                    "worker_name": self.worker_name,
+                    "request_id": context.request_id,
+                    "error_code": error.error_code.value,
+                },
             )
             return  # 성공 시 종료
 
         except Exception as e:
             publish_error = str(e)
             logger.error(
-                "[%s] Failed to publish to fail topic | requestId=%s error=%s",
-                self.worker_name,
-                context.request_id,
-                publish_error,
+                "Failed to publish to fail topic",
+                extra={
+                    "worker_name": self.worker_name,
+                    "request_id": context.request_id,
+                    "error": publish_error,
+                },
             )
 
         # ==================================================
@@ -295,24 +323,51 @@ class BaseKafkaWorker(ABC):
         """안전한 commit (실패해도 예외 전파 없음)"""
         try:
             self.consumer.commit(kafka_msg)
-            logger.debug(
-                "[%s] Committed offset=%s",
-                self.worker_name,
-                kafka_msg.offset(),
-            )
         except Exception as e:
             # commit 실패도 파이프라인을 멈추지 않음
             logger.error(
-                "[%s] Commit failed | offset=%s error=%s",
-                self.worker_name,
-                kafka_msg.offset(),
-                str(e),
+                "Commit failed",
+                extra={
+                    "worker_name": self.worker_name,
+                    "offset": kafka_msg.offset(),
+                    "error": str(e),
+                },
             )
 
     def _parse_kafka_message(self, kafka_msg) -> Optional[Dict[str, Any]]:
-        """Kafka 메시지 파싱"""
+        """Kafka 메시지 파싱
+
+        Debezium outbox TEXT 컬럼 대응:
+        - JsonConverter 사용 시 payload가 JSON string으로 한 번 더 래핑됨 (이중 인코딩)
+        - json.loads() 결과가 str인 경우 재파싱
+        """
+        raw_bytes = kafka_msg.value()
+        raw_str = ""
+
         try:
-            message = json.loads(kafka_msg.value().decode("utf-8"))
+            raw_str = raw_bytes.decode("utf-8")
+            message = json.loads(raw_str)
+
+            # Debezium이 TEXT 컬럼을 JsonConverter로 전송 시 이중 인코딩 발생
+            if isinstance(message, str):
+                logger.debug(
+                    "Double-encoded JSON detected, re-parsing",
+                    extra={"worker_name": self.worker_name, "offset": kafka_msg.offset()},
+                )
+                message = json.loads(message)
+
+            if not isinstance(message, dict):
+                logger.error(
+                    "Unexpected message type",
+                    extra={
+                        "worker_name": self.worker_name,
+                        "offset": kafka_msg.offset(),
+                        "msg_type": type(message).__name__,
+                        "raw_preview": raw_str[:200],
+                    },
+                )
+                return None
+
             message["_kafka_meta"] = {
                 "topic": kafka_msg.topic(),
                 "partition": kafka_msg.partition(),
@@ -320,12 +375,18 @@ class BaseKafkaWorker(ABC):
                 "timestamp": kafka_msg.timestamp()[1] if kafka_msg.timestamp() else None,
             }
             return message
+
         except Exception as e:
             logger.error(
-                "[%s] Kafka message parse failed | offset=%s error=%s",
-                self.worker_name,
-                kafka_msg.offset(),
-                str(e),
+                "Message parse failed",
+                extra={
+                    "worker_name": self.worker_name,
+                    "offset": kafka_msg.offset(),
+                    "error": str(e),
+                    "raw_preview": (
+                        raw_str or (raw_bytes.decode("utf-8", errors="replace") if raw_bytes else "None")
+                    )[:200],
+                },
             )
             return None
 
@@ -338,11 +399,11 @@ class BaseKafkaWorker(ABC):
 
     def shutdown(self):
         """Graceful shutdown 요청"""
-        logger.info("[%s] Shutdown requested", self.worker_name)
+        logger.info("Shutdown requested", extra={"worker_name": self.worker_name})
         self._shutdown_requested.set()
 
     def _cleanup(self):
         """리소스 정리"""
-        logger.info("[%s] Cleaning up", self.worker_name)
+        logger.info("Cleaning up", extra={"worker_name": self.worker_name})
         self.consumer.close()
-        logger.info("[%s] Worker stopped", self.worker_name)
+        logger.info("Worker stopped", extra={"worker_name": self.worker_name})

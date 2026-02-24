@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-POSTGRES_CONTAINER=pg_hirelog
+POSTGRES_CONTAINER=pg_dev
 POSTGRES_USER=postgres
 POSTGRES_DB=hirelog
 DEBEZIUM_USER=debezium

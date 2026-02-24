@@ -10,26 +10,21 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: ${TZ}
-
     ports:
       - '5432:5432'
-
     volumes:
-      - ./data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
 
   redis:
     image: redis/redis-stack-server:latest
     container_name: redis_hirelog
     restart: unless-stopped
-
     environment:
       TZ: Asia/Seoul
-
     ports:
       - '6379:6379'
-
     volumes:
-      - ./redis_data:/data
+      - redis_data:/data
 
   opensearch:
     build:
@@ -38,20 +33,13 @@ services:
     image: hirelog-opensearch:2.13.0
     container_name: opensearch_hirelog
     restart: unless-stopped
-
     environment:
       - cluster.name=hirelog-opensearch
       - node.name=opensearch-node-1
       - discovery.type=single-node
-
-      # JVM 메모리 (개발용 최소)
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-
-      # 보안 비활성화 (로컬 개발용)
       - DISABLE_SECURITY_PLUGIN=true
-
       - TZ=Asia/Seoul
-
     ulimits:
       memlock:
         soft: -1
@@ -59,13 +47,11 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-
     ports:
-      - '9200:9200' # REST API
-      - '9600:9600' # Performance Analyzer
-
-    # volumes:
-    #   - ./opensearch_data:/usr/share/opensearch/data
+      - '9200:9200'
+      - '9600:9600'
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
 
   kafka:
     image: apache/kafka:3.7.2
@@ -74,35 +60,30 @@ services:
     ports:
       - '19092:19092'
     environment:
-      # 1. 노드 및 역할 설정
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
 
-      # === Listener (핵심) ===
       KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
 
-      # === 중요: Offsets Topic 설정 ===
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
-      # === 로그 디렉토리 ===
       KAFKA_LOG_DIRS: /var/lib/kafka/data
 
-      # 4. 개발 편의 설정
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true' # 👈 true로 변경 (테스트용)
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       TZ: Asia/Seoul
+    volumes:
+      - kafka_data:/var/lib/kafka/data
 
-    # volumes:
-    # - ./kafka_data:/var/lib/kafka/data
   debezium:
     image: debezium/connect:2.6
     container_name: debezium_hirelog
@@ -128,3 +109,9 @@ services:
     depends_on:
       - kafka
       - postgres
+
+volumes:
+  pg_data:
+  redis_data:
+  opensearch_data:
+  kafka_data:

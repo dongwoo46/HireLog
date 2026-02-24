@@ -48,13 +48,13 @@ class UrlFetcher:
             
             # JS 렌더링 필요 여부 판단 (단순 휴리스틱)
             if self._needs_js_rendering(html_content):
-                logger.warning(f"JS rendering might be required for {url} (Not implemented yet, returning raw HTML)")
+                logger.debug("JS rendering may be required", extra={"url": url})
                 # 여기서 Playwright/Selenium 등을 호출하거나 외부 서비스로 넘기는 로직 추가 가능
-                
+
             return html_content
-            
+
         except requests.RequestException as e:
-            logger.error(f"Failed to fetch content from {url}: {e}")
+            logger.error("URL fetch failed", extra={"url": url, "error": str(e)})
             raise
 
     def _needs_js_rendering(self, html: str) -> bool:
@@ -74,9 +74,9 @@ class UrlFetcher:
 
         # 1. 길이 체크 (너무 짧으면 의심)
         if len(html) < 500:
-            logger.info(f"JS Rendering Required: HTML length too short ({len(html)})")
+            logger.debug("JS rendering required: HTML too short", extra={"html_length": len(html)})
             return True
-        
+
         # 2. SPA Root Indicators
         spa_indicators = [
             '<div id="app"></div>',
@@ -85,11 +85,11 @@ class UrlFetcher:
             '<body></body>', # Empty Body
             'You need to enable JavaScript to run this app'
         ]
-        
+
         for indicator in spa_indicators:
             if indicator in html:
-                 logger.info(f"JS Rendering Required: SPA indicator found '{indicator}'")
-                 return True
+                logger.debug("JS rendering required: SPA indicator found", extra={"indicator": indicator})
+                return True
 
         # 3. "더보기" 버튼 존재 체크 (숨겨진 콘텐츠 = 클릭 필요 = Playwright 필요)
         expand_button_patterns = [
@@ -102,7 +102,7 @@ class UrlFetcher:
 
         for pattern in expand_button_patterns:
             if pattern in html:
-                logger.info(f"JS Rendering Required: Expand button pattern found '{pattern}'")
+                logger.debug("JS rendering required: expand button found", extra={"pattern": pattern})
                 return True
 
         # 4. 핵심 키워드 체크 (JD 본문이 로드되었는지 확인)
@@ -119,7 +119,7 @@ class UrlFetcher:
         if not found_keywords:
             # 키워드가 하나도 없다고 무조건 JS문제는 아니지만(이미지 통짜일수도),
             # 텍스트 파이프라인 관점에서는 '텍스트 없음'으로 간주하고 렌더링 시도해보는 게 맞음.
-            logger.info("JS Rendering Required: No JD keywords found in HTML")
+            logger.debug("JS rendering required: no JD keywords found")
             return True
 
         return False

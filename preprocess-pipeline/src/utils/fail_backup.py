@@ -74,7 +74,10 @@ class FailBackupWriter:
         try:
             self.backup_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            logger.error("[FAIL_BACKUP] Cannot create backup dir: %s", e)
+            logger.error(
+                "Fail backup dir creation failed",
+                extra={"backup_dir": str(self.backup_dir), "error": str(e)},
+            )
 
     def _get_file_path(self) -> Path:
         """현재 백업 파일 경로 (날짜별)"""
@@ -122,24 +125,27 @@ class FailBackupWriter:
                     f.write(line + "\n")
 
             logger.warning(
-                "[FAIL_BACKUP] Written to %s | requestId=%s errorCode=%s",
-                file_path.name,
-                request_id,
-                error_code,
+                "Fail backup written",
+                extra={
+                    "backup_file": file_path.name,
+                    "request_id": request_id,
+                    "error_code": error_code,
+                },
             )
             return True
 
         except Exception as e:
             # 백업조차 실패 → 에러 로그에라도 남김
             logger.error(
-                "[FAIL_BACKUP_CRITICAL] Write failed | "
-                "requestId=%s source=%s errorCode=%s errorMessage=%s publishError=%s exception=%s",
-                request_id,
-                source,
-                error_code,
-                error_message,
-                publish_error,
-                str(e),
+                "Fail backup write failed",
+                extra={
+                    "request_id": request_id,
+                    "source": source,
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "publish_error": publish_error,
+                    "exception": str(e),
+                },
             )
             return False
 

@@ -2,6 +2,7 @@ package com.hirelog.api.job.infra.external.gemini
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.config.properties.AiProperties
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.infra.external.common.JobSummaryLlmResultAssembler
 import com.hirelog.api.job.infra.external.common.LlmResponseParser
@@ -9,9 +10,11 @@ import com.hirelog.api.job.infrastructure.external.gemini.GeminiClient
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiJobSummaryLlm
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Profile
 import org.springframework.web.reactive.function.client.WebClient
 
 /**
@@ -29,6 +32,7 @@ import org.springframework.web.reactive.function.client.WebClient
  * - Circuit Breaker로 외부 API 장애로부터 시스템 보호
  */
 @Configuration
+@Profile("!loadtest")
 class GeminiInfraConfig(
     private val aiProperties: AiProperties
 ) {
@@ -79,12 +83,18 @@ class GeminiInfraConfig(
         geminiClient: GeminiClient,
         responseParser: LlmResponseParser,
         assembler: JobSummaryLlmResultAssembler,
-        geminiCircuitBreaker: CircuitBreaker
-    ): JobSummaryLlm =
-        GeminiJobSummaryLlm(
+        geminiCircuitBreaker: CircuitBreaker,
+        meterRegistry: MeterRegistry
+    ): JobSummaryLlm  {
+        log.info("[Gemini_LLM_CONFIG] GeminiJobSummaryLlm initialized")
+        return GeminiJobSummaryLlm(
             geminiClient = geminiClient,
             responseParser = responseParser,
             assembler = assembler,
-            circuitBreaker = geminiCircuitBreaker
+            circuitBreaker = geminiCircuitBreaker,
+            meterRegistry = meterRegistry
         )
+
+    }
+
 }

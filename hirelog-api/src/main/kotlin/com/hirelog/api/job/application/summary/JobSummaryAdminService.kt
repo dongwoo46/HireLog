@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.nio.file.AccessDeniedException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Admin 전용 JobSummary 생성 서비스
@@ -102,15 +103,23 @@ class JobSummaryAdminService(
         val existCompanies = companyQuery.findAllNames().map { it.name }
 
         // === 5. Gemini 동기 호출 (DB 커넥션 점유 없음) ===
-        val llmResult = llmClient
-            .summarizeJobDescriptionAsync(
-                brandName = brandName,
-                positionName = positionName,
-                positionCandidates = positionCandidates,
-                existCompanies = existCompanies,
-                canonicalMap = canonicalMap
+        val llmResult = try {
+            llmClient
+                .summarizeJobDescriptionAsync(
+                    brandName = brandName,
+                    positionName = positionName,
+                    positionCandidates = positionCandidates,
+                    existCompanies = existCompanies,
+                    canonicalMap = canonicalMap
+                )
+                .get(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        } catch (e: TimeoutException) {
+            log.error(
+                "[ADMIN_LLM_TIMEOUT] brandName={}, positionName={}, timeoutSeconds={}",
+                brandName, positionName, LLM_TIMEOUT_SECONDS, e
             )
-            .get(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            throw e
+        }
 
         // === 6. PostLlmProcessor 위임 ===
         val snapshotSupplier = buildSnapshotCommand(hashDecision, canonicalMap, hashes, sourceUrl)

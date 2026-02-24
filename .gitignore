@@ -26,11 +26,6 @@ hirelog-web/.vite/
 # ===============================
 opensearch_data/
 
-# ===============================
-# Env
-# ===============================
-.env
-.env.*
 
 # ===============================
 # Python (global)
@@ -42,11 +37,16 @@ opensearch_data/
 **/*.pyd
 
 # ===============================
-# text-pipeline 전용
+# preprocess-pipeline 전용
 # ===============================
-text-pipeline/.venv/
-text-pipeline/data/
-text-pipeline/.cache/
-text-pipeline/.pytest_cache/
-text-pipeline/output/
-text-pipeline/logs/
+preprocess-pipeline/.venv/
+preprocess-pipeline/data/
+preprocess-pipeline/.cache/
+preprocess-pipeline/.pytest_cache/
+preprocess-pipeline/output/
+preprocess-pipeline/logs/
+
+.env
+.env.*
+docker/**/.env.*
+infra/**/.env.*

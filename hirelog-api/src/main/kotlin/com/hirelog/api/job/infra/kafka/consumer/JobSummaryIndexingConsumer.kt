@@ -9,6 +9,7 @@ import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
 import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchAdapter
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.slf4j.MDC
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
@@ -53,15 +54,19 @@ class JobSummaryIndexingConsumer(
         val payload = record.value()
         val eventType = extractEventType(record)
 
-        log.info(
-            "[JOB_SUMMARY_INDEXING_START] aggregateId={}, eventType={}, partition={}, offset={}",
-            aggregateId,
-            eventType,
-            record.partition(),
-            record.offset()
-        )
+        MDC.put("aggregateId", aggregateId)
+        MDC.put("eventType", eventType)
+        MDC.put("topic", JdKafkaTopics.OUTBOX_JOB_SUMMARY)
 
         try {
+            log.debug(
+                "[JOB_SUMMARY_INDEXING_START] aggregateId={}, eventType={}, partition={}, offset={}",
+                aggregateId,
+                eventType,
+                record.partition(),
+                record.offset()
+            )
+
             when (eventType) {
                 EventType.DELETED -> handleDelete(aggregateId, payload)
                 else -> handleIndex(payload)
@@ -69,7 +74,7 @@ class JobSummaryIndexingConsumer(
 
             acknowledgment.acknowledge()
 
-            log.info(
+            log.debug(
                 "[JOB_SUMMARY_INDEXING_SUCCESS] aggregateId={}, eventType={}, offset committed",
                 aggregateId,
                 eventType
@@ -98,6 +103,8 @@ class JobSummaryIndexingConsumer(
                 e
             )
             throw e
+        } finally {
+            MDC.clear()
         }
         // 예외 발생 시 ErrorHandler가 처리 (3회 재시도 → DLT 전송 → DB 기록)
     }
@@ -110,6 +117,12 @@ class JobSummaryIndexingConsumer(
      */
     private fun extractEventType(record: ConsumerRecord<String, String>): String {
         val header = record.headers().lastHeader(EVENT_TYPE_HEADER)
+        if (header == null) {
+            log.warn(
+                "[JOB_SUMMARY_INDEXING_HEADER_MISSING] aggregateId={}, header={} not found, defaulting to CREATED",
+                record.key(), EVENT_TYPE_HEADER
+            )
+        }
         return header?.value()?.toString(StandardCharsets.UTF_8) ?: EventType.CREATED
     }
 

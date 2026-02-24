@@ -47,7 +47,7 @@ class KafkaBaseJdPreprocessWorker(ABC):
             except ValueError:
                 continue
 
-        logger.warning("[DATE_NORMALIZE_FAILED] date_str=%s", date_str)
+        logger.warning("Date normalization failed", extra={"date_str": date_str})
         return None
 
     # ==================================================

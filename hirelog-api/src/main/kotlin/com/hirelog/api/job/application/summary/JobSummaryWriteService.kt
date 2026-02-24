@@ -3,10 +3,12 @@ package com.hirelog.api.job.application.summary
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.common.application.outbox.OutboxEventCommand
+import com.hirelog.api.common.application.outbox.OutboxEventWriteService
 import com.hirelog.api.common.config.properties.LlmProperties
 import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.logging.log
+import org.slf4j.MDC
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
@@ -34,11 +36,11 @@ import java.util.UUID
 class JobSummaryWriteService(
     private val objectMapper: ObjectMapper,
     private val summaryCommand: JobSummaryCommand,
-    private val outboxEventCommand: OutboxEventCommand,
+    private val outboxEventWriteService: OutboxEventWriteService,
     private val processingCommand: JdSummaryProcessingCommand,
     private val processingQuery: JdSummaryProcessingQuery,
     private val llmProperties: LlmProperties,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     /**
@@ -72,23 +74,7 @@ class JobSummaryWriteService(
     ): JobSummary {
 
         log.info(
-            """
-        [JOB_SUMMARY_CREATE_WITH_OUTBOX_START]
-        processingId={}
-        snapshotId={}
-        brandId={}
-        brandName='{}'
-        positionId={}
-        positionName='{}'
-        brandPositionId={}
-        brandPositionName='{}'
-        positionCategoryId={}
-        positionCategoryName='{}'
-        sourceUrl='{}'
-        llm.brandName='{}'
-        llm.positionName='{}'
-        llm.brandPositionName='{}'
-        """.trimIndent(),
+            "[JOB_SUMMARY_CREATE_WITH_OUTBOX_START] processingId={}, snapshotId={}, brandId={}, brandName={}, positionId={}, positionName={}, brandPositionId={}, brandPositionName={}, positionCategoryId={}, positionCategoryName={}, sourceUrl={}, llmBrandName={}, llmPositionName={}",
             processingId,
             snapshotId,
             brand.id,
@@ -132,6 +118,7 @@ class JobSummaryWriteService(
             // @TransactionalEventListener(AFTER_COMMIT)에 의해 커밋 후 처리
             eventPublisher.publishEvent(
                 JobSummaryRequestEvent.Completed(
+                    requestId = MDC.get("requestId") ?: processingId.toString(),
                     processingId = processingId.toString(),
                     jobSummaryId = savedSummary.id,
                     brandName = savedSummary.brandName,
@@ -225,7 +212,7 @@ class JobSummaryWriteService(
             eventType = EventType.DELETED,
             payload = """{"id":${summary.id}}"""
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
 
         log.info("[JOB_SUMMARY_DEACTIVATED] summaryId={}", summaryId)
     }
@@ -248,7 +235,7 @@ class JobSummaryWriteService(
             eventType = EventType.CREATED,
             payload = objectMapper.writeValueAsString(payload)
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
 
         log.info("[JOB_SUMMARY_ACTIVATED] summaryId={}", summaryId)
     }
@@ -314,6 +301,6 @@ class JobSummaryWriteService(
             eventType = EventType.CREATED,
             payload = objectMapper.writeValueAsString(payload)
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
     }
 }

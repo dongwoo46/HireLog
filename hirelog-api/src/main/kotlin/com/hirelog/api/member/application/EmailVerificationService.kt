@@ -79,10 +79,14 @@ class EmailVerificationService(
         val key = "$CODE_KEY_PREFIX$token"
 
         val codeData = redisService.get(key, CodeData::class.java)
-            ?: throw VerificationCodeExpiredException()
+            ?: run {
+                log.warn("[EMAIL_VERIFY_EXPIRED] email={}", email.take(2) + "***")
+                throw VerificationCodeExpiredException()
+            }
 
         // 이메일 또는 코드 불일치 (외부에는 동일한 실패로 노출)
         if (codeData.email != email || codeData.code != code) {
+            log.warn("[EMAIL_VERIFY_CODE_MISMATCH] email={}", email.take(2) + "***")
             throw InvalidVerificationCodeException()
         }
 
