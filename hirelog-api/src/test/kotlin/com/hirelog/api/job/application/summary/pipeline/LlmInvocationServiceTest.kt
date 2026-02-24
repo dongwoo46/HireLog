@@ -87,7 +87,7 @@ class LlmInvocationServiceTest {
             val failedFuture = CompletableFuture.failedFuture<JobSummaryLlmResult>(
                 RuntimeException("Gemini API error")
             )
-            val fallbackResult = llmResult.copy(llmProvider = LlmProvider.OPEN_AI)
+            val fallbackResult = llmResult.copy(llmProvider = LlmProvider.OPENAI)
 
             every {
                 primary.summarizeJobDescriptionAsync(any(), any(), any(), any(), any())

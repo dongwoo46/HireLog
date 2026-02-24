@@ -102,10 +102,10 @@ class StuckProcessingRecoverySchedulerTest {
                 sseEmitterManager.send(
                     memberId = 999L,
                     eventName = "JOB_SUMMARY_FAILED",
-                    data = match {
-                        it["requestId"] == processingId.toString() &&
-                                it["errorCode"] == "RECOVERY_FAILED" &&
-                                it["retryable"] == false
+                    data = match<Map<String, Any>> { payload ->
+                        payload["requestId"] == processingId.toString() &&
+                                payload["errorCode"] == "RECOVERY_FAILED" &&
+                                payload["retryable"] == false
                     }
                 )
             }

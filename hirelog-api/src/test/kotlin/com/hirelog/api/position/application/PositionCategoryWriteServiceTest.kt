@@ -3,7 +3,7 @@ package com.hirelog.api.position.application
 import com.hirelog.api.common.exception.EntityAlreadyExistsException
 import com.hirelog.api.common.exception.EntityNotFoundException
 import com.hirelog.api.position.application.port.PositionCategoryCommand
-import com.hirelog.api.position.domain.PositionCategoryTest
+import com.hirelog.api.position.domain.PositionCategory
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.dao.DataIntegrityViolationException
 
 @DisplayName("PositionCategoryWriteService")
-class PositionCategoryTestWriteServiceTest {
+class PositionCategoryWriteServiceTest {
 
     private lateinit var positionCategoryCommand: PositionCategoryCommand
     private lateinit var positionCategoryWriteService: PositionCategoryWriteService
@@ -36,7 +36,7 @@ class PositionCategoryTestWriteServiceTest {
         fun `returns existing category without saving`() {
             // given
             val name = "백엔드"
-            val existing = mockk<PositionCategoryTest>()
+            val existing = mockk<PositionCategory>()
 
             every { positionCategoryCommand.findByNormalizedName(any()) } returns existing
 
@@ -53,7 +53,7 @@ class PositionCategoryTestWriteServiceTest {
         fun `creates and saves new category when not found`() {
             // given
             val name = "프론트엔드"
-            val saved = mockk<PositionCategoryTest>()
+            val saved = mockk<PositionCategory>()
 
             every { positionCategoryCommand.findByNormalizedName(any()) } returns null
             every { positionCategoryCommand.save(any()) } returns saved
@@ -71,7 +71,7 @@ class PositionCategoryTestWriteServiceTest {
         fun `returns category found after DataIntegrityViolationException on save`() {
             // given
             val name = "DevOps"
-            val raceWinner = mockk<PositionCategoryTest>()
+            val raceWinner = mockk<PositionCategory>()
 
             every { positionCategoryCommand.findByNormalizedName(any()) } returnsMany listOf(
                 null,         // 첫 번째 조회: 없음
@@ -114,7 +114,7 @@ class PositionCategoryTestWriteServiceTest {
             // given
             val name = "iOS"
             val description = "iOS 개발"
-            val saved = mockk<PositionCategoryTest>()
+            val saved = mockk<PositionCategory>()
 
             every { positionCategoryCommand.save(any()) } returns saved
 
@@ -130,7 +130,7 @@ class PositionCategoryTestWriteServiceTest {
         @DisplayName("description 없이도 생성할 수 있다")
         fun `creates category without description`() {
             // given
-            val saved = mockk<PositionCategoryTest>()
+            val saved = mockk<PositionCategory>()
             every { positionCategoryCommand.save(any()) } returns saved
 
             // when
@@ -165,7 +165,7 @@ class PositionCategoryTestWriteServiceTest {
         fun `activates and saves category`() {
             // given
             val categoryId = 1L
-            val category = mockk<PositionCategoryTest>(relaxed = true)
+            val category = mockk<PositionCategory>(relaxed = true)
 
             every { positionCategoryCommand.findById(categoryId) } returns category
             every { positionCategoryCommand.save(category) } returns category
@@ -202,7 +202,7 @@ class PositionCategoryTestWriteServiceTest {
         fun `deactivates and saves category`() {
             // given
             val categoryId = 2L
-            val category = mockk<PositionCategoryTest>(relaxed = true)
+            val category = mockk<PositionCategory>(relaxed = true)
 
             every { positionCategoryCommand.findById(categoryId) } returns category
             every { positionCategoryCommand.save(category) } returns category
