@@ -78,7 +78,19 @@ class MemberJobSummary private constructor(
         orphanRemoval = true
     )
     @JoinColumn(name = "member_job_summary_id", nullable = false)
-    private val stageRecords: MutableList<HiringStageRecord> = mutableListOf()
+    private val stageRecords: MutableList<HiringStageRecord> = mutableListOf(),
+
+    /* =========================
+     * 자기소개서
+     * ========================= */
+
+    @OneToMany(
+        fetch = FetchType.LAZY,
+        cascade = [CascadeType.ALL],
+        orphanRemoval = true
+    )
+    @JoinColumn(name = "member_job_summary_id", nullable = false)
+    private val coverLetters: MutableList<CoverLetter> = mutableListOf()
 
 ) : BaseEntity() {
 
@@ -184,5 +196,45 @@ class MemberJobSummary private constructor(
     private fun findStageRecord(stage: HiringStage): HiringStageRecord {
         return stageRecords.firstOrNull { it.stage == stage }
             ?: throw IllegalStateException("Stage record not found for stage=$stage")
+    }
+
+    /* =========================
+     * 자기소개서 관리
+     * ========================= */
+
+    fun addCoverLetter(question: String, content: String, sortOrder: Int = coverLetters.size) {
+        require(question.isNotBlank()) { "question must not be blank" }
+        require(content.isNotBlank()) { "content must not be blank" }
+
+        coverLetters.add(
+            CoverLetter(
+                memberJobSummaryId = id,
+                question = question,
+                content = content,
+                sortOrder = sortOrder
+            )
+        )
+    }
+
+    fun updateCoverLetter(coverLetterId: Long, question: String, content: String, sortOrder: Int) {
+        require(question.isNotBlank()) { "question must not be blank" }
+        require(content.isNotBlank()) { "content must not be blank" }
+
+        val letter = findCoverLetter(coverLetterId)
+        letter.question = question
+        letter.content = content
+        letter.sortOrder = sortOrder
+    }
+
+    fun removeCoverLetter(coverLetterId: Long) {
+        coverLetters.removeIf { it.id == coverLetterId }
+    }
+
+    fun getCoverLetters(): List<CoverLetter> =
+        coverLetters.sortedBy { it.sortOrder }
+
+    private fun findCoverLetter(coverLetterId: Long): CoverLetter {
+        return coverLetters.firstOrNull { it.id == coverLetterId }
+            ?: throw IllegalStateException("CoverLetter not found: id=$coverLetterId")
     }
 }

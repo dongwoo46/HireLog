@@ -3,20 +3,17 @@ package com.hirelog.api.job.presentation.controller
 import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.job.application.intake.JdIntakeService
+import com.hirelog.api.job.application.intake.UrlIntakeResult
+import com.hirelog.api.job.application.summary.JobSummaryReadService
 import com.hirelog.api.job.application.summary.JobSummaryWriteService
-import com.hirelog.api.job.application.summary.port.JobSummaryQuery
-import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
 import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
 import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
-import com.hirelog.api.job.application.summary.view.JobSummaryView
-import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummarySearchReq
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryOcrReq
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryTextReq
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryUrlReq
 import com.hirelog.api.job.presentation.controller.dto.response.JobSummaryUrlRes
 import jakarta.validation.Valid
-import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -26,9 +23,8 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/api/job-summary")
 class JobSummaryController(
-    private val jobSummaryQuery: JobSummaryQuery,
     private val jdIntakeService: JdIntakeService,
-    private val openSearchQuery: JobSummaryOpenSearchQuery,
+    private val readService: JobSummaryReadService,
     private val jobSummaryWriteService: JobSummaryWriteService
 ) {
 
@@ -42,9 +38,11 @@ class JobSummaryController(
      * - 페이징
      */
     @GetMapping("/search")
-    fun search(request: JobSummarySearchReq): ResponseEntity<JobSummarySearchResult> {
-        val query = request.toQuery()
-        val result = openSearchQuery.search(query)
+    fun search(
+        request: JobSummarySearchReq,
+        @CurrentUser member: AuthenticatedMember
+    ): ResponseEntity<JobSummarySearchResult> {
+        val result = readService.search(request.toQuery(), member.memberId)
         return ResponseEntity.ok(result)
     }
 
@@ -62,7 +60,7 @@ class JobSummaryController(
         @PathVariable id: Long,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<JobSummaryDetailView> {
-        val detail = jobSummaryQuery.findDetailById(id, member.memberId)
+        val detail = readService.getDetail(id, member.memberId)
             ?: throw IllegalArgumentException("JobSummary not found: $id")
         return ResponseEntity.ok(detail)
     }
@@ -131,21 +129,15 @@ class JobSummaryController(
         @Valid @RequestBody request: JobSummaryUrlReq,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<JobSummaryUrlRes> {
-
-        // 중복 체크: 동일 URL로 생성된 JobSummary 존재 여부
-        val existingSummary = jobSummaryQuery.findBySourceUrl(request.url)
-        if (existingSummary != null) {
-            return ResponseEntity.ok(JobSummaryUrlRes.duplicateOf(existingSummary))
-        }
-
-        val requestId = jdIntakeService.requestUrl(
+        return when (val result = jdIntakeService.requestUrl(
             memberId = member.memberId,
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             url = request.url,
-        )
-
-        return ResponseEntity.ok(JobSummaryUrlRes.newRequest(requestId))
+        )) {
+            is UrlIntakeResult.Duplicate -> ResponseEntity.ok(JobSummaryUrlRes.duplicateOf(result.existing))
+            is UrlIntakeResult.NewRequest -> ResponseEntity.ok(JobSummaryUrlRes.newRequest(result.requestId))
+        }
     }
 
     /**

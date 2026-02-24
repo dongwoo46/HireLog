@@ -2,7 +2,9 @@ package com.hirelog.api.relation.infra.persistence.adapter
 
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
+import com.hirelog.api.relation.application.memberjobsummary.view.CoverLetterView
 import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
+import com.hirelog.api.relation.application.memberjobsummary.view.JobSummarySavedStateView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import com.hirelog.api.relation.infra.persistence.jpa.repository.MemberJobSummaryJpaQueryDsl
@@ -53,6 +55,26 @@ class MemberJobSummaryJpaQuery(
         return querydslRepository.exists(
             memberId = memberId,
             jobSummaryId = jobSummaryId
+        )
+    }
+
+    override fun findCoverLetters(
+        memberId: Long,
+        jobSummaryId: Long
+    ): List<CoverLetterView> {
+        return querydslRepository.findCoverLetters(
+            memberId = memberId,
+            jobSummaryId = jobSummaryId
+        )
+    }
+
+    override fun findSavedStatesByJobSummaryIds(
+        memberId: Long,
+        jobSummaryIds: Set<Long>
+    ): Map<Long, JobSummarySavedStateView> {
+        return querydslRepository.findSavedStatesByJobSummaryIds(
+            memberId = memberId,
+            jobSummaryIds = jobSummaryIds
         )
     }
 }

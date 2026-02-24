@@ -2,6 +2,7 @@ package com.hirelog.api.relation.application.memberjobsummary
 
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
+import com.hirelog.api.relation.application.memberjobsummary.view.CoverLetterView
 import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
@@ -52,6 +53,16 @@ class MemberJobSummaryReadService(
         jobSummaryId: Long
     ): Boolean {
         return query.exists(
+            memberId = memberId,
+            jobSummaryId = jobSummaryId
+        )
+    }
+
+    fun getCoverLetters(
+        memberId: Long,
+        jobSummaryId: Long
+    ): List<CoverLetterView> {
+        return query.findCoverLetters(
             memberId = memberId,
             jobSummaryId = jobSummaryId
         )

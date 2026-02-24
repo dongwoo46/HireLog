@@ -2,10 +2,11 @@ package com.hirelog.api.job.application.intake
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.application.outbox.OutboxEventWriteService
-import com.hirelog.api.common.domain.outbox.AggregateType
-import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.infra.storage.FileStorageService
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
+import com.hirelog.api.job.application.summary.port.JobSummaryQuery
+import com.hirelog.api.job.application.summary.view.JobSummaryView
+import com.hirelog.api.job.domain.type.CareerType
 import io.mockk.*
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -19,6 +20,7 @@ class JdIntakeServiceTest {
     private lateinit var fileStorageService: FileStorageService
     private lateinit var jobSummaryRequestWriteService: JobSummaryRequestWriteService
     private lateinit var outboxEventWriteService: OutboxEventWriteService
+    private lateinit var jobSummaryQuery: JobSummaryQuery
     private val objectMapper = ObjectMapper()
 
     @BeforeEach
@@ -26,10 +28,12 @@ class JdIntakeServiceTest {
         fileStorageService = mockk()
         jobSummaryRequestWriteService = mockk(relaxed = true)
         outboxEventWriteService = mockk(relaxed = true)
+        jobSummaryQuery = mockk()
         service = JdIntakeService(
             fileStorageService,
             jobSummaryRequestWriteService,
             outboxEventWriteService,
+            jobSummaryQuery,
             objectMapper
         )
     }
@@ -131,19 +135,59 @@ class JdIntakeServiceTest {
     @DisplayName("requestUrl 메서드는")
     inner class RequestUrlTest {
 
+        private fun existingView() = JobSummaryView(
+            summaryId = 1L,
+            snapshotId = 10L,
+            brandId = 1L,
+            brandName = "Toss",
+            positionId = 2L,
+            positionName = "Backend",
+            brandPositionId = 3L,
+            positionCategoryId = 4L,
+            positionCategoryName = "Engineering",
+            careerType = CareerType.EXPERIENCED,
+            careerYears = null,
+            summary = "요약",
+            responsibilities = "업무",
+            requiredQualifications = "자격",
+            preferredQualifications = null,
+            techStack = "Kotlin"
+        )
+
         @Test
-        @DisplayName("유효한 URL이면 requestId를 반환하고 Outbox 이벤트를 저장한다")
-        fun shouldReturnRequestIdForValidUrl() {
-            val requestId = service.requestUrl(
+        @DisplayName("신규 URL이면 NewRequest를 반환하고 Outbox 이벤트를 저장한다")
+        fun shouldReturnNewRequestForNewUrl() {
+            every { jobSummaryQuery.findBySourceUrl("https://www.toss.im/careers/123") } returns null
+
+            val result = service.requestUrl(
                 memberId = 1L,
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
                 url = "https://www.toss.im/careers/123"
             )
 
-            assertThat(requestId).isNotBlank()
-            verify { jobSummaryRequestWriteService.createRequest(1L, requestId) }
+            assertThat(result).isInstanceOf(UrlIntakeResult.NewRequest::class.java)
+            assertThat((result as UrlIntakeResult.NewRequest).requestId).isNotBlank()
+            verify { jobSummaryRequestWriteService.createRequest(1L, result.requestId) }
             verify { outboxEventWriteService.append(any()) }
+        }
+
+        @Test
+        @DisplayName("동일 URL의 JobSummary가 이미 존재하면 Duplicate를 반환하고 Outbox는 저장하지 않는다")
+        fun shouldReturnDuplicateWhenUrlAlreadyExists() {
+            every { jobSummaryQuery.findBySourceUrl("https://www.toss.im/careers/123") } returns existingView()
+
+            val result = service.requestUrl(
+                memberId = 1L,
+                brandName = "Toss",
+                brandPositionName = "Backend Engineer",
+                url = "https://www.toss.im/careers/123"
+            )
+
+            assertThat(result).isInstanceOf(UrlIntakeResult.Duplicate::class.java)
+            assertThat((result as UrlIntakeResult.Duplicate).existing.summaryId).isEqualTo(1L)
+            verify(exactly = 0) { outboxEventWriteService.append(any()) }
+            verify(exactly = 0) { jobSummaryRequestWriteService.createRequest(any(), any()) }
         }
 
         @Test

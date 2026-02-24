@@ -282,7 +282,20 @@ CREATE TABLE member_job_summary_stage
 );
 
 -- ============================================================
--- 16. member_company  (BaseEntity)
+-- 16. cover_letter  (no BaseEntity)
+-- ============================================================
+CREATE TABLE cover_letter
+(
+    id                    BIGSERIAL PRIMARY KEY,
+    member_job_summary_id BIGINT    NOT NULL,
+    question              TEXT      NOT NULL,
+    content               TEXT      NOT NULL,
+    sort_order            INTEGER   NOT NULL DEFAULT 0,
+    CONSTRAINT fk_cover_letter_member_job_summary FOREIGN KEY (member_job_summary_id) REFERENCES member_job_summary (id)
+);
+
+-- ============================================================
+-- 17. member_company  (BaseEntity)
 -- ============================================================
 CREATE TABLE member_company
 (
@@ -295,7 +308,7 @@ CREATE TABLE member_company
 );
 
 -- ============================================================
--- 17. member_brand  (BaseEntity)
+-- 18. member_brand  (BaseEntity)
 -- ============================================================
 CREATE TABLE member_brand
 (
@@ -308,7 +321,7 @@ CREATE TABLE member_brand
 );
 
 -- ============================================================
--- 18. notification  (BaseEntity)
+-- 19. notification  (BaseEntity)
 -- ============================================================
 CREATE TABLE notification
 (
@@ -327,7 +340,7 @@ CREATE TABLE notification
 );
 
 -- ============================================================
--- 19. user_request  (VersionedEntity)
+-- 20. user_request  (VersionedEntity)
 -- ============================================================
 CREATE TABLE user_request
 (
@@ -344,7 +357,7 @@ CREATE TABLE user_request
 );
 
 -- ============================================================
--- 20. user_request_comment  (BaseEntity)
+-- 21. user_request_comment  (BaseEntity)
 -- ============================================================
 CREATE TABLE user_request_comment
 (
@@ -359,7 +372,7 @@ CREATE TABLE user_request_comment
 );
 
 -- ============================================================
--- 21. outbox_event  (UUID PK, created_at only)
+-- 22. outbox_event  (UUID PK, created_at only)
 -- ============================================================
 CREATE TABLE outbox_event
 (
@@ -372,7 +385,7 @@ CREATE TABLE outbox_event
 );
 
 -- ============================================================
--- 22. processed_event  (composite PK, no BaseEntity)
+-- 23. processed_event  (composite PK, no BaseEntity)
 -- ============================================================
 CREATE TABLE processed_event
 (
@@ -383,7 +396,7 @@ CREATE TABLE processed_event
 );
 
 -- ============================================================
--- 23. failed_kafka_event  (BaseEntity)
+-- 24. failed_kafka_event  (BaseEntity)
 -- ============================================================
 CREATE TABLE failed_kafka_event
 (
