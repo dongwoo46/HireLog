@@ -1,5 +1,11 @@
 import { apiClient } from '../utils/apiClient';
-import type { MemberDetailView, UpdateProfileReq, UpdateUsernameReq } from '../types/member';
+import type {
+  MemberDetailView,
+  UpdateProfileReq,
+  UpdateUsernameReq,
+  UpdateEmailReq,
+  ChangePasswordReq
+} from '../types/member';
 
 export const memberService = {
   getMe: async (): Promise<MemberDetailView> => {
@@ -13,6 +19,14 @@ export const memberService = {
 
   updateUsername: async (data: UpdateUsernameReq): Promise<void> => {
     await apiClient.patch('/member/me/username', data);
+  },
+
+  updateEmail: async (data: UpdateEmailReq): Promise<void> => {
+    await apiClient.patch('/member/me/email', data);
+  },
+
+  changePassword: async (data: ChangePasswordReq): Promise<void> => {
+    await apiClient.patch('/member/me/password', data);
   },
 
   withdraw: async (): Promise<void> => {

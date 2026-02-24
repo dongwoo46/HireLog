@@ -1,41 +1,51 @@
-import React, { useState } from 'react';
-import { TbSearch, TbFilter, TbAdjustmentsHorizontal } from 'react-icons/tb';
+import React, { useState, useEffect, useMemo } from 'react';
+import { TbSearch, TbAdjustmentsHorizontal, TbChevronDown } from 'react-icons/tb';
 import type { JobSummarySearchReq, CareerType } from '../types/jobSummary';
-import { Button } from './common/Button';
 import { JobSummaryFilterModal } from './JobSummaryFilterModal';
 
 interface Props {
   onSearch: (params: JobSummarySearchReq) => void;
   initialParams?: JobSummarySearchReq;
-  variant?: 'large' | 'small';
 }
 
-export const JobSummarySearch: React.FC<Props> = ({ onSearch, initialParams = {}, variant = 'large' }) => {
+export const JobSummarySearch: React.FC<Props> = ({
+  onSearch,
+  initialParams = {},
+}) => {
+
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [params, setParams] = useState<JobSummarySearchReq>({
+
+  const stableInitial = useMemo(() => ({
+    ...initialParams,
     keyword: initialParams.keyword || '',
-    careerType: initialParams.careerType || undefined,
-    brandId: initialParams.brandId,
-    positionId: initialParams.positionId,
-    brandPositionId: initialParams.brandPositionId,
-    positionCategoryId: initialParams.positionCategoryId,
-    brandName: initialParams.brandName || '',
-    positionName: initialParams.positionName || '',
-    brandPositionName: initialParams.brandPositionName || '',
-    positionCategoryName: initialParams.positionCategoryName || '',
-    sortBy: initialParams.sortBy || 'CREATED_AT_DESC',
-  });
+    sortBy: initialParams.sortBy || 'CREATED_AT_DESC'
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [initialParams.keyword, initialParams.careerType, initialParams.sortBy]);
+
+  const [params, setParams] = useState<JobSummarySearchReq>(stableInitial);
+
+  useEffect(() => {
+    setParams(prev => {
+      if (JSON.stringify(prev) === JSON.stringify(stableInitial)) {
+        return prev;
+      }
+      return stableInitial;
+    });
+  }, [stableInitial]);
+
+  const cleanParams = (obj: JobSummarySearchReq): JobSummarySearchReq => {
+    const cleaned: any = {};
+    Object.entries(obj).forEach(([key, value]) => {
+      if (value !== undefined && value !== '' && value !== null) {
+        cleaned[key] = value;
+      }
+    });
+    return cleaned;
+  };
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    onSearch({
-      ...params,
-      keyword: params.keyword || undefined,
-      brandName: params.brandName || undefined,
-      positionName: params.positionName || undefined,
-      brandPositionName: params.brandPositionName || undefined,
-      positionCategoryName: params.positionCategoryName || undefined,
-    });
+    onSearch(cleanParams(params));
   };
 
   const updateParam = (key: keyof JobSummarySearchReq, value: any) => {
@@ -43,60 +53,116 @@ export const JobSummarySearch: React.FC<Props> = ({ onSearch, initialParams = {}
   };
 
   const handleApplyFilters = (newFilters: JobSummarySearchReq) => {
-    setParams(newFilters);
-    // Automatically trigger search when filters are applied from modal
-    onSearch({
-      ...newFilters,
-      keyword: params.keyword || undefined // Ensure keyword is preserved if not in modal, though it is shared state
-    });
+    const merged = { ...params, ...newFilters };
+    const cleaned = cleanParams(merged);
+    setParams(cleaned);
+    onSearch(cleaned);
   };
 
+
   return (
-    <div className={`w-full max-w-4xl mx-auto ${variant === 'large' ? 'py-12' : 'py-4'}`}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Main Search Bar */}
-        <div className="flex items-center bg-white rounded-[2rem] shadow-log border border-gray-100 p-3 pl-8 gap-4 hover:shadow-log-hover transition-all duration-500">
-          <TbSearch className="text-[#89cbb6]" size={28} />
-          <input
-            type="text"
-            className="flex-grow py-3 text-xl font-bold focus:outline-none text-gray-800 placeholder-gray-300 italic"
-            placeholder="키워드로 검색 (예: 삼성, 백엔드...)"
-            value={params.keyword}
-            onChange={(e) => updateParam('keyword', e.target.value)}
-          />
+    <>
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-4xl mx-auto"
+      >
+        {/* 카드 래퍼 */}
+        <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-5 py-4">
 
-          <div className="hidden md:flex items-center gap-2 px-4 border-l border-gray-100">
-            <TbFilter className="text-gray-400" size={20} />
-            <select
-              className="bg-transparent text-sm font-black text-gray-500 outline-none cursor-pointer uppercase tracking-widest italic"
-              value={params.careerType || ''}
-              onChange={(e) => updateParam('careerType', e.target.value as CareerType || undefined)}
-            >
-              <option value="">경력 전체</option>
-              <option value="NEW">신입</option>
-              <option value="EXPERIENCED">경력</option>
-            </select>
-          </div>
+          {/* 검색 행 */}
+          <div className="flex items-center gap-3">
 
-          <div className="hidden md:flex items-center border-l border-gray-100 px-2">
+            {/* 검색 아이콘 */}
+            <TbSearch size={20} className="text-[#4CDFD5] shrink-0" />
+
+            {/* 키워드 입력 */}
+            <input
+              type="text"
+              value={params.keyword || ''}
+              onChange={e => updateParam('keyword', e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+              placeholder="기업명, 포지션, 기술스택 검색..."
+              className="flex-1 outline-none bg-transparent text-gray-800 placeholder-gray-400 font-medium text-base"
+            />
+
+            {/* 구분선 */}
+            <div className="w-px h-5 bg-gray-200 shrink-0" />
+
+            {/* 경력 선택 */}
+            <div className="relative shrink-0">
+              <select
+                value={params.careerType || ''}
+                onChange={e => updateParam('careerType', e.target.value as CareerType || undefined)}
+                className="appearance-none bg-transparent text-gray-500 font-bold cursor-pointer outline-none pr-5 text-sm"
+              >
+                <option value="">전체 경력</option>
+                <option value="NEW">신입</option>
+                <option value="EXPERIENCED">경력</option>
+                <option value="ANY">무관</option>
+              </select>
+              <TbChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+
+            {/* 구분선 */}
+            <div className="w-px h-5 bg-gray-200 shrink-0" />
+
+            {/* 정렬 */}
+            <div className="relative shrink-0">
+              <select
+                value={params.sortBy || 'CREATED_AT_DESC'}
+                onChange={e => updateParam('sortBy', e.target.value)}
+                className="appearance-none bg-transparent text-gray-500 font-bold cursor-pointer outline-none pr-5 text-sm"
+              >
+                <option value="CREATED_AT_DESC">최신순</option>
+                <option value="CREATED_AT_ASC">오래된순</option>
+              </select>
+              <TbChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+
+            {/* 구분선 */}
+            <div className="w-px h-5 bg-gray-200 shrink-0" />
+
             <button
               type="button"
               onClick={() => setIsFilterModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-500 hover:text-[#276db8] hover:bg-gray-50 rounded-xl transition-all"
+              className="flex items-center text-gray-500 hover:text-[#4CDFD5] transition-colors shrink-0"
+              title="상세 필터"
             >
               <TbAdjustmentsHorizontal size={20} />
-              <span className="whitespace-nowrap">상세 필터</span>
+            </button>
+
+            {/* 검색 버튼 */}
+            <button
+              type="submit"
+              className="bg-[#4CDFD5] hover:bg-[#3CCFC5] active:bg-[#35C3BA] text-white font-black rounded-xl transition-colors shrink-0 px-5 py-2 text-sm"
+            >
+              검색
             </button>
           </div>
 
-          <Button
-            type="submit"
-            variant="gradient"
-            size="lg"
-            className="rounded-2xl shadow-xl shadow-[#89cbb6]/20"
-          >
-            검색하기
-          </Button>
+          {/* 활성 필터 태그 */}
+          {(params.brandName || params.positionName || params.positionCategoryName) && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+              {params.brandName && (
+                <FilterTag
+                  label={`브랜드: ${params.brandName}`}
+                  onRemove={() => { updateParam('brandName', undefined); updateParam('brandId', undefined); }}
+                />
+              )}
+              {params.positionName && (
+                <FilterTag
+                  label={`포지션: ${params.positionName}`}
+                  onRemove={() => { updateParam('positionName', undefined); updateParam('positionId', undefined); }}
+                />
+              )}
+              {params.positionCategoryName && (
+                <FilterTag
+                  label={`카테고리: ${params.positionCategoryName}`}
+                  onRemove={() => { updateParam('positionCategoryName', undefined); updateParam('positionCategoryId', undefined); }}
+                />
+              )}
+            </div>
+          )}
         </div>
       </form>
 
@@ -106,14 +172,22 @@ export const JobSummarySearch: React.FC<Props> = ({ onSearch, initialParams = {}
         filters={params}
         onApply={handleApplyFilters}
         onReset={() => {
-          setParams({
-            keyword: params.keyword, // Keep keyword
-            careerType: params.careerType, // Keep career type
+          const reset: JobSummarySearchReq = {
+            keyword: params.keyword,
+            careerType: params.careerType,
             sortBy: 'CREATED_AT_DESC'
-          });
+          };
+          setParams(reset);
+          onSearch(cleanParams(reset));
         }}
       />
-    </div>
+    </>
   );
 };
 
+const FilterTag: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemove }) => (
+  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#4CDFD5]/10 text-[#4CDFD5] text-xs font-bold rounded-full border border-[#4CDFD5]/20">
+    {label}
+    <button type="button" onClick={onRemove} className="hover:text-rose-400 transition-colors font-black leading-none">×</button>
+  </span>
+);

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { JobSummaryView } from '../types/jobSummary';
 import { useNavigate } from 'react-router-dom';
-import { TbFileText, TbChevronRight } from 'react-icons/tb';
+import { TbBookmark, TbBookmarkFilled } from 'react-icons/tb';
+import { jdSummaryService } from '../services/jdSummaryService';
+import { toast } from 'react-toastify';
 
 interface Props {
   summary: JobSummaryView;
@@ -9,42 +11,90 @@ interface Props {
 
 export const JobSummaryCard: React.FC<Props> = ({ summary }) => {
   const navigate = useNavigate();
+  const [isSaved, setIsSaved] = useState(summary.isSaved || false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  const handleBookmark = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      if (isSaved) {
+        await jdSummaryService.unsave(summary.id);
+        setIsSaved(false);
+        toast.info('북마크가 해제되었습니다.');
+      } else {
+        await jdSummaryService.save(summary);
+        setIsSaved(true);
+        toast.success('북마크에 저장되었습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to update bookmark', error);
+      toast.error('북마크 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Wide layout for the list page
   return (
-    <div 
+    <div
       onClick={() => navigate(`/jd/${summary.id}`)}
-      className="log-card p-6 flex flex-col h-full cursor-pointer group"
+      className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group flex flex-col gap-4"
     >
-      <div className="flex justify-between items-start mb-6">
-        <div className="w-14 h-14 mint-gradient-bg rounded-2xl flex items-center justify-center text-white shadow-lg shadow-[#89cbb6]/20 transition-transform group-hover:scale-110 duration-500">
-          <TbFileText size={28} />
-        </div>
-        <span className="px-3 py-1 bg-gray-50 border border-gray-100 text-[10px] font-black text-gray-400 rounded-full tracking-widest group-hover:border-[#89cbb6]/30 group-hover:text-[#276db8] transition-colors">
-          #{summary.id.toString().padStart(4, '0')}
-        </span>
-      </div>
-
-      <div className="flex-grow">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-black text-[#89cbb6] uppercase tracking-wider">{summary.brandName}</span>
-          <div className="w-1 h-1 rounded-full bg-gray-200" />
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Entry</span>
-        </div>
-        <h3 className="text-xl font-black text-gray-900 mb-3 group-hover:text-[#276db8] transition-colors leading-tight">
-          {summary.brandPositionName}
-        </h3>
-        <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed font-medium">
-          {summary.summaryText}
-        </p>
-      </div>
-
-      <div className="mt-8 pt-6 border-t border-dashed border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="log-badge text-[#276db8] border-[#276db8]/20 bg-[#276db8]/5">
-            {summary.careerType === 'NEW' ? 'New' : summary.careerType === 'EXPERIENCED' ? 'Exp' : 'Any'}
+      <div className="flex justify-between items-start">
+        <div className="flex items-center gap-3">
+          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+            {summary.brandName}
+          </h3>
+          <span className="px-3 py-1 bg-[#4CDFD5]/10 text-[#4CDFD5] text-[10px] font-bold rounded-lg uppercase">
+            {summary.careerType === 'NEW' ? '신입' : summary.careerType === 'EXPERIENCED' ? '경력' : '무관'}
+          </span>
+          <span className="px-3 py-1 bg-blue-50 text-blue-400 text-[10px] font-bold rounded-lg uppercase">
+            지원함
           </span>
         </div>
-        <TbChevronRight size={20} className="text-gray-300 group-hover:text-[#276db8] group-hover:translate-x-1 transition-all" />
+        <button
+          onClick={handleBookmark}
+          className="text-gray-300 hover:text-[#4CDFD5] transition-colors"
+        >
+          {isSaved ? <TbBookmarkFilled size={24} className="text-[#4CDFD5]" /> : <TbBookmark size={24} />}
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <h4 className="text-lg font-medium text-gray-700">
+          {summary.brandPositionName}
+        </h4>
+        <div className="flex gap-2 mt-1">
+          {(summary.techStackParsed || []).slice(0, 3).map((tech: string, idx: number) => (
+            <span
+              key={idx}
+              className="px-3 py-1 border border-[#4CDFD5]/30 text-[#4CDFD5] text-[11px] font-medium rounded-lg"
+            >
+              {tech}
+            </span>
+          ))}
+          {(!summary.techStackParsed || summary.techStackParsed.length === 0) && (
+            <span className="px-3 py-1 border border-gray-100 text-gray-400 text-[11px] font-medium rounded-lg">
+              General
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-6 border-t border-gray-50 flex items-center justify-between">
+        <div className="flex items-center gap-4 text-xs font-semibold text-gray-400">
+          <span>{summary.createdAt?.slice(0, 10).replace(/-/g, '.') || '2024.01.01'}</span>
+          <span>리뷰 0개</span>
+          <span>공개</span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-6 bg-gray-50 rounded-lg" />
+          <span className="text-[10px] font-bold text-gray-300 uppercase">공개</span>
+        </div>
       </div>
     </div>
   );
