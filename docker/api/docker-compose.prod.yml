@@ -71,7 +71,7 @@ services:
     container_name: loki
     restart: unless-stopped
     ports:
-      - '10.0.0.116:3100:3100'  # Server2 promtail → Server1 Loki 수신
+      - '10.0.0.116:3100:3100' # Server2 promtail → Server1 Loki 수신
     volumes:
       - ./data/loki:/loki
       - ./loki-config.yml:/etc/loki/local-config.yaml
@@ -99,7 +99,7 @@ services:
   # Spring Boot API (prod: Blue-Green, ghcr.io 이미지)
   # ──────────────────────────────────────────────
   api-blue:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+    image: ${API_IMAGE:-ghcr.io/dongwoo46/hirelog-api:latest}
     container_name: api_blue_prod
     restart: unless-stopped
     env_file:
@@ -113,14 +113,18 @@ services:
       - hirelog_internal
       - hirelog_external
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:8080/actuator/health || exit 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
 
   api-green:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+    image: ${API_IMAGE:-ghcr.io/dongwoo46/hirelog-api:latest}
     container_name: api_green_prod
     restart: unless-stopped
     env_file:
@@ -135,7 +139,11 @@ services:
       - hirelog_external
     profiles: ['green']
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:8080/actuator/health || exit 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -147,7 +155,7 @@ services:
   # Server2(10.0.1.6) Kafka 직접 연결 → hirelog_external 필요
   # ──────────────────────────────────────────────
   preprocess:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-preprocess:latest
+    image: ${PREPROCESS_IMAGE:-ghcr.io/dongwoo46/hirelog-preprocess:latest}
     container_name: preprocess_prod
     restart: unless-stopped
     env_file:
@@ -158,10 +166,9 @@ services:
 networks:
   hirelog_internal:
     driver: bridge
-    internal: true   # Redis, 모니터링 등 외부 접근 차단
+    internal: true # Redis, 모니터링 등 외부 접근 차단
   hirelog_external:
-    driver: bridge   # Server2(10.0.1.6) 접근용
+    driver: bridge # Server2(10.0.1.6) 접근용
     ipam:
       config:
         - subnet: 172.20.0.0/16
-
