@@ -1,24 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { memberService } from '../services/memberService';
-import { useNavigate } from 'react-router-dom';
 import { TbEdit, TbX } from 'react-icons/tb';
 
 const ProfilePage = () => {
   const { user, setUser } = useAuthStore();
-  const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   const [form, setForm] = useState({
-    username: user?.username || '',
-    email: user?.email || '',
-    careerYears: user?.careerYears || 0,
+    username: '',
+    email: '',
+    careerYears: 0,
+    summary: '',
   });
 
-  if (!user) return null;
+  useEffect(() => {
+    if (user) {
+      setForm({
+        username: user.username || '',
+        email: user.email || '',
+        careerYears: user.careerYears || 0,
+        summary: user.summary || '',
+      });
+    }
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-400 text-sm">프로필 정보를 불러오는 중...</p>
+      </div>
+    );
+  }
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -27,6 +43,7 @@ const ProfilePage = () => {
 
       await memberService.updateProfile({
         careerYears: form.careerYears,
+        summary: form.summary,
       });
 
       if (form.email !== user.email) {
@@ -42,7 +59,6 @@ const ProfilePage = () => {
         setSuccessMessage('');
         setIsModalOpen(false);
       }, 1500);
-
     } catch (err) {
       setSuccessMessage('수정 중 오류가 발생했습니다.');
     } finally {
@@ -51,54 +67,74 @@ const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F6F8] pt-24 pb-20 px-6">
+    <div className="min-h-screen bg-[#F8FBFC] pt-24 pb-20 px-6">
       <div className="max-w-5xl mx-auto space-y-10">
 
-        {/* 프로필 카드 */}
-        <div className="relative rounded-3xl p-10 text-white overflow-hidden
-          bg-gradient-to-r from-[#36C9C6] to-[#7FB8A4] shadow-xl">
+        {/* 상단 프로필 카드 */}
+        <div className="relative rounded-3xl p-12 text-white overflow-hidden
+          bg-gradient-to-r from-[#4CDFD5] to-[#36C9C6]
+          shadow-[0_20px_50px_-10px_rgba(76,223,213,0.35)]">
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="absolute top-6 right-6 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition"
+            className="absolute top-6 right-6 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition backdrop-blur-sm"
           >
             <TbEdit size={16} />
             정보 수정
           </button>
 
           <div className="flex items-center gap-10">
-            <div className="w-28 h-28 rounded-full bg-white/30 flex items-center justify-center text-4xl font-bold">
+            <div className="w-28 h-28 rounded-full bg-white/30 flex items-center justify-center text-4xl font-bold backdrop-blur-sm">
               {user.username?.charAt(0).toUpperCase()}
             </div>
 
             <div>
-              <h2 className="text-3xl font-bold">{user.username}님</h2>
-              <p className="text-white/80">{user.email}</p>
-              <p className="text-white/70 text-sm mt-2">
-                {user.careerYears === 0 ? '신입' : `${user.careerYears}년차`}
+              <h2 className="text-3xl font-bold tracking-tight">
+                {user.username}
+              </h2>
+              <p className="text-white/90">{user.email}</p>
+              <p className="text-white/80 text-sm mt-2">
+                {user.currentPosition?.name || '직무 정보 없음'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* 공고 모아보기 */}
-        <div
-          onClick={() => navigate('/archive')}
-          className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-[#4CDFD5]/40 transition-all"
-        >
-          <h3 className="text-lg font-bold">공고 모아보기</h3>
-          <p className="text-sm text-gray-400 mt-1">
-            내가 등록하거나 저장한 공고를 확인하세요.
-          </p>
-        </div>
+        {/* 상세 정보 카드 */}
+        <div className="bg-white rounded-3xl border border-[#4CDFD5]/20 p-10 shadow-sm">
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <InfoRow label="User ID" value={user.id} />
+            <InfoRow label="Role" value={user.role} />
+            <InfoRow label="Status" value={user.status} />
+            <InfoRow
+              label="경력"
+              value={
+                user.careerYears
+                  ? `${user.careerYears}년`
+                  : '신입'
+              }
+            />
+            <InfoRow
+              label="가입일"
+              value={user.createdAt?.slice(0, 10)}
+            />
+          </div>
+
+          <div className="mt-10">
+            <p className="text-sm text-gray-500 mb-3">자기소개</p>
+            <div className="bg-[#4CDFD5]/5 border border-[#4CDFD5]/20 rounded-2xl p-6 text-gray-700 text-sm leading-relaxed">
+              {user.summary || '작성된 소개가 없습니다.'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 수정 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-
-          <div className="bg-white w-full max-w-lg rounded-2xl p-8 relative animate-fadeIn">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-8 relative shadow-xl">
 
             <button
               onClick={() => setIsModalOpen(false)}
@@ -107,17 +143,12 @@ const ProfilePage = () => {
               <TbX size={20} />
             </button>
 
-            <h2 className="text-xl font-bold mb-6">정보 수정</h2>
+            <h2 className="text-xl font-bold mb-6 text-[#4CDFD5]">
+              정보 수정
+            </h2>
 
             {successMessage && (
-              <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl
-                bg-[#4CDFD5]/10 border border-[#4CDFD5]/30
-                text-[#0f172a] text-sm font-semibold animate-fadeIn">
-
-                <div className="w-6 h-6 rounded-full bg-[#4CDFD5] flex items-center justify-center text-white text-xs">
-                  ✓
-                </div>
-
+              <div className="mb-4 text-sm text-[#4CDFD5] font-semibold">
                 {successMessage}
               </div>
             )}
@@ -152,16 +183,22 @@ const ProfilePage = () => {
                 }
               />
 
+              <Input
+                label="자기소개"
+                value={form.summary}
+                onChange={(v: string) =>
+                  setForm({ ...form, summary: v })
+                }
+              />
+
               <button
                 onClick={handleSave}
                 disabled={isLoading}
-                className="w-full py-3 bg-[#4CDFD5] hover:bg-[#3CCFC5]
-                  text-white rounded-xl font-semibold mt-4
-                  transition disabled:opacity-50"
+                className="w-full py-3 bg-[#4CDFD5] hover:bg-[#36C9C6]
+                  text-white rounded-2xl font-semibold transition shadow-md"
               >
                 {isLoading ? '저장 중...' : '저장하기'}
               </button>
-
             </div>
           </div>
         </div>
@@ -170,19 +207,21 @@ const ProfilePage = () => {
   );
 };
 
-const Input = ({
-  label,
-  value,
-  onChange,
-  type = 'text',
-}: any) => (
+const InfoRow = ({ label, value }: any) => (
+  <div className="flex justify-between text-sm border-b border-gray-100 pb-3">
+    <span className="text-gray-500">{label}</span>
+    <span className="font-semibold text-gray-800">{value}</span>
+  </div>
+);
+
+const Input = ({ label, value, onChange, type = 'text' }: any) => (
   <div>
     <label className="text-sm text-gray-500">{label}</label>
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200
+      className="w-full mt-1 px-4 py-3 rounded-2xl border border-gray-200
         focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none transition"
     />
   </div>
