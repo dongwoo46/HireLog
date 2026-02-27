@@ -31,12 +31,14 @@ export const JobSummarySearch: React.FC<Props> = ({
     }
   }, []);
 
+  // 🔧 수정: trim 적용
   const saveRecentKeyword = (keyword: string) => {
-    if (!keyword.trim()) return;
+    const trimmed = keyword.trim();
+    if (!trimmed) return;
 
     const updated = [
-      keyword,
-      ...recentKeywords.filter(k => k !== keyword)
+      trimmed,
+      ...recentKeywords.filter(k => k !== trimmed)
     ].slice(0, 5);
 
     setRecentKeywords(updated);
@@ -54,7 +56,6 @@ export const JobSummarySearch: React.FC<Props> = ({
     localStorage.removeItem('recent_keywords');
   };
 
-  /* ------------------ 초기값 안정화 ------------------ */
   const stableInitial = useMemo(() => ({
     ...initialParams,
     keyword: initialParams.keyword || '',
@@ -72,13 +73,21 @@ export const JobSummarySearch: React.FC<Props> = ({
     });
   }, [stableInitial]);
 
+  // 🔧 수정: 모든 string trim 처리
   const cleanParams = (obj: JobSummarySearchReq): JobSummarySearchReq => {
     const cleaned: any = {};
+
     Object.entries(obj).forEach(([key, value]) => {
-      if (value !== undefined && value !== '' && value !== null) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed !== '') {
+          cleaned[key] = trimmed;
+        }
+      } else if (value !== undefined && value !== null) {
         cleaned[key] = value;
       }
     });
+
     return cleaned;
   };
 
@@ -87,8 +96,8 @@ export const JobSummarySearch: React.FC<Props> = ({
 
     const cleaned = cleanParams(params);
 
-    if (params.keyword) {
-      saveRecentKeyword(params.keyword);
+    if (cleaned.keyword) {
+      saveRecentKeyword(cleaned.keyword);
     }
 
     onSearch(cleaned);
@@ -108,14 +117,11 @@ export const JobSummarySearch: React.FC<Props> = ({
   return (
     <>
       <form onSubmit={handleSubmit} className="w-full max-w-4xl mx-auto">
-
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-5 py-4 relative">
-
           <div className="flex items-center gap-3">
 
             <TbSearch size={20} className="text-[#4CDFD5] shrink-0" />
 
-            {/* 🔥 키워드 입력 */}
             <input
               type="text"
               value={params.keyword || ''}
@@ -125,19 +131,12 @@ export const JobSummarySearch: React.FC<Props> = ({
               className="flex-1 outline-none bg-transparent text-gray-800 placeholder-gray-400 font-medium text-base"
             />
 
-            {/* 🔥 검색 팁 */}
             <div className="relative group shrink-0">
               <TbInfoCircle
                 size={18}
                 className="text-gray-400 hover:text-[#4CDFD5] cursor-pointer"
               />
-              <div className="
-                absolute right-0 top-8 w-64
-                bg-white border border-gray-100 shadow-xl rounded-xl p-4
-                text-xs text-gray-600 leading-relaxed
-                opacity-0 group-hover:opacity-100
-                transition-all duration-200 z-50
-              ">
+              <div className="absolute right-0 top-8 w-64 bg-white border border-gray-100 shadow-xl rounded-xl p-4 text-xs text-gray-600 leading-relaxed opacity-0 group-hover:opacity-100 transition-all duration-200 z-50">
                 <div className="font-bold text-[#4CDFD5] mb-2">검색 팁</div>
                 <ul className="space-y-1">
                   <li>• 기업명: 네이버, 카카오</li>
@@ -150,7 +149,6 @@ export const JobSummarySearch: React.FC<Props> = ({
 
             <div className="w-px h-5 bg-gray-200 shrink-0" />
 
-            {/* 경력 */}
             <div className="relative shrink-0">
               <select
                 value={params.careerType || ''}
@@ -161,21 +159,6 @@ export const JobSummarySearch: React.FC<Props> = ({
                 <option value="NEW">신입</option>
                 <option value="EXPERIENCED">경력</option>
                 <option value="ANY">무관</option>
-              </select>
-              <TbChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
-
-            <div className="w-px h-5 bg-gray-200 shrink-0" />
-
-            {/* 정렬 */}
-            <div className="relative shrink-0">
-              <select
-                value={params.sortBy || 'CREATED_AT_DESC'}
-                onChange={e => updateParam('sortBy', e.target.value)}
-                className="appearance-none bg-transparent text-gray-500 font-bold cursor-pointer outline-none pr-5 text-sm"
-              >
-                <option value="CREATED_AT_DESC">최신순</option>
-                <option value="CREATED_AT_ASC">오래된순</option>
               </select>
               <TbChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
@@ -198,16 +181,13 @@ export const JobSummarySearch: React.FC<Props> = ({
             </button>
           </div>
 
-          {/* 🔥 최근 검색어 */}
           {recentKeywords.length > 0 && (
             <div className="mt-4 pt-3 border-t border-gray-100">
-
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2 text-xs text-gray-400 font-semibold">
                   <TbClock size={14} />
                   최근 검색어
                 </div>
-
                 <button
                   type="button"
                   onClick={clearRecentKeywords}

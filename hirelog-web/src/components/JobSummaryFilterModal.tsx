@@ -30,8 +30,23 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
         setLocalFilters(prev => ({ ...prev, [key]: value }));
     };
 
+    // 🔥 수정: 적용 시 모든 string 값 trim 처리
     const handleApply = () => {
-        onApply(localFilters);
+
+        const trimmedFilters: any = {};
+
+        Object.entries(localFilters).forEach(([key, value]) => {
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (trimmed !== '') {
+                    trimmedFilters[key] = trimmed;
+                }
+            } else if (value !== undefined && value !== null) {
+                trimmedFilters[key] = value;
+            }
+        });
+
+        onApply(trimmedFilters);
         onClose();
     };
 
@@ -51,35 +66,29 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
 
                 {/* 기업 */}
                 <FilterSection title="기업 / 브랜드" icon={<TbBuilding />}>
-
                     <FilterInput
                         placeholder="기업명을 입력하세요"
                         value={localFilters.brandName}
                         onChange={val => updateParam('brandName', val)}
                     />
-
                 </FilterSection>
 
                 {/* 카테고리 */}
                 <FilterSection title="직무 카테고리" icon={<TbCategory />}>
-
                     <FilterInput
                         placeholder="카테고리를 입력하세요"
                         value={localFilters.positionCategoryName}
                         onChange={val => updateParam('positionCategoryName', val)}
                     />
-
                 </FilterSection>
 
-                {/* 🔥 포지션 Autocomplete 완전 제거 */}
+                {/* 포지션 */}
                 <FilterSection title="포지션 / 역할" icon={<TbBriefcase />}>
-
                     <FilterInput
                         placeholder="포지션을 입력하세요"
                         value={localFilters.positionName}
                         onChange={val => updateParam('positionName', val)}
                     />
-
                 </FilterSection>
 
             </div>
@@ -88,7 +97,6 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
             <div className="mt-16 pt-8 border-t border-gray-100 flex justify-between items-center">
 
                 <div className="flex gap-3">
-
                     <SortButton
                         active={localFilters.sortBy === 'CREATED_AT_DESC'}
                         onClick={() => updateParam('sortBy', 'CREATED_AT_DESC')}
@@ -102,7 +110,6 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
                     >
                         오래된순
                     </SortButton>
-
                 </div>
 
                 <div className="flex gap-4 items-center">
