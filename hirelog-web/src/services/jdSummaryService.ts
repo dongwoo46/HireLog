@@ -1,75 +1,3 @@
-// import { apiClient } from '../utils/apiClient';
-// import type {
-//   JobSummarySearchReq,
-//   JobSummarySearchResult,
-//   JobSummaryDetailView,
-//   JobSummaryTextReq,
-//   JobSummaryUrlReq,
-//   JobSummaryUrlRes
-// } from '../types/jobSummary';
-
-// export const jdSummaryService = {
-
-//   search: async (params: JobSummarySearchReq): Promise<JobSummarySearchResult> => {
-//     const response = await apiClient.get<JobSummarySearchResult>(
-//       '/job-summary/search',
-//       { params }
-//     );
-//     return response.data;
-//   },
-
-//   getDetail: async (id: number): Promise<JobSummaryDetailView> => {
-//     const response = await apiClient.get<JobSummaryDetailView>(
-//       `/job-summary/${id}`
-//     );
-//     return response.data;
-//   },
-
-//   requestText: async (data: JobSummaryTextReq): Promise<void> => {
-//     await apiClient.post('/job-summary/text', data);
-//   },
-
-//   requestUrl: async (data: JobSummaryUrlReq): Promise<JobSummaryUrlRes> => {
-//     const response = await apiClient.post<JobSummaryUrlRes>(
-//       '/job-summary/url',
-//       data
-//     );
-//     return response.data;
-//   },
-
-//   save: async (id: number): Promise<void> => {
-//     await apiClient.post(`/job-summary/${id}/save`);
-//   },
-
-//   unsave: async (id: number): Promise<void> => {
-//     await apiClient.delete(`/job-summary/${id}/save`);
-//   },
-
-//   // 🔥 메모 API
-//   getMemos: async (id: number) => {
-//     const response = await apiClient.get(`/job-summary/${id}/memos`);
-//     return response.data;
-//   },
-
-//   addMemo: async (id: number, content: string) => {
-//     const response = await apiClient.post(`/job-summary/${id}/memo`, { content });
-//     return response.data;
-//   },
-
-//   updateMemo: async (memoId: number, content: string) => {
-//     await apiClient.patch(`/memo/${memoId}`, { content });
-//   },
-
-//   deleteMemo: async (memoId: number) => {
-//     await apiClient.delete(`/memo/${memoId}`);
-//   },
-
-//   // 🔥 리뷰 API
-//   addReview: async (id: number, content: string) => {
-//     await apiClient.post(`/job-summary/${id}/review`, { content });
-//   },
-
-// };
 import { apiClient } from '../utils/apiClient';
 import type {
   JobSummarySearchReq,
@@ -146,7 +74,7 @@ export const jdSummaryService = {
     positionCategoryName?: string;
   }): Promise<void> => {
     await apiClient.post('/member-job-summary', {
-      memberId: 0, // Backend controller will override this, but it's required for deserialization
+      memberId: 0,
       jobSummaryId: summary.id,
       brandName: summary.brandName,
       brandPositionName: summary.brandPositionName,
@@ -188,6 +116,26 @@ export const jdSummaryService = {
 
   addReview: async (id: number, data: ReviewWriteReq): Promise<void> => {
     await apiClient.post(`/job-summary/review/${id}`, data);
+  },
+
+  // ✅ 여기만 추가됨 (API 건드린 거 아님)
+  getReviews: async (
+    summaryId: number,
+    page = 0,
+    size = 20
+  ): Promise<{
+    items: any[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    hasNext: boolean;
+  }> => {
+    const response = await apiClient.get(
+      `/job-summary/review/${summaryId}`,
+      { params: { page, size } }
+    );
+    return response.data;
   },
 
   /* ---------------------- 아카이브 ---------------------- */
