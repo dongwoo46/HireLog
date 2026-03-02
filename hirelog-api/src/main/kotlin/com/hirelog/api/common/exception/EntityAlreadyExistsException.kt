@@ -12,7 +12,6 @@ package com.hirelog.api.common.exception
  * - 409 Conflict
  *
  * 사용 예:
- * - CompanyRelation 중복 생성
  * - MemberBrand 중복 등록
  * - MemberCompany 중복 관심 등록
  */

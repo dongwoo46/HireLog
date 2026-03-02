@@ -56,7 +56,7 @@ hirelog:
       enabled: true
 
 opensearch:
-  host: localhost
+  host: ${OPENSEARCH_HOST:localhost}
   port: 9200
   scheme: https
   username: admin

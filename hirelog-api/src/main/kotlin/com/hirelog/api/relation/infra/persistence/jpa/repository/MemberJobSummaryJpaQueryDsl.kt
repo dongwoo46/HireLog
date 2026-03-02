@@ -2,13 +2,16 @@ package com.hirelog.api.relation.infra.persistence.jpa.repository
 
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.relation.application.memberjobsummary.view.*
+import com.hirelog.api.relation.domain.model.QCoverLetter.coverLetter
 import com.hirelog.api.relation.domain.model.QHiringStageRecord.hiringStageRecord
 import com.hirelog.api.relation.domain.model.QMemberJobSummary.memberJobSummary
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
+@Transactional(readOnly = true)
 class MemberJobSummaryJpaQueryDsl(
     private val queryFactory: JPAQueryFactory
 ) {
@@ -118,5 +121,71 @@ class MemberJobSummaryJpaQueryDsl(
                 memberJobSummary.jobSummaryId.eq(jobSummaryId)
             )
             .fetchFirst() != null
+    }
+
+    fun findSavedStatesByJobSummaryIds(
+        memberId: Long,
+        jobSummaryIds: Set<Long>
+    ): Map<Long, JobSummarySavedStateView> {
+        if (jobSummaryIds.isEmpty()) return emptyMap()
+
+        return queryFactory
+            .select(
+                memberJobSummary.id,
+                memberJobSummary.jobSummaryId,
+                memberJobSummary.saveType
+            )
+            .from(memberJobSummary)
+            .where(
+                memberJobSummary.memberId.eq(memberId),
+                memberJobSummary.jobSummaryId.`in`(jobSummaryIds)
+            )
+            .fetch()
+            .associate { tuple ->
+                val jobSummaryId = tuple[memberJobSummary.jobSummaryId]!!
+                jobSummaryId to JobSummarySavedStateView(
+                    jobSummaryId = jobSummaryId,
+                    memberJobSummaryId = tuple[memberJobSummary.id]!!,
+                    saveType = tuple[memberJobSummary.saveType]!!
+                )
+            }
+    }
+
+    fun findCoverLetters(
+        memberId: Long,
+        jobSummaryId: Long
+    ): List<CoverLetterView> {
+
+        val memberJobSummaryId = queryFactory
+            .select(memberJobSummary.id)
+            .from(memberJobSummary)
+            .where(
+                memberJobSummary.memberId.eq(memberId),
+                memberJobSummary.jobSummaryId.eq(jobSummaryId)
+            )
+            .fetchOne()
+            ?: throw NoSuchElementException(
+                "MemberJobSummary not found (memberId=$memberId, jobSummaryId=$jobSummaryId)"
+            )
+
+        return queryFactory
+            .select(
+                coverLetter.id,
+                coverLetter.question,
+                coverLetter.content,
+                coverLetter.sortOrder
+            )
+            .from(coverLetter)
+            .where(coverLetter.memberJobSummaryId.eq(memberJobSummaryId))
+            .orderBy(coverLetter.sortOrder.asc())
+            .fetch()
+            .map {
+                CoverLetterView(
+                    id = it[coverLetter.id]!!,
+                    question = it[coverLetter.question]!!,
+                    content = it[coverLetter.content]!!,
+                    sortOrder = it[coverLetter.sortOrder]!!
+                )
+            }
     }
 }

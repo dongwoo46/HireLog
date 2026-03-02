@@ -2,6 +2,7 @@ package com.hirelog.api.common.application.outbox
 
 import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
+import io.micrometer.core.instrument.MeterRegistry
 import io.mockk.*
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -14,12 +15,17 @@ class OutboxEventWriteServiceTest {
 
     private lateinit var outboxEventWriteService: OutboxEventWriteService
     private lateinit var outboxEventCommand: OutboxEventCommand
+    private lateinit var meterRegistry: MeterRegistry
+
 
     @BeforeEach
     fun setUp() {
         outboxEventCommand = mockk()
-        outboxEventWriteService = OutboxEventWriteService(outboxEventCommand)
-    }
+        meterRegistry = mockk(relaxed = true) // ← 핵심
+        outboxEventWriteService = OutboxEventWriteService(
+            outboxEventCommand,
+            meterRegistry
+        )    }
 
     @Nested
     @DisplayName("append 메서드는")

@@ -17,6 +17,32 @@ class GlobalExceptionHandler {
         return ResponseEntity.notFound().build()
     }
 
+    @ExceptionHandler(InvalidCursorException::class)
+    fun handleInvalidCursor(
+        ex: InvalidCursorException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.BAD_REQUEST
+
+        log.warn(
+            "[INVALID_CURSOR] path={}, cursor={}, message={}",
+            request.requestURI,
+            request.getParameter("cursor"),
+            ex.message
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = "INVALID_CURSOR",
+                message = ex.message,
+                path = request.requestURI
+            )
+        )
+    }
+
     @ExceptionHandler(EntityNotFoundException::class)
     fun handleEntityNotFound(
         ex: EntityNotFoundException,

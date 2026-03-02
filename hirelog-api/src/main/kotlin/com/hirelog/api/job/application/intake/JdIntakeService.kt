@@ -6,6 +6,7 @@ import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.infra.storage.FileStorageService
 import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
+import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.common.logging.log
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -30,6 +31,7 @@ class JdIntakeService(
     private val fileStorageService: FileStorageService,
     private val jobSummaryRequestWriteService: JobSummaryRequestWriteService,
     private val outboxEventWriteService: OutboxEventWriteService,
+    private val jobSummaryQuery: JobSummaryQuery,
     private val objectMapper: ObjectMapper
 ) {
 
@@ -109,6 +111,10 @@ class JdIntakeService(
 
     /**
      * URL 기반 JD 전처리 요청
+     *
+     * 정책:
+     * - 동일 URL로 생성된 JobSummary가 이미 존재하면 Duplicate 반환
+     * - 신규 URL이면 파이프라인 진입 후 NewRequest 반환
      */
     @Transactional
     fun requestUrl(
@@ -116,10 +122,16 @@ class JdIntakeService(
         brandName: String,
         brandPositionName: String,
         url: String,
-    ): String {
+    ): UrlIntakeResult {
         require(brandName.isNotBlank()) { "brandName is required" }
         require(brandPositionName.isNotBlank()) { "positionName is required" }
         require(isValidUrl(url)) { "Invalid URL format: $url" }
+
+        val existing = jobSummaryQuery.findBySourceUrl(url)
+        if (existing != null) {
+            log.info("[JD_INTAKE_URL_DUPLICATE] url={}, existingSummaryId={}", url, existing.summaryId)
+            return UrlIntakeResult.Duplicate(existing)
+        }
 
         val message = JdPreprocessRequestMessage(
             eventId = UUID.randomUUID().toString(),
@@ -140,7 +152,7 @@ class JdIntakeService(
         jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
         appendOutbox(AggregateType.JD_PREPROCESS_URL, message)
 
-        return message.requestId
+        return UrlIntakeResult.NewRequest(message.requestId)
     }
 
     private fun appendOutbox(

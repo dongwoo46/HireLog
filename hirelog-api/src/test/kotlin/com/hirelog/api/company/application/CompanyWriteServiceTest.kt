@@ -52,7 +52,7 @@ class CompanyWriteServiceTest {
             every { companyQuery.existsByNormalizedName(normalizedName) } returns false
             every { companyCommand.save(any()) } returns savedCompany
 
-            val result = service.create(name, CompanySource.MANUAL, null, adminMember)
+            val result = service.create(name, CompanySource.ADMIN, null, adminMember)
 
             assertThat(result).isEqualTo(1L)
             verify(exactly = 1) { companyCommand.save(any()) }
@@ -62,7 +62,7 @@ class CompanyWriteServiceTest {
         @DisplayName("관리자가 아니면 생성을 거부한다")
         fun shouldRejectNonAdmin() {
             assertThatThrownBy {
-                service.create("Toss", CompanySource.MANUAL, null, userMember)
+                service.create("Toss", CompanySource.ADMIN, null, userMember)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("ADMIN")
 
@@ -76,7 +76,7 @@ class CompanyWriteServiceTest {
             every { Normalizer.normalizeCompany(name) } returns ""
 
             assertThatThrownBy {
-                service.create(name, CompanySource.MANUAL, null, adminMember)
+                service.create(name, CompanySource.ADMIN, null, adminMember)
             }.isInstanceOf(IllegalArgumentException::class.java)
 
             verify(exactly = 0) { companyCommand.save(any()) }
@@ -92,7 +92,7 @@ class CompanyWriteServiceTest {
             every { companyQuery.existsByNormalizedName(normalizedName) } returns true
 
             assertThatThrownBy {
-                service.create(name, CompanySource.MANUAL, null, adminMember)
+                service.create(name, CompanySource.ADMIN, null, adminMember)
             }.isInstanceOf(IllegalStateException::class.java)
                 .hasMessageContaining("already exists")
 
@@ -110,7 +110,7 @@ class CompanyWriteServiceTest {
             every { companyCommand.save(any()) } throws DataIntegrityViolationException("Duplicate key")
 
             assertThatThrownBy {
-                service.create(name, CompanySource.MANUAL, null, adminMember)
+                service.create(name, CompanySource.ADMIN, null, adminMember)
             }.isInstanceOf(IllegalStateException::class.java)
                 .hasMessageContaining("already exists")
         }

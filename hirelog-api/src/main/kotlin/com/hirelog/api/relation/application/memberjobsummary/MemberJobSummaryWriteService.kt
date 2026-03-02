@@ -91,6 +91,45 @@ class MemberJobSummaryWriteService(
         memberJobSummaryCommand.save(summary)
     }
 
+    fun addCoverLetter(
+        memberId: Long,
+        jobSummaryId: Long,
+        question: String,
+        content: String,
+        sortOrder: Int?
+    ) {
+        val summary = getOrThrow(memberId, jobSummaryId)
+        if (sortOrder != null) {
+            summary.addCoverLetter(question, content, sortOrder)
+        } else {
+            summary.addCoverLetter(question, content)
+        }
+        memberJobSummaryCommand.save(summary)
+    }
+
+    fun updateCoverLetter(
+        memberId: Long,
+        jobSummaryId: Long,
+        coverLetterId: Long,
+        question: String,
+        content: String,
+        sortOrder: Int
+    ) {
+        val summary = getOrThrow(memberId, jobSummaryId)
+        summary.updateCoverLetter(coverLetterId, question, content, sortOrder)
+        memberJobSummaryCommand.save(summary)
+    }
+
+    fun removeCoverLetter(
+        memberId: Long,
+        jobSummaryId: Long,
+        coverLetterId: Long
+    ) {
+        val summary = getOrThrow(memberId, jobSummaryId)
+        summary.removeCoverLetter(coverLetterId)
+        memberJobSummaryCommand.save(summary)
+    }
+
     private fun getOrThrow(
         memberId: Long,
         jobSummaryId: Long

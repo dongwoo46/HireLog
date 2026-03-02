@@ -1,0 +1,174 @@
+name: Deploy API
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths:
+      - 'hirelog-api/**'
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/dongwoo46/hirelog-api
+
+jobs:
+  test:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'backend')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Run tests
+        run: ./gradlew test
+        working-directory: hirelog-api
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: hirelog-api/build/reports/tests/test/
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (local)
+        uses: docker/build-push-action@v5
+        with:
+          context: hirelog-api
+          push: false
+          load: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+
+      - name: Trivy 이미지 스캔
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+      - name: Push image
+        uses: docker/build-push-action@v5
+        with:
+          context: hirelog-api
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose & config files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER1_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: >-
+            docker/api/docker-compose.prod.yml,
+            docker/api/prometheus.yml,
+            docker/api/loki-config.yml,
+            docker/api/promtail-config.yml,
+            docker/api/grafana/
+          target: '/home/hirelog/'
+          strip_components: 2
+
+      - name: Blue-Green Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER1_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            export API_IMAGE=ghcr.io/dongwoo46/hirelog-api:${{ needs.build.outputs.image_tag }}
+            WORKDIR=/home/hirelog
+            COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
+            ACTIVE_CONF=/etc/nginx/conf.d/hirelog-active.conf
+
+            echo "▶ Image: $API_IMAGE"
+
+            # ── 현재 활성 슬롯 판별 ──────────────────────────────
+            if grep -q "8080" $ACTIVE_CONF; then
+              CURRENT=blue  CURRENT_PORT=8080  CURRENT_SVC=api-blue
+              NEXT=green    NEXT_PORT=8081     NEXT_SVC=api-green
+            else
+              CURRENT=green CURRENT_PORT=8081  CURRENT_SVC=api-green
+              NEXT=blue     NEXT_PORT=8080     NEXT_SVC=api-blue
+            fi
+
+            echo "▶ Current: $CURRENT ($CURRENT_PORT) → Next: $NEXT ($NEXT_PORT)"
+
+            # ── SHA 태그 이미지 Pull ─────────────────────────────
+            docker pull $API_IMAGE
+
+            # ── 비활성 슬롯 시작 ─────────────────────────────────
+            if [ "$NEXT" = "green" ]; then
+              $COMPOSE --profile green up -d api-green
+            else
+              $COMPOSE up -d api-blue
+            fi
+
+            # ── Health Check ─────────────────────────────────────
+            echo "▶ Waiting for $NEXT to be healthy..."
+            for i in $(seq 1 30); do
+              STATUS=$(curl -sf http://localhost:$NEXT_PORT/actuator/health 2>/dev/null \
+                | grep -o '"status":"[^"]*"' | head -1 || true)
+              if echo "$STATUS" | grep -q "UP"; then
+                echo "✅ $NEXT is healthy"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "❌ Health check failed — rolling back"
+                $COMPOSE stop $NEXT_SVC
+                exit 1
+              fi
+              sleep 3
+            done
+
+            # ── nginx upstream 전환 ──────────────────────────────
+            echo "upstream hirelog_active { server 127.0.0.1:$NEXT_PORT; }" \
+              | sudo tee $ACTIVE_CONF > /dev/null
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo "▶ nginx switched to $NEXT ($NEXT_PORT)"
+
+            # ── 이전 슬롯 종료 ───────────────────────────────────
+            $COMPOSE stop $CURRENT_SVC
+
+            echo "🎉 Deploy complete: $CURRENT → $NEXT ($API_IMAGE)"

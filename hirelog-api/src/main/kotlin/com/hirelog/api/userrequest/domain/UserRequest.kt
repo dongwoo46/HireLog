@@ -4,6 +4,7 @@ import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import com.hirelog.api.common.infra.jpa.entity.VersionedEntity
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.util.*
 
 @Entity
 @Table(
@@ -94,8 +95,7 @@ class UserRequest protected constructor(
 
     fun resolvedAt(): LocalDateTime? = resolvedAt
 
-    fun getComments(): List<UserRequestComment> =
-        comments.toList()
+    fun getComments(): List<UserRequestComment> = Collections.unmodifiableList(comments)
 
     /* =========================
      * Domain behavior

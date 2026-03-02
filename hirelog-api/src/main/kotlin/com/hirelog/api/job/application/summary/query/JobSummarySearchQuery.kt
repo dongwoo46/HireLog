@@ -5,6 +5,10 @@ import com.hirelog.api.job.domain.type.CareerType
 /**
  * JobSummary 검색 쿼리
  *
+ * 페이징: offset 방식 제거, Search After 커서 방식
+ * - cursor: null이면 첫 페이지
+ * - cursor: SearchCursor Base64 인코딩 값이면 이후 페이지
+ *
  * 검색 전략:
  * - keyword: best_fields + should + minimum_should_match
  * - ID 필터: term (filter context, AND)
@@ -42,7 +46,13 @@ data class JobSummarySearchQuery(
      */
     val techStacks: List<String>? = null,
 
-    val page: Int = 0,
+    /**
+     * Search After 커서
+     * - null: 첫 페이지
+     * - 이전 응답의 nextCursor 값
+     */
+    val cursor: String? = null,
+
     val size: Int = 20,
     val sortBy: SortBy = SortBy.CREATED_AT_DESC
 ) {
@@ -53,7 +63,6 @@ data class JobSummarySearchQuery(
     }
 
     init {
-        require(page >= 0) { "page must be >= 0" }
         require(size in 1..100) { "size must be between 1 and 100" }
     }
 }
