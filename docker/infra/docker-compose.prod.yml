@@ -81,19 +81,11 @@ services:
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
 
-      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,SASL_PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: SASL_PLAINTEXT://10.0.1.6:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,SASL_PLAINTEXT:SASL_PLAINTEXT
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://10.0.1.6:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
-
-      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
-      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
-      KAFKA_LISTENER_NAME_SASL_PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: |
-        org.apache.kafka.common.security.plain.PlainLoginModule required \
-        username="${KAFKA_USERNAME}" \
-        password="${KAFKA_PASSWORD}" \
-        user_${KAFKA_USERNAME}="${KAFKA_PASSWORD}";
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -137,27 +129,6 @@ services:
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: hirelog-debezium
-
-      CONNECT_SECURITY_PROTOCOL: SASL_PLAINTEXT
-      CONNECT_SASL_MECHANISM: PLAIN
-      CONNECT_SASL_JAAS_CONFIG: >
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="${KAFKA_USERNAME}"
-        password="${KAFKA_PASSWORD}";
-
-      CONNECT_PRODUCER_SECURITY_PROTOCOL: SASL_PLAINTEXT
-      CONNECT_PRODUCER_SASL_MECHANISM: PLAIN
-      CONNECT_PRODUCER_SASL_JAAS_CONFIG: >
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="${KAFKA_USERNAME}"
-        password="${KAFKA_PASSWORD}";
-
-      CONNECT_CONSUMER_SECURITY_PROTOCOL: SASL_PLAINTEXT
-      CONNECT_CONSUMER_SASL_MECHANISM: PLAIN
-      CONNECT_CONSUMER_SASL_JAAS_CONFIG: >
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="${KAFKA_USERNAME}"
-        password="${KAFKA_PASSWORD}";
 
       CONFIG_STORAGE_TOPIC: hirelog_debezium_config
       OFFSET_STORAGE_TOPIC: hirelog_debezium_offset
@@ -207,8 +178,7 @@ services:
       - cluster.name=hirelog-opensearch-prod
       - node.name=opensearch-node-1
       - discovery.type=single-node
-      - DISABLE_SECURITY_PLUGIN=false
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD}
+      - DISABLE_SECURITY_PLUGIN=true
       - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
       - bootstrap.memory_lock=true
       - TZ=Asia/Seoul
@@ -226,16 +196,7 @@ services:
     networks:
       - hirelog_internal
     healthcheck:
-      test:
-        [
-          'CMD',
-          'curl',
-          '-f',
-          '-u',
-          'admin:${OPENSEARCH_PASSWORD}',
-          'https://localhost:9200/_cluster/health',
-          '-k',
-        ]
+      test: ['CMD-SHELL', 'curl -sf http://localhost:9200/_cluster/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -250,16 +211,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env.prod
-    entrypoint: /bin/sh
     command:
-      - -c
-      - |
-        /bin/kafka_exporter \
-          --kafka.server=kafka:9092 \
-          --sasl.enabled \
-          --sasl.username="$${KAFKA_USERNAME}" \
-          --sasl.password="$${KAFKA_PASSWORD}" \
-          --sasl.mechanism=plain
+      - --kafka.server=kafka:9092
     ports:
       - '10.0.1.6:9308:9308'
     depends_on:
@@ -289,8 +242,7 @@ services:
     env_file:
       - .env.prod
     command:
-      - '--es.uri=https://admin:${OPENSEARCH_PASSWORD}@opensearch:9200'
-      - '--es.ssl-skip-verify'
+      - '--es.uri=http://opensearch:9200'
     ports:
       - '10.0.1.6:9114:9114'
     networks:

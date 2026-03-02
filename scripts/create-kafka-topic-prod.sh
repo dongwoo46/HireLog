@@ -12,17 +12,6 @@ fi
 
 source "$ENV_FILE"
 
-echo "Creating client.properties..."
-
-docker exec kafka_prod sh -c "cat > /tmp/client.properties <<EOF
-security.protocol=SASL_PLAINTEXT
-sasl.mechanism=PLAIN
-sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${KAFKA_USERNAME}\" password=\"${KAFKA_PASSWORD}\";
-EOF"
-
-echo "✅ client.properties created"
-echo ""
-
 TOPICS=(
   "jd.preprocess.response"
   "jd.preprocess.response.fail"
@@ -45,7 +34,6 @@ do
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
       --bootstrap-server localhost:9092 \
-      --command-config /tmp/client.properties \
       --create \
       --topic \"$topic\" \
       --partitions 3 \
@@ -69,7 +57,6 @@ docker exec kafka_prod sh -c "
   unset KAFKA_OPTS && \
   /opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server localhost:9092 \
-    --command-config /tmp/client.properties \
     --list
 "
 
@@ -87,7 +74,6 @@ do
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
       --bootstrap-server localhost:9092 \
-      --command-config /tmp/client.properties \
       --describe \
       --topic \"$topic\"
   "
