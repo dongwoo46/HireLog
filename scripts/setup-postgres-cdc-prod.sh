@@ -6,7 +6,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-ENV_FILE="${SCRIPT_DIR}/.env.prod"
+ENV_FILE="${SCRIPT_DIR}/../.env.prod"
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "❌ .env.prod not found at $ENV_FILE"
