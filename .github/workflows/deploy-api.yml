@@ -171,3 +171,23 @@ jobs:
             $COMPOSE stop $CURRENT_SVC
 
             echo "🎉 Deploy complete: $CURRENT → $NEXT ($API_IMAGE)"
+
+  cdc:
+    name: Setup CDC connector
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run setup-postgres-cdc-prod.sh on infra server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            chmod +x /home/hirelog/scripts/setup-postgres-cdc-prod.sh
+            bash /home/hirelog/scripts/setup-postgres-cdc-prod.sh
