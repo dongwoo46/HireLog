@@ -283,7 +283,7 @@ services:
       - postgres
 
   opensearch-exporter:
-    image: justwatch/elasticsearch_exporter
+    image: prometheuscommunity/elasticsearch-exporter:latest
     container_name: opensearch_exporter_prod
     restart: unless-stopped
     env_file:

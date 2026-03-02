@@ -79,6 +79,16 @@ jobs:
             set -e
             WORKDIR=/home/hirelog
 
+            # ── OpenSearch 필수: vm.max_map_count ────────────────────────────
+            sudo sysctl -w vm.max_map_count=262144
+            grep -q 'vm.max_map_count' /etc/sysctl.conf \
+              || echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
+
+            # ── 데이터 디렉토리 사전 생성 및 권한 설정 ───────────────────────
+            # kafka(appuser uid=1000), opensearch(uid=1000) 는 root 소유 디렉토리에 쓰기 불가
+            sudo mkdir -p "$WORKDIR/data/kafka" "$WORKDIR/data/opensearch" "$WORKDIR/data/promtail"
+            sudo chown -R 1000:1000 "$WORKDIR/data/kafka" "$WORKDIR/data/opensearch"
+
             # ── docker-compose 실행 ──────────────────────────────────────────
             echo "▶ Starting docker-compose..."
             docker compose \
@@ -100,6 +110,8 @@ jobs:
                 fi
                 if [ "$i" -eq 24 ]; then
                   echo "  ❌ $container is not healthy after 120s (status: $STATUS)"
+                  echo "  --- $container logs (last 50 lines) ---"
+                  docker logs "$container" --tail 50 2>&1 || true
                   docker ps -a
                   exit 1
                 fi
