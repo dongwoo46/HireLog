@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL + '/api',
   withCredentials: true,
 });
 
@@ -49,7 +49,7 @@ apiClient.interceptors.response.use(
       try {
         // Attempt to refresh token using direct axios to avoid interceptor loop
         await axios.post(
-          '/api/auth/refresh',
+          `${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`,
           {},
           { withCredentials: true }
         );

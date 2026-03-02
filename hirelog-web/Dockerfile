@@ -2,10 +2,17 @@
 FROM node:20-alpine AS build
 
 WORKDIR /app
+
+# Accept build-time environment variables
+ARG VITE_API_BASE_URL
+ARG VITE_MODE=production
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_MODE=$VITE_MODE
+
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build -- --mode $VITE_MODE
 
 # Production stage
 FROM node:20-alpine

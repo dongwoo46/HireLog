@@ -25,6 +25,7 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter
     container_name: redis_exporter_prod
+    restart: unless-stopped
     env_file:
       - .env.prod
     expose:
@@ -95,6 +96,22 @@ services:
     depends_on:
       - loki
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter_api
+    restart: unless-stopped
+    pid: host
+    network_mode: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
   # ──────────────────────────────────────────────
   # Spring Boot API (prod: Blue-Green, ghcr.io 이미지)
   # ──────────────────────────────────────────────
@@ -148,6 +165,21 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
+
+  # ──────────────────────────────────────────────
+  # Frontend (prod: ghcr.io 이미지)
+  # ──────────────────────────────────────────────
+  web:
+    image: ghcr.io/${GITHUB_USERNAME}/hirelog-web:latest
+    container_name: frontend_prod
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:5173:5173'
+    networks:
+      - hirelog_internal
+    depends_on:
+      api-blue:
+        condition: service_healthy
 
   # ──────────────────────────────────────────────
   # Python 전처리 파이프라인 (prod: ghcr.io 이미지)
