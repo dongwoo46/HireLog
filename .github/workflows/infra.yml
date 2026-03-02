@@ -23,10 +23,10 @@ jobs:
       - name: Copy docker/infra to infra server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.INFRA_HOST }}
+          host: ${{ secrets.SERVER_INFRA_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          proxy_host: ${{ secrets.SERVER1_HOST }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
           proxy_username: ${{ secrets.SERVER_USER }}
           proxy_key: ${{ secrets.SERVER_SSH_KEY }}
           source: "docker/infra/"
@@ -37,10 +37,10 @@ jobs:
       - name: Copy scripts to infra server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.INFRA_HOST }}
+          host: ${{ secrets.SERVER_INFRA_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          proxy_host: ${{ secrets.SERVER1_HOST }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
           proxy_username: ${{ secrets.SERVER_USER }}
           proxy_key: ${{ secrets.SERVER_SSH_KEY }}
           source: "scripts/"
@@ -50,10 +50,10 @@ jobs:
       - name: Start infra and configure services
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.INFRA_HOST }}
+          host: ${{ secrets.SERVER_INFRA_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          proxy_host: ${{ secrets.SERVER1_HOST }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
           proxy_username: ${{ secrets.SERVER_USER }}
           proxy_key: ${{ secrets.SERVER_SSH_KEY }}
           command_timeout: 30m

@@ -43,7 +43,7 @@ jobs:
       - name: Upload dist to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SERVER1_HOST }}
+          host: ${{ secrets.SERVER_API_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: 'hirelog-web/dist/'
@@ -53,7 +53,7 @@ jobs:
       - name: Switch symlink & reload nginx
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER1_HOST }}
+          host: ${{ secrets.SERVER_API_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |

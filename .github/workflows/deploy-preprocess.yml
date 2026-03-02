@@ -92,7 +92,7 @@ jobs:
       - name: Copy compose & config files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SERVER1_HOST }}
+          host: ${{ secrets.SERVER_API_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: >-
@@ -107,7 +107,7 @@ jobs:
       - name: Deploy Preprocess
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER1_HOST }}
+          host: ${{ secrets.SERVER_API_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
