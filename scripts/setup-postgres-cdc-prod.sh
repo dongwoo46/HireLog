@@ -50,16 +50,35 @@ echo "============================================"
 # 3. Postgres readiness check
 # ─────────────────────────────────────────────
 
-echo "▶ [1/4] Verifying Postgres readiness..."
+echo "▶ [1/5] Verifying Postgres readiness..."
 
 docker exec ${POSTGRES_CONTAINER} \
   pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"
 
 # ─────────────────────────────────────────────
-# 4. Create Debezium role + publication
+# 4. Check outbox_event table existence
 # ─────────────────────────────────────────────
 
-echo "▶ [2/4] Ensuring Debezium role & publication..."
+echo "▶ [2/5] Checking if outbox_event table exists..."
+
+TABLE_EXISTS=$(docker exec -e PGPASSWORD="${POSTGRES_PASSWORD}" ${POSTGRES_CONTAINER} \
+  psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tAc \
+  "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='outbox_event'" \
+  2>/dev/null || echo "")
+
+if [ "${TABLE_EXISTS}" != "1" ]; then
+  echo "⚠️  public.outbox_event 테이블이 없습니다."
+  echo "   Spring 배포(Flyway 마이그레이션) 완료 후 다시 실행하세요."
+  exit 0
+fi
+
+echo "   ✅ outbox_event 테이블 확인"
+
+# ─────────────────────────────────────────────
+# 5. Create Debezium role + publication
+# ─────────────────────────────────────────────
+
+echo "▶ [3/5] Ensuring Debezium role & publication..."
 
 docker exec -e PGPASSWORD="${POSTGRES_PASSWORD}" -i ${POSTGRES_CONTAINER} \
 psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" <<EOF
@@ -95,7 +114,7 @@ EOF
 # 5. Wait for Kafka Connect
 # ─────────────────────────────────────────────
 
-echo "▶ [3/4] Waiting for Kafka Connect..."
+echo "▶ [4/5] Waiting for Kafka Connect..."
 
 until curl -s ${CONNECT_URL}/ > /dev/null; do
   sleep 2
@@ -105,7 +124,19 @@ done
 # 6. Create or update connector
 # ─────────────────────────────────────────────
 
-echo "▶ [4/4] Creating or Updating Connector..."
+echo "▶ [5/5] Creating or Updating Connector..."
+
+# 커넥터가 이미 RUNNING 상태면 스킵
+EXISTING_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+  ${CONNECT_URL}/connectors/${CONNECTOR_NAME} 2>/dev/null || echo "000")
+if [ "${EXISTING_STATUS}" -eq 200 ]; then
+  STATE=$(curl -s ${CONNECT_URL}/connectors/${CONNECTOR_NAME}/status \
+    | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+  if [ "${STATE}" = "RUNNING" ]; then
+    echo "✅ Connector '${CONNECTOR_NAME}' already RUNNING. Skipping setup."
+    exit 0
+  fi
+fi
 
 CONNECTOR_CONFIG=$(cat <<JSON
 {

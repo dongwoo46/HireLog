@@ -188,7 +188,7 @@ jobs:
             TOPIC_LIST=$(docker exec kafka_prod sh -c "
               unset KAFKA_OPTS && \
               /opt/kafka/bin/kafka-topics.sh \
-                --bootstrap-server localhost:9092 \
+                --bootstrap-server localhost:29092 \
                 --list
             ")
 
@@ -247,6 +247,16 @@ jobs:
             DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium_prod)
             CONNECT_URL="http://${DEBEZIUM_IP}:8083"
             CONNECTOR_NAME="hirelog-outbox-connector"
+
+            # 커넥터가 존재하지 않으면 테이블 미준비(Spring 미배포) → 스킵
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "${CONNECT_URL}/connectors/${CONNECTOR_NAME}" 2>/dev/null || echo "000")
+            if [ "$HTTP_STATUS" -ne 200 ]; then
+              echo "⚠️  Connector not found - outbox_event 테이블이 없어 CDC setup이 스킵됨"
+              echo "   Spring 배포 후 setup-postgres-cdc-prod.sh 를 수동으로 실행하거나 infra workflow 재실행"
+              echo "🎉 Infra deploy complete (CDC pending)"
+              exit 0
+            fi
 
             # 커넥터 RUNNING 상태 대기 (최대 60초)
             for i in $(seq 1 12); do

@@ -21,6 +21,22 @@ TOPICS=(
   "hirelog.outbox.JdPreprocessUrl"
 )
 
+# 토픽이 이미 모두 존재하면 스킵
+EXISTING=$(docker exec kafka_prod sh -c \
+  "unset KAFKA_OPTS && /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list" \
+  2>/dev/null || echo "")
+ALL_EXIST=true
+for topic in "${TOPICS[@]}"; do
+  if ! echo "$EXISTING" | grep -qx "$topic"; then
+    ALL_EXIST=false
+    break
+  fi
+done
+if [ "$ALL_EXIST" = "true" ]; then
+  echo "✅ All topics already exist. Skipping creation."
+  exit 0
+fi
+
 echo "=========================================="
 echo "Creating Kafka Topics..."
 echo "=========================================="
@@ -33,7 +49,7 @@ do
   docker exec kafka_prod sh -c "
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
-      --bootstrap-server localhost:9092 \
+      --bootstrap-server localhost:29092 \
       --create \
       --topic \"$topic\" \
       --partitions 3 \
@@ -56,7 +72,7 @@ echo "=========================================="
 docker exec kafka_prod sh -c "
   unset KAFKA_OPTS && \
   /opt/kafka/bin/kafka-topics.sh \
-    --bootstrap-server localhost:9092 \
+    --bootstrap-server localhost:29092 \
     --list
 "
 
@@ -73,7 +89,7 @@ do
   docker exec kafka_prod sh -c "
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
-      --bootstrap-server localhost:9092 \
+      --bootstrap-server localhost:29092 \
       --describe \
       --topic \"$topic\"
   "
