@@ -108,6 +108,20 @@ jobs:
           target: '/home/hirelog/'
           strip_components: 2
 
+      - name: Write .env.prod to API server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          API_ENV_PROD: ${{ secrets.API_ENV_PROD }}
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: API_ENV_PROD
+          script: |
+            mkdir -p /home/hirelog
+            printf '%s\n' "$API_ENV_PROD" > /home/hirelog/.env.prod
+            echo "✅ .env.prod written"
+
       - name: Blue-Green Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -125,7 +139,7 @@ jobs:
             echo "▶ Image: $API_IMAGE"
 
             # ── 현재 활성 슬롯 판별 ──────────────────────────────
-            if grep -q "8080" $ACTIVE_CONF; then
+            if grep -q "8080" $ACTIVE_CONF 2>/dev/null; then
               CURRENT=blue  CURRENT_PORT=8080  CURRENT_SVC=api-blue
               NEXT=green    NEXT_PORT=8081     NEXT_SVC=api-green
             else
@@ -147,14 +161,14 @@ jobs:
 
             # ── Health Check ─────────────────────────────────────
             echo "▶ Waiting for $NEXT to be healthy..."
-            for i in $(seq 1 30); do
+            for i in $(seq 1 40); do
               STATUS=$(curl -sf http://localhost:$NEXT_PORT/actuator/health 2>/dev/null \
                 | grep -o '"status":"[^"]*"' | head -1 || true)
               if echo "$STATUS" | grep -q "UP"; then
                 echo "✅ $NEXT is healthy"
                 break
               fi
-              if [ $i -eq 30 ]; then
+              if [ $i -eq 40 ]; then
                 echo "❌ Health check failed — rolling back"
                 $COMPOSE stop $NEXT_SVC
                 exit 1

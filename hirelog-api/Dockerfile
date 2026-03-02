@@ -18,11 +18,11 @@ RUN java -Djarmode=layertools -jar build/libs/hirelog-api-*.jar extract --destin
 
 
 # Stage 2: Runtime
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-RUN groupadd -r hirelog && useradd -r -g hirelog hirelog
+RUN addgroup -S hirelog && adduser -S -G hirelog hirelog
 
 # 레이어 순서대로 복사 (변경 빈도 낮은 것 → 높은 것)
 COPY --from=builder /app/extracted/dependencies ./
