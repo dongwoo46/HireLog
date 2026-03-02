@@ -24,7 +24,14 @@ data class JobSummarySearchReq(
     val positionCategoryName: String? = null,
 
     val techStacks: List<String>? = null,
-    val page: Int = 0,
+
+    /**
+     * Search After 커서
+     * - 생략 또는 null: 첫 페이지
+     * - 이전 응답의 nextCursor 값: 다음 페이지
+     */
+    val cursor: String? = null,
+
     val size: Int = 20,
     val sortBy: String = "CREATED_AT_DESC"
 ) {
@@ -42,7 +49,7 @@ data class JobSummarySearchReq(
             brandPositionName = brandPositionName?.takeIf { it.isNotBlank() },
             positionCategoryName = positionCategoryName?.takeIf { it.isNotBlank() },
             techStacks = techStacks?.takeIf { it.isNotEmpty() },
-            page = page,
+            cursor = cursor,
             size = size.coerceIn(1, 100),
             sortBy = runCatching {
                 JobSummarySearchQuery.SortBy.valueOf(sortBy)

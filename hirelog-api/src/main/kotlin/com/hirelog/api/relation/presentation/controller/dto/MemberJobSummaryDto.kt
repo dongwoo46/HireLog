@@ -50,3 +50,26 @@ data class UpdateStageReq(
 data class ExistsResponse(
     val exists: Boolean
 )
+
+data class AddCoverLetterReq(
+
+    @field:NotBlank
+    val question: String,
+
+    @field:NotBlank
+    val content: String,
+
+    val sortOrder: Int? = null
+)
+
+data class UpdateCoverLetterReq(
+
+    @field:NotBlank
+    val question: String,
+
+    @field:NotBlank
+    val content: String,
+
+    @field:NotNull
+    val sortOrder: Int
+)

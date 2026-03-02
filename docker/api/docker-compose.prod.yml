@@ -71,7 +71,7 @@ services:
     container_name: loki
     restart: unless-stopped
     ports:
-      - '10.0.0.116:3100:3100'  # Server2 promtail → Server1 Loki 수신
+      - '10.0.0.116:3100:3100' # Server2 promtail → Server1 Loki 수신
     volumes:
       - ./data/loki:/loki
       - ./loki-config.yml:/etc/loki/local-config.yaml
@@ -113,7 +113,11 @@ services:
       - hirelog_internal
       - hirelog_external
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:8080/actuator/health || exit 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -135,7 +139,11 @@ services:
       - hirelog_external
     profiles: ['green']
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:8080/actuator/health || exit 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -158,10 +166,9 @@ services:
 networks:
   hirelog_internal:
     driver: bridge
-    internal: true   # Redis, 모니터링 등 외부 접근 차단
+    internal: true # Redis, 모니터링 등 외부 접근 차단
   hirelog_external:
-    driver: bridge   # Server2(10.0.1.6) 접근용
+    driver: bridge # Server2(10.0.1.6) 접근용
     ipam:
       config:
         - subnet: 172.20.0.0/16
-

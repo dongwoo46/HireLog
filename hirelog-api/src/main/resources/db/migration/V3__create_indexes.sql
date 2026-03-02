@@ -75,6 +75,11 @@ CREATE        INDEX idx_member_job_summary_job_summary ON member_job_summary (jo
 CREATE UNIQUE INDEX ux_member_job_summary_member_job   ON member_job_summary (member_id, job_summary_id);
 
 -- ============================================================
+-- cover_letter
+-- ============================================================
+CREATE INDEX idx_cover_letter_member_job_summary ON cover_letter (member_job_summary_id);
+
+-- ============================================================
 -- member_company
 -- ============================================================
 CREATE        INDEX idx_member_company_member        ON member_company (member_id);
