@@ -155,7 +155,6 @@ jobs:
               unset KAFKA_OPTS && \
               /opt/kafka/bin/kafka-topics.sh \
                 --bootstrap-server localhost:9092 \
-                --command-config /tmp/client.properties \
                 --list
             ")
 
