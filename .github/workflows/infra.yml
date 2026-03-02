@@ -46,8 +46,26 @@ jobs:
           source: "scripts/"
           target: "/home/hirelog/"
 
-      # ── docker-compose 실행 → 상태 확인 → Kafka 토픽 → CDC 설정 ────────────
-      - name: Start infra and configure services
+      # ── .env.prod 서버에 write (gitignore된 파일이므로 Secret에서 주입) ────
+      - name: Write .env.prod to infra server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          INFRA_ENV_PROD: ${{ secrets.INFRA_ENV_PROD }}
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: INFRA_ENV_PROD
+          script: |
+            mkdir -p /home/hirelog
+            printf '%s\n' "$INFRA_ENV_PROD" > /home/hirelog/.env.prod
+            echo "✅ .env.prod written"
+
+      # ── docker-compose 실행 → 상태 확인 ─────────────────────────────────────
+      - name: Start infra services
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_INFRA_HOST }}
@@ -92,14 +110,99 @@ jobs:
             echo "✅ All containers are healthy"
             docker ps
 
-            # ── Kafka 토픽 생성 ──────────────────────────────────────────────
+      # ── Kafka 토픽 생성 → 검증 ───────────────────────────────────────────────
+      - name: Create and verify Kafka topics
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            WORKDIR=/home/hirelog
+
             echo "▶ Creating Kafka topics..."
             chmod +x "$WORKDIR/scripts/create-kafka-topic-prod.sh"
             bash "$WORKDIR/scripts/create-kafka-topic-prod.sh"
 
-            # ── Postgres CDC 설정 ─────────────────────────────────────────────
+            echo "▶ Verifying Kafka topics..."
+            EXPECTED_TOPICS=(
+              "jd.preprocess.response"
+              "jd.preprocess.response.fail"
+              "hirelog.outbox.JobSummary"
+              "hirelog.outbox.JdPreprocessText"
+              "hirelog.outbox.JdPreprocessOcr"
+              "hirelog.outbox.JdPreprocessUrl"
+            )
+
+            TOPIC_LIST=$(docker exec kafka_prod sh -c "
+              unset KAFKA_OPTS && \
+              /opt/kafka/bin/kafka-topics.sh \
+                --bootstrap-server localhost:9092 \
+                --command-config /tmp/client.properties \
+                --list
+            ")
+
+            ALL_OK=true
+            for topic in "${EXPECTED_TOPICS[@]}"; do
+              if echo "$TOPIC_LIST" | grep -qx "$topic"; then
+                echo "  ✅ $topic"
+              else
+                echo "  ❌ $topic (missing)"
+                ALL_OK=false
+              fi
+            done
+
+            if [ "$ALL_OK" = false ]; then
+              echo "❌ Kafka topic verification failed"
+              exit 1
+            fi
+            echo "✅ All Kafka topics verified"
+
+      # ── Postgres CDC 설정 → Debezium 커넥터 상태 검증 ───────────────────────
+      - name: Setup CDC and verify Debezium connector
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            WORKDIR=/home/hirelog
+
             echo "▶ Setting up Postgres CDC..."
             chmod +x "$WORKDIR/scripts/setup-postgres-cdc-prod.sh"
             bash "$WORKDIR/scripts/setup-postgres-cdc-prod.sh"
 
+            echo "▶ Verifying Debezium connector..."
+            DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium_prod)
+            CONNECT_URL="http://${DEBEZIUM_IP}:8083"
+            CONNECTOR_NAME="hirelog-outbox-connector"
+
+            # 커넥터 등록 완료 대기 (최대 30초)
+            for i in $(seq 1 6); do
+              STATE=$(curl -sf "${CONNECT_URL}/connectors/${CONNECTOR_NAME}/status" 2>/dev/null \
+                | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+              if [ "$STATE" = "RUNNING" ]; then
+                echo "  ✅ Debezium connector is RUNNING"
+                break
+              fi
+              if [ "$i" -eq 6 ]; then
+                echo "  ❌ Debezium connector state: ${STATE:-unknown}"
+                curl -sf "${CONNECT_URL}/connectors/${CONNECTOR_NAME}/status" || true
+                exit 1
+              fi
+              echo "  Waiting for connector... ($i/6)"
+              sleep 5
+            done
+
+            echo "✅ CDC connector verified"
             echo "🎉 Infra deploy complete"
