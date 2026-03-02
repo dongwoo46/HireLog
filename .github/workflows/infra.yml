@@ -7,8 +7,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
-    if: |
+  # ── 1. 파일 동기화 ───────────────────────────────────────────────────────────
+  sync:
+    name: Sync files to infra server
+    if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
        github.event.pull_request.head.ref == 'infra')
@@ -17,9 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── docker/infra/* → hirelog-infra:/home/hirelog/ ──────────────────────
-      # strip_components: 2 → docker/infra 경로 제거
-      # e.g. docker/infra/docker-compose.prod.yml → /home/hirelog/docker-compose.prod.yml
+      # docker/infra/* → /home/hirelog/ (strip docker/infra 경로)
       - name: Copy docker/infra to infra server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -33,7 +33,7 @@ jobs:
           target: "/home/hirelog/"
           strip_components: 2
 
-      # ── scripts/* → hirelog-infra:/home/hirelog/scripts/ ───────────────────
+      # scripts/* → /home/hirelog/scripts/
       - name: Copy scripts to infra server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -46,7 +46,7 @@ jobs:
           source: "scripts/"
           target: "/home/hirelog/"
 
-      # ── .env.prod 서버에 write (gitignore된 파일이므로 Secret에서 주입) ────
+      # .env.prod는 gitignore → Secret에서 주입
       - name: Write .env.prod to infra server
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -64,66 +64,14 @@ jobs:
             printf '%s\n' "$INFRA_ENV_PROD" > /home/hirelog/.env.prod
             echo "✅ .env.prod written"
 
-      # ── docker-compose 실행 → 상태 확인 ─────────────────────────────────────
-      - name: Start infra services
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_INFRA_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          proxy_host: ${{ secrets.SERVER_API_HOST }}
-          proxy_username: ${{ secrets.SERVER_USER }}
-          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 30m
-          script: |
-            set -e
-            WORKDIR=/home/hirelog
+  # ── 2. 컨테이너 기동 ─────────────────────────────────────────────────────────
+  start:
+    name: Start infra services
+    needs: sync
+    runs-on: ubuntu-latest
 
-            # ── OpenSearch 필수: vm.max_map_count ────────────────────────────
-            sudo sysctl -w vm.max_map_count=262144
-            grep -q 'vm.max_map_count' /etc/sysctl.conf \
-              || echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
-
-            # ── 데이터 디렉토리 사전 생성 및 권한 설정 ───────────────────────
-            # kafka(appuser uid=1000), opensearch(uid=1000) 는 root 소유 디렉토리에 쓰기 불가
-            sudo mkdir -p "$WORKDIR/data/kafka" "$WORKDIR/data/opensearch" "$WORKDIR/data/promtail"
-            sudo chown -R 1000:1000 "$WORKDIR/data/kafka" "$WORKDIR/data/opensearch"
-
-            # ── docker-compose 실행 ──────────────────────────────────────────
-            echo "▶ Starting docker-compose..."
-            docker compose \
-              --env-file "$WORKDIR/.env.prod" \
-              -f "$WORKDIR/docker-compose.prod.yml" \
-              up -d --remove-orphans
-
-            # ── healthcheck 대상 컨테이너 (healthcheck 정의된 서비스만) ────────
-            CONTAINERS="pg_prod pgbouncer_prod kafka_prod debezium_prod opensearch_prod"
-
-            echo "▶ Waiting for all containers to be healthy (max 120s each)..."
-            for container in $CONTAINERS; do
-              echo "  Checking: $container"
-              for i in $(seq 1 24); do
-                STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "missing")
-                if [ "$STATUS" = "healthy" ]; then
-                  echo "  ✅ $container is healthy"
-                  break
-                fi
-                if [ "$i" -eq 24 ]; then
-                  echo "  ❌ $container is not healthy after 120s (status: $STATUS)"
-                  echo "  --- $container logs (last 50 lines) ---"
-                  docker logs "$container" --tail 50 2>&1 || true
-                  docker ps -a
-                  exit 1
-                fi
-                sleep 5
-              done
-            done
-
-            echo "✅ All containers are healthy"
-            docker ps
-
-      # ── Kafka 토픽 생성 → 검증 ───────────────────────────────────────────────
-      - name: Create and verify Kafka topics
+    steps:
+      - name: Prepare host & run docker-compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_INFRA_HOST }}
@@ -137,11 +85,97 @@ jobs:
             set -e
             WORKDIR=/home/hirelog
 
-            echo "▶ Creating Kafka topics..."
+            # OpenSearch 필수: vm.max_map_count
+            sudo sysctl -w vm.max_map_count=262144
+            grep -q 'vm.max_map_count' /etc/sysctl.conf \
+              || echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
+
+            # kafka(uid=1000), opensearch(uid=1000) 데이터 디렉토리 권한
+            sudo mkdir -p "$WORKDIR/data/kafka" "$WORKDIR/data/opensearch" "$WORKDIR/data/promtail"
+            sudo chown -R 1000:1000 "$WORKDIR/data/kafka" "$WORKDIR/data/opensearch"
+
+            echo "▶ Starting docker-compose..."
+            docker compose \
+              --env-file "$WORKDIR/.env.prod" \
+              -f "$WORKDIR/docker-compose.prod.yml" \
+              up -d --remove-orphans
+
+            echo "✅ docker-compose started"
+            docker ps
+
+      - name: Wait for core containers to be healthy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 20m
+          script: |
+            set -e
+            # debezium_prod은 제외 → cdc job에서 별도 대기
+            CONTAINERS="pg_prod pgbouncer_prod kafka_prod opensearch_prod"
+
+            echo "▶ Waiting for containers to be healthy (max 120s each)..."
+            for container in $CONTAINERS; do
+              echo "  Checking: $container"
+              for i in $(seq 1 24); do
+                STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "missing")
+                if [ "$STATUS" = "healthy" ]; then
+                  echo "  ✅ $container is healthy"
+                  break
+                fi
+                if [ "$i" -eq 24 ]; then
+                  echo "  ❌ $container not healthy after 120s (status: $STATUS)"
+                  echo "  --- $container logs (last 50 lines) ---"
+                  docker logs "$container" --tail 50 2>&1 || true
+                  docker ps -a
+                  exit 1
+                fi
+                sleep 5
+              done
+            done
+
+            echo "✅ All core containers are healthy"
+
+  # ── 3. Kafka 토픽 생성 ───────────────────────────────────────────────────────
+  kafka:
+    name: Create Kafka topics
+    needs: start
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create topics
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
+            WORKDIR=/home/hirelog
+
             chmod +x "$WORKDIR/scripts/create-kafka-topic-prod.sh"
             bash "$WORKDIR/scripts/create-kafka-topic-prod.sh"
 
-            echo "▶ Verifying Kafka topics..."
+      - name: Verify topics
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
             EXPECTED_TOPICS=(
               "jd.preprocess.response"
               "jd.preprocess.response.fail"
@@ -174,8 +208,14 @@ jobs:
             fi
             echo "✅ All Kafka topics verified"
 
-      # ── Postgres CDC 설정 → Debezium 커넥터 상태 검증 ───────────────────────
-      - name: Setup CDC and verify Debezium connector
+  # ── 4. CDC 설정 ──────────────────────────────────────────────────────────────
+  cdc:
+    name: Setup CDC connector
+    needs: kafka
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Postgres CDC
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_INFRA_HOST }}
@@ -189,31 +229,40 @@ jobs:
             set -e
             WORKDIR=/home/hirelog
 
-            echo "▶ Setting up Postgres CDC..."
             chmod +x "$WORKDIR/scripts/setup-postgres-cdc-prod.sh"
             bash "$WORKDIR/scripts/setup-postgres-cdc-prod.sh"
 
-            echo "▶ Verifying Debezium connector..."
+      - name: Verify Debezium connector
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
             DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium_prod)
             CONNECT_URL="http://${DEBEZIUM_IP}:8083"
             CONNECTOR_NAME="hirelog-outbox-connector"
 
-            # 커넥터 등록 완료 대기 (최대 30초)
-            for i in $(seq 1 6); do
+            # 커넥터 RUNNING 상태 대기 (최대 60초)
+            for i in $(seq 1 12); do
               STATE=$(curl -sf "${CONNECT_URL}/connectors/${CONNECTOR_NAME}/status" 2>/dev/null \
                 | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
               if [ "$STATE" = "RUNNING" ]; then
-                echo "  ✅ Debezium connector is RUNNING"
+                echo "✅ Debezium connector is RUNNING"
                 break
               fi
-              if [ "$i" -eq 6 ]; then
-                echo "  ❌ Debezium connector state: ${STATE:-unknown}"
+              if [ "$i" -eq 12 ]; then
+                echo "❌ Debezium connector state: ${STATE:-unknown}"
                 curl -sf "${CONNECT_URL}/connectors/${CONNECTOR_NAME}/status" || true
                 exit 1
               fi
-              echo "  Waiting for connector... ($i/6)"
+              echo "  Waiting for connector... ($i/12)"
               sleep 5
             done
 
-            echo "✅ CDC connector verified"
             echo "🎉 Infra deploy complete"

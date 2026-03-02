@@ -13,10 +13,9 @@ env:
 
 jobs:
   test:
-    if: |
+    if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.merged == true &&
-       github.event.pull_request.head.ref == 'backend')
+      github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
