@@ -1,0 +1,105 @@
+name: Deploy Infra
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'infra')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── docker/infra/* → hirelog-infra:/home/hirelog/ ──────────────────────
+      # strip_components: 2 → docker/infra 경로 제거
+      # e.g. docker/infra/docker-compose.prod.yml → /home/hirelog/docker-compose.prod.yml
+      - name: Copy docker/infra to infra server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER1_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "docker/infra/"
+          target: "/home/hirelog/"
+          strip_components: 2
+
+      # ── scripts/* → hirelog-infra:/home/hirelog/scripts/ ───────────────────
+      - name: Copy scripts to infra server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER1_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "scripts/"
+          target: "/home/hirelog/"
+
+      # ── docker-compose 실행 → 상태 확인 → Kafka 토픽 → CDC 설정 ────────────
+      - name: Start infra and configure services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER1_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
+            WORKDIR=/home/hirelog
+
+            # ── docker-compose 실행 ──────────────────────────────────────────
+            echo "▶ Starting docker-compose..."
+            docker compose \
+              --env-file "$WORKDIR/.env.prod" \
+              -f "$WORKDIR/docker-compose.prod.yml" \
+              up -d --remove-orphans
+
+            # ── healthcheck 대상 컨테이너 (healthcheck 정의된 서비스만) ────────
+            CONTAINERS="pg_prod pgbouncer_prod kafka_prod debezium_prod opensearch_prod"
+
+            echo "▶ Waiting for all containers to be healthy (max 120s each)..."
+            for container in $CONTAINERS; do
+              echo "  Checking: $container"
+              for i in $(seq 1 24); do
+                STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "missing")
+                if [ "$STATUS" = "healthy" ]; then
+                  echo "  ✅ $container is healthy"
+                  break
+                fi
+                if [ "$i" -eq 24 ]; then
+                  echo "  ❌ $container is not healthy after 120s (status: $STATUS)"
+                  docker ps -a
+                  exit 1
+                fi
+                sleep 5
+              done
+            done
+
+            echo "✅ All containers are healthy"
+            docker ps
+
+            # ── Kafka 토픽 생성 ──────────────────────────────────────────────
+            echo "▶ Creating Kafka topics..."
+            chmod +x "$WORKDIR/scripts/create-kafka-topic-prod.sh"
+            bash "$WORKDIR/scripts/create-kafka-topic-prod.sh"
+
+            # ── Postgres CDC 설정 ─────────────────────────────────────────────
+            echo "▶ Setting up Postgres CDC..."
+            chmod +x "$WORKDIR/scripts/setup-postgres-cdc-prod.sh"
+            bash "$WORKDIR/scripts/setup-postgres-cdc-prod.sh"
+
+            echo "🎉 Infra deploy complete"
