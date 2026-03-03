@@ -5,33 +5,29 @@ import {
   HIRING_STAGE_LABELS,
   type JobSummaryDetailView,
   type ReviewWriteReq,
+  type HiringStage,
 } from '../types/jobSummary';
 import {
   TbChevronLeft,
   TbStar,
   TbStarFilled,
   TbStarHalfFilled,
-  TbSparkles,
-  TbFileText,
-  TbBriefcase,
-  TbListCheck,
-  TbBulb,
 } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 
-/* =========================================================
-   Main Component
-========================================================= */
+/* ========================================================= */
 
 const JobSummaryDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [jd, setJd] = useState<JobSummaryDetailView | null>(null);
-  const [activeTab, setActiveTab] = useState<'detail' | 'review'>('detail');
+
+  // ✅ 탭 확장
+  const [activeTab, setActiveTab] =
+    useState<'detail' | 'review' | 'memo' | 'resume'>('detail');
 
   const [reviewPage, setReviewPage] = useState<any>(null);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [sortType, setSortType] = useState<'latest' | 'high'>('latest');
 
   const [reviewForm, setReviewForm] = useState<ReviewWriteReq>({
@@ -47,7 +43,6 @@ const JobSummaryDetailPage = () => {
 
   useEffect(() => {
     if (!id) return;
-
     jdSummaryService.getDetail(Number(id)).then((data) => {
       setJd({
         ...data,
@@ -63,87 +58,16 @@ const JobSummaryDetailPage = () => {
     jdSummaryService.getReviews(jd.id).then(setReviewPage);
   }, [jd, activeTab]);
 
-  /* ---------------- 평균 계산 ---------------- */
-
-  const averages = useMemo(() => {
-    if (!reviewPage?.items?.length) return null;
-
-    const diff =
-      reviewPage.items.reduce((sum: number, r: any) => sum + r.difficultyRating, 0) /
-      reviewPage.items.length;
-
-    const sat =
-      reviewPage.items.reduce((sum: number, r: any) => sum + r.satisfactionRating, 0) /
-      reviewPage.items.length;
-
-    return {
-      difficulty: diff.toFixed(1),
-      satisfaction: sat.toFixed(1),
-    };
-  }, [reviewPage]);
-
-  /* ---------------- 정렬 ---------------- */
-
-  const sortedReviews = useMemo(() => {
-    if (!reviewPage?.items) return [];
-
-    const arr = [...reviewPage.items];
-
-    if (sortType === 'high') {
-      return arr.sort((a, b) => b.satisfactionRating - a.satisfactionRating);
-    }
-
-    return arr.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
-    );
-  }, [reviewPage, sortType]);
-
-  /* ---------------- 리뷰 등록 ---------------- */
-
-  const handleAddReview = async () => {
-    if (!jd) return;
-
-    if (reviewForm.experienceComment.length < 5) {
-      toast.error('5자 이상 작성해주세요.');
-      return;
-    }
-
-    try {
-      await jdSummaryService.addReview(jd.id, reviewForm);
-      toast.success('리뷰가 등록되었습니다.');
-
-      const res = await jdSummaryService.getReviews(jd.id);
-      setReviewPage(res);
-
-      setIsReviewModalOpen(false);
-
-      setReviewForm({
-        hiringStage: 'DOCUMENT',
-        anonymous: true,
-        difficultyRating: 6,
-        satisfactionRating: 6,
-        experienceComment: '',
-        interviewTip: '',
-      });
-    } catch {
-      toast.error('리뷰 등록 실패');
-    }
-  };
-
   if (!jd) return null;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pt-24 pb-20">
       <div className="max-w-4xl mx-auto px-6">
 
-        {/* 뒤로가기 */}
         <button onClick={() => navigate(-1)} className="mb-6 flex gap-2 text-gray-500">
           <TbChevronLeft /> 목록으로
         </button>
 
-        {/* 헤더 */}
         <div className="bg-gradient-to-r from-[#3FB6B2] to-[#6EC8A7] p-10 rounded-3xl mb-10 text-white shadow-lg">
           <h1 className="text-4xl font-black mb-2">{jd.brandName}</h1>
           <h2>{jd.brandPositionName}</h2>
@@ -151,311 +75,198 @@ const JobSummaryDetailPage = () => {
 
         {/* 탭 */}
         <div className="flex gap-6 border-b mb-8 font-bold text-sm">
-          <button
-            onClick={() => setActiveTab('detail')}
-            className={activeTab === 'detail'
-              ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2] pb-2'
-              : 'text-gray-400 pb-2'}
-          >
-            상세정보
-          </button>
-
-          <button
-            onClick={() => setActiveTab('review')}
-            className={activeTab === 'review'
-              ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2] pb-2'
-              : 'text-gray-400 pb-2'}
-          >
-            리뷰 ({reviewPage?.totalElements || 0})
-          </button>
+          <TabButton label="상세정보" active={activeTab === 'detail'} onClick={() => setActiveTab('detail')} />
+          <TabButton label="리뷰" active={activeTab === 'review'} onClick={() => setActiveTab('review')} />
+          <TabButton label="준비기록" active={activeTab === 'memo'} onClick={() => setActiveTab('memo')} />
+          <TabButton label="자소서/이력서" active={activeTab === 'resume'} onClick={() => setActiveTab('resume')} />
         </div>
 
-        {/* ================= 상세 ================= */}
-        {activeTab === 'detail' && (
-          <div className="space-y-8">
-
-            {jd.insights && (
-              <ContentSection icon={<TbSparkles />} title="AI 인사이트">
-                {jd.insights}
-              </ContentSection>
-            )}
-
-            {jd.summaryText && (
-              <ContentSection icon={<TbFileText />} title="요약">
-                {jd.summaryText}
-              </ContentSection>
-            )}
-
-            {jd.responsibilities && (
-              <ContentSection icon={<TbBriefcase />} title="주요 업무">
-                {jd.responsibilities}
-              </ContentSection>
-            )}
-
-            {jd.requiredQualifications && (
-              <ContentSection icon={<TbListCheck />} title="자격 요건">
-                {jd.requiredQualifications}
-              </ContentSection>
-            )}
-
-            {jd.preferredQualifications && (
-              <ContentSection icon={<TbBulb />} title="우대 사항">
-                {jd.preferredQualifications}
-              </ContentSection>
-            )}
-
-          </div>
-        )}
-
-        {/* ================= 리뷰 ================= */}
-        {activeTab === 'review' && (
-          <div className="space-y-10">
-
-            {averages && (
-              <div className="bg-white p-8 rounded-3xl shadow-sm border flex justify-between">
-                <div>
-                  <div className="text-sm text-gray-400">평균 만족도</div>
-                  <div className="text-3xl font-black text-[#3FB6B2]">
-                    {averages.satisfaction}점
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-400">평균 난이도</div>
-                  <div className="text-3xl font-black text-[#3FB6B2]">
-                    {averages.difficulty}점
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center">
-              <div className="flex gap-4 text-sm font-bold">
-                <button onClick={() => setSortType('latest')}>최신순</button>
-                <button onClick={() => setSortType('high')}>평점 높은순</button>
-              </div>
-
-              <button
-                onClick={() => setIsReviewModalOpen(true)}
-                className="px-5 py-2 bg-[#3FB6B2] text-white rounded-xl"
-              >
-                리뷰 작성하기
-              </button>
-            </div>
-
-            {sortedReviews.map((review: any) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        )}
-
-        {/* ================= 모달 ================= */}
-        {isReviewModalOpen && (
-          <ReviewModal
-            reviewForm={reviewForm}
-            setReviewForm={setReviewForm}
-            onClose={() => setIsReviewModalOpen(false)}
-            onSubmit={handleAddReview}
-          />
-        )}
+        {activeTab === 'detail' && <DetailSection jd={jd} />}
+        {activeTab === 'review' && <ReviewSection reviewPage={reviewPage} />}
+        {activeTab === 'memo' && <PreparationSection jd={jd} />}
+        {activeTab === 'resume' && <ResumeSection jd={jd} />}
 
       </div>
     </div>
   );
 };
 
-/* =========================================================
-   Sub Components
-========================================================= */
+/* ========================================================= */
+/* 상세 탭 */
+/* ========================================================= */
 
-const ContentSection = ({ icon, title, children }: any) => (
-  <div className="bg-white p-6 rounded-2xl shadow-sm border">
-    <div className="flex items-center gap-2 mb-3 text-gray-500">
-      {icon}
-      <h2 className="text-sm font-bold">{title}</h2>
-    </div>
-    <div className="text-sm whitespace-pre-line">{children}</div>
+const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => (
+  <div className="space-y-6">
+    <Block title="요약" content={jd.summaryText} />
+    <Block title="주요 업무" content={jd.responsibilities} />
+    <Block title="자격 요건" content={jd.requiredQualifications} />
+    <Block title="우대 사항" content={jd.preferredQualifications} />
+    <Block title="준비 포인트" content={(jd as any).preparationFocus} />
+    <Block title="어필 지표" content={(jd as any).proofPointsAndMetrics} />
+    <Block title="물어볼 질문" content={(jd as any).questionsToAsk} />
   </div>
 );
 
-/* ---------------- 리뷰 카드 ---------------- */
-
-const ReviewCard = ({ review }: any) => (
-  <div className="bg-white p-7 rounded-3xl shadow-sm border">
-    <div className="flex justify-between mb-4">
-      <span className="text-xs font-bold text-[#3FB6B2]">
-        {/* {HIRING_STAGE_LABELS[review.hiringStage]} */}
-      </span>
-      <span className="text-xs text-gray-400">
-        {new Date(review.createdAt).toLocaleDateString('ko-KR')}
-      </span>
+const Block = ({ title, content }: any) =>
+  content ? (
+    <div className="bg-white p-6 rounded-2xl border">
+      <div className="font-bold mb-2 text-[#3FB6B2]">{title}</div>
+      <div className="text-sm whitespace-pre-line">{content}</div>
     </div>
+  ) : null;
 
-    <StarDisplay10 value={review.satisfactionRating} label="만족도" />
-    <StarDisplay10 value={review.difficultyRating} label="난이도" />
+/* ========================================================= */
+/* 리뷰 탭 */
+/* ========================================================= */
 
-    <p className="mt-4 text-sm whitespace-pre-line">
-      {review.experienceComment}
-    </p>
+const ReviewSection = ({ reviewPage }: any) => {
+  if (!reviewPage?.items) return null;
 
-    {review.interviewTip && (
-      <div className="mt-4 bg-amber-50 p-4 rounded-2xl">
-        💡 {review.interviewTip}
+  return (
+    <div className="space-y-6">
+      {reviewPage.items.map((r: any) => (
+        <div key={r.id} className="bg-white p-6 rounded-2xl border">
+          <div className="text-sm whitespace-pre-line">
+            {r.experienceComment}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ========================================================= */
+/* 준비기록 탭 (작성 + 정리보기) */
+/* ========================================================= */
+
+const stages: HiringStage[] = [
+  'DOCUMENT',
+  'CODING_TEST',
+  'ASSIGNMENT',
+  'INTERVIEW_1',
+  'INTERVIEW_2',
+  'FINAL_INTERVIEW',
+];
+
+const PreparationSection = ({ jd }: { jd: JobSummaryDetailView }) => {
+  const key = `prep-${jd.id}`;
+  const [data, setData] = useState<Record<string, string>>({});
+  const [activeStage, setActiveStage] = useState<HiringStage>('DOCUMENT');
+  const [mode, setMode] = useState<'edit' | 'overview'>('edit');
+
+  useEffect(() => {
+    const saved = localStorage.getItem(key);
+    if (saved) setData(JSON.parse(saved));
+  }, [key]);
+
+  const save = () => {
+    localStorage.setItem(key, JSON.stringify(data));
+    toast.success('저장 완료');
+  };
+
+  if (mode === 'overview') {
+    return (
+      <div className="space-y-6">
+        <button onClick={() => setMode('edit')} className="text-[#3FB6B2] text-sm">
+          ← 다시 작성하기
+        </button>
+
+        {stages.map((s) => (
+          <div key={s} className="bg-white p-6 rounded-2xl border">
+            <div className="font-bold text-[#3FB6B2] mb-2">
+              {HIRING_STAGE_LABELS[s]}
+            </div>
+            <div className="text-sm whitespace-pre-line">
+              {data[s] || '기록 없음'}
+            </div>
+          </div>
+        ))}
       </div>
-    )}
-  </div>
-);
+    );
+  }
 
-/* ---------------- 별점 표시 ---------------- */
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2">
+        {stages.map((s) => (
+          <button
+            key={s}
+            onClick={() => setActiveStage(s)}
+            className={`px-4 py-2 rounded-xl text-sm ${activeStage === s ? 'bg-[#3FB6B2] text-white' : 'bg-gray-100'
+              }`}
+          >
+            {HIRING_STAGE_LABELS[s]}
+          </button>
+        ))}
+      </div>
 
-const StarDisplay10 = ({ value, label }: any) => (
-  <div className="flex items-center gap-3 mt-2">
-    <span className="text-xs font-bold text-gray-400">{label}</span>
-    <div className="flex gap-1">
-      {Array.from({ length: 5 }).map((_, i) => {
-        const full = (i + 1) * 2;
-        const half = full - 1;
+      <textarea
+        className="w-full border rounded-2xl p-4 min-h-[200px]"
+        value={data[activeStage] || ''}
+        onChange={(e) =>
+          setData({ ...data, [activeStage]: e.target.value })
+        }
+        placeholder="이 단계에서 받은 질문, 개선점, 전략 기록"
+      />
 
-        if (value >= full)
-          return <TbStarFilled key={i} className="text-[#3FB6B2]" />;
-        if (value === half)
-          return <TbStarHalfFilled key={i} className="text-[#3FB6B2]" />;
-        return <TbStar key={i} className="text-gray-300" />;
-      })}
+      <div className="flex gap-4">
+        <button onClick={save} className="px-6 py-2 bg-[#3FB6B2] text-white rounded-xl">
+          저장
+        </button>
+        <button onClick={() => setMode('overview')} className="px-6 py-2 border rounded-xl">
+          전체 기록 보기
+        </button>
+      </div>
     </div>
-    <span className="text-sm font-bold">{value}점</span>
-  </div>
-);
+  );
+};
 
-/* ---------------- 리뷰 모달 ---------------- */
+/* ========================================================= */
+/* 자소서/이력서 탭 */
+/* ========================================================= */
 
-const ReviewModal = ({ reviewForm, setReviewForm, onClose, onSubmit }: any) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const ResumeSection = ({ jd }: { jd: JobSummaryDetailView }) => {
+  const key = `resume-${jd.id}`;
+  const [content, setContent] = useState('');
 
-  const handleSubmit = async () => {
-    if (isSubmitting) return;
-    try {
-      setIsSubmitting(true);
-      await onSubmit();
-    } finally {
-      setIsSubmitting(false);
-    }
+  useEffect(() => {
+    const saved = localStorage.getItem(key);
+    if (saved) setContent(saved);
+  }, [key]);
+
+  const save = () => {
+    localStorage.setItem(key, content);
+    toast.success('저장 완료');
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-white w-full max-w-2xl p-10 rounded-3xl shadow-2xl relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 text-gray-400 hover:text-gray-700 text-xl font-bold"
-        >
-          ✕
-        </button>
+    <div className="space-y-6">
+      <textarea
+        className="w-full border rounded-2xl p-4 min-h-[300px]"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="이 공고에 제출한 자소서/이력서 전체 내용 기록"
+      />
 
-        <h3 className="text-xl font-black mb-8">
-          리뷰 작성하기
-        </h3>
-
-        <div className="space-y-6">
-
-          <StarRating10
-            label="만족도"
-            value={reviewForm.satisfactionRating}
-            onChange={(v: number) =>
-              setReviewForm({ ...reviewForm, satisfactionRating: v })
-            }
-          />
-
-          <StarRating10
-            label="난이도"
-            value={reviewForm.difficultyRating}
-            onChange={(v: number) =>
-              setReviewForm({ ...reviewForm, difficultyRating: v })
-            }
-          />
-
-          <textarea
-            className="w-full border rounded-2xl p-4"
-            placeholder="경험을 작성해주세요"
-            value={reviewForm.experienceComment}
-            onChange={(e) =>
-              setReviewForm({
-                ...reviewForm,
-                experienceComment: e.target.value,
-              })
-            }
-          />
-
-          <textarea
-            className="w-full border rounded-2xl p-4"
-            placeholder="면접 팁 (선택)"
-            value={reviewForm.interviewTip}
-            onChange={(e) =>
-              setReviewForm({
-                ...reviewForm,
-                interviewTip: e.target.value,
-              })
-            }
-          />
-
-        </div>
-
-        <div className="flex justify-end gap-4 mt-10">
-          <button onClick={onClose}>취소</button>
-
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-8 py-3 bg-[#3FB6B2] text-white rounded-2xl font-bold disabled:opacity-50"
-          >
-            {isSubmitting ? '등록 중...' : '등록하기'}
-          </button>
-        </div>
-      </div>
+      <button onClick={save} className="px-6 py-2 bg-[#3FB6B2] text-white rounded-xl">
+        저장
+      </button>
     </div>
   );
 };
 
-/* ---------------- 별점 입력 ---------------- */
+/* ========================================================= */
 
-const StarRating10 = ({ value, onChange, label }: any) => (
-  <div>
-    <div className="text-sm font-bold mb-2">{label}</div>
-    <div className="flex gap-1">
-      {Array.from({ length: 5 }).map((_, i) => {
-        const full = (i + 1) * 2;
-        const half = full - 1;
-
-        return (
-          <div key={i} className="relative flex">
-            <button
-              className="absolute left-0 w-1/2 h-full"
-              onClick={() => onChange(half)}
-            />
-            <button
-              className="absolute right-0 w-1/2 h-full"
-              onClick={() => onChange(full)}
-            />
-            {value >= full ? (
-              <TbStarFilled size={28} className="text-[#3FB6B2]" />
-            ) : value === half ? (
-              <TbStarHalfFilled size={28} className="text-[#3FB6B2]" />
-            ) : (
-              <TbStar size={28} className="text-gray-300" />
-            )}
-          </div>
-        );
-      })}
-      <span className="ml-2 font-bold">{value}점</span>
-    </div>
-  </div>
+const TabButton = ({ label, active, onClick }: any) => (
+  <button
+    onClick={onClick}
+    className={`pb-2 ${active
+        ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2]'
+        : 'text-gray-400'
+      }`}
+  >
+    {label}
+  </button>
 );
 
 export default JobSummaryDetailPage;
