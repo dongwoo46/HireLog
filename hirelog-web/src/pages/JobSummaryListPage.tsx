@@ -86,13 +86,15 @@ const JobSummaryListPage = () => {
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20 relative">
 
-      {/* 🔥 토글 버튼 */}
-      <button
-        onClick={() => setIsSideOpen(true)}
-        className="fixed right-0 top-48 z-50 bg-[#3FB6B2] text-white px-4 py-3 rounded-l-2xl shadow-lg hover:bg-[#35A09D] transition"
-      >
-        〈 등록한 공고 보기
-      </button>
+      {/* 🔥 사이드 열려있을 때 버튼 숨김 */}
+      {!isSideOpen && (
+        <button
+          onClick={() => setIsSideOpen(true)}
+          className="fixed right-0 top-48 z-50 bg-[#3FB6B2] text-white px-4 py-3 rounded-l-2xl shadow-lg hover:bg-[#35A09D] transition"
+        >
+          〈 등록한 공고 보기
+        </button>
+      )}
 
       {/* ================== 사이드 패널 ================== */}
       <div
@@ -110,7 +112,6 @@ const JobSummaryListPage = () => {
                 공고 필터
               </h3>
 
-              {/* 필터 아이콘 */}
               <div className="relative">
                 <button
                   onClick={() => setFilterOpen(!filterOpen)}
@@ -126,7 +127,6 @@ const JobSummaryListPage = () => {
                   </svg>
                 </button>
 
-                {/* 드롭다운 */}
                 {filterOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
                     <button
@@ -157,7 +157,6 @@ const JobSummaryListPage = () => {
                 )}
               </div>
 
-              {/* 선택 뱃지 */}
               {sideFilter && (
                 <span className="px-3 py-1 bg-[#3FB6B2]/10 text-[#3FB6B2] text-xs font-bold rounded-full">
                   {sideFilter === 'MY_POSTED'
@@ -167,7 +166,6 @@ const JobSummaryListPage = () => {
               )}
             </div>
 
-            {/* 닫기 버튼 */}
             <button
               onClick={() => setIsSideOpen(false)}
               className="text-gray-400 hover:text-gray-700 text-lg font-bold"
@@ -178,7 +176,6 @@ const JobSummaryListPage = () => {
 
           {/* ===== 리스트 ===== */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-
             {sideLoading ? (
               <div className="text-center text-gray-400 text-sm">
                 불러오는 중...
