@@ -116,7 +116,7 @@ services:
   # Spring Boot API (prod: Blue-Green, ghcr.io 이미지)
   # ──────────────────────────────────────────────
   api-blue:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:${IMAGE_TAG:-latest}
     container_name: api_blue_prod
     restart: unless-stopped
     env_file:
@@ -141,7 +141,7 @@ services:
       start_period: 40s
 
   api-green:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:latest
+    image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:${IMAGE_TAG:-latest}
     container_name: api_green_prod
     restart: unless-stopped
     env_file:
