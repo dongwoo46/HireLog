@@ -94,7 +94,7 @@ jobs:
           host: ${{ secrets.SERVER_API_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          script: mkdir -p /home/hirelog
+          script: sudo mkdir -p /home/hirelog && sudo chown $USER:$USER /home/hirelog
 
       - name: Copy compose & config files to server
         uses: appleboy/scp-action@v0.1.7
