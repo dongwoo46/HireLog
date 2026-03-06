@@ -88,6 +88,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prepare target directory on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: mkdir -p /home/hirelog
+
       - name: Copy compose & config files to server
         uses: appleboy/scp-action@v0.1.7
         with:
