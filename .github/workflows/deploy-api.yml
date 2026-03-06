@@ -122,6 +122,7 @@ jobs:
             set -e
 
             export IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+            export GITHUB_USERNAME=${{ github.repository_owner }}
             WORKDIR=/home/hirelog
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
             ACTIVE_CONF=/etc/nginx/conf.d/hirelog-active.conf
