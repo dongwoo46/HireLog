@@ -43,7 +43,7 @@ jobs:
 
   build:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64]
     permissions:
       contents: read
       packages: write
@@ -56,6 +56,9 @@ jobs:
         id: meta
         run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -63,17 +66,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image (local)
-        uses: docker/build-push-action@v5
-        with:
-          context: hirelog-api
-          push: false
-          load: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
-
-      - name: Push image
+      - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           context: hirelog-api
@@ -81,6 +74,8 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
 
   deploy:
     needs: build
@@ -94,7 +89,7 @@ jobs:
           host: ${{ secrets.SERVER_API_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          script: sudo mkdir -p /home/hirelog && sudo chown $USER:$USER /home/hirelog
+          script: sudo mkdir -p /home/hirelog && sudo chown $(whoami):$(whoami) /home/hirelog
 
       - name: Copy compose & config files to server
         uses: appleboy/scp-action@v0.1.7
@@ -134,12 +129,12 @@ jobs:
           script: |
             set -e
 
-            export API_IMAGE=ghcr.io/dongwoo46/hirelog-api:${{ needs.build.outputs.image_tag }}
+            export IMAGE_TAG=${{ needs.build.outputs.image_tag }}
             WORKDIR=/home/hirelog
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
             ACTIVE_CONF=/etc/nginx/conf.d/hirelog-active.conf
 
-            echo "▶ Image: $API_IMAGE"
+            echo "▶ Image: ${{ env.IMAGE }}:$IMAGE_TAG"
 
             # ── 현재 활성 슬롯 판별 ──────────────────────────────
             if grep -q "8080" $ACTIVE_CONF 2>/dev/null; then
@@ -152,14 +147,14 @@ jobs:
 
             echo "▶ Current: $CURRENT ($CURRENT_PORT) → Next: $NEXT ($NEXT_PORT)"
 
-            # ── SHA 태그 이미지 Pull ─────────────────────────────
-            docker pull $API_IMAGE
+            # ── SHA 태그 이미지 Pull (1회) ───────────────────────
+            docker pull ${{ env.IMAGE }}:$IMAGE_TAG
 
-            # ── 비활성 슬롯 시작 ─────────────────────────────────
+            # ── 비활성 슬롯 시작 (이미 pull된 이미지 사용) ───────
             if [ "$NEXT" = "green" ]; then
-              $COMPOSE --profile green up -d api-green
+              IMAGE_TAG=$IMAGE_TAG $COMPOSE --profile green up -d --pull never api-green
             else
-              $COMPOSE up -d api-blue
+              IMAGE_TAG=$IMAGE_TAG $COMPOSE up -d --pull never api-blue
             fi
 
             # ── Health Check ─────────────────────────────────────
@@ -189,13 +184,39 @@ jobs:
             # ── 이전 슬롯 종료 ───────────────────────────────────
             $COMPOSE stop $CURRENT_SVC
 
-            echo "🎉 Deploy complete: $CURRENT → $NEXT ($API_IMAGE)"
+            echo "🎉 Deploy complete: $CURRENT → $NEXT (${{ env.IMAGE }}:$IMAGE_TAG)"
 
   cdc:
     name: Setup CDC connector
     needs: deploy
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare scripts directory on infra server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          script: mkdir -p /home/hirelog/scripts
+
+      - name: Copy CDC script to infra server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          source: scripts/setup-postgres-cdc-prod.sh
+          target: /home/hirelog/scripts/
+          strip_components: 1
+
       - name: Run setup-postgres-cdc-prod.sh on infra server
         uses: appleboy/ssh-action@v1.0.3
         with:
