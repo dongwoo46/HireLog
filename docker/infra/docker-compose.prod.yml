@@ -4,7 +4,7 @@ services:
   # ──────────────────────────────────────────────
   postgres:
     image: postgres:16
-    container_name: pg_prod
+    container_name: postgres
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -36,7 +36,7 @@ services:
     build:
       context: ./pgbouncer
       dockerfile: Dockerfile
-    container_name: pgbouncer_prod
+    container_name: pgbouncer
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -57,12 +57,12 @@ services:
       retries: 5
 
   # ──────────────────────────────────────────────
-  # Kafka - SASL 인증 + Server1 접근용 포트 바인딩
+  # Kafka - Server1 접근용 포트 바인딩
   # ADVERTISED_LISTENERS: Server1이 접근하는 실제 IP
   # ──────────────────────────────────────────────
   kafka:
     image: apache/kafka:3.7.2
-    container_name: kafka_prod
+    container_name: kafka
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -112,7 +112,7 @@ services:
   # ──────────────────────────────────────────────
   debezium:
     image: debezium/connect:2.6
-    container_name: debezium_prod
+    container_name: debezium
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -170,7 +170,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: opensearch_prod
+    container_name: opensearch
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -195,6 +195,7 @@ services:
       - ./data/opensearch:/usr/share/opensearch/data
     networks:
       - hirelog_internal
+      - hirelog_external
     healthcheck:
       test:
         [
@@ -211,7 +212,7 @@ services:
   # ──────────────────────────────────────────────
   kafka-exporter:
     image: danielqsj/kafka-exporter:latest
-    container_name: kafka_exporter_prod
+    container_name: kafka-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -226,7 +227,7 @@ services:
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter
-    container_name: postgres_exporter_prod
+    container_name: postgres-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -241,7 +242,7 @@ services:
 
   opensearch-exporter:
     image: prometheuscommunity/elasticsearch-exporter:latest
-    container_name: opensearch_exporter_prod
+    container_name: opensearch-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -256,7 +257,7 @@ services:
 
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: node_exporter_prod
+    container_name: node-exporter
     restart: unless-stopped
     pid: host
     network_mode: host
@@ -276,7 +277,7 @@ services:
   # ──────────────────────────────────────────────
   promtail:
     image: grafana/promtail:2.9.4
-    container_name: promtail_server2
+    container_name: promtail
     restart: unless-stopped
     user: root
     volumes:

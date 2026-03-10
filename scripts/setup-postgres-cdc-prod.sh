@@ -25,13 +25,13 @@ set +a
 : "${POSTGRES_USER:?POSTGRES_USER is not set in .env.prod}"
 : "${POSTGRES_DB:?POSTGRES_DB is not set in .env.prod}"
 
-POSTGRES_CONTAINER=pg_prod
+POSTGRES_CONTAINER=postgres
 DEBEZIUM_USER=debezium
 DEBEZIUM_PASSWORD=debezium
 
-# debezium_prod 는 expose 만 선언(ports 미사용) → host에서 localhost:8083 접근 불가
+# debezium 는 expose 만 선언(ports 미사용) → host에서 localhost:8083 접근 불가
 # docker inspect 로 컨테이너 내부 IP 를 가져와 직접 접근
-DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium_prod)
+DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium)
 CONNECT_URL="http://${DEBEZIUM_IP}:8083"
 
 CONNECTOR_NAME="hirelog-outbox-connector"
@@ -121,8 +121,8 @@ WAITED=0
 until curl -s ${CONNECT_URL}/ > /dev/null; do
   if [ $WAITED -ge $MAX_WAIT ]; then
     echo "❌ Kafka Connect did not become ready after ${MAX_WAIT}s"
-    echo "   debezium_prod container logs:"
-    docker logs debezium_prod --tail 30 2>&1 || true
+    echo "   debezium container logs:"
+    docker logs debezium --tail 30 2>&1 || true
     exit 1
   fi
   sleep 2

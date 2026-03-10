@@ -6,7 +6,7 @@ services:
   # ──────────────────────────────────────────────
   redis:
     image: redis/redis-stack-server:latest
-    container_name: redis_prod
+    container_name: redis
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -24,7 +24,7 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter
-    container_name: redis_exporter_prod
+    container_name: redis-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -117,7 +117,7 @@ services:
   # ──────────────────────────────────────────────
   api-blue:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:${IMAGE_TAG:-latest}
-    container_name: api_blue_prod
+    container_name: api-blue
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -142,7 +142,7 @@ services:
 
   api-green:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:${IMAGE_TAG:-latest}
-    container_name: api_green_prod
+    container_name: api-green
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -167,28 +167,13 @@ services:
       start_period: 40s
 
   # ──────────────────────────────────────────────
-  # Frontend (prod: ghcr.io 이미지)
-  # ──────────────────────────────────────────────
-  web:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-web:latest
-    container_name: frontend_prod
-    restart: unless-stopped
-    ports:
-      - '127.0.0.1:5173:5173'
-    networks:
-      - hirelog_internal
-    depends_on:
-      api-blue:
-        condition: service_healthy
-
-  # ──────────────────────────────────────────────
   # Python 전처리 파이프라인 (prod: ghcr.io 이미지)
   # Kafka consumer → Blue-Green 불필요, 단일 인스턴스
   # Server2(10.0.1.6) Kafka 직접 연결 → hirelog_external 필요
   # ──────────────────────────────────────────────
   preprocess:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-preprocess:latest
-    container_name: preprocess_prod
+    container_name: preprocess
     restart: unless-stopped
     env_file:
       - .env.prod
