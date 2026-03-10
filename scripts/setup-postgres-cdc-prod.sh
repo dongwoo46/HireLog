@@ -116,8 +116,17 @@ EOF
 
 echo "▶ [4/5] Waiting for Kafka Connect..."
 
+MAX_WAIT=180
+WAITED=0
 until curl -s ${CONNECT_URL}/ > /dev/null; do
+  if [ $WAITED -ge $MAX_WAIT ]; then
+    echo "❌ Kafka Connect did not become ready after ${MAX_WAIT}s"
+    echo "   debezium_prod container logs:"
+    docker logs debezium_prod --tail 30 2>&1 || true
+    exit 1
+  fi
   sleep 2
+  WAITED=$((WAITED + 2))
 done
 
 # ─────────────────────────────────────────────
