@@ -33,23 +33,15 @@ services:
   # 10.0.1.6:6432 에만 바인딩 → 인터넷 직접 접근 불가
   # ──────────────────────────────────────────────
   pgbouncer:
-    image: edoburu/pgbouncer:latest
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile
     container_name: pgbouncer_prod
     restart: unless-stopped
     env_file:
       - .env.prod
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: 200
-      DEFAULT_POOL_SIZE: 40
-      MIN_POOL_SIZE: 10
-      RESERVE_POOL_SIZE: 10
-      ADMIN_USERS: ${POSTGRES_USER}
-      AUTH_TYPE: md5
-      SERVER_IDLE_TIMEOUT: 600
-      SERVER_LIFETIME: 3600
-      SERVER_RESET_QUERY: DISCARD ALL
+    volumes:
+      - ./postgres/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
     ports:
       - '10.0.1.6:6432:5432'
     depends_on:
@@ -170,7 +162,9 @@ services:
   # OpenSearch - Server1(10.0.0.116) 접근용 포트 바인딩
   # ──────────────────────────────────────────────
   opensearch:
-    image: opensearchproject/opensearch:2.13.0
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: opensearch_prod
     restart: unless-stopped
     env_file:
