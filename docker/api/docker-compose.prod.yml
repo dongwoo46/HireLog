@@ -62,6 +62,7 @@ services:
     environment:
       GF_SERVER_ROOT_URL: https://hirelog.kro.kr/grafana/
       GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+      GF_SERVER_PROTOCOL: http
     volumes:
       - ./data/grafana:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
