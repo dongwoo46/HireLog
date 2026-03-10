@@ -53,6 +53,12 @@ opensearch:
   username: ''
   password: ''
 
+auth:
+  frontend:
+    main-url: https://hirelog.kro.kr/
+    signup-url: https://hirelog.kro.kr/signup
+    recovery-url: https://hirelog.kro.kr/recovery
+
 hirelog:
   worker:
     job-summary:
