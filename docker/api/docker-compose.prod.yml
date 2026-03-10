@@ -67,6 +67,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
     networks:
       - hirelog_internal
+      - hirelog_external
     depends_on:
       - prometheus
       - loki
