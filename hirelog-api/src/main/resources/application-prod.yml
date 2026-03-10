@@ -8,13 +8,20 @@ spring:
           kakao:
             redirect-uri: https://api.hirelog.com/login/oauth2/code/kakao
   datasource:
-    url: jdbc:postgresql://prod-db:5432/hirelog_prod
-    username: hirelog
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   flyway:
     enabled: true
-    baseline-on-migrate: false   # ⭐ 중요
+    baseline-on-migrate: false # ⭐ 중요
     validate-on-migrate: true
 
   jpa:
@@ -38,8 +45,8 @@ opensearch:
   host: ${OPENSEARCH_HOST}
   port: 9200
   scheme: http
-  username: ""
-  password: ""
+  username: ''
+  password: ''
 
 hirelog:
   worker:
