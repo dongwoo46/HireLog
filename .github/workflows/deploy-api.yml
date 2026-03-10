@@ -7,6 +7,10 @@ on:
     paths:
       - 'hirelog-api/**'
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (e.g. abc12345). Required when skipping build.'
+        required: true
 
 env:
   IMAGE: ghcr.io/dongwoo46/hirelog-api
@@ -14,9 +18,9 @@ env:
 jobs:
   test:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.merged == true &&
-       github.event.pull_request.head.ref == 'develop')
+      github.event_name != 'workflow_dispatch' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'develop'
     runs-on: [self-hosted, linux, arm64]
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +40,10 @@ jobs:
 
   build:
     needs: test
+    if: >-
+      github.event_name != 'workflow_dispatch' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'develop'
     runs-on: [self-hosted, linux, arm64]
     permissions:
       contents: read
@@ -71,7 +79,8 @@ jobs:
           cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
 
   deploy:
-    needs: build
+    needs: [test, build]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -121,7 +130,7 @@ jobs:
           script: |
             set -e
 
-            export IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+            export IMAGE_TAG=${{ github.event.inputs.image_tag || needs.build.outputs.image_tag }}
             export GITHUB_USERNAME=${{ github.repository_owner }}
             WORKDIR=/home/hirelog
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
@@ -152,15 +161,15 @@ jobs:
 
             # ── Health Check ─────────────────────────────────────
             echo "▶ Waiting for $NEXT to be healthy..."
-            for i in $(seq 1 40); do
+            for i in $(seq 1 10); do
               RESPONSE=$(curl -sf http://localhost:$NEXT_PORT/actuator/health 2>/dev/null || true)
               STATUS=$(echo "$RESPONSE" | grep -o '"status":"[^"]*"' | head -1 || true)
-              echo "  [$i/40] status=$STATUS response=$RESPONSE"
+              echo "  [$i/10] status=$STATUS response=$RESPONSE"
               if echo "$STATUS" | grep -q "UP"; then
                 echo "✅ $NEXT is healthy"
                 break
               fi
-              if [ $i -eq 40 ]; then
+              if [ $i -eq 10 ]; then
                 echo "❌ Health check failed — container logs:"
                 docker logs --tail 30 $(docker compose -f $WORKDIR/docker-compose.prod.yml ps -q $NEXT_SVC) 2>/dev/null || true
                 $COMPOSE stop $NEXT_SVC
