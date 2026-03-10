@@ -1,4 +1,9 @@
 spring:
+  data:
+    redis:
+      host: redis_prod
+      port: 6379
+
   security:
     oauth2:
       client:
