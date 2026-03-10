@@ -49,6 +49,7 @@ services:
       - '9090'
     networks:
       - hirelog_internal
+      - hirelog_external
 
   grafana:
     image: grafana/grafana
@@ -58,6 +59,9 @@ services:
       - '127.0.0.1:3000:3000'
     env_file:
       - .env.prod
+    environment:
+      GF_SERVER_ROOT_URL: https://hirelog.kro.kr/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
     volumes:
       - ./data/grafana:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
