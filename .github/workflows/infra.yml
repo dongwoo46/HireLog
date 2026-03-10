@@ -185,7 +185,7 @@ jobs:
               "hirelog.outbox.JdPreprocessUrl"
             )
 
-            TOPIC_LIST=$(docker exec kafka_prod sh -c "
+            TOPIC_LIST=$(docker exec kafka sh -c "
               unset KAFKA_OPTS && \
               /opt/kafka/bin/kafka-topics.sh \
                 --bootstrap-server localhost:29092 \
