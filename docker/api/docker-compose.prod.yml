@@ -74,7 +74,7 @@ services:
       - loki
 
   loki:
-    image: grafana/loki:2.9.4
+    image: grafana/loki:3.0.0
     container_name: loki
     restart: unless-stopped
     ports:
@@ -87,7 +87,7 @@ services:
       - hirelog_internal
 
   promtail:
-    image: grafana/promtail:2.9.4
+    image: grafana/promtail:3.0.0
     container_name: promtail
     restart: unless-stopped
     user: root
