@@ -260,7 +260,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "up{job=\"redis-exporter\"}",
+          "expr": "up{job=\"redis\"}",
           "legendFormat": "Redis",
           "refId": "A"
         }

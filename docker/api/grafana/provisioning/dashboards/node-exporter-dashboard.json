@@ -59,7 +59,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\", instance=~\"host.docker.internal:9100|.*infra.*\"}[5m])) * 100)",
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\", instance=~\"10.0.1.6:9100\"}[5m])) * 100)",
           "legendFormat": "CPU %",
           "refId": "A"
         }
@@ -95,7 +95,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 - (node_memory_MemAvailable_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"} / node_memory_MemTotal_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"} * 100)",
+          "expr": "100 - (node_memory_MemAvailable_bytes{instance=~\"10.0.1.6:9100\"} / node_memory_MemTotal_bytes{instance=~\"10.0.1.6:9100\"} * 100)",
           "legendFormat": "Memory %",
           "refId": "A"
         }
@@ -131,7 +131,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 - (node_filesystem_avail_bytes{instance=~\"host.docker.internal:9100|.*infra.*\", mountpoint=\"/\", fstype!=\"tmpfs\"} / node_filesystem_size_bytes{instance=~\"host.docker.internal:9100|.*infra.*\", mountpoint=\"/\", fstype!=\"tmpfs\"} * 100)",
+          "expr": "100 - (node_filesystem_avail_bytes{instance=~\"10.0.1.6:9100\", mountpoint=\"/\", fstype!=\"tmpfs\"} / node_filesystem_size_bytes{instance=~\"10.0.1.6:9100\", mountpoint=\"/\", fstype!=\"tmpfs\"} * 100)",
           "legendFormat": "Disk %",
           "refId": "A"
         }
@@ -159,7 +159,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_time_seconds{instance=~\"host.docker.internal:9100|.*infra.*\"} - node_boot_time_seconds{instance=~\"host.docker.internal:9100|.*infra.*\"}",
+          "expr": "node_time_seconds{instance=~\"10.0.1.6:9100\"} - node_boot_time_seconds{instance=~\"10.0.1.6:9100\"}",
           "legendFormat": "Uptime",
           "refId": "A"
         }
@@ -186,7 +186,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_memory_MemTotal_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"}",
+          "expr": "node_memory_MemTotal_bytes{instance=~\"10.0.1.6:9100\"}",
           "legendFormat": "Total RAM",
           "refId": "A"
         }
@@ -213,7 +213,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "count(node_cpu_seconds_total{instance=~\"host.docker.internal:9100|.*infra.*\", mode=\"idle\"})",
+          "expr": "count(node_cpu_seconds_total{instance=~\"10.0.1.6:9100\", mode=\"idle\"})",
           "legendFormat": "Cores",
           "refId": "A"
         }
@@ -247,13 +247,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\", instance=~\"host.docker.internal:9100|.*infra.*\"}[5m])) * 100)",
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\", instance=~\"10.0.1.6:9100\"}[5m])) * 100)",
           "legendFormat": "CPU Total %",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "avg(rate(node_cpu_seconds_total{mode=\"iowait\", instance=~\"host.docker.internal:9100|.*infra.*\"}[5m])) * 100",
+          "expr": "avg(rate(node_cpu_seconds_total{mode=\"iowait\", instance=~\"10.0.1.6:9100\"}[5m])) * 100",
           "legendFormat": "IO Wait %",
           "refId": "B"
         }
@@ -285,25 +285,25 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_memory_MemTotal_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"} - node_memory_MemAvailable_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"}",
+          "expr": "node_memory_MemTotal_bytes{instance=~\"10.0.1.6:9100\"} - node_memory_MemAvailable_bytes{instance=~\"10.0.1.6:9100\"}",
           "legendFormat": "Used",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_memory_Buffers_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"}",
+          "expr": "node_memory_Buffers_bytes{instance=~\"10.0.1.6:9100\"}",
           "legendFormat": "Buffers",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_memory_Cached_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"}",
+          "expr": "node_memory_Cached_bytes{instance=~\"10.0.1.6:9100\"}",
           "legendFormat": "Cached",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_memory_MemAvailable_bytes{instance=~\"host.docker.internal:9100|.*infra.*\"}",
+          "expr": "node_memory_MemAvailable_bytes{instance=~\"10.0.1.6:9100\"}",
           "legendFormat": "Available",
           "refId": "D"
         }
@@ -333,13 +333,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "rate(node_network_receive_bytes_total{instance=~\"host.docker.internal:9100|.*infra.*\", device!~\"lo|veth.*|docker.*|br.*\"}[5m]) * 8",
+          "expr": "rate(node_network_receive_bytes_total{instance=~\"10.0.1.6:9100\", device!~\"lo|veth.*|docker.*|br.*\"}[5m]) * 8",
           "legendFormat": "↓ Receive ({{device}})",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "rate(node_network_transmit_bytes_total{instance=~\"host.docker.internal:9100|.*infra.*\", device!~\"lo|veth.*|docker.*|br.*\"}[5m]) * 8",
+          "expr": "rate(node_network_transmit_bytes_total{instance=~\"10.0.1.6:9100\", device!~\"lo|veth.*|docker.*|br.*\"}[5m]) * 8",
           "legendFormat": "↑ Transmit ({{device}})",
           "refId": "B"
         }
@@ -369,13 +369,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "rate(node_disk_read_bytes_total{instance=~\"host.docker.internal:9100|.*infra.*\", device!~\"dm.*\"}[5m])",
+          "expr": "rate(node_disk_read_bytes_total{instance=~\"10.0.1.6:9100\", device!~\"dm.*\"}[5m])",
           "legendFormat": "Read ({{device}})",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "rate(node_disk_written_bytes_total{instance=~\"host.docker.internal:9100|.*infra.*\", device!~\"dm.*\"}[5m])",
+          "expr": "rate(node_disk_written_bytes_total{instance=~\"10.0.1.6:9100\", device!~\"dm.*\"}[5m])",
           "legendFormat": "Write ({{device}})",
           "refId": "B"
         }
