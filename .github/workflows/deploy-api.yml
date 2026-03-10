@@ -8,9 +8,15 @@ on:
       - 'hirelog-api/**'
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: 'Image tag to deploy (e.g. abc12345). Required when skipping build.'
-        required: true
+      start_from:
+        description: 'Start from: test (default), build, deploy (uses latest image)'
+        required: false
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - build
+          - deploy
 
 env:
   IMAGE: ghcr.io/dongwoo46/hirelog-api
@@ -18,9 +24,11 @@ env:
 jobs:
   test:
     if: >-
-      github.event_name != 'workflow_dispatch' &&
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.head.ref == 'develop'
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'develop') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.event.inputs.start_from == 'test')
     runs-on: [self-hosted, linux, arm64]
     steps:
       - uses: actions/checkout@v4
@@ -41,9 +49,13 @@ jobs:
   build:
     needs: test
     if: >-
-      github.event_name != 'workflow_dispatch' &&
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.head.ref == 'develop'
+      always() &&
+      needs.test.result != 'failure' &&
+      ((github.event_name == 'pull_request' &&
+        github.event.pull_request.merged == true &&
+        github.event.pull_request.head.ref == 'develop') ||
+       (github.event_name == 'workflow_dispatch' &&
+        github.event.inputs.start_from != 'deploy'))
     runs-on: [self-hosted, linux, arm64]
     permissions:
       contents: read
@@ -80,7 +92,11 @@ jobs:
 
   deploy:
     needs: [test, build]
-    if: always()
+    if: >-
+      always() &&
+      needs.test.result != 'failure' &&
+      needs.build.result != 'failure' &&
+      needs.build.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -130,7 +146,14 @@ jobs:
           script: |
             set -e
 
-            export IMAGE_TAG=${{ github.event.inputs.image_tag || needs.build.outputs.image_tag }}
+            # start_from=deploy이면 latest, 아니면 build output 사용
+            if [ "${{ github.event.inputs.start_from }}" = "deploy" ]; then
+              IMAGE_TAG=latest
+            else
+              IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+            fi
+
+            export IMAGE_TAG
             export GITHUB_USERNAME=${{ github.repository_owner }}
             WORKDIR=/home/hirelog
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
@@ -149,7 +172,7 @@ jobs:
 
             echo "▶ Current: $CURRENT ($CURRENT_PORT) → Next: $NEXT ($NEXT_PORT)"
 
-            # ── SHA 태그 이미지 Pull (1회) ───────────────────────
+            # ── 이미지 Pull ──────────────────────────────────────
             docker pull ${{ env.IMAGE }}:$IMAGE_TAG
 
             # ── 비활성 슬롯 시작 (이미 pull된 이미지 사용) ───────
