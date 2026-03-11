@@ -157,6 +157,7 @@ services:
       - postgres
     networks:
       - hirelog_internal
+      - hirelog_external
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8083/']
       interval: 10s
