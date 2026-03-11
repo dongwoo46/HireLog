@@ -10,7 +10,7 @@ scrape_configs:
   - job_name: 'spring'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['api-blue:8080', 'api-green:8080'] # 컨테이너명 직접 참조 (활성 슬롯만 응답)
+      - targets: ['api-blue:8080', 'api-green:8080'] # blue-green: 비활성 슬롯은 down으로 표시됨 (정상)
 
   - job_name: 'redis'
     static_configs:
@@ -47,7 +47,7 @@ scrape_configs:
 
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['10.0.0.116:9100'] # API server (hirelog-api)
+      - targets: ['node_exporter_api:9100'] # API server — 컨테이너명 직접 참조 (network_mode:host 제거)
         labels:
           server_name: 'api-server (10.0.0.116)'
       - targets: ['10.0.1.6:9100'] # Infra server (hirelog-infra)

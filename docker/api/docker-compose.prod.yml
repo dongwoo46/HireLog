@@ -107,7 +107,6 @@ services:
     container_name: node_exporter_api
     restart: unless-stopped
     pid: host
-    network_mode: host
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -117,6 +116,8 @@ services:
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - hirelog_internal
 
   # ──────────────────────────────────────────────
   # Spring Boot API (prod: Blue-Green, ghcr.io 이미지)
