@@ -19,6 +19,7 @@ TOPICS=(
   "hirelog.outbox.JdPreprocessText"
   "hirelog.outbox.JdPreprocessOcr"
   "hirelog.outbox.JdPreprocessUrl"
+  "__debezium-heartbeat.hirelog"
 )
 
 # 토픽이 이미 모두 존재하면 스킵
