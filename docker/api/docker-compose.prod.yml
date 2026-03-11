@@ -45,8 +45,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    expose:
-      - '9090'
+    ports:
+      - '127.0.0.1:9090:9090'
     networks:
       - hirelog_internal
       - hirelog_external
