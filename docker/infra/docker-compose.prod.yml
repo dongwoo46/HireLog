@@ -224,6 +224,7 @@ services:
       - kafka
     networks:
       - hirelog_internal
+      - hirelog_external
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter
@@ -237,6 +238,7 @@ services:
       - '10.0.1.6:9187:9187'
     networks:
       - hirelog_internal
+      - hirelog_external
     depends_on:
       - postgres
 
@@ -252,6 +254,7 @@ services:
       - '10.0.1.6:9114:9114'
     networks:
       - hirelog_internal
+      - hirelog_external
     depends_on:
       - opensearch
 
