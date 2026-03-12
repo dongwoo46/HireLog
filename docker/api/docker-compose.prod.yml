@@ -6,7 +6,7 @@ services:
   # ──────────────────────────────────────────────
   redis:
     image: redis/redis-stack-server:latest
-    container_name: redis_prod
+    container_name: redis
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -24,7 +24,7 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter
-    container_name: redis_exporter_prod
+    container_name: redis-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -45,10 +45,11 @@ services:
     restart: unless-stopped
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    expose:
-      - '9090'
+    ports:
+      - '127.0.0.1:9090:9090'
     networks:
       - hirelog_internal
+      - hirelog_external
 
   grafana:
     image: grafana/grafana
@@ -58,17 +59,22 @@ services:
       - '127.0.0.1:3000:3000'
     env_file:
       - .env.prod
+    environment:
+      GF_SERVER_ROOT_URL: https://hirelog.kro.kr/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+      GF_SERVER_PROTOCOL: http
     volumes:
       - ./data/grafana:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
     networks:
       - hirelog_internal
+      - hirelog_external
     depends_on:
       - prometheus
       - loki
 
   loki:
-    image: grafana/loki:2.9.4
+    image: grafana/loki:3.0.0
     container_name: loki
     restart: unless-stopped
     ports:
@@ -81,7 +87,7 @@ services:
       - hirelog_internal
 
   promtail:
-    image: grafana/promtail:2.9.4
+    image: grafana/promtail:3.0.0
     container_name: promtail
     restart: unless-stopped
     user: root
@@ -101,7 +107,6 @@ services:
     container_name: node_exporter_api
     restart: unless-stopped
     pid: host
-    network_mode: host
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -111,13 +116,15 @@ services:
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - hirelog_internal
 
   # ──────────────────────────────────────────────
   # Spring Boot API (prod: Blue-Green, ghcr.io 이미지)
   # ──────────────────────────────────────────────
   api-blue:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:${IMAGE_TAG:-latest}
-    container_name: api_blue_prod
+    container_name: api-blue
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -142,7 +149,7 @@ services:
 
   api-green:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-api:${IMAGE_TAG:-latest}
-    container_name: api_green_prod
+    container_name: api-green
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -167,28 +174,13 @@ services:
       start_period: 40s
 
   # ──────────────────────────────────────────────
-  # Frontend (prod: ghcr.io 이미지)
-  # ──────────────────────────────────────────────
-  web:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-web:latest
-    container_name: frontend_prod
-    restart: unless-stopped
-    ports:
-      - '127.0.0.1:5173:5173'
-    networks:
-      - hirelog_internal
-    depends_on:
-      api-blue:
-        condition: service_healthy
-
-  # ──────────────────────────────────────────────
   # Python 전처리 파이프라인 (prod: ghcr.io 이미지)
   # Kafka consumer → Blue-Green 불필요, 단일 인스턴스
   # Server2(10.0.1.6) Kafka 직접 연결 → hirelog_external 필요
   # ──────────────────────────────────────────────
   preprocess:
     image: ghcr.io/${GITHUB_USERNAME}/hirelog-preprocess:latest
-    container_name: preprocess_prod
+    container_name: preprocess
     restart: unless-stopped
     env_file:
       - .env.prod

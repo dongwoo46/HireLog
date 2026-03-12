@@ -19,10 +19,11 @@ TOPICS=(
   "hirelog.outbox.JdPreprocessText"
   "hirelog.outbox.JdPreprocessOcr"
   "hirelog.outbox.JdPreprocessUrl"
+  "__debezium-heartbeat.hirelog"
 )
 
 # 토픽이 이미 모두 존재하면 스킵
-EXISTING=$(docker exec kafka_prod sh -c \
+EXISTING=$(docker exec kafka sh -c \
   "unset KAFKA_OPTS && /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list" \
   2>/dev/null || echo "")
 ALL_EXIST=true
@@ -46,7 +47,7 @@ for topic in "${TOPICS[@]}"
 do
   echo "Creating topic: $topic"
 
-  docker exec kafka_prod sh -c "
+  docker exec kafka sh -c "
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
       --bootstrap-server localhost:29092 \
@@ -69,7 +70,7 @@ echo "=========================================="
 echo "Listing all topics:"
 echo "=========================================="
 
-docker exec kafka_prod sh -c "
+docker exec kafka sh -c "
   unset KAFKA_OPTS && \
   /opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server localhost:29092 \
@@ -86,7 +87,7 @@ do
   echo ""
   echo "--- Topic: $topic ---"
 
-  docker exec kafka_prod sh -c "
+  docker exec kafka sh -c "
     unset KAFKA_OPTS && \
     /opt/kafka/bin/kafka-topics.sh \
       --bootstrap-server localhost:29092 \

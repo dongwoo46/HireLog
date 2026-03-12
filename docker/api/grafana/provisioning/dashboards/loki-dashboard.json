@@ -260,7 +260,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "up{job=\"redis-exporter\"}",
+          "expr": "up{job=\"redis\"}",
           "legendFormat": "Redis",
           "refId": "A"
         }
@@ -334,12 +334,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "up{job=\"prometheus\"}",
-          "legendFormat": "Prometheus",
+          "expr": "up{job=\"spring\"}",
+          "legendFormat": "Spring API",
           "refId": "A"
         }
       ],
-      "title": "Prometheus 상태",
+      "title": "Spring API 상태",
       "type": "stat"
     },
     {

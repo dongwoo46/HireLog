@@ -7,6 +7,16 @@ on:
     paths:
       - 'hirelog-api/**'
   workflow_dispatch:
+    inputs:
+      start_from:
+        description: 'Start from: test (default), build, deploy (uses latest image)'
+        required: false
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - build
+          - deploy
 
 env:
   IMAGE: ghcr.io/dongwoo46/hirelog-api
@@ -14,9 +24,11 @@ env:
 jobs:
   test:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.merged == true &&
-       github.event.pull_request.head.ref == 'develop')
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'develop') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.event.inputs.start_from == 'test')
     runs-on: [self-hosted, linux, arm64]
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +48,14 @@ jobs:
 
   build:
     needs: test
+    if: >-
+      always() &&
+      needs.test.result != 'failure' &&
+      ((github.event_name == 'pull_request' &&
+        github.event.pull_request.merged == true &&
+        github.event.pull_request.head.ref == 'develop') ||
+       (github.event_name == 'workflow_dispatch' &&
+        github.event.inputs.start_from != 'deploy'))
     runs-on: [self-hosted, linux, arm64]
     permissions:
       contents: read
@@ -48,6 +68,12 @@ jobs:
       - name: Set image tag
         id: meta
         run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Build JAR on runner
+        run: |
+          chmod +x gradlew
+          ./gradlew bootJar -x test -x jar --no-daemon --build-cache
+        working-directory: hirelog-api
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,7 +97,12 @@ jobs:
           cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
 
   deploy:
-    needs: build
+    needs: [test, build]
+    if: >-
+      always() &&
+      needs.test.result != 'failure' &&
+      needs.build.result != 'failure' &&
+      needs.build.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -121,13 +152,23 @@ jobs:
           script: |
             set -e
 
-            export IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+            # start_from=deploy이면 latest, 아니면 build output 사용
+            if [ "${{ github.event.inputs.start_from }}" = "deploy" ]; then
+              IMAGE_TAG=latest
+            else
+              IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+            fi
+
+            export IMAGE_TAG
             export GITHUB_USERNAME=${{ github.repository_owner }}
             WORKDIR=/home/hirelog
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
             ACTIVE_CONF=/etc/nginx/conf.d/hirelog-active.conf
 
             echo "▶ Image: ${{ env.IMAGE }}:$IMAGE_TAG"
+
+            # ── 지원 서비스 기동 (변경사항 적용) ─────────────────
+            $COMPOSE up -d redis redis-exporter prometheus grafana loki promtail node-exporter
 
             # ── 현재 활성 슬롯 판별 ──────────────────────────────
             if grep -q "8080" $ACTIVE_CONF 2>/dev/null; then
@@ -140,7 +181,7 @@ jobs:
 
             echo "▶ Current: $CURRENT ($CURRENT_PORT) → Next: $NEXT ($NEXT_PORT)"
 
-            # ── SHA 태그 이미지 Pull (1회) ───────────────────────
+            # ── 이미지 Pull ──────────────────────────────────────
             docker pull ${{ env.IMAGE }}:$IMAGE_TAG
 
             # ── 비활성 슬롯 시작 (이미 pull된 이미지 사용) ───────
@@ -152,15 +193,15 @@ jobs:
 
             # ── Health Check ─────────────────────────────────────
             echo "▶ Waiting for $NEXT to be healthy..."
-            for i in $(seq 1 40); do
+            for i in $(seq 1 10); do
               RESPONSE=$(curl -sf http://localhost:$NEXT_PORT/actuator/health 2>/dev/null || true)
               STATUS=$(echo "$RESPONSE" | grep -o '"status":"[^"]*"' | head -1 || true)
-              echo "  [$i/40] status=$STATUS response=$RESPONSE"
+              echo "  [$i/10] status=$STATUS response=$RESPONSE"
               if echo "$STATUS" | grep -q "UP"; then
                 echo "✅ $NEXT is healthy"
                 break
               fi
-              if [ $i -eq 40 ]; then
+              if [ $i -eq 10 ]; then
                 echo "❌ Health check failed — container logs:"
                 docker logs --tail 30 $(docker compose -f $WORKDIR/docker-compose.prod.yml ps -q $NEXT_SVC) 2>/dev/null || true
                 $COMPOSE stop $NEXT_SVC

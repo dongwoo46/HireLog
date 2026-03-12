@@ -25,6 +25,8 @@ scrape_configs:
         target_label: project
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: stream
+      - target_label: server
+        replacement: server1
     pipeline_stages: # ← scrape_configs 안으로
       - docker: {}
       - json:
@@ -42,3 +44,4 @@ scrape_configs:
           env:
           container:
           service:
+          server:

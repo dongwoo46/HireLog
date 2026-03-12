@@ -3,42 +3,43 @@ global:
 
 scrape_configs:
   # ──────────────────────────────────────────────
-  # server1 (hirelog-infra, 10.0.1.6) — Spring Boot API, Redis, 모니터링
-  # redis-exporter, spring은 Prometheus와 같은 docker network → 컨테이너명 or 같은호스트 IP
+  # API Server (10.0.0.116) — Spring Boot, Redis
+  # Prometheus와 같은 docker network → 컨테이너명 사용
   # ──────────────────────────────────────────────
 
   - job_name: 'spring'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['10.0.1.6:8080'] # server1 (hirelog-infra)
+      - targets: ['api-blue:8080', 'api-green:8080'] # blue-green: 비활성 슬롯은 down으로 표시됨 (정상)
 
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis-exporter:9121'] # server1 — 같은 docker network이므로 컨테이너명 사용
+      - targets: ['redis-exporter:9121'] # 같은 docker network → 컨테이너명 사용
 
   # ──────────────────────────────────────────────
-  # server2 (hirelog-api, 10.0.0.116) — Kafka, PostgreSQL, OpenSearch
+  # Infra Server (10.0.1.6) — Kafka, PostgreSQL, OpenSearch, Debezium
+  # hirelog_external 네트워크를 통해 접근
   # ──────────────────────────────────────────────
 
   - job_name: 'kafka'
     static_configs:
-      - targets: ['10.0.0.116:9308'] # server2
+      - targets: ['10.0.1.6:9308'] # infra server — kafka-exporter
 
   - job_name: 'postgres'
     static_configs:
-      - targets: ['10.0.0.116:9187'] # server2
+      - targets: ['10.0.1.6:9187'] # infra server — postgres-exporter
 
   - job_name: 'opensearch'
     static_configs:
-      - targets: ['10.0.0.116:9114'] # server2
+      - targets: ['10.0.1.6:9114'] # infra server — opensearch-exporter
 
   - job_name: 'debezium'
     static_configs:
-      - targets: ['10.0.0.116:9404'] # server2
+      - targets: ['10.0.1.6:9404'] # infra server — debezium jmx
 
   - job_name: 'kafka-jmx'
     static_configs:
-      - targets: ['10.0.0.116:9405'] # server2
+      - targets: ['10.0.1.6:9405'] # infra server — kafka jmx
 
   # ──────────────────────────────────────────────
   # Node Exporter — 서버별 시스템 메트릭 (CPU, Memory, Disk, Network)
@@ -46,9 +47,9 @@ scrape_configs:
 
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['10.0.1.6:9100'] # server1 (hirelog-infra)
+      - targets: ['node_exporter_api:9100'] # API server — 컨테이너명 직접 참조 (network_mode:host 제거)
         labels:
-          server_name: 'server1 (hirelog-infra)'
-      - targets: ['10.0.0.116:9100'] # server2 (hirelog-api)
+          server_name: 'api-server (10.0.0.116)'
+      - targets: ['10.0.1.6:9100'] # Infra server (hirelog-infra)
         labels:
-          server_name: 'server2 (hirelog-api)'
+          server_name: 'infra-server (10.0.1.6)'

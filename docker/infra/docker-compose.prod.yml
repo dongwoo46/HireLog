@@ -4,7 +4,7 @@ services:
   # ──────────────────────────────────────────────
   postgres:
     image: postgres:16
-    container_name: pg_prod
+    container_name: postgres
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -33,23 +33,15 @@ services:
   # 10.0.1.6:6432 에만 바인딩 → 인터넷 직접 접근 불가
   # ──────────────────────────────────────────────
   pgbouncer:
-    image: edoburu/pgbouncer:latest
-    container_name: pgbouncer_prod
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile
+    container_name: pgbouncer
     restart: unless-stopped
     env_file:
       - .env.prod
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: 200
-      DEFAULT_POOL_SIZE: 40
-      MIN_POOL_SIZE: 10
-      RESERVE_POOL_SIZE: 10
-      ADMIN_USERS: ${POSTGRES_USER}
-      AUTH_TYPE: md5
-      SERVER_IDLE_TIMEOUT: 600
-      SERVER_LIFETIME: 3600
-      SERVER_RESET_QUERY: DISCARD ALL
+    volumes:
+      - ./postgres/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
     ports:
       - '10.0.1.6:6432:5432'
     depends_on:
@@ -57,19 +49,20 @@ services:
         condition: service_healthy
     networks:
       - hirelog_internal
+      - hirelog_external
     healthcheck:
-      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '5432']
+      test: ['CMD-SHELL', 'pg_isready -h localhost -p 5432 -U ${POSTGRES_USER}']
       interval: 10s
       timeout: 5s
       retries: 5
 
   # ──────────────────────────────────────────────
-  # Kafka - SASL 인증 + Server1 접근용 포트 바인딩
+  # Kafka - Server1 접근용 포트 바인딩
   # ADVERTISED_LISTENERS: Server1이 접근하는 실제 IP
   # ──────────────────────────────────────────────
   kafka:
     image: apache/kafka:3.7.2
-    container_name: kafka_prod
+    container_name: kafka
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -107,6 +100,7 @@ services:
       - ./jmx_exporter/kafka.yml:/opt/kafka.yml
     networks:
       - hirelog_internal
+      - hirelog_external
     healthcheck:
       test: ['CMD-SHELL', 'nc -z localhost 9092 || exit 1']
       interval: 10s
@@ -118,7 +112,7 @@ services:
   # ──────────────────────────────────────────────
   debezium:
     image: debezium/connect:2.6
-    container_name: debezium_prod
+    container_name: debezium
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -142,6 +136,10 @@ services:
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
 
+      CONNECT_SECURITY_PROTOCOL: PLAINTEXT
+      CONNECT_PRODUCER_SECURITY_PROTOCOL: PLAINTEXT
+      CONNECT_CONSUMER_SECURITY_PROTOCOL: PLAINTEXT
+
       CONNECT_ERRORS_LOG_ENABLE: 'true'
       CONNECT_ERRORS_LOG_INCLUDE_MESSAGES: 'true'
       CONNECT_ERRORS_RETRY_TIMEOUT: 300000
@@ -159,6 +157,7 @@ services:
       - postgres
     networks:
       - hirelog_internal
+      - hirelog_external
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8083/']
       interval: 10s
@@ -169,8 +168,10 @@ services:
   # OpenSearch - Server1(10.0.0.116) 접근용 포트 바인딩
   # ──────────────────────────────────────────────
   opensearch:
-    image: opensearchproject/opensearch:2.13.0
-    container_name: opensearch_prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: opensearch
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -195,8 +196,13 @@ services:
       - ./data/opensearch:/usr/share/opensearch/data
     networks:
       - hirelog_internal
+      - hirelog_external
     healthcheck:
-      test: ['CMD-SHELL', 'curl -sf http://localhost:9200/_cluster/health || exit 1']
+      test:
+        [
+          'CMD-SHELL',
+          'curl -sf http://localhost:9200/_cluster/health || exit 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -207,7 +213,7 @@ services:
   # ──────────────────────────────────────────────
   kafka-exporter:
     image: danielqsj/kafka-exporter:latest
-    container_name: kafka_exporter_prod
+    container_name: kafka-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -219,10 +225,11 @@ services:
       - kafka
     networks:
       - hirelog_internal
+      - hirelog_external
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter
-    container_name: postgres_exporter_prod
+    container_name: postgres-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -232,12 +239,13 @@ services:
       - '10.0.1.6:9187:9187'
     networks:
       - hirelog_internal
+      - hirelog_external
     depends_on:
       - postgres
 
   opensearch-exporter:
     image: prometheuscommunity/elasticsearch-exporter:latest
-    container_name: opensearch_exporter_prod
+    container_name: opensearch-exporter
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -247,12 +255,13 @@ services:
       - '10.0.1.6:9114:9114'
     networks:
       - hirelog_internal
+      - hirelog_external
     depends_on:
       - opensearch
 
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: node_exporter_prod
+    container_name: node-exporter
     restart: unless-stopped
     pid: host
     network_mode: host
@@ -271,8 +280,8 @@ services:
   # hirelog_external: 10.0.0.116:3100 아웃바운드 필요
   # ──────────────────────────────────────────────
   promtail:
-    image: grafana/promtail:2.9.4
-    container_name: promtail_server2
+    image: grafana/promtail:3.0.0
+    container_name: promtail
     restart: unless-stopped
     user: root
     volumes:

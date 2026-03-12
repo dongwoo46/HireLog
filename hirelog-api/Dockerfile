@@ -1,24 +1,10 @@
-# Stage 1: Build
+# Stage 1: 레이어드 JAR 분해 (runner에서 빌드된 JAR 사용)
 FROM eclipse-temurin:21-jdk-jammy AS builder
 
 WORKDIR /app
 
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle.kts .
-COPY settings.gradle.kts .
-RUN chmod +x gradlew
-
-# 의존성 레이어 분리 + BuildKit 캐시로 재다운로드 방지
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew dependencies --no-daemon
-
-COPY src src
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew bootJar -x test -x jar --no-daemon
-
-# 레이어드 JAR 분해
-RUN java -Djarmode=layertools -jar build/libs/hirelog-api-*.jar extract --destination extracted
+COPY build/libs/hirelog-api-*.jar app.jar
+RUN java -Djarmode=layertools -jar app.jar extract --destination extracted
 
 
 # Stage 2: Runtime

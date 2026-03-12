@@ -115,8 +115,8 @@ jobs:
           command_timeout: 20m
           script: |
             set -e
-            # debezium_prod은 제외 → cdc job에서 별도 대기
-            CONTAINERS="pg_prod pgbouncer_prod kafka_prod opensearch_prod"
+            # debezium은 제외 → cdc job에서 별도 대기
+            CONTAINERS="postgres pgbouncer kafka opensearch"
 
             echo "▶ Waiting for containers to be healthy (max 120s each)..."
             for container in $CONTAINERS; do
@@ -185,7 +185,7 @@ jobs:
               "hirelog.outbox.JdPreprocessUrl"
             )
 
-            TOPIC_LIST=$(docker exec kafka_prod sh -c "
+            TOPIC_LIST=$(docker exec kafka sh -c "
               unset KAFKA_OPTS && \
               /opt/kafka/bin/kafka-topics.sh \
                 --bootstrap-server localhost:29092 \
@@ -244,7 +244,7 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
-            DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium_prod)
+            DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium)
             CONNECT_URL="http://${DEBEZIUM_IP}:8083"
             CONNECTOR_NAME="hirelog-outbox-connector"
 
