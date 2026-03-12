@@ -1,224 +1,230 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { memberService } from '../services/memberService';
-import { toast } from 'react-toastify';
-import { TbUser, TbBriefcase, TbCalendar, TbFileDescription, TbEdit, TbCheck, TbX, TbAlertTriangle } from 'react-icons/tb';
+import { TbEdit, TbX } from 'react-icons/tb';
 
 const ProfilePage = () => {
   const { user, setUser } = useAuthStore();
-  const [isEditing, setIsEditing] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const [form, setForm] = useState({
     username: '',
+    email: '',
     careerYears: 0,
     summary: '',
-    currentPositionId: undefined as number | undefined
   });
 
   useEffect(() => {
     if (user) {
-      setFormData({
+      setForm({
         username: user.username || '',
+        email: user.email || '',
         careerYears: user.careerYears || 0,
         summary: user.summary || '',
-        currentPositionId: user.currentPositionId
       });
     }
   }, [user]);
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-400 text-sm">프로필 정보를 불러오는 중...</p>
+      </div>
+    );
+  }
+
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // 1. Update Username if changed
-      if (formData.username !== user?.username) {
-        await memberService.updateUsername({ username: formData.username });
-      }
+      await memberService.updateUsername({ username: form.username });
 
-      // 2. Update Profile
       await memberService.updateProfile({
-        careerYears: formData.careerYears,
-        summary: formData.summary,
-        currentPositionId: formData.currentPositionId
+        careerYears: form.careerYears,
+        summary: form.summary,
       });
 
-      // 3. Refresh Store
-      const updatedUser = await memberService.getMe();
-      setUser(updatedUser);
-      
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Failed to update profile', error);
-      toast.error('프로필 저장 중 오류가 발생했습니다.');
+      if (form.email !== user.email) {
+        await memberService.updateEmail({ email: form.email });
+      }
+
+      const updated = await memberService.getMe();
+      setUser(updated);
+
+      setSuccessMessage('정보가 수정되었습니다.');
+
+      setTimeout(() => {
+        setSuccessMessage('');
+        setIsModalOpen(false);
+      }, 1500);
+    } catch (err) {
+      setSuccessMessage('수정 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleWithdraw = async () => {
-    if (window.confirm('정말로 탈퇴하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
-      try {
-        await memberService.withdraw();
-        window.location.href = '/';
-      } catch (error) {
-        toast.error('탈퇴 처리 중 오류가 발생했습니다.');
-      }
-    }
-  };
-
-  if (!user) return null;
-
   return (
-    <div className="min-h-screen bg-[#F8F9FA] pt-24 pb-20 px-6 font-primary text-gray-900">
-      <div className="max-w-4xl mx-auto">
-        
-        {/* Profile Header */}
-        <div className="flex flex-col md:flex-row items-center gap-8 mb-12">
-          <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-tr from-[#276db8] to-[#89cbb6] flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-[#89cbb6]/20 rotate-3 hover:rotate-0 transition-transform duration-500">
-            {user.username?.charAt(0).toUpperCase() || 'U'}
-          </div>
-          <div className="text-center md:text-left">
-            <h1 className="text-[10px] font-black text-[#89cbb6] uppercase tracking-[0.4em] mb-2 italic">Official ID Card</h1>
-            <h2 className="text-4xl font-black tracking-tight mb-2 italic">{user.name}</h2>
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <span className="text-sm font-bold text-gray-400">{user.email}</span>
-              <div className="w-1 h-1 rounded-full bg-gray-200" />
-              <span className="text-xs font-black text-[#276db8] uppercase tracking-widest">Active Member</span>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#F8FBFC] pt-24 pb-20 px-6">
+      <div className="max-w-5xl mx-auto space-y-10">
 
-        {/* Info Grid (Logbook Style) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          
-          {/* Card 1: Username */}
-          <div className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-sm hover:shadow-lg transition-all group">
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:text-[#276db8] transition-colors">
-                <TbUser size={24} />
-              </div>
-              <button onClick={() => setIsEditing(true)} className="text-gray-300 hover:text-[#276db8] transition-colors">
-                <TbEdit size={20} />
-              </button>
-            </div>
-            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Display Name</h3>
-            {isEditing ? (
-              <input 
-                type="text"
-                className="w-full text-lg font-black text-[#276db8] bg-transparent border-b-2 border-[#276db8]/20 focus:border-[#276db8] outline-none py-1"
-                value={formData.username}
-                onChange={e => setFormData({...formData, username: e.target.value})}
-              />
-            ) : (
-              <p className="text-xl font-black">{user.username}</p>
-            )}
-          </div>
+        {/* 상단 프로필 카드 */}
+        <div className="relative rounded-3xl p-12 text-white overflow-hidden
+          bg-gradient-to-r from-[#4CDFD5] to-[#36C9C6]
+          shadow-[0_20px_50px_-10px_rgba(76,223,213,0.35)]">
 
-          {/* Card 2: Career */}
-          <div className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-sm hover:shadow-lg transition-all group">
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:text-[#89cbb6] transition-colors">
-                <TbCalendar size={24} />
-              </div>
-            </div>
-            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Experience</h3>
-            {isEditing ? (
-              <div className="flex items-center gap-2">
-                <input 
-                  type="number"
-                  className="w-20 text-lg font-black text-[#89cbb6] bg-transparent border-b-2 border-[#89cbb6]/20 focus:border-[#89cbb6] outline-none py-1"
-                  value={formData.careerYears}
-                  onChange={e => setFormData({...formData, careerYears: parseInt(e.target.value) || 0})}
-                />
-                <span className="font-bold text-gray-400">Years</span>
-              </div>
-            ) : (
-              <p className="text-xl font-black">{user.careerYears || 0} Years</p>
-            )}
-          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="absolute top-6 right-6 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition backdrop-blur-sm"
+          >
+            <TbEdit size={16} />
+            정보 수정
+          </button>
 
-          {/* Card 3: Position (Mocked for now as we don't have position list) */}
-          <div className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-sm hover:shadow-lg transition-all group">
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:text-[#276db8] transition-colors">
-                <TbBriefcase size={24} />
-              </div>
+          <div className="flex items-center gap-10">
+            <div className="w-28 h-28 rounded-full bg-white/30 flex items-center justify-center text-4xl font-bold backdrop-blur-sm">
+              {user.username?.charAt(0).toUpperCase()}
             </div>
-            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Current Position</h3>
-            <p className="text-xl font-black text-gray-300 italic">{user.currentPositionId ? 'ID: ' + user.currentPositionId : 'Not Specified'}</p>
-          </div>
-        </div>
 
-        {/* Professional Summary */}
-        <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 md:p-12 shadow-sm mb-12">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center text-white shadow-lg">
-                <TbFileDescription size={20} />
-              </div>
-              <h3 className="text-xl font-black tracking-tight italic">Professional Logbook Summary</h3>
-            </div>
-          </div>
-          
-          {isEditing ? (
-            <textarea 
-              className="w-full h-40 p-6 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-[#276db8] focus:ring-4 focus:ring-[#276db8]/5 outline-none transition-all resize-none font-medium leading-relaxed"
-              placeholder="자신을 한 줄로 표현해 보세요."
-              value={formData.summary}
-              onChange={e => setFormData({...formData, summary: e.target.value})}
-            />
-          ) : (
-            <div className="min-h-[100px] p-6 rounded-2xl bg-gray-50/50 border border-dashed border-gray-200">
-              <p className="text-gray-600 font-medium leading-relaxed whitespace-pre-line">
-                {user.summary || '경력 요약이 등록되지 않았습니다. 자신만의 전문성을 기록해 보세요.'}
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">
+                {user.username}
+              </h2>
+              <p className="text-white/90">{user.email}</p>
+              <p className="text-white/80 text-sm mt-2">
+                {user.currentPosition?.name || '직무 정보 없음'}
               </p>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            {isEditing ? (
-              <>
-                <button 
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-8 py-4 bg-gray-900 text-white font-black rounded-2xl hover:bg-black hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/10 disabled:opacity-50"
-                >
-                  <TbCheck size={20} />
-                  Save Changes
-                </button>
-                <button 
-                  onClick={() => setIsEditing(false)}
-                  className="flex items-center gap-2 px-8 py-4 bg-white border-2 border-gray-100 text-gray-400 font-black rounded-2xl hover:bg-gray-50 active:scale-95 transition-all"
-                >
-                  <TbX size={20} />
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button 
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-8 py-4 bg-white border-2 border-[#276db8] text-[#276db8] font-black rounded-2xl hover:bg-[#276db8]/5 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#276db8]/10"
-              >
-                <TbEdit size={20} />
-                Edit My Logbook
-              </button>
-            )}
+        {/* 상세 정보 카드 */}
+        <div className="bg-white rounded-3xl border border-[#4CDFD5]/20 p-10 shadow-sm">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <InfoRow label="User ID" value={user.id} />
+            <InfoRow label="Role" value={user.role} />
+            <InfoRow label="Status" value={user.status} />
+            <InfoRow
+              label="경력"
+              value={
+                user.careerYears
+                  ? `${user.careerYears}년`
+                  : '신입'
+              }
+            />
+            <InfoRow
+              label="가입일"
+              value={user.createdAt?.slice(0, 10)}
+            />
           </div>
 
-          <button 
-            onClick={handleWithdraw}
-            className="flex items-center gap-2 text-sm font-bold text-gray-300 hover:text-red-400 transition-colors uppercase tracking-widest italic"
-          >
-            <TbAlertTriangle size={18} />
-            Leave HireLog
-          </button>
+          <div className="mt-10">
+            <p className="text-sm text-gray-500 mb-3">자기소개</p>
+            <div className="bg-[#4CDFD5]/5 border border-[#4CDFD5]/20 rounded-2xl p-6 text-gray-700 text-sm leading-relaxed">
+              {user.summary || '작성된 소개가 없습니다.'}
+            </div>
+          </div>
         </div>
-
       </div>
+
+      {/* 수정 모달 */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-8 relative shadow-xl">
+
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"
+            >
+              <TbX size={20} />
+            </button>
+
+            <h2 className="text-xl font-bold mb-6 text-[#4CDFD5]">
+              정보 수정
+            </h2>
+
+            {successMessage && (
+              <div className="mb-4 text-sm text-[#4CDFD5] font-semibold">
+                {successMessage}
+              </div>
+            )}
+
+            <div className="space-y-4">
+
+              <Input
+                label="닉네임"
+                value={form.username}
+                onChange={(v: string) =>
+                  setForm({ ...form, username: v })
+                }
+              />
+
+              <Input
+                label="이메일"
+                value={form.email}
+                onChange={(v: string) =>
+                  setForm({ ...form, email: v })
+                }
+              />
+
+              <Input
+                label="경력(년)"
+                type="number"
+                value={form.careerYears}
+                onChange={(v: string) =>
+                  setForm({
+                    ...form,
+                    careerYears: parseInt(v) || 0,
+                  })
+                }
+              />
+
+              <Input
+                label="자기소개"
+                value={form.summary}
+                onChange={(v: string) =>
+                  setForm({ ...form, summary: v })
+                }
+              />
+
+              <button
+                onClick={handleSave}
+                disabled={isLoading}
+                className="w-full py-3 bg-[#4CDFD5] hover:bg-[#36C9C6]
+                  text-white rounded-2xl font-semibold transition shadow-md"
+              >
+                {isLoading ? '저장 중...' : '저장하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+const InfoRow = ({ label, value }: any) => (
+  <div className="flex justify-between text-sm border-b border-gray-100 pb-3">
+    <span className="text-gray-500">{label}</span>
+    <span className="font-semibold text-gray-800">{value}</span>
+  </div>
+);
+
+const Input = ({ label, value, onChange, type = 'text' }: any) => (
+  <div>
+    <label className="text-sm text-gray-500">{label}</label>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full mt-1 px-4 py-3 rounded-2xl border border-gray-200
+        focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none transition"
+    />
+  </div>
+);
 
 export default ProfilePage;

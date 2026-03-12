@@ -30,17 +30,18 @@ export function RootLayout() {
       <main className="flex-grow">
         <Outlet />
       </main>
-      <ToastContainer 
-        position="bottom-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
+      <ToastContainer
+        position="top-center"
+        autoClose={2500}
+        hideProgressBar={true}
+        newestOnTop={true}
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
         draggable
         pauseOnHover
         theme="light"
+        toastClassName="!rounded-[1.5rem] !shadow-2xl !bg-white/80 !backdrop-blur-md !border !border-white/20 !font-bold !text-sm !tracking-tight !text-gray-900"
       />
     </div>
   );
