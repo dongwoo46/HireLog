@@ -4,6 +4,8 @@ import { useAuthStore } from '../store/authStore';
 import { jdSummaryService } from '../services/jdSummaryService';
 import type { JobSummaryView, JobSummarySearchReq } from '../types/jobSummary';
 import { JobSummarySearch } from '../components/JobSummarySearch';
+import { JobSummaryCard } from '../components/JobSummaryCard';
+import { TbPlus } from 'react-icons/tb';
 
 const MainPage = () => {
   const navigate = useNavigate();
@@ -134,72 +136,69 @@ const MainPage = () => {
               HireLog는 단순한 요약을 넘어, 당신의 성장을 <br />
               기록하고 분석하는 AI 커리어 일지입니다.
             </p>
-
             {/* 검색바 */}
-            <JobSummarySearch
-              onSearch={handleSearch}
-            />
-          </section>
-
-          {/* Featured Entry Section */}
-          <section className="py-24 bg-[#F8F9FA]/50">
-            <div className="max-w-7xl mx-auto px-6">
-              <div className="flex items-end justify-between mb-16">
-                <div>
-                  <h2 className="text-xs font-black text-[#89cbb6] uppercase tracking-[0.4em] mb-4 italic">Recent Logs</h2>
-                  <h3 className="text-4xl font-black text-gray-900 tracking-tight">최근 수집된 채용 기록</h3>
-                </div>
-                <button
-                  onClick={() => navigate('/jd')}
-                  className="group flex items-center gap-2 text-sm font-black text-[#276db8] uppercase tracking-widest hover:text-[#89cbb6] transition-colors"
-                >
-                  <div className="absolute top-0 right-0 p-5 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
-                    <div className="w-10 h-10 rounded-2xl bg-[#4CDFD5]/10 flex items-center justify-center text-[#4CDFD5] shadow-inner">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2 / 5} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <div className="mb-8">
-                    <h3 className="font-extrabold text-gray-900 text-xl leading-tight mb-2 group-hover:text-[#276db8] transition-colors line-clamp-1">
-                      {jd.brandName}
-                    </h3>
-                    <p className="text-gray-400 text-sm font-semibold line-clamp-1">
-                      {jd.brandPositionName}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {(featuredJds || []).length > 0 ? (
-                      featuredJds.map((jd) => (
-                        <JobSummaryCard key={jd.id} summary={jd} />
-                      ))
-                    ) : (
-                      [1, 2, 3].map((i) => (
-                        <div key={i} className="bg-white rounded-3xl h-80 border border-gray-100 animate-pulse shadow-log" />
-                      ))
-                    )}
-                  </div>
-              </div>
-          </section>
-
-          {/* Quick Action Footer */}
-          <section className="bg-white border-t border-gray-100 py-32">
-            <div className="max-w-7xl mx-auto px-6 text-center">
-              <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.5em] mb-8">도움이 필요하신가요?</h2>
-              <h3 className="text-4xl font-black text-gray-900 mb-12 italic uppercase tracking-tight">맞춤형 채용 공고 분석 요청</h3>
-              <button
-                onClick={() => navigate('/jd/request')}
-                className="px-16 py-6 rounded-[24px] bg-[#0f172a] text-white font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-4 mx-auto"
-              >
-                <TbPlus size={24} />
-                요청 시작하기
-              </button>
-            </div>
-          </section>
+            <JobSummarySearch onSearch={handleSearch} />
+          </div>
         </div>
-        );
+      </section>
+
+      {/* Featured Entry Section */}
+      <section className="py-24 bg-[#F8F9FA]/50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-end justify-between mb-16">
+            <div>
+              <h2 className="text-xs font-black text-[#89cbb6] uppercase tracking-[0.4em] mb-4 italic">
+                Recent Logs
+              </h2>
+              <h3 className="text-4xl font-black text-gray-900 tracking-tight">
+                최근 수집된 채용 기록
+              </h3>
+            </div>
+            <button
+              onClick={() => navigate('/jd')}
+              className="group flex items-center gap-2 text-sm font-black text-[#276db8] uppercase tracking-widest hover:text-[#89cbb6] transition-colors"
+            >
+              전체보기
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {(featuredJds || []).length > 0 ? (
+              featuredJds.map((jd) => (
+                <JobSummaryCard key={jd.id} summary={jd} />
+              ))
+            ) : (
+              [1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-3xl h-80 border border-gray-100 animate-pulse shadow-log"
+                />
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Quick Action Footer */}
+      <section className="bg-white border-t border-gray-100 py-32">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.5em] mb-8">
+            도움이 필요하신가요?
+          </h2>
+          <h3 className="text-4xl font-black text-gray-900 mb-12 italic uppercase tracking-tight">
+            맞춤형 채용 공고 분석 요청
+          </h3>
+          <button
+            onClick={() => navigate('/jd/request')}
+            className="px-16 py-6 rounded-[24px] bg-[#0f172a] text-white font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-4 mx-auto"
+          >
+            <TbPlus size={24} />
+            요청 시작하기
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 };
 
         export default MainPage;
