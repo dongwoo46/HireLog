@@ -35,7 +35,6 @@ class KafkaJdPreprocessTextWorker(KafkaBaseJdPreprocessWorker):
     def __init__(self):
         super().__init__()
         self.pipeline = TextPreprocessPipeline()
-        logger.info("[KAFKA_TEXT_WORKER_INIT] TEXT pipeline initialized")
 
     def execute(self, input: KafkaJdPreprocessInput) -> KafkaJdPreprocessOutput:
         """
@@ -90,11 +89,14 @@ class KafkaJdPreprocessTextWorker(KafkaBaseJdPreprocessWorker):
                 source_url=None,  # TEXT는 source_url 없음
             )
 
-            logger.info(
-                "[KAFKA_JD_TEXT_PREPROCESS_SUCCESS] requestId=%s brand=%s position=%s",
-                input.request_id,
-                input.brand_name,
-                input.position_name,
+            logger.debug(
+                "Text pipeline completed",
+                extra={
+                    "request_id": input.request_id,
+                    "section_count": len(canonical_map),
+                    "has_period": period is not None,
+                    "has_skills": skill_set is not None,
+                },
             )
 
             return output

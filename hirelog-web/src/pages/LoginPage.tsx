@@ -17,6 +17,7 @@ const LoginPage = () => {
   }, []);
 
   const handleLogin = (provider: 'google' | 'kakao') => {
+    // Redirect to backend OAuth endpoint via proxy
     window.location.href = `/oauth2/authorization/${provider}`;
   };
 

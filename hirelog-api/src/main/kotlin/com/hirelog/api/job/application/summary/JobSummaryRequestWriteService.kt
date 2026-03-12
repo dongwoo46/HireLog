@@ -68,7 +68,7 @@ class JobSummaryRequestWriteService(
         positionCategoryName: String
     ): Long? {
 
-        log.info(
+        log.debug(
             "[COMPLETE_REQUEST_START] requestId={}, jobSummaryId={}, thread={}, txActive={}, txName={}",
             requestId, jobSummaryId,
             Thread.currentThread().name,
@@ -89,21 +89,21 @@ class JobSummaryRequestWriteService(
             return null
         }
 
-        log.info(
+        log.debug(
             "[COMPLETE_REQUEST_FOUND] requestId={}, memberId={}, currentStatus={}",
             requestId, request.memberId, request.status
         )
 
         request.complete(jobSummaryId)
 
-        log.info(
+        log.debug(
             "[COMPLETE_REQUEST_AFTER_COMPLETE] requestId={}, newStatus={}, jobSummaryId={}",
             requestId, request.status, jobSummaryId
         )
 
         jobSummaryRequestCommand.save(request)
 
-        log.info("[COMPLETE_REQUEST_SAVED] requestId={}", requestId)
+        log.debug("[COMPLETE_REQUEST_SAVED] requestId={}", requestId)
 
         memberJobSummaryWriteService.save(
             CreateMemberJobSummaryCommand(
@@ -137,7 +137,7 @@ class JobSummaryRequestWriteService(
         )
 
         if (request == null) {
-            log.info("[JOB_SUMMARY_REQUEST_NO_PENDING] requestId={}", requestId)
+            log.debug("[JOB_SUMMARY_REQUEST_NO_PENDING] requestId={}", requestId)
             return null
         }
 

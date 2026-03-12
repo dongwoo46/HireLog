@@ -15,11 +15,12 @@ const MainPage = () => {
     if (!isInitialized || !isAuthenticated) return;
 
     const loadFeatured = async () => {
-      const result = await jdSummaryService.search({
-        size: 4,
-        sortBy: 'CREATED_AT_DESC',
-      });
-      setFeaturedJds(result?.items || []);
+      try {
+        const result = await jdSummaryService.search({ size: 3, sortBy: 'CREATED_AT_DESC' });
+        setFeaturedJds(result?.items || []);
+      } catch (error) {
+        console.error('Failed to load featured JDs', error);
+      }
     };
 
     loadFeatured();
@@ -114,116 +115,91 @@ const MainPage = () => {
      🔐 로그인 된 상태
   =============================== */
   return (
-    <div className="min-h-screen bg-[#f8fafb]">
-      {/* HERO + 검색 */}
-      <section className="pt-32 pb-24 text-center px-6 relative z-10">
-        <p className="text-xs tracking-widest text-gray-400 mb-8">
-          SMART CAREER LOGBOOK
-        </p>
-
-        <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-8">
-          당신의 성장을
-          <br />
-          <span className="text-[#2ec4b6] block mt-3">
-            기록하세요.
-          </span>
-        </h1>
-
-        <p className="text-gray-500 mb-14 max-w-2xl mx-auto">
-          AI 기반 JD 분석 & 커리어 데이터 관리
-        </p>
-
-        {/* 검색바 */}
-        <JobSummarySearch
-          onSearch={handleSearch}
-        />
-      </section>
-
-      {/* 최근 JD */}
-      <section className="max-w-6xl mx-auto px-6 pb-24 relative z-20">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-xl font-bold text-gray-900">
-            최근 수집된 채용 기록
-          </h2>
-          <button
-            onClick={() => navigate('/jd')}
-            className="text-[#2ec4b6] font-semibold hover:underline cursor-pointer p-2 flex items-center gap-1 group"
-          >
-            더보기 <span className="group-hover:translate-x-1 transition-transform">→</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredJds.map((jd) => (
-            <div
-              key={jd.id}
-              onClick={() => navigate(`/jd/${jd.id}`)}
-              className="group relative bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100/50 hover:shadow-2xl hover:shadow-[#4CDFD5]/15 hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden active:scale-95"
-            >
-              <div className="absolute top-0 right-0 p-5 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
-                <div className="w-10 h-10 rounded-2xl bg-[#4CDFD5]/10 flex items-center justify-center text-[#4CDFD5] shadow-inner">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2 / 5} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <h3 className="font-extrabold text-gray-900 text-xl leading-tight mb-2 group-hover:text-[#276db8] transition-colors line-clamp-1">
-                  {jd.brandName}
-                </h3>
-                <p className="text-gray-400 text-sm font-semibold line-clamp-1">
-                  {jd.brandPositionName}
-                </p>
-              </div>
-
-              <div className="pt-7 border-t border-gray-50 flex flex-col gap-4">
-                <div className="flex gap-2">
-                  <span className="px-3 py-1 bg-[#4CDFD5]/5 text-[#4CDFD5] text-[10px] font-black rounded-lg uppercase tracking-wider">
-                    {jd.careerType === 'NEW' ? 'Newbie' : jd.careerType === 'EXPERIENCED' ? 'Expert' : 'Any'}
-                  </span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-400 text-[10px] font-black rounded-lg uppercase tracking-wider">
-                    요약완료
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">
-                    {jd.createdAt?.slice(0, 10).replace(/-/g, '.')}
-                  </p>
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#4CDFD5] opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </div>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <section className="relative pt-40 pb-32 overflow-hidden border-b border-gray-50">
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#89cbb6]/10 border border-[#89cbb6]/20 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+              <span className="w-2 h-2 rounded-full bg-[#276db8] animate-pulse" />
+              <span className="text-[10px] font-black text-[#276db8] uppercase tracking-[0.3em]">스마트 채용 로그북</span>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* 서비스 소개 (로그인 후에도 유지) */}
-      <section className="bg-white py-28 relative z-10 border-t border-gray-50">
-        <div className="max-w-5xl mx-auto px-6 text-center">
-          <h3 className="text-2xl font-black text-gray-900 mb-16 tracking-tight">
-            HireLog의 핵심 기능
-          </h3>
+            <h1 className="text-6xl md:text-8xl font-black text-gray-900 leading-[1.0] mb-10 tracking-tighter italic">
+              당신의 성장을 <br />
+              <span className="mint-gradient-text">기록하세요.</span>
+            </h1>
 
-          <div className="grid md:grid-cols-3 gap-16">
-            {[
-              { icon: '📊', title: 'JD 자동 분석', desc: 'AI가 핵심 내용을 정교하게 분석합니다' },
-              { icon: '🧠', title: '전략 수립', desc: '데이터 기반의 완벽한 취업 전략' },
-              { icon: '📈', title: '커리어 자산화', desc: '당신의 이력을 한 곳에서 통합 관리' },
-            ].map((item, idx) => (
-              <div key={idx} className="group">
-                <div className="w-20 h-20 mx-auto bg-gray-50 rounded-[2rem] flex items-center justify-center mb-6 text-3xl group-hover:bg-[#4CDFD5]/10 group-hover:rotate-12 transition-all duration-500">
-                  {item.icon}
+            <p className="text-xl md:text-2xl text-gray-400 mb-16 leading-relaxed font-medium max-w-2xl mx-auto">
+              HireLog는 단순한 요약을 넘어, 당신의 성장을 <br />
+              기록하고 분석하는 AI 커리어 일지입니다.
+            </p>
+
+            {/* 검색바 */}
+            <JobSummarySearch
+              onSearch={handleSearch}
+            />
+          </section>
+
+          {/* Featured Entry Section */}
+          <section className="py-24 bg-[#F8F9FA]/50">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="flex items-end justify-between mb-16">
+                <div>
+                  <h2 className="text-xs font-black text-[#89cbb6] uppercase tracking-[0.4em] mb-4 italic">Recent Logs</h2>
+                  <h3 className="text-4xl font-black text-gray-900 tracking-tight">최근 수집된 채용 기록</h3>
                 </div>
-                <p className="font-extrabold text-gray-900 mb-2">{item.title}</p>
-                <p className="text-sm text-gray-400 font-medium">{item.desc}</p>
+                <button
+                  onClick={() => navigate('/jd')}
+                  className="group flex items-center gap-2 text-sm font-black text-[#276db8] uppercase tracking-widest hover:text-[#89cbb6] transition-colors"
+                >
+                  <div className="absolute top-0 right-0 p-5 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
+                    <div className="w-10 h-10 rounded-2xl bg-[#4CDFD5]/10 flex items-center justify-center text-[#4CDFD5] shadow-inner">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2 / 5} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <h3 className="font-extrabold text-gray-900 text-xl leading-tight mb-2 group-hover:text-[#276db8] transition-colors line-clamp-1">
+                      {jd.brandName}
+                    </h3>
+                    <p className="text-gray-400 text-sm font-semibold line-clamp-1">
+                      {jd.brandPositionName}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {(featuredJds || []).length > 0 ? (
+                      featuredJds.map((jd) => (
+                        <JobSummaryCard key={jd.id} summary={jd} />
+                      ))
+                    ) : (
+                      [1, 2, 3].map((i) => (
+                        <div key={i} className="bg-white rounded-3xl h-80 border border-gray-100 animate-pulse shadow-log" />
+                      ))
+                    )}
+                  </div>
               </div>
-            ))}
-          </div>
+          </section>
+
+          {/* Quick Action Footer */}
+          <section className="bg-white border-t border-gray-100 py-32">
+            <div className="max-w-7xl mx-auto px-6 text-center">
+              <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.5em] mb-8">도움이 필요하신가요?</h2>
+              <h3 className="text-4xl font-black text-gray-900 mb-12 italic uppercase tracking-tight">맞춤형 채용 공고 분석 요청</h3>
+              <button
+                onClick={() => navigate('/jd/request')}
+                className="px-16 py-6 rounded-[24px] bg-[#0f172a] text-white font-bold text-xl shadow-2xl hover:scale-105 transition-all flex items-center gap-4 mx-auto"
+              >
+                <TbPlus size={24} />
+                요청 시작하기
+              </button>
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
-  );
+        );
 };
 
-export default MainPage;
+        export default MainPage;

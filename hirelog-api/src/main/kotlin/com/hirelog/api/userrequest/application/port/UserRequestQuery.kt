@@ -25,9 +25,9 @@ interface UserRequestQuery {
     fun findDetailById(id: Long): UserRequest?
 
     /**
-     * 특정 회원의 요청 목록
+     * 특정 회원의 요청 목록 (페이징)
      */
-    fun findAllByMemberId(memberId: Long): List<UserRequestView>
+    fun findByMemberId(memberId: Long, page: Int, size: Int): PagedResult<UserRequestView>
 
     /**
      * 관리자 / 상태별 통합 페이징 조회

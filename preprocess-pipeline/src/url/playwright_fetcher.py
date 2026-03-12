@@ -136,8 +136,8 @@ class PlaywrightFetcher:
                     html = page.content()
 
                     logger.info(
-                        "[PLAYWRIGHT_FETCH_SUCCESS] url=%s length=%d",
-                        url, len(html)
+                        "Playwright fetch succeeded",
+                        extra={"url": url, "html_length": len(html)},
                     )
 
                     return html
@@ -147,8 +147,8 @@ class PlaywrightFetcher:
 
         except Exception as e:
             logger.error(
-                "[PLAYWRIGHT_FETCH_FAILED] url=%s error=%s",
-                url, str(e)
+                "Playwright fetch failed",
+                extra={"url": url, "error": str(e)},
             )
             raise
 
@@ -179,7 +179,7 @@ class PlaywrightFetcher:
             time.sleep(0.3)
 
         except Exception as e:
-            logger.debug(f"[SCROLL_FAILED] error={e}")
+            logger.debug("Page scroll failed", extra={"error": str(e)})
 
     def _click_expand_buttons(self, page) -> int:
         """
@@ -203,9 +203,9 @@ class PlaywrightFetcher:
                                 time.sleep(0.2)
                                 btn.click(timeout=3000)
                                 clicked_count += 1
-                                logger.info(
-                                    "[EXPAND_BUTTON_CLICKED] method='role' text='%s' index=%d",
-                                    text, i
+                                logger.debug(
+                                    "Expand button clicked",
+                                    extra={"method": "role", "text": text, "index": i},
                                 )
                                 time.sleep(1)
                                 try:
@@ -214,12 +214,12 @@ class PlaywrightFetcher:
                                     pass
                                 break
                         except Exception as e:
-                            logger.debug("[ROLE_CLICK_FAILED] text='%s' error=%s", text, str(e))
+                            logger.debug("Expand button click failed", extra={"text": text, "error": str(e)})
                             continue
                     if clicked_count > 0:
                         continue  # 이 텍스트 패턴은 성공, 다음 패턴으로
             except Exception as e:
-                logger.debug("[ROLE_SEARCH_FAILED] text='%s' error=%s", text, str(e))
+                logger.debug("Expand button search failed", extra={"text": text, "error": str(e)})
 
             # 방법 2: get_by_text 후 부모 button 찾아 클릭
             try:
@@ -241,16 +241,16 @@ class PlaywrightFetcher:
 
                                 if clickable.count() > 0 and clickable.is_visible():
                                     clickable.click(timeout=3000)
-                                    logger.info(
-                                        "[EXPAND_BUTTON_CLICKED] method='ancestor' text='%s' index=%d",
-                                        text, i
+                                    logger.debug(
+                                        "Expand button clicked",
+                                        extra={"method": "ancestor", "text": text, "index": i},
                                     )
                                 else:
                                     # 부모 button이 없으면 원래 요소 클릭
                                     element.click(timeout=3000)
-                                    logger.info(
-                                        "[EXPAND_BUTTON_CLICKED] method='direct' text='%s' index=%d",
-                                        text, i
+                                    logger.debug(
+                                        "Expand button clicked",
+                                        extra={"method": "direct", "text": text, "index": i},
                                     )
 
                                 clicked_count += 1
@@ -263,15 +263,15 @@ class PlaywrightFetcher:
 
                         except Exception as click_error:
                             logger.debug(
-                                "[EXPAND_CLICK_FAILED] text='%s' error=%s",
-                                text, str(click_error)
+                                "Expand button click failed",
+                                extra={"text": text, "error": str(click_error)},
                             )
                             continue
 
             except Exception as e:
                 logger.debug(
-                    "[EXPAND_SEARCH_FAILED] text='%s' error=%s",
-                    text, str(e)
+                    "Expand button search failed",
+                    extra={"text": text, "error": str(e)},
                 )
                 continue
 
@@ -280,7 +280,7 @@ class PlaywrightFetcher:
             clicked_count += self._click_expand_buttons_js(page)
 
         if clicked_count > 0:
-            logger.info("[EXPAND_BUTTONS_TOTAL] clicked=%d", clicked_count)
+            logger.info("Expand buttons clicked", extra={"clicked_count": clicked_count})
 
         return clicked_count
 
@@ -325,7 +325,7 @@ class PlaywrightFetcher:
             """)
 
             if result > 0:
-                logger.info("[JS_EXPAND_CLICKED] count=%d", result)
+                logger.debug("JS expand buttons clicked", extra={"clicked_count": result})
                 time.sleep(1)
                 try:
                     page.wait_for_load_state("networkidle", timeout=3000)
@@ -335,5 +335,5 @@ class PlaywrightFetcher:
             return result
 
         except Exception as e:
-            logger.debug(f"[JS_EXPAND_FAILED] error={e}")
+            logger.debug("JS expand click failed", extra={"error": str(e)})
             return 0

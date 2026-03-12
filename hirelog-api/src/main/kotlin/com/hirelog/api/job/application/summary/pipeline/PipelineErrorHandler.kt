@@ -33,7 +33,7 @@ class PipelineErrorHandler(
         )
 
         eventPublisher.publishEvent(
-            JobSummaryRequestEvent.Failed.of(processingId.toString(), errorCode)
+            JobSummaryRequestEvent.Failed.of(processingId.toString(), errorCode, requestId)
         )
     }
 }

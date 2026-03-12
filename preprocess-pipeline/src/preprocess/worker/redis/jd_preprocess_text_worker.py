@@ -116,9 +116,11 @@ class JdPreprocessTextWorker(BaseJdPreprocessWorker):
             # - 상위 Consumer가 ACK 여부 판단
             # ==================================================
             logger.exception(
-                "[JD_TEXT_PREPROCESS_FAILED] requestId=%s brand=%s position=%s",
-                input.request_id,
-                input.brand_name,
-                input.position_name,
+                "Text preprocess failed",
+                extra={
+                    "request_id": input.request_id,
+                    "brand_name": input.brand_name,
+                    "position_name": input.position_name,
+                },
             )
             raise

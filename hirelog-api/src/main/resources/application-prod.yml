@@ -21,12 +21,25 @@ spring:
     hibernate:
       ddl-auto: validate
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      enable-auto-commit: false
+      group-id: hirelog-consumer-group
+      auto-offset-reset: earliest
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    admin:
+      auto-create: false
+
 opensearch:
   host: ${OPENSEARCH_HOST}
   port: 9200
-  scheme: https
-  username: ${OPENSEARCH_USERNAME}
-  password: ${OPENSEARCH_PASSWORD}
+  scheme: http
+  username: ""
+  password: ""
 
 hirelog:
   worker:
@@ -37,3 +50,24 @@ hirelog:
 app:
   storage:
     base-dir: /data/hirelog/storage
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      show-details: when_authorized
+
+  metrics:
+    tags:
+      application: hirelog
+      profile: prod
+
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.95,0.99

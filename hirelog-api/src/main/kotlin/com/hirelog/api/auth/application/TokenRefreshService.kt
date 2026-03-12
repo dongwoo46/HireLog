@@ -3,6 +3,7 @@ package com.hirelog.api.auth.application
 import com.hirelog.api.auth.application.dto.TokenRefreshResult
 import com.hirelog.api.auth.infra.jwt.JwtUtils
 import com.hirelog.api.common.infra.redis.RedisService
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.member.application.port.MemberCommand
 import org.springframework.stereotype.Service
 import java.time.Duration
@@ -37,17 +38,24 @@ class TokenRefreshService(
     fun refresh(refreshToken: String): TokenRefreshResult? {
         // 1. Redis에서 Refresh Token 검증
         val memberId = validateRefreshToken(refreshToken)
-            ?: return null
+        if (memberId == null) {
+            log.warn("[TOKEN_REFRESH_INVALID] refreshToken not found in Redis")
+            return null
+        }
 
         // 2. 새 Access Token 발급
         val member = memberCommand.findById(memberId)
-            ?: return null
+        if (member == null) {
+            log.warn("[TOKEN_REFRESH_MEMBER_NOT_FOUND] memberId={}", memberId)
+            return null
+        }
 
-        val newAccessToken = jwtUtils.issueAccessToken(memberId,
-            member.role.name)
+        val newAccessToken = jwtUtils.issueAccessToken(memberId, member.role.name)
 
         // 3. Refresh Token Rotation (보안 강화)
         val newRefreshToken = rotateRefreshToken(refreshToken, memberId)
+
+        log.info("[TOKEN_REFRESH_SUCCESS] memberId={}, role={}", memberId, member.role.name)
 
         return TokenRefreshResult(
             accessToken = newAccessToken,
@@ -97,6 +105,7 @@ class TokenRefreshService(
      */
     fun invalidate(refreshToken: String) {
         redisService.delete("$REFRESH_TOKEN_PREFIX$refreshToken")
+        log.info("[TOKEN_INVALIDATED] refresh token removed from Redis")
     }
 }
 

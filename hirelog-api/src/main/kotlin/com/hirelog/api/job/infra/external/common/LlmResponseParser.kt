@@ -41,14 +41,13 @@ class LlmResponseParser(
             .trim()
 
         // 2️⃣ JSON 파싱
-//        log.info("[LLM_RAW_RESPONSE] normalized={}", normalized)
+        log.info("[LLM_RAW_RESPONSE] normalized={}", normalized)
 
         try {
             val result = objectMapper.readValue(
                 normalized,
                 JobSummaryLlmRawResult::class.java
             )
-//            log.info("[LLM_PARSED_RESULT] result={}", result)
             return result
         } catch (e: JsonProcessingException) {
             throw GeminiParseException(e)

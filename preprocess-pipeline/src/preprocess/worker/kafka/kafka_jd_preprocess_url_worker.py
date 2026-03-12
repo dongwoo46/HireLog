@@ -35,7 +35,6 @@ class KafkaJdPreprocessUrlWorker(KafkaBaseJdPreprocessWorker):
     def __init__(self):
         super().__init__()
         self.pipeline = UrlPipeline()
-        logger.info("[KAFKA_URL_WORKER_INIT] URL pipeline initialized")
 
     def execute(self, input: KafkaJdPreprocessInput) -> KafkaJdPreprocessOutput:
         """
@@ -90,11 +89,14 @@ class KafkaJdPreprocessUrlWorker(KafkaBaseJdPreprocessWorker):
                 source_url=input.url,  # URL 소스는 source_url 포함
             )
 
-            logger.info(
-                "[KAFKA_JD_URL_PREPROCESS_SUCCESS] requestId=%s brand=%s url=%s",
-                input.request_id,
-                input.brand_name,
-                input.url,
+            logger.debug(
+                "URL pipeline completed",
+                extra={
+                    "request_id": input.request_id,
+                    "section_count": len(canonical_map),
+                    "has_period": period is not None,
+                    "has_skills": skill_set is not None,
+                },
             )
 
             return output

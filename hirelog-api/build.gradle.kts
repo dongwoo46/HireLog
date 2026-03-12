@@ -37,12 +37,15 @@ dependencies {
 	implementation("org.springframework.kafka:spring-kafka")
 	implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
 	implementation("org.flywaydb:flyway-core")
+	implementation("org.flywaydb:flyway-database-postgresql")
+	implementation("net.logstash.logback:logstash-logback-encoder:8.0")
 	kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 
-	// 기존 것 제거하고 이것만 추가
 	implementation("io.github.resilience4j:resilience4j-spring-boot3:2.1.0")
 
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("io.micrometer:micrometer-registry-prometheus")
 
 	// OpenSearch Java Client (버전 명시 필수	)
 	implementation("org.opensearch.client:opensearch-java:2.13.0")
@@ -59,7 +62,9 @@ dependencies {
 
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("com.h2database:h2")
-	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-test") {
+		exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
+	}
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("io.mockk:mockk:1.13.13")
 	testImplementation("com.ninja-squad:springmockk:4.0.2")

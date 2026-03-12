@@ -7,10 +7,12 @@ import com.hirelog.api.job.application.messaging.JdPreprocessResponseEvent
 import com.hirelog.api.job.application.messaging.JdPreprocessResponseEventMapper
 import com.hirelog.api.job.application.summary.JobSummaryHandler
 import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
+import org.slf4j.MDC
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * JdPreprocessResponseConsumer
@@ -46,35 +48,51 @@ class JdPreprocessResponseConsumer(
         event: JdPreprocessResponseEvent,
         acknowledgment: Acknowledgment
     ) {
-        log.info("[JD_PREPROCESS_CONSUME_START] eventId={}", event.eventId)
+        MDC.put("eventId", event.eventId)
+        MDC.put("requestId", event.requestId)
+        MDC.put("topic", JdKafkaTopics.PREPROCESS_RESPONSE)
 
-        // === 1. Kafka 메시지 단위 멱등성 검사 ===
-        val processedEventId = ProcessedEventId.create(event.eventId)
+        try {
+            log.info("[JD_PREPROCESS_CONSUME_START] eventId={}", event.eventId)
 
-        val alreadyProcessed =
-            processedEventService.isAlreadyProcessedOrMark(
-                eventId = processedEventId,
-                consumerGroup = CONSUMER_GROUP
-            )
+            // === 1. Kafka 메시지 단위 멱등성 검사 ===
+            val processedEventId = ProcessedEventId.create(event.eventId)
 
-        if (alreadyProcessed) {
-            log.info("[JD_PREPROCESS_ALREADY_PROCESSED] eventId={}", event.eventId)
+            val alreadyProcessed =
+                processedEventService.isAlreadyProcessedOrMark(
+                    eventId = processedEventId,
+                    consumerGroup = CONSUMER_GROUP
+                )
+
+            if (alreadyProcessed) {
+                log.debug("[JD_PREPROCESS_ALREADY_PROCESSED] eventId={}", event.eventId)
+                acknowledgment.acknowledge()
+                return
+            }
+
+            // === 2. Event → Message(Command) 변환 ===
+            val message = responseEventMapper.toSummaryCommand(event)
+
+            // === 3. 파이프라인 실행 (동기 대기) ===
+            // 예외 발생 시 ErrorHandler가 처리 (3회 재시도 → DLT 전송 → DB 기록)
+            try {
+                jobSummaryHandler
+                    .process(message)
+                    .get(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (e: TimeoutException) {
+                log.error(
+                    "[JD_PREPROCESS_CONSUME_TIMEOUT] eventId={}, requestId={}, timeoutSeconds={}",
+                    event.eventId, event.requestId, PROCESS_TIMEOUT_SECONDS, e
+                )
+                throw e
+            }
+
+            // === 4. 성공 → offset 커밋 ===
             acknowledgment.acknowledge()
-            return
+
+            log.info("[JD_PREPROCESS_CONSUME_SUCCESS] eventId={}", event.eventId)
+        } finally {
+            MDC.clear()
         }
-
-        // === 2. Event → Message(Command) 변환 ===
-        val message = responseEventMapper.toSummaryCommand(event)
-
-        // === 3. 파이프라인 실행 (동기 대기) ===
-        // 예외 발생 시 ErrorHandler가 처리 (3회 재시도 → DLT 전송 → DB 기록)
-        jobSummaryHandler
-            .process(message)
-            .get(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-
-        // === 4. 성공 → offset 커밋 ===
-        acknowledgment.acknowledge()
-
-        log.info("[JD_PREPROCESS_CONSUME_SUCCESS] eventId={}", event.eventId)
     }
 }

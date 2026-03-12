@@ -68,17 +68,15 @@ def run_worker(worker: BaseWorker):
         worker.run()
     except Exception as e:
         logger.error(
-            "[WORKER_CRASH] worker=%s error=%s",
-            worker.worker_name, str(e),
-            exc_info=True
+            "Worker crashed",
+            extra={"worker_name": worker.worker_name, "error": str(e)},
+            exc_info=True,
         )
 
 
 def main():
     """메인 진입점"""
-    logger.info("=" * 60)
-    logger.info("Preprocess Pipeline Starting...")
-    logger.info("=" * 60)
+    logger.info("Preprocess Pipeline starting")
 
     # ==================================================
     # 설정 로드
@@ -88,21 +86,16 @@ def main():
     stream_config = load_stream_config()
 
     logger.info(
-        "[CONFIG] Redis: %s:%d db=%d",
-        redis_config.host, redis_config.port, redis_config.db
-    )
-    logger.info(
-        "[CONFIG] Stream: text=%s ocr=%s url=%s group=%s",
-        stream_config.text_request,
-        stream_config.ocr_request,
-        stream_config.url_request,
-        stream_config.consumer_group,
-    )
-    logger.info(
-        "[CONFIG] Worker: block_ms=%d pending_idle_ms=%d sweep_interval=%d",
-        worker_config.block_ms,
-        worker_config.pending_idle_ms,
-        worker_config.sweep_interval,
+        "Config loaded",
+        extra={
+            "redis_host": redis_config.host,
+            "redis_port": redis_config.port,
+            "redis_db": redis_config.db,
+            "text_stream": stream_config.text_request,
+            "ocr_stream": stream_config.ocr_request,
+            "url_stream": stream_config.url_request,
+            "consumer_group": stream_config.consumer_group,
+        },
     )
 
     # ==================================================
@@ -115,7 +108,7 @@ def main():
             db=redis_config.db,
         )
     except RedisConnectionError as e:
-        logger.error("[STARTUP_FAILED] Redis connection failed: %s", str(e))
+        logger.error("Redis connection failed", extra={"error": str(e)})
         sys.exit(1)
 
     # ==================================================
@@ -168,7 +161,7 @@ def main():
 
     def shutdown_handler(signum, frame):
         sig_name = signal.Signals(signum).name
-        logger.info("[SHUTDOWN] Received %s, initiating graceful shutdown...", sig_name)
+        logger.info("Shutdown signal received", extra={"signal": sig_name})
         shutdown_event.set()
 
         for worker in workers:
@@ -191,11 +184,9 @@ def main():
         )
         thread.start()
         threads.append(thread)
-        logger.info("[STARTED] %s thread started", worker.worker_name)
+        logger.info("Worker thread started", extra={"worker_name": worker.worker_name})
 
-    logger.info("=" * 60)
-    logger.info("All workers running. Press Ctrl+C to shutdown.")
-    logger.info("=" * 60)
+    logger.info("All worker threads running")
 
     # ==================================================
     # 메인 스레드 대기
@@ -204,13 +195,13 @@ def main():
         while not shutdown_event.is_set():
             alive_count = sum(1 for t in threads if t.is_alive())
             if alive_count == 0:
-                logger.warning("[MAIN] All worker threads have stopped")
+                logger.warning("All worker threads have stopped unexpectedly")
                 break
 
             time.sleep(1)
 
     except KeyboardInterrupt:
-        logger.info("[MAIN] KeyboardInterrupt received")
+        logger.info("KeyboardInterrupt received")
         shutdown_event.set()
         for worker in workers:
             worker.shutdown()
@@ -218,18 +209,16 @@ def main():
     # ==================================================
     # 스레드 종료 대기
     # ==================================================
-    logger.info("[SHUTDOWN] Waiting for worker threads to finish...")
+    logger.info("Waiting for worker threads to finish")
 
     for thread in threads:
         thread.join(timeout=worker_config.shutdown_timeout_sec)
         if thread.is_alive():
-            logger.warning("[SHUTDOWN] Thread %s did not finish in time", thread.name)
+            logger.warning("Thread did not finish in time", extra={"thread_name": thread.name})
         else:
-            logger.info("[SHUTDOWN] Thread %s finished", thread.name)
+            logger.info("Thread finished", extra={"thread_name": thread.name})
 
-    logger.info("=" * 60)
-    logger.info("Preprocess Pipeline Stopped")
-    logger.info("=" * 60)
+    logger.info("Preprocess Pipeline stopped")
 
 
 if __name__ == "__main__":

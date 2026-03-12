@@ -1,5 +1,6 @@
 package com.hirelog.api.job.application.jobsummaryprocessing
 
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
@@ -31,6 +32,7 @@ class JdSummaryProcessingWriteService(
         )
 
         command.save(processing)
+        log.debug("[PROCESSING_CREATED] processingId={}", processing.id)
         return processing
     }
 
@@ -42,6 +44,7 @@ class JdSummaryProcessingWriteService(
         val processing = getRequired(processingId)
         processing.markSummarizing(snapshotId)
         command.update(processing)
+        log.debug("[PROCESSING_SUMMARIZING] processingId={}, snapshotId={}", processingId, snapshotId)
     }
 
     /**
@@ -62,6 +65,7 @@ class JdSummaryProcessingWriteService(
         val processing = getRequired(processingId)
         processing.saveLlmResult(llmResultJson, commandBrandName, commandPositionName)
         command.update(processing)
+        log.debug("[PROCESSING_LLM_RESULT_SAVED] processingId={}", processingId)
     }
 
     /**
@@ -77,6 +81,7 @@ class JdSummaryProcessingWriteService(
         val processing = getRequired(processingId)
         processing.markDuplicate(reason)
         command.update(processing)
+        log.debug("[PROCESSING_DUPLICATE] processingId={}, reason={}", processingId, reason)
     }
 
     /**
@@ -87,6 +92,7 @@ class JdSummaryProcessingWriteService(
         val processing = getRequired(processingId)
         processing.markCompleted(summaryId)
         command.update(processing)
+        log.debug("[PROCESSING_COMPLETED] processingId={}, summaryId={}", processingId, summaryId)
     }
 
     /**
@@ -108,6 +114,7 @@ class JdSummaryProcessingWriteService(
             errorMessage = errorMessage
         )
         command.update(processing)
+        log.warn("[PROCESSING_FAILED] processingId={}, errorCode={}", processingId, errorCode)
     }
 
     /**

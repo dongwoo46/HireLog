@@ -3,9 +3,10 @@
 """
 Kafka 기반 Preprocess Pipeline Entry Point
 
-3개의 Worker (TEXT, OCR, URL)를 threading으로 병렬 실행
-각 Worker는 독립적인 Consumer로 각자의 Topic을 소비
-단일 Producer를 공유하여 결과를 response topic으로 발행
+프로세스 배치 전략 (2-core 최적화):
+- OCR Process : CPU-bound (PaddleOCR) → 독립 프로세스, 1 core 점유
+- TEXT Process : CPU-bound (정규식/문자열) → 독립 프로세스, 1 core 점유
+  └─ URL Thread : I/O-bound (HTTP fetch) → TEXT 프로세스 내 스레드 (GIL 해제)
 
 실패 처리:
 - 처리 실패 → fail 토픽 발행
@@ -13,85 +14,202 @@ Kafka 기반 Preprocess Pipeline Entry Point
 - 무조건 commit (파이프라인 멈추지 않음)
 
 Graceful Shutdown:
-- SIGTERM/SIGINT 수신 시 모든 Worker 종료 요청
-- 각 Worker는 현재 처리 중인 메시지 완료 후 종료
+- SIGTERM/SIGINT → multiprocessing.Event 설정
+- 각 Worker 프로세스/스레드는 Event를 감지하고 현재 메시지 완료 후 종료
 """
 
 import logging
+import multiprocessing
 import signal
 import threading
 import time
 import uuid
-from typing import List
 
 from infra.config.kafka_config import (
     load_kafka_config,
     load_kafka_worker_config,
-    KafkaConfig,
+    KafkaConnectionConfig,
+    WorkerConfig,
 )
-from infra.kafka.kafka_consumer import KafkaStreamConsumer
-from infra.kafka.kafka_producer import KafkaStreamProducer
-from worker.text_kafka_worker import TextKafkaWorker
-from worker.ocr_kafka_worker import OcrKafkaWorker
-from worker.url_kafka_worker import UrlKafkaWorker
-from worker.base_kafka_worker import BaseKafkaWorker
 
 # ==================================================
-# Logging 설정
+# Logging 설정 (메인 프로세스 전용, spawn re-import 방지)
 # ==================================================
 from utils.logger import setup_logging
 
-# 환경변수 LOG_LEVEL로 제어 (DEBUG / INFO / WARNING / ERROR)
-# 개발: LOG_LEVEL=DEBUG python main_kafka.py setup_logging("DEBUG")
-# 운영: LOG_LEVEL=INFO python main_kafka.py (기본값)
-setup_logging("DEBUG")
+if __name__ == "__main__" or multiprocessing.current_process().name == "MainProcess":
+    setup_logging("DEBUG")
 
 logger = logging.getLogger(__name__)
 
 
-def create_kafka_consumer(
-    kafka_config: KafkaConfig,
-    topic: str,
-    client_id: str,
-) -> KafkaStreamConsumer:
-    """Kafka Consumer 생성"""
-    return KafkaStreamConsumer(
-        bootstrap_servers=kafka_config.bootstrap_servers,
+def _init_process_logging():
+    """자식 프로세스 logging 초기화 (spawn 시 부모 설정 미상속)"""
+    import sys
+    setup_logging("DEBUG")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(line_buffering=True)
+
+
+def _create_worker(factory, worker_cls, topic, consumer_group, poll_timeout_sec,
+                   result_topic, fail_topic, worker_config, client_id, shutdown_event):
+    """Consumer/Producer/Worker 인스턴스 생성 (프로세스 내부 호출 전용)"""
+    from infra.kafka.kafka_consumer import KafkaStreamConsumer
+    from infra.kafka.kafka_producer import KafkaStreamProducer
+
+    raw_consumer = factory.create_consumer(
+        group_id=consumer_group,
+        client_id=client_id,
+    )
+    consumer = KafkaStreamConsumer(
+        consumer=raw_consumer,
         topic=topic,
-        group_id=kafka_config.consumer_group,
-        client_id=client_id,
-        poll_timeout_sec=kafka_config.poll_timeout_sec,
+        poll_timeout_sec=poll_timeout_sec,
     )
 
+    raw_producer = factory.create_producer(
+        client_id=f"{client_id}-producer",
+    )
+    producer = KafkaStreamProducer(raw_producer)
 
-def create_kafka_producer(
-    kafka_config: KafkaConfig,
+    worker = worker_cls(
+        consumer=consumer,
+        producer=producer,
+        result_topic=result_topic,
+        fail_topic=fail_topic,
+        config=worker_config,
+        shutdown_event=shutdown_event,
+    )
+    return worker, producer
+
+
+def _run_ocr_process(
+    shutdown_event: multiprocessing.Event,
+    connection_config: KafkaConnectionConfig,
+    topic: str,
+    consumer_group: str,
+    poll_timeout_sec: float,
+    result_topic: str,
+    fail_topic: str,
+    worker_config: WorkerConfig,
     client_id: str,
-) -> KafkaStreamProducer:
-    """Kafka Producer 생성"""
-    return KafkaStreamProducer(
-        bootstrap_servers=kafka_config.bootstrap_servers,
-        client_id=client_id,
-    )
+) -> None:
+    """
+    OCR 전용 프로세스 (CPU-bound)
 
+    PaddleOCR 모델이 CPU를 집중 사용하므로 독립 프로세스로 격리
+    """
+    # 수치 연산 라이브러리 스레드 제한 (PaddleOCR import 전에 설정 필수)
+    # 미설정 시 코어 수만큼 스레드를 생성하여 다른 프로세스의 core를 침범
+    import os
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
 
-def run_worker(worker: BaseKafkaWorker):
-    """Worker 실행 (스레드 타겟)"""
+    _init_process_logging()
+    proc_logger = logging.getLogger(f"process.ocr.{client_id}")
+
+    from infra.kafka.kafka_client_factory import KafkaClientFactory
+    from worker.ocr_kafka_worker import OcrKafkaWorker
+
     try:
-        worker.run()
-    except Exception as e:
-        logger.error(
-            "[WORKER_CRASH] worker=%s error=%s",
-            worker.worker_name, str(e),
-            exc_info=True
+        factory = KafkaClientFactory(connection_config)
+        worker, producer = _create_worker(
+            factory, OcrKafkaWorker, topic, consumer_group, poll_timeout_sec,
+            result_topic, fail_topic, worker_config, client_id, shutdown_event,
         )
+
+        worker.run()
+
+    except KeyboardInterrupt:
+        proc_logger.info("Process interrupted", extra={"process": "ocr"})
+    except Exception as e:
+        proc_logger.error("Process crashed", exc_info=True, extra={"process": "ocr", "error": str(e)})
+    finally:
+        try:
+            producer.close()
+        except Exception:
+            pass
+        proc_logger.info("Process exiting", extra={"process": "ocr"})
+
+
+def _run_text_url_process(
+    shutdown_event: multiprocessing.Event,
+    connection_config: KafkaConnectionConfig,
+    text_topic: str,
+    url_topic: str,
+    consumer_group: str,
+    poll_timeout_sec: float,
+    result_topic: str,
+    fail_topic: str,
+    worker_config: WorkerConfig,
+    text_client_id: str,
+    url_client_id: str,
+) -> None:
+    """
+    TEXT + URL 혼합 프로세스
+
+    - TEXT Worker: 메인 스레드 (CPU-bound)
+    - URL Worker:  별도 스레드 (I/O-bound, HTTP 대기 중 GIL 해제)
+
+    동일 프로세스 내에서 Producer를 공유하여 리소스 절약
+    (confluent-kafka Producer는 thread-safe)
+    """
+    _init_process_logging()
+    proc_logger = logging.getLogger(f"process.text_url")
+
+    from infra.kafka.kafka_client_factory import KafkaClientFactory
+    from worker.text_kafka_worker import TextKafkaWorker
+    from worker.url_kafka_worker import UrlKafkaWorker
+
+    try:
+        factory = KafkaClientFactory(connection_config)
+
+        # URL Worker (스레드로 실행, I/O-bound)
+        url_worker, url_producer = _create_worker(
+            factory, UrlKafkaWorker, url_topic, consumer_group, poll_timeout_sec,
+            result_topic, fail_topic, worker_config, url_client_id, shutdown_event,
+        )
+
+        url_thread = threading.Thread(
+            target=url_worker.run,
+            name="url-worker-thread",
+            daemon=True,
+        )
+        url_thread.start()
+        proc_logger.info("URL worker thread started")
+
+        # TEXT Worker (메인 스레드, CPU-bound)
+        text_worker, text_producer = _create_worker(
+            factory, TextKafkaWorker, text_topic, consumer_group, poll_timeout_sec,
+            result_topic, fail_topic, worker_config, text_client_id, shutdown_event,
+        )
+
+        text_worker.run()
+
+        # TEXT 종료 후 URL 스레드 대기
+        url_thread.join(timeout=worker_config.shutdown_timeout_sec)
+
+    except KeyboardInterrupt:
+        proc_logger.info("Process interrupted", extra={"process": "text_url"})
+    except Exception as e:
+        proc_logger.error(
+            "Process crashed",
+            exc_info=True,
+            extra={"process": "text_url", "error": str(e)},
+        )
+    finally:
+        for p in [text_producer, url_producer]:
+            try:
+                p.close()
+            except Exception:
+                pass
+        proc_logger.info("Process exiting", extra={"process": "text_url"})
 
 
 def main():
     """메인 진입점"""
-    logger.info("=" * 60)
-    logger.info("Preprocess Pipeline (Kafka) Starting...")
-    logger.info("=" * 60)
+    logger.info("Preprocess Pipeline starting")
 
     # ==================================================
     # 설정 로드
@@ -100,161 +218,132 @@ def main():
     worker_config = load_kafka_worker_config()
 
     logger.info(
-        "[CONFIG] Kafka: %s",
-        kafka_config.bootstrap_servers
-    )
-    logger.info(
-        "[CONFIG] Topics: text=%s ocr=%s url=%s result=%s fail=%s group=%s",
-        kafka_config.text_topic,
-        kafka_config.ocr_topic,
-        kafka_config.url_topic,
-        kafka_config.result_topic,
-        kafka_config.fail_topic,
-        kafka_config.consumer_group,
+        "Config loaded",
+        extra={
+            "bootstrap_servers": kafka_config.bootstrap_servers,
+            "text_topic": kafka_config.text_topic,
+            "ocr_topic": kafka_config.ocr_topic,
+            "url_topic": kafka_config.url_topic,
+            "result_topic": kafka_config.result_topic,
+            "fail_topic": kafka_config.fail_topic,
+            "consumer_group": kafka_config.consumer_group,
+        },
     )
 
     # ==================================================
     # Instance 고유 ID
     # ==================================================
     instance_id = uuid.uuid4().hex[:8]
-    logger.info("[CONFIG] Instance ID: %s", instance_id)
+    logger.info("Instance created", extra={"instance_id": instance_id})
 
     # ==================================================
-    # 공유 Producer 생성
-    # - 모든 Worker가 단일 Producer를 공유
-    # - Thread-safe (confluent-kafka 보장)
+    # Shutdown Event (프로세스 간 공유)
     # ==================================================
-    producer = create_kafka_producer(
-        kafka_config=kafka_config,
-        client_id=f"producer-{instance_id}",
-    )
+    shutdown_event = multiprocessing.Event()
 
     # ==================================================
-    # Worker 생성
+    # 프로세스 배치 (2-core 최적화)
+    #
+    # Process 1: OCR (CPU-bound, 1 core)
+    # Process 2: TEXT (CPU-bound, 메인 스레드)
+    #            └─ URL (I/O-bound, 스레드)
     # ==================================================
-    workers: List[BaseKafkaWorker] = []
+    ocr_process = multiprocessing.Process(
+        target=_run_ocr_process,
+        args=(
+            shutdown_event,
+            kafka_config.connection,
+            kafka_config.ocr_topic,
+            kafka_config.consumer_group,
+            kafka_config.poll_timeout_sec,
+            kafka_config.result_topic,
+            kafka_config.fail_topic,
+            worker_config,
+            f"ocr-consumer-{instance_id}",
+        ),
+        name="ocr-process",
+        daemon=False,
+    )
 
-    # TEXT Worker
-    text_consumer = create_kafka_consumer(
-        kafka_config=kafka_config,
-        topic=kafka_config.text_topic,
-        client_id=f"text-consumer-{instance_id}",
+    text_url_process = multiprocessing.Process(
+        target=_run_text_url_process,
+        args=(
+            shutdown_event,
+            kafka_config.connection,
+            kafka_config.text_topic,
+            kafka_config.url_topic,
+            kafka_config.consumer_group,
+            kafka_config.poll_timeout_sec,
+            kafka_config.result_topic,
+            kafka_config.fail_topic,
+            worker_config,
+            f"text-consumer-{instance_id}",
+            f"url-consumer-{instance_id}",
+        ),
+        name="text-url-process",
+        daemon=False,
     )
-    text_worker = TextKafkaWorker(
-        consumer=text_consumer,
-        producer=producer,
-        result_topic=kafka_config.result_topic,
-        fail_topic=kafka_config.fail_topic,
-        config=worker_config,
-    )
-    workers.append(text_worker)
-
-    # OCR Worker
-    ocr_consumer = create_kafka_consumer(
-        kafka_config=kafka_config,
-        topic=kafka_config.ocr_topic,
-        client_id=f"ocr-consumer-{instance_id}",
-    )
-    ocr_worker = OcrKafkaWorker(
-        consumer=ocr_consumer,
-        producer=producer,
-        result_topic=kafka_config.result_topic,
-        fail_topic=kafka_config.fail_topic,
-        config=worker_config,
-    )
-    workers.append(ocr_worker)
-
-    # URL Worker
-    url_consumer = create_kafka_consumer(
-        kafka_config=kafka_config,
-        topic=kafka_config.url_topic,
-        client_id=f"url-consumer-{instance_id}",
-    )
-    url_worker = UrlKafkaWorker(
-        consumer=url_consumer,
-        producer=producer,
-        result_topic=kafka_config.result_topic,
-        fail_topic=kafka_config.fail_topic,
-        config=worker_config,
-    )
-    workers.append(url_worker)
 
     # ==================================================
-    # Shutdown 핸들러
+    # Shutdown 핸들러 (메인 프로세스)
     # ==================================================
-    shutdown_event = threading.Event()
-
     def shutdown_handler(signum, frame):
         sig_name = signal.Signals(signum).name
-        logger.info("[SHUTDOWN] Received %s, initiating graceful shutdown...", sig_name)
+        logger.info("Shutdown signal received", extra={"signal": sig_name})
         shutdown_event.set()
-
-        for worker in workers:
-            worker.shutdown()
 
     signal.signal(signal.SIGTERM, shutdown_handler)
     signal.signal(signal.SIGINT, shutdown_handler)
 
     # ==================================================
-    # Worker 스레드 시작
+    # 프로세스 시작
     # ==================================================
-    threads: List[threading.Thread] = []
+    processes = [ocr_process, text_url_process]
 
-    for worker in workers:
-        thread = threading.Thread(
-            target=run_worker,
-            args=(worker,),
-            name=worker.worker_name,
-            daemon=False,
-        )
-        thread.start()
-        threads.append(thread)
-        logger.info("[STARTED] %s thread started", worker.worker_name)
+    for p in processes:
+        p.start()
+        logger.info("Worker process started", extra={"process_name": p.name, "child_pid": p.pid})
 
-    logger.info("=" * 60)
-    logger.info("All workers running. Press Ctrl+C to shutdown.")
-    logger.info("=" * 60)
+    logger.info("All worker processes running")
 
     # ==================================================
-    # 메인 스레드 대기
+    # 메인 프로세스 대기
     # ==================================================
     try:
         while not shutdown_event.is_set():
-            alive_count = sum(1 for t in threads if t.is_alive())
+            alive_count = sum(1 for p in processes if p.is_alive())
             if alive_count == 0:
-                logger.warning("[MAIN] All worker threads have stopped")
+                logger.warning("All worker processes have stopped unexpectedly")
                 break
-
             time.sleep(1)
 
     except KeyboardInterrupt:
-        logger.info("[MAIN] KeyboardInterrupt received")
+        logger.info("KeyboardInterrupt received")
         shutdown_event.set()
-        for worker in workers:
-            worker.shutdown()
 
     # ==================================================
-    # 스레드 종료 대기
+    # 프로세스 종료 대기
     # ==================================================
-    logger.info("[SHUTDOWN] Waiting for worker threads to finish...")
+    logger.info("Waiting for worker processes to finish")
 
-    for thread in threads:
-        thread.join(timeout=worker_config.shutdown_timeout_sec)
-        if thread.is_alive():
-            logger.warning("[SHUTDOWN] Thread %s did not finish in time", thread.name)
+    for p in processes:
+        p.join(timeout=worker_config.shutdown_timeout_sec)
+        if p.is_alive():
+            logger.warning(
+                "Process did not finish in time, terminating",
+                extra={"process_name": p.name, "child_pid": p.pid},
+            )
+            p.terminate()
+            p.join(timeout=5)
         else:
-            logger.info("[SHUTDOWN] Thread %s finished", thread.name)
+            logger.info(
+                "Process finished",
+                extra={"process_name": p.name, "exit_code": p.exitcode},
+            )
 
-    # ==================================================
-    # Producer 정리
-    # ==================================================
-    logger.info("[SHUTDOWN] Flushing producer...")
-    producer.close()
-
-    logger.info("=" * 60)
-    logger.info("Preprocess Pipeline (Kafka) Stopped")
-    logger.info("=" * 60)
+    logger.info("Preprocess Pipeline stopped")
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method("spawn", force=True)
     main()

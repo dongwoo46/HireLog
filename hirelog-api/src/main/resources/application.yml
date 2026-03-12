@@ -1,19 +1,25 @@
 spring:
+  profiles:
+    active: local
+  data:
+    redis:
+      repositories:
+        enabled: false
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD}
+      timeout: 3s
   datasource:
     hikari:
-      maximum-pool-size: 10
-
-      # 커넥션 최대 수명 (DB보다 짧게)
-      max-lifetime: 600000        # 10분
-
-      # 유휴 커넥션 정리
-      idle-timeout: 300000        # 5분
-
-      # 커넥션 검증 타임아웃
-      validation-timeout: 3000
-
-      # DB down 시 빠른 실패
-      connection-timeout: 3000
+      auto-commit: false        # ← 추가
+      maximum-pool-size: 5
+      minimum-idle: 2
+      max-lifetime: 300000
+      idle-timeout: 300000
+      connection-timeout: 30000
+      data-source-properties:
+        prepareThreshold: 0
+        binaryTransfer: false
   mail:
     host: ${MAIL_HOST}
     port: 587
@@ -26,20 +32,6 @@ spring:
           starttls:
             enable: true
 
-  kafka:
-    bootstrap-servers: localhost:19092  # 'kafka:9092'를 'localhost:9092'로 변경
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        enable.idempotence: true
-        acks: all
-        retries: 2147483647
-        max.in.flight.requests.per.connection: 5
-
-    consumer:
-      enable-auto-commit: false
-      auto-offset-reset: earliest
 
   security:
     oauth2:
@@ -73,14 +65,12 @@ spring:
   application:
     name: hirelog
 
-  profiles:
-    active: local
-
-  config:
-    import: optional:file:.env[.properties]
-
   jpa:
     open-in-view: false
+    properties:
+      hibernate:
+        connection:
+          provider_disables_autocommit: true
 
 # LLM 공통 설정 (핵심)
 llm:
@@ -101,6 +91,8 @@ logging:
   level:
     root: INFO
     com.hirelog.api: DEBUG
+    org.apache.kafka: WARN
+    org.apache.kafka.clients.consumer.ConsumerConfig: ERROR
 
 server:
   tomcat:
@@ -164,6 +156,8 @@ resilience4j:
         timeoutDuration: 0s   # 즉시 실패
 
   circuitbreaker:
+    metrics:
+      enabled: true
     instances:
       gemini:
         slidingWindowType: COUNT_BASED
@@ -198,4 +192,5 @@ resilience4j:
 
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
+
 

@@ -1,0 +1,36 @@
+startDelaySeconds: 10
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # ----------------------------
+  # Kafka Request Queue Time (Mean latency)
+  # ----------------------------
+  - pattern: 'kafka.network<type=RequestMetrics, name=RequestQueueTimeMs, request=(.+)><>Mean'
+    name: kafka_request_queue_time_ms
+    type: GAUGE
+    labels:
+      request: '$1'
+
+  # ----------------------------
+  # Kafka Total Request Time (Mean latency)
+  # ----------------------------
+  - pattern: 'kafka.network<type=RequestMetrics, name=TotalTimeMs, request=(.+)><>Mean'
+    name: kafka_request_total_time_ms
+    type: GAUGE
+    labels:
+      request: '$1'
+
+  # ----------------------------
+  # Under Replicated Partitions
+  # ----------------------------
+  - pattern: 'kafka.server<type=ReplicaManager, name=UnderReplicatedPartitions><>Value'
+    name: kafka_under_replicated_partitions
+    type: GAUGE
+
+  # ----------------------------
+  # ISR Shrinks (Total Count)
+  # ----------------------------
+  - pattern: 'kafka.server<type=ReplicaManager, name=IsrShrinksPerSec><>Count'
+    name: kafka_isr_shrinks_total
+    type: COUNTER

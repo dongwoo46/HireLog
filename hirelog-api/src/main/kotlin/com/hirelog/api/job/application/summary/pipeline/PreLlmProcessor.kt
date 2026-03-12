@@ -38,6 +38,10 @@ class PreLlmProcessor(
     fun execute(processingId: UUID, command: JobSummaryGenerateCommand): PreLlmResult? {
 
         if (!jdIntakePolicy.isValidJd(command)) {
+            log.warn(
+                "[JD_INTAKE_INVALID_INPUT] processingId={}, source={}",
+                processingId, command.source
+            )
             processingWriteService.markFailed(
                 processingId = processingId,
                 errorCode = "INVALID_INPUT",
@@ -48,6 +52,10 @@ class PreLlmProcessor(
 
         if (command.source == JobSourceType.URL && command.sourceUrl != null) {
             if (summaryQuery.existsBySourceUrl(command.sourceUrl)) {
+                log.info(
+                    "[JD_URL_DUPLICATE] processingId={}, sourceUrl={}",
+                    processingId, command.sourceUrl
+                )
                 processingWriteService.markDuplicate(
                     processingId = processingId,
                     reason = "URL_DUPLICATE"

@@ -1,0 +1,231 @@
+name: Deploy API
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths:
+      - 'hirelog-api/**'
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/dongwoo46/hirelog-api
+
+jobs:
+  test:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'develop')
+    runs-on: [self-hosted, linux, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: |
+          chmod +x gradlew
+          ./gradlew test
+        working-directory: hirelog-api
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: hirelog-api/build/reports/tests/test/
+
+  build:
+    needs: test
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: hirelog-api
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare target directory on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: sudo mkdir -p /home/hirelog && sudo chown $(whoami):$(whoami) /home/hirelog
+
+      - name: Copy compose & config files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: >-
+            docker/api/docker-compose.prod.yml,
+            docker/api/prometheus.yml,
+            docker/api/loki-config.yml,
+            docker/api/promtail-config.yml,
+            docker/api/grafana/
+          target: '/home/hirelog/'
+          strip_components: 2
+
+      - name: Write .env.prod to API server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          API_ENV_PROD: ${{ secrets.API_ENV_PROD }}
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: API_ENV_PROD
+          script: |
+            printf '%s\n' "$API_ENV_PROD" > /home/hirelog/.env.prod
+            echo "✅ .env.prod written"
+
+      - name: Blue-Green Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            export IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+            export GITHUB_USERNAME=${{ github.repository_owner }}
+            WORKDIR=/home/hirelog
+            COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
+            ACTIVE_CONF=/etc/nginx/conf.d/hirelog-active.conf
+
+            echo "▶ Image: ${{ env.IMAGE }}:$IMAGE_TAG"
+
+            # ── 현재 활성 슬롯 판별 ──────────────────────────────
+            if grep -q "8080" $ACTIVE_CONF 2>/dev/null; then
+              CURRENT=blue  CURRENT_PORT=8080  CURRENT_SVC=api-blue
+              NEXT=green    NEXT_PORT=8081     NEXT_SVC=api-green
+            else
+              CURRENT=green CURRENT_PORT=8081  CURRENT_SVC=api-green
+              NEXT=blue     NEXT_PORT=8080     NEXT_SVC=api-blue
+            fi
+
+            echo "▶ Current: $CURRENT ($CURRENT_PORT) → Next: $NEXT ($NEXT_PORT)"
+
+            # ── SHA 태그 이미지 Pull (1회) ───────────────────────
+            docker pull ${{ env.IMAGE }}:$IMAGE_TAG
+
+            # ── 비활성 슬롯 시작 (이미 pull된 이미지 사용) ───────
+            if [ "$NEXT" = "green" ]; then
+              IMAGE_TAG=$IMAGE_TAG $COMPOSE --profile green up -d --pull never api-green
+            else
+              IMAGE_TAG=$IMAGE_TAG $COMPOSE up -d --pull never api-blue
+            fi
+
+            # ── Health Check ─────────────────────────────────────
+            echo "▶ Waiting for $NEXT to be healthy..."
+            for i in $(seq 1 40); do
+              RESPONSE=$(curl -sf http://localhost:$NEXT_PORT/actuator/health 2>/dev/null || true)
+              STATUS=$(echo "$RESPONSE" | grep -o '"status":"[^"]*"' | head -1 || true)
+              echo "  [$i/40] status=$STATUS response=$RESPONSE"
+              if echo "$STATUS" | grep -q "UP"; then
+                echo "✅ $NEXT is healthy"
+                break
+              fi
+              if [ $i -eq 40 ]; then
+                echo "❌ Health check failed — container logs:"
+                docker logs --tail 30 $(docker compose -f $WORKDIR/docker-compose.prod.yml ps -q $NEXT_SVC) 2>/dev/null || true
+                $COMPOSE stop $NEXT_SVC
+                exit 1
+              fi
+              sleep 3
+            done
+
+            # ── nginx upstream 전환 ──────────────────────────────
+            echo "upstream hirelog_active { server 127.0.0.1:$NEXT_PORT; }" \
+              | sudo tee $ACTIVE_CONF > /dev/null
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo "▶ nginx switched to $NEXT ($NEXT_PORT)"
+
+            # ── 이전 슬롯 종료 ───────────────────────────────────
+            $COMPOSE stop $CURRENT_SVC
+
+            # ── 오래된 이미지 정리 ────────────────────────────────
+            docker image prune -f --filter "until=72h"
+
+            echo "🎉 Deploy complete: $CURRENT → $NEXT (${{ env.IMAGE }}:$IMAGE_TAG)"
+
+  cdc:
+    name: Setup CDC connector
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare scripts directory on infra server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          script: mkdir -p /home/hirelog/scripts
+
+      - name: Copy CDC script to infra server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          source: scripts/setup-postgres-cdc-prod.sh
+          target: /home/hirelog/scripts/
+          strip_components: 1
+
+      - name: Run setup-postgres-cdc-prod.sh on infra server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            chmod +x /home/hirelog/scripts/setup-postgres-cdc-prod.sh
+            bash /home/hirelog/scripts/setup-postgres-cdc-prod.sh

@@ -6,10 +6,42 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.Instant
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResource(e: NoResourceFoundException): ResponseEntity<Void> {
+        return ResponseEntity.notFound().build()
+    }
+
+    @ExceptionHandler(InvalidCursorException::class)
+    fun handleInvalidCursor(
+        ex: InvalidCursorException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = HttpStatus.BAD_REQUEST
+
+        log.warn(
+            "[INVALID_CURSOR] path={}, cursor={}, message={}",
+            request.requestURI,
+            request.getParameter("cursor"),
+            ex.message
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = "INVALID_CURSOR",
+                message = ex.message,
+                path = request.requestURI
+            )
+        )
+    }
 
     @ExceptionHandler(EntityNotFoundException::class)
     fun handleEntityNotFound(
@@ -20,7 +52,7 @@ class GlobalExceptionHandler {
         val status = HttpStatus.NOT_FOUND
 
         log.warn(
-            "[ENTITY_NOT_FOUND] path={} message={}",
+            "[ENTITY_NOT_FOUND] path={}, message={}",
             request.requestURI,
             ex.message
         )
@@ -44,7 +76,7 @@ class GlobalExceptionHandler {
         val status = HttpStatus.CONFLICT
 
         log.warn(
-            "[ENTITY_ALREADY_EXISTS] path={} message={}",
+            "[ENTITY_ALREADY_EXISTS] path={}, message={}",
             request.requestURI,
             ex.message
         )
@@ -94,7 +126,7 @@ class GlobalExceptionHandler {
 
         val status = HttpStatus.BAD_REQUEST
 
-        log.error(
+        log.warn(
             "[ILLEGAL_ARGUMENT] path={}, method={}, message={}",
             request.requestURI,
             request.method,

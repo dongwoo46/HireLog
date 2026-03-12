@@ -28,7 +28,6 @@ class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
 
     def __init__(self):
         super().__init__()
-        logger.info("[OCR_WORKER_INIT] initializing OCR pipeline")
         self.pipeline = OcrPipeline()
 
     def process(self, input: JdPreprocessInput) -> JdPreprocessOutput:
@@ -91,12 +90,13 @@ class JdPreprocessOcrWorker(BaseJdPreprocessWorker):
 
             return output
 
-        except Exception as e:
+        except Exception:
             logger.exception(
-                "[JD_OCR_PREPROCESS_FAILED] requestId=%s brand=%s position=%s error=%s",
-                input.request_id,
-                input.brand_name,
-                input.position_name,
-                str(e),
+                "OCR preprocess failed",
+                extra={
+                    "request_id": input.request_id,
+                    "brand_name": input.brand_name,
+                    "position_name": input.position_name,
+                },
             )
             raise

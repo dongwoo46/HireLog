@@ -3,10 +3,12 @@ package com.hirelog.api.job.application.summary
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.brand.domain.Brand
 import com.hirelog.api.common.application.outbox.OutboxEventCommand
+import com.hirelog.api.common.application.outbox.OutboxEventWriteService
 import com.hirelog.api.common.config.properties.LlmProperties
 import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.logging.log
+import org.slf4j.MDC
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingCommand
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
@@ -34,11 +36,11 @@ import java.util.UUID
 class JobSummaryWriteService(
     private val objectMapper: ObjectMapper,
     private val summaryCommand: JobSummaryCommand,
-    private val outboxEventCommand: OutboxEventCommand,
+    private val outboxEventWriteService: OutboxEventWriteService,
     private val processingCommand: JdSummaryProcessingCommand,
     private val processingQuery: JdSummaryProcessingQuery,
     private val llmProperties: LlmProperties,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     /**
@@ -72,47 +74,68 @@ class JobSummaryWriteService(
     ): JobSummary {
 
         log.info(
-            "[JOB_SUMMARY_CREATE_WITH_OUTBOX] processingId={}, snapshotId={}, brandId={}, brandName='{}'",
-            processingId, snapshotId, brand.id, brand.name
+            "[JOB_SUMMARY_CREATE_WITH_OUTBOX_START] processingId={}, snapshotId={}, brandId={}, brandName={}, positionId={}, positionName={}, brandPositionId={}, brandPositionName={}, positionCategoryId={}, positionCategoryName={}, sourceUrl={}, llmBrandName={}, llmPositionName={}",
+            processingId,
+            snapshotId,
+            brand.id,
+            brand.name,
+            positionId,
+            positionName,
+            brandPositionId,
+            brandPositionName,
+            positionCategoryId,
+            positionCategoryName,
+            sourceUrl,
+            llmResult.brandName,
+            llmResult.positionName,
         )
 
-        // 1. JobSummary 생성 및 저장
-        val summary = buildSummary(
-            snapshotId, brand, positionId, positionName,
-            brandPositionId, brandPositionName,
-            positionCategoryId, positionCategoryName,
-            llmResult, sourceUrl
-        )
-        val savedSummary = summaryCommand.save(summary)
-
-        // 2. Outbox 이벤트 저장 (동일 트랜잭션)
-        saveOutboxEvent(savedSummary)
-
-        // 3. Processing 완료 상태로 전이 (동일 트랜잭션)
-        val processing = processingQuery.findById(processingId)
-            ?: throw IllegalStateException("Processing not found. id=$processingId")
-
-        processing.markCompleted(savedSummary.id)
-        processingCommand.update(processing)
-
-        log.info(
-            "[JOB_SUMMARY_CREATE_WITH_OUTBOX_SUCCESS] summaryId={}, processingId={}",
-            savedSummary.id, processingId
-        )
-
-        // @TransactionalEventListener(AFTER_COMMIT)에 의해 커밋 후 처리
-        eventPublisher.publishEvent(
-            JobSummaryRequestEvent.Completed(
-                processingId = processingId.toString(),
-                jobSummaryId = savedSummary.id,
-                brandName = savedSummary.brandName,
-                positionName = savedSummary.positionName,
-                brandPositionName = savedSummary.brandPositionName,
-                positionCategoryName = savedSummary.positionCategoryName
+        try {
+            // 1. JobSummary 생성 및 저장
+            val summary = buildSummary(
+                snapshotId, brand, positionId, positionName,
+                brandPositionId, brandPositionName,
+                positionCategoryId, positionCategoryName,
+                llmResult, sourceUrl
             )
-        )
+            val savedSummary = summaryCommand.save(summary)
 
-        return savedSummary
+            // 2. Outbox 이벤트 저장 (동일 트랜잭션)
+            saveOutboxEvent(savedSummary)
+
+            // 3. Processing 완료 상태로 전이 (동일 트랜잭션)
+            val processing = processingQuery.findById(processingId)
+                ?: throw IllegalStateException("Processing not found. id=$processingId")
+
+            processing.markCompleted(savedSummary.id)
+            processingCommand.update(processing)
+
+            log.info(
+                "[JOB_SUMMARY_CREATE_WITH_OUTBOX_SUCCESS] summaryId={}, processingId={}",
+                savedSummary.id, processingId
+            )
+
+            // @TransactionalEventListener(AFTER_COMMIT)에 의해 커밋 후 처리
+            eventPublisher.publishEvent(
+                JobSummaryRequestEvent.Completed(
+                    requestId = MDC.get("requestId") ?: processingId.toString(),
+                    processingId = processingId.toString(),
+                    jobSummaryId = savedSummary.id,
+                    brandName = savedSummary.brandName,
+                    positionName = savedSummary.positionName,
+                    brandPositionName = savedSummary.brandPositionName,
+                    positionCategoryName = savedSummary.positionCategoryName
+                )
+            )
+
+            return savedSummary
+        } catch (e: Exception) {
+            log.error(
+                "[JOB_SUMMARY_CREATE_WITH_OUTBOX_FAILED] processingId={}, snapshotId={}, brandId={}, error={}",
+                processingId, snapshotId, brand.id, e.message, e
+            )
+            throw e
+        }
     }
 
     /**
@@ -141,27 +164,35 @@ class JobSummaryWriteService(
             brand.id, brand.name
         )
 
-        // 1. Snapshot 저장
-        val snapshot = snapshotCommand.save()
+        try {
+            // 1. Snapshot 저장
+            val snapshot = snapshotCommand.save()
 
-        // 2. JobSummary 생성 및 저장
-        val summary = buildSummary(
-            snapshot.id, brand, positionId, positionName,
-            brandPositionId, brandPositionName,
-            positionCategoryId, positionCategoryName,
-            llmResult, sourceUrl
-        )
-        val savedSummary = summaryCommand.save(summary)
+            // 2. JobSummary 생성 및 저장
+            val summary = buildSummary(
+                snapshot.id, brand, positionId, positionName,
+                brandPositionId, brandPositionName,
+                positionCategoryId, positionCategoryName,
+                llmResult, sourceUrl
+            )
+            val savedSummary = summaryCommand.save(summary)
 
-        // 3. Outbox 이벤트 저장 (동일 트랜잭션)
-        saveOutboxEvent(savedSummary)
+            // 3. Outbox 이벤트 저장 (동일 트랜잭션)
+            saveOutboxEvent(savedSummary)
 
-        log.info(
-            "[ADMIN_JOB_SUMMARY_CREATE_ALL_SUCCESS] snapshotId={}, summaryId={}",
-            snapshot.id, savedSummary.id
-        )
+            log.info(
+                "[ADMIN_JOB_SUMMARY_CREATE_ALL_SUCCESS] snapshotId={}, summaryId={}",
+                snapshot.id, savedSummary.id
+            )
 
-        return savedSummary
+            return savedSummary
+        } catch (e: Exception) {
+            log.error(
+                "[ADMIN_JOB_SUMMARY_CREATE_ALL_FAILED] brandId={}, brandName='{}', error={}",
+                brand.id, brand.name, e.message, e
+            )
+            throw e
+        }
     }
 
     /**
@@ -181,7 +212,7 @@ class JobSummaryWriteService(
             eventType = EventType.DELETED,
             payload = """{"id":${summary.id}}"""
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
 
         log.info("[JOB_SUMMARY_DEACTIVATED] summaryId={}", summaryId)
     }
@@ -204,7 +235,7 @@ class JobSummaryWriteService(
             eventType = EventType.CREATED,
             payload = objectMapper.writeValueAsString(payload)
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
 
         log.info("[JOB_SUMMARY_ACTIVATED] summaryId={}", summaryId)
     }
@@ -234,9 +265,6 @@ class JobSummaryWriteService(
             considerations = llmResult.insight.considerations
         )
 
-        val resolvedBrandPositionName =
-            llmResult.brandPositionName?.takeIf { it.isNotBlank() }
-                ?: brandPositionName
 
         return JobSummary.create(
             jobSnapshotId = snapshotId,
@@ -247,7 +275,7 @@ class JobSummaryWriteService(
             positionId = positionId,
             positionName = positionName,
             brandPositionId = brandPositionId,
-            brandPositionName = resolvedBrandPositionName,
+            brandPositionName = brandPositionName,
             positionCategoryId = positionCategoryId,
             positionCategoryName = positionCategoryName,
             careerType = llmResult.careerType,
@@ -273,6 +301,6 @@ class JobSummaryWriteService(
             eventType = EventType.CREATED,
             payload = objectMapper.writeValueAsString(payload)
         )
-        outboxEventCommand.save(outboxEvent)
+        outboxEventWriteService.append(outboxEvent)
     }
 }

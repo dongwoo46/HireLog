@@ -1,5 +1,4 @@
 import logging
-import json
 from inputs.jd_preprocess_input import JdPreprocessInput
 
 from preprocess.core_preprocess.core_preprocessor import CorePreprocessor
@@ -43,9 +42,7 @@ class TextPreprocessPipeline:
         # - 노이즈 제거
         core_lines = self.core.process(raw_text)
 
-        # 🔍 DEBUG: 전처리 후
-        logger.debug("[TEXT_PIPELINE] 1️⃣ Core 전처리 후 (core_lines)")
-        logger.debug(json.dumps(core_lines, ensure_ascii=False, indent=2))
+        logger.debug("Text core preprocessed", extra={"line_count": len(core_lines)})
 
         # 1.5️⃣ Metadata (문서 전역 메타)
         document_meta = self.metadata.process(core_lines)
@@ -57,20 +54,21 @@ class TextPreprocessPipeline:
         # 2.5️⃣ 섹션 구조 후보정
         sections = validate_section_objects(sections)
 
-        # 🔍 DEBUG: 섹션 분리 후
-        logger.debug("[TEXT_PIPELINE] 2️⃣ 섹션 분리 후 (sections)")
-        logger.debug(json.dumps(
-            [{"header": s.header, "lines": s.lines, "semantic_zone": s.semantic_zone}
-             for s in sections],
-            ensure_ascii=False, indent=2
-        ))
+        logger.debug(
+            "Text sections extracted",
+            extra={"section_count": len(sections)},
+        )
 
         # 3️⃣ Canonical (공통 후반 파이프라인)
         canonical_map = self.canonical.process(sections)
 
-        # 🔍 DEBUG: 최종 canonical_map
-        logger.debug("[TEXT_PIPELINE] 3️⃣ 최종 canonical_map")
-        logger.debug(json.dumps(canonical_map, ensure_ascii=False, indent=2))
+        logger.debug(
+            "Text pipeline stages completed",
+            extra={
+                "section_count": len(sections),
+                "canonical_zone_count": len(canonical_map),
+            },
+        )
 
         return {
             "canonical_map": canonical_map,

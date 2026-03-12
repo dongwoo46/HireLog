@@ -97,7 +97,7 @@ export const authService = {
    */
   refreshToken: async (): Promise<{ accessToken: string }> => {
     const response = await axios.post<{ accessToken: string; refreshToken: string }>(
-      '/api/auth/refresh',
+      `${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`,
       {},
       { withCredentials: true }
     );

@@ -2,6 +2,7 @@ package com.hirelog.api.company.domain
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import com.hirelog.api.common.infra.jpa.entity.VersionedEntity
+import com.hirelog.api.common.utils.Normalizer
 import jakarta.persistence.*
 
 @Entity
@@ -90,24 +91,12 @@ class CompanyCandidate protected constructor(
                 jdSummaryId = jdSummaryId,
                 brandId = brandId,
                 candidateName = candidateName,
-                normalizedName = normalize(candidateName),
+                normalizedName = Normalizer.normalizeCompany(candidateName),
                 source = source,
                 confidenceScore = confidenceScore,
                 status = CompanyCandidateStatus.PENDING
             )
         }
-
-        /**
-         * 법인명 정규화 규칙
-         *
-         * 책임:
-         * - 외부 입력을 시스템 식별자 형태로 변환
-         */
-        private fun normalize(value: String): String =
-            value
-                .lowercase()
-                .replace(Regex("[^a-z0-9]+"), "_")
-                .trim('_')
     }
 
     /**

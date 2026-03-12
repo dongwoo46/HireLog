@@ -1,0 +1,120 @@
+name: Deploy Preprocess
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths:
+      - 'preprocess-pipeline/**'
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/dongwoo46/hirelog-preprocess
+
+jobs:
+  test:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'develop')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: preprocess-pipeline/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: preprocess-pipeline
+
+      - name: Run tests
+        run: pytest
+        working-directory: preprocess-pipeline
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (local)
+        uses: docker/build-push-action@v5
+        with:
+          context: preprocess-pipeline
+          push: false
+          load: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+
+      - name: Push image
+        uses: docker/build-push-action@v5
+        with:
+          context: preprocess-pipeline
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose & config files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: >-
+            docker/api/docker-compose.prod.yml,
+            docker/api/prometheus.yml,
+            docker/api/loki-config.yml,
+            docker/api/promtail-config.yml,
+            docker/api/grafana/
+          target: '/home/hirelog/'
+          strip_components: 2
+
+      - name: Deploy Preprocess
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            export PREPROCESS_IMAGE=ghcr.io/dongwoo46/hirelog-preprocess:${{ needs.build.outputs.image_tag }}
+            WORKDIR=/home/hirelog
+            COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
+
+            echo "▶ Image: $PREPROCESS_IMAGE"
+
+            docker pull $PREPROCESS_IMAGE
+
+            $COMPOSE up -d --no-deps preprocess
+
+            echo "🎉 Deploy complete: $PREPROCESS_IMAGE"

@@ -1,6 +1,7 @@
 package com.hirelog.api.job.application.summary
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.pipeline.LlmInvocationService
@@ -33,11 +34,18 @@ class JdSummaryGenerationFacade(
 ) {
 
     fun execute(command: JobSummaryGenerateCommand): CompletableFuture<Void> {
+        log.info(
+            "[PIPELINE_START] requestId={}, brandName={}, positionName={}, source={}",
+            command.requestId, command.brandName, command.positionName, command.source
+        )
+
         val processing = processingWriteService.startProcessing(command.requestId)
 
         val preResult = try {
-            preLlm.execute(processing.id, command)
-                ?: return CompletableFuture.completedFuture(null)
+            preLlm.execute(processing.id, command) ?: run {
+                log.info("[PIPELINE_PRE_LLM_SKIPPED] requestId={}", command.requestId)
+                return CompletableFuture.completedFuture(null)
+            }
         } catch (e: Exception) {
             errorHandler.handle(processing.id, e, command.requestId, "PRE_LLM")
             return CompletableFuture.completedFuture(null)

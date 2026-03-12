@@ -66,10 +66,7 @@ class BaseJdPreprocessWorker:
             except ValueError:
                 continue
 
-        logger.warning(
-            "[DATE_NORMALIZE_FAILED] date_str=%s (supported: yyyy.MM.dd, yyyy-MM-dd, yyyy/MM/dd)",
-            date_str
-        )
+        logger.warning("Date normalization failed", extra={"date_str": date_str})
         return None
 
     # ==================================================
@@ -154,13 +151,15 @@ class BaseJdPreprocessWorker:
         )
 
         logger.info(
-            "[JD_PREPROCESS_PUBLISHED] requestId=%s brand=%s position=%s source=%s stream=%s entryId=%s",
-            output.request_id,
-            output.brand_name,
-            output.position_name,
-            output.source,
-            stream_key,
-            entry_id,
+            "JD preprocess result published",
+            extra={
+                "request_id": output.request_id,
+                "brand_name": output.brand_name,
+                "position_name": output.position_name,
+                "source": output.source,
+                "stream_key": stream_key,
+                "entry_id": entry_id,
+            },
         )
 
         return entry_id

@@ -17,6 +17,7 @@ package com.hirelog.api.job.application.summary.event
 sealed class JobSummaryRequestEvent {
 
     data class Completed(
+        val requestId: String,
         val processingId: String,
         val jobSummaryId: Long,
         val brandName: String,
@@ -26,6 +27,7 @@ sealed class JobSummaryRequestEvent {
     ) : JobSummaryRequestEvent()
 
     data class Failed(
+        val requestId: String,
         val processingId: String,
         val errorCode: String,
         val retryable: Boolean
@@ -37,8 +39,9 @@ sealed class JobSummaryRequestEvent {
                 "LLM_CALL_FAILED"
             )
 
-            fun of(processingId: String, errorCode: String): Failed =
+            fun of(processingId: String, errorCode: String, requestId: String): Failed =
                 Failed(
+                    requestId = requestId,
                     processingId = processingId,
                     errorCode = errorCode,
                     retryable = errorCode in RETRYABLE_ERROR_CODES

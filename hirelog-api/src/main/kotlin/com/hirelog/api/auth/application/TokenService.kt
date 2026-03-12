@@ -27,7 +27,7 @@ class TokenService(
         val member = memberCommand.findById(memberId)
             ?: throw IllegalStateException("Member not found: $memberId")
 
-        log.info("[Token Service] role: {}", member.role.name)
+        log.info("[TOKEN_ISSUED] memberId={}, role={}", memberId, member.role.name)
         // Access Token 생성 (JWT)
         val accessToken = jwtUtils.issueAccessToken(
             memberId = memberId,
@@ -60,6 +60,8 @@ class TokenService(
             value = redisDto,
             duration = Duration.ofMinutes(10)
         )
+
+        log.info("[SIGNUP_TOKEN_ISSUED]")
 
         return signupToken
     }
