@@ -11,6 +11,9 @@ import UserRequestListPage from '../pages/UserRequestListPage';
 import UserRequestDetailPage from '../pages/UserRequestDetailPage';
 import UserRequestCreatePage from '../pages/UserRequestCreatePage';
 import ProfilePage from '../pages/ProfilePage';
+import JobSummaryArchivePage from '../pages/JobSummaryArchivePage';
+import JdListPage from '../pages/JdListPage';
+import AdminPage from '../pages/AdminPage';
 
 export const router = createBrowserRouter([
   {
@@ -60,6 +63,18 @@ export const router = createBrowserRouter([
       {
         path: 'profile',
         element: <ProfilePage />,
+      },
+      {
+        path: 'archive',
+        element: <JobSummaryArchivePage />,
+      },
+      {
+        path: 'history',
+        element: <JdListPage />,
+      },
+      {
+        path: 'admin',
+        element: <AdminPage />,
       },
     ],
   },

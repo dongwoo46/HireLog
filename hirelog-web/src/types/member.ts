@@ -2,19 +2,16 @@ export interface MemberDetailView {
   id: number;
   email: string;
   username: string;
-  name: string;
-  currentPositionId?: number;
-  careerYears?: number;
-  summary?: string;
-  avatarUrl?: string;
-}
 
-export interface UpdateProfileReq {
-  currentPositionId?: number;
-  careerYears?: number;
-  summary?: string;
-}
+  role: 'ADMIN' | 'USER';
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
-export interface UpdateUsernameReq {
-  username: string;
+  currentPosition?: {
+    id: number;
+    name: string;
+  };
+
+  careerYears?: number | null;
+  summary?: string | null;
+  createdAt?: string;
 }
