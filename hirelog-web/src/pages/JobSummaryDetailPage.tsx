@@ -1,17 +1,13 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { jdSummaryService } from '../services/jdSummaryService';
 import {
   HIRING_STAGE_LABELS,
   type JobSummaryDetailView,
-  type ReviewWriteReq,
   type HiringStage,
 } from '../types/jobSummary';
 import {
   TbChevronLeft,
-  TbStar,
-  TbStarFilled,
-  TbStarHalfFilled,
 } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 
@@ -28,16 +24,7 @@ const JobSummaryDetailPage = () => {
     useState<'detail' | 'review' | 'memo' | 'resume'>('detail');
 
   const [reviewPage, setReviewPage] = useState<any>(null);
-  const [sortType, setSortType] = useState<'latest' | 'high'>('latest');
 
-  const [reviewForm, setReviewForm] = useState<ReviewWriteReq>({
-    hiringStage: 'DOCUMENT',
-    anonymous: true,
-    difficultyRating: 6,
-    satisfactionRating: 6,
-    experienceComment: '',
-    interviewTip: '',
-  });
 
   /* ---------------- JD 조회 ---------------- */
 

@@ -16,7 +16,6 @@ const JobSummaryListPage = () => {
   const [jds, setJds] = useState<JobSummaryView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
 
   /* ================== 사이드 상태 ================== */
   const [isSideOpen, setIsSideOpen] = useState(false);
@@ -44,7 +43,6 @@ const JobSummaryListPage = () => {
 
       setJds(result?.items || []);
       setTotalPages(result?.totalPages || 0);
-      setTotalElements(result?.totalElements || 0);
     } catch (error) {
       console.error(error);
     } finally {

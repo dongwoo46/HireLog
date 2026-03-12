@@ -8,9 +8,7 @@ import {
   TbHome,
   TbList,
   TbPlus,
-  TbUserCircle,
-  TbLogout,
-  TbSettings
+  TbUserCircle
 } from 'react-icons/tb';
 import { apiClient } from '../utils/apiClient';
 
