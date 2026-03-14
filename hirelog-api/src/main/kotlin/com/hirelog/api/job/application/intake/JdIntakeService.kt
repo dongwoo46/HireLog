@@ -159,17 +159,25 @@ class JdIntakeService(
         aggregateType: AggregateType,
         message: JdPreprocessRequestMessage
     ) {
-        val outboxEvent = OutboxEvent.occurred(
-            aggregateType = aggregateType,
-            aggregateId = message.requestId,
-            eventType = "JD_PREPROCESS_REQUESTED",
-            payload = objectMapper.writeValueAsString(message)
-        )
-        outboxEventWriteService.append(outboxEvent)
-        log.info(
-            "[JD_INTAKE_OUTBOX_APPENDED] aggregateType={}, requestId={}",
-            aggregateType, message.requestId
-        )
+        try {
+            val outboxEvent = OutboxEvent.occurred(
+                aggregateType = aggregateType,
+                aggregateId = message.requestId,
+                eventType = "JD_PREPROCESS_REQUESTED",
+                payload = objectMapper.writeValueAsString(message)
+            )
+            outboxEventWriteService.append(outboxEvent)
+            log.info(
+                "[JD_INTAKE_OUTBOX_APPENDED] aggregateType={}, requestId={}",
+                aggregateType, message.requestId
+            )
+        } catch (e: Exception) {
+            log.error(
+                "[JD_INTAKE_OUTBOX_FAILED] aggregateType={}, requestId={}, error={}",
+                aggregateType, message.requestId, e.message, e
+            )
+            throw e
+        }
     }
 
     private fun isValidUrl(url: String): Boolean {
