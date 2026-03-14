@@ -107,6 +107,7 @@ jobs:
           script: |
             set -e
 
+            export GITHUB_USERNAME=${{ github.repository_owner }}
             export PREPROCESS_IMAGE=ghcr.io/dongwoo46/hirelog-preprocess:${{ needs.build.outputs.image_tag }}
             WORKDIR=/home/hirelog
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"

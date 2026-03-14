@@ -57,7 +57,9 @@ jobs:
             export GITHUB_USERNAME=${{ github.repository_owner }}
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
 
+            # redis는 상태 유지 서비스 → force-recreate 제외
+            $COMPOSE up -d redis redis-exporter
             $COMPOSE up -d --force-recreate \
-              redis redis-exporter prometheus grafana loki promtail node-exporter
+              prometheus grafana loki promtail node-exporter
 
             echo "🎉 Monitoring services restarted"
