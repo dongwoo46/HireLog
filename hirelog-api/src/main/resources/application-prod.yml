@@ -69,6 +69,11 @@ app:
   storage:
     base-dir: /data/hirelog/storage
 
+logging:
+  level:
+    root: INFO
+    com.hirelog: INFO
+
 management:
   endpoints:
     web:
