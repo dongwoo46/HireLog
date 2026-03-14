@@ -73,6 +73,7 @@ logging:
   level:
     root: INFO
     com.hirelog: INFO
+    org.apache.kafka: WARN
 
 management:
   endpoints:

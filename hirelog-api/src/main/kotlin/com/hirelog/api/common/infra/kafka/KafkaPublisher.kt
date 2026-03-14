@@ -36,7 +36,7 @@ class KafkaPublisher(
                         topic, key, ex.message, ex
                     )
                 } else {
-                    log.debug(
+                    log.info(
                         "[KAFKA_PUBLISH_SUCCESS] topic={}, key={}, partition={}, offset={}",
                         topic, key,
                         result.recordMetadata.partition(),

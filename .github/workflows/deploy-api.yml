@@ -243,7 +243,7 @@ jobs:
           proxy_key: ${{ secrets.SERVER_SSH_KEY }}
           script: mkdir -p /home/hirelog/scripts
 
-      - name: Copy CDC script to infra server
+      - name: Copy scripts to infra server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_INFRA_HOST }}
@@ -252,9 +252,24 @@ jobs:
           proxy_host: ${{ secrets.SERVER_API_HOST }}
           proxy_username: ${{ secrets.SERVER_USER }}
           proxy_key: ${{ secrets.SERVER_SSH_KEY }}
-          source: scripts/setup-postgres-cdc-prod.sh
+          source: >-
+            scripts/setup-postgres-cdc-prod.sh,
+            scripts/create-kafka-topic-prod.sh
           target: /home/hirelog/scripts/
           strip_components: 1
+
+      - name: Create Kafka topics on infra server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_INFRA_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ secrets.SERVER_API_HOST }}
+          proxy_username: ${{ secrets.SERVER_USER }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            chmod +x /home/hirelog/scripts/create-kafka-topic-prod.sh
+            bash /home/hirelog/scripts/create-kafka-topic-prod.sh
 
       - name: Run setup-postgres-cdc-prod.sh on infra server
         uses: appleboy/ssh-action@v1.0.3
