@@ -31,7 +31,7 @@ DEBEZIUM_PASSWORD=debezium
 
 # debezium 는 expose 만 선언(ports 미사용) → host에서 localhost:8083 접근 불가
 # docker inspect 로 컨테이너 내부 IP 를 가져와 직접 접근
-DEBEZIUM_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' debezium)
+DEBEZIUM_IP=$(docker inspect -f '{{.NetworkSettings.Networks.hirelog_internal.IPAddress}}' debezium)
 CONNECT_URL="http://${DEBEZIUM_IP}:8083"
 
 CONNECTOR_NAME="hirelog-outbox-connector"
