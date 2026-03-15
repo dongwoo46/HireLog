@@ -29,13 +29,13 @@ interface JdSummaryProcessingJpaRepository :
      */
     @Query("""
     SELECT p FROM JdSummaryProcessing p
-    WHERE p.status = :status
+    WHERE p.status IN :statuses
       AND p.llmResultJson IS NOT NULL
       AND p.updatedAt < :olderThan
     ORDER BY p.updatedAt ASC
 """)
     fun findStuckWithLlmResult(
-        @Param("status") status: JdSummaryProcessingStatus,
+        @Param("statuses") statuses: List<JdSummaryProcessingStatus>,
         @Param("olderThan") olderThan: LocalDateTime,
         pageable: Pageable
     ): List<JdSummaryProcessing>

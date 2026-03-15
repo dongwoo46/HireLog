@@ -25,5 +25,11 @@ enum class JdSummaryProcessingStatus {
     /**
      * 처리 실패
      */
-    FAILED
+    FAILED,
+
+    /**
+     * LLM 호출은 성공했으나 Post-LLM DB 저장 실패
+     * - llmResultJson 보존됨 → 복구 스케줄러 대상
+     */
+    POST_LLM_FAILED
 }

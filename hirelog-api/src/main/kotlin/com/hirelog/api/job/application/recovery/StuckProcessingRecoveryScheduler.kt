@@ -65,7 +65,10 @@ class StuckProcessingRecoveryScheduler(
         val olderThan = LocalDateTime.now().minusMinutes(STUCK_THRESHOLD_MINUTES)
 
         val stuckList = processingQuery.findStuckWithLlmResult(
-            status = JdSummaryProcessingStatus.SUMMARIZING,
+            statuses = listOf(
+                JdSummaryProcessingStatus.SUMMARIZING,
+                JdSummaryProcessingStatus.POST_LLM_FAILED
+            ),
             olderThan = olderThan,
             limit = BATCH_SIZE
         )

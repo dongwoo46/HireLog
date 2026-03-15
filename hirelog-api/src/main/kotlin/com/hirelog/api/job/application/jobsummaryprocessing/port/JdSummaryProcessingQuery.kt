@@ -31,7 +31,7 @@ interface JdSummaryProcessingQuery {
      * - Post-LLM 트랜잭션 실패 후 복구 대상 조회
      */
     fun findStuckWithLlmResult(
-        status: JdSummaryProcessingStatus,
+        statuses: List<JdSummaryProcessingStatus>,
         olderThan: LocalDateTime,
         limit: Int
     ): List<JdSummaryProcessing>

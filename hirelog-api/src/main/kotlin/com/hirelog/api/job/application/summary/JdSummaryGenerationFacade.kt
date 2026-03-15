@@ -60,10 +60,14 @@ class JdSummaryGenerationFacade(
                     command.brandName,
                     command.positionName
                 )
-                postLlm.execute(preResult.snapshotId, llmResult, processing.id, command)
+                try {
+                    postLlm.execute(preResult.snapshotId, llmResult, processing.id, command)
+                } catch (e: Exception) {
+                    errorHandler.handlePostLlm(processing.id, e, command.requestId)
+                }
             }, executor)
             .exceptionally {
-                errorHandler.handle(processing.id, it, command.requestId, "LLM_OR_POST_LLM")
+                errorHandler.handle(processing.id, it, command.requestId, "LLM")
                 null
             }
     }
