@@ -7,8 +7,8 @@ import {
   TbX,
   TbHome,
   TbList,
-  TbPlus,
-  TbUserCircle
+  TbUserCircle,
+  TbSettings
 } from 'react-icons/tb';
 import { apiClient } from '../utils/apiClient';
 
@@ -77,7 +77,6 @@ export function Header() {
   const navLinks = [
     { label: '홈', path: '/', icon: <TbHome size={20} /> },
     { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
-    { label: 'JD 등록', path: '/jd/request', icon: <TbPlus size={20} /> },
     { label: '사용자 요청', path: '/requests', icon: <TbUserCircle size={20} /> },
   ];
 
@@ -101,8 +100,8 @@ export function Header() {
               key={link.path}
               to={link.path}
               className={`transition-colors hover:text-[#4CDFD5] ${location.pathname === link.path
-                  ? 'text-gray-900 border-b-2 border-[#4CDFD5] py-5'
-                  : ''
+                ? 'text-gray-900 border-b-2 border-[#4CDFD5] py-5'
+                : ''
                 }`}
             >
               {link.label}
@@ -193,6 +192,39 @@ export function Header() {
           </button>
         </div>
       </div>
+
+      {/* 모바일 네비게이션 */}
+      {isMobileOpen && (
+        <div className="md:hidden absolute top-[4.5rem] right-6 w-48 bg-white/95 backdrop-blur-md shadow-2xl border border-gray-100 rounded-2xl overflow-hidden z-50">
+          <nav className="flex flex-col px-4 py-4 space-y-3">
+            {navLinks.map(link => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`flex items-center gap-2 text-sm font-bold transition-colors ${location.pathname === link.path
+                  ? 'text-[#4CDFD5]'
+                  : 'text-gray-600 hover:text-[#4CDFD5]'
+                  }`}
+              >
+                <span className="scale-[0.85]">{link.icon}</span>
+                {link.label}
+              </Link>
+            ))}
+
+            {user?.role === 'ADMIN' && (
+              <div className="pt-2 border-t border-gray-100/50">
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-2 text-sm font-bold text-[#3FB6B2] hover:text-[#35A09D] transition-colors"
+                >
+                  <TbSettings size={18} />
+                  관리자
+                </Link>
+              </div>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
