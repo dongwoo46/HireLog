@@ -12,32 +12,11 @@ env:
   IMAGE: ghcr.io/dongwoo46/hirelog-preprocess
 
 jobs:
-  test:
+  build:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
        github.event.pull_request.head.ref == 'develop')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: preprocess-pipeline/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-        working-directory: preprocess-pipeline
-
-      - name: Run tests
-        run: pytest
-        working-directory: preprocess-pipeline
-
-  build:
-    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -107,6 +86,7 @@ jobs:
           script: |
             set -e
 
+            export GITHUB_USERNAME=${{ github.repository_owner }}
             export PREPROCESS_IMAGE=ghcr.io/dongwoo46/hirelog-preprocess:${{ needs.build.outputs.image_tag }}
             WORKDIR=/home/hirelog
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"

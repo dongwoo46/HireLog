@@ -36,4 +36,18 @@ class PipelineErrorHandler(
             JobSummaryRequestEvent.Failed.of(processingId.toString(), errorCode, requestId)
         )
     }
+
+    fun handlePostLlm(processingId: UUID, ex: Throwable, requestId: String) {
+        val cause = if (ex is CompletionException) ex.cause ?: ex else ex
+
+        processingWriteService.markPostLlmFailed(
+            processingId,
+            "POST_LLM_FAILED",
+            cause.message ?: "Unknown error"
+        )
+
+        eventPublisher.publishEvent(
+            JobSummaryRequestEvent.Failed.of(processingId.toString(), "POST_LLM_FAILED", requestId)
+        )
+    }
 }

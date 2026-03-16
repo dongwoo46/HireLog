@@ -55,7 +55,7 @@ export default function AdminUserRequestTab() {
                     <option value="">전체 상태</option>
                     <option value="PENDING">대기중</option>
                     <option value="IN_PROGRESS">처리중</option>
-                    <option value="COMPLETED">완료</option>
+                    <option value="RESOLVED">완료</option>
                     <option value="REJECTED">거절</option>
                 </select>
             </div>
@@ -88,7 +88,7 @@ export default function AdminUserRequestTab() {
                                     </td>
                                     <td className="py-4 text-gray-500">{req.username || 'Anonymous'}</td>
                                     <td className="py-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${req.status === 'COMPLETED'
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${req.status === 'RESOLVED' || req.status === 'COMPLETED'
                                             ? 'bg-green-50 text-green-600'
                                             : req.status === 'REJECTED'
                                                 ? 'bg-red-50 text-red-600'
@@ -96,13 +96,13 @@ export default function AdminUserRequestTab() {
                                                     ? 'bg-blue-50 text-blue-600'
                                                     : 'bg-yellow-50 text-yellow-600'
                                             }`}>
-                                            {req.status}
+                                            {req.status === 'RESOLVED' ? '완료' : req.status === 'PENDING' ? '대기중' : req.status === 'IN_PROGRESS' ? '처리중' : req.status === 'REJECTED' ? '거절' : req.status}
                                         </span>
                                     </td>
                                     <td className="py-4 text-right pr-4">
                                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
-                                                onClick={() => navigate(`/user-requests/${req.id}`)}
+                                                onClick={() => navigate(`/requests/${req.id}`)}
                                                 className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="상세보기"
                                             >
@@ -116,7 +116,7 @@ export default function AdminUserRequestTab() {
                                                 <TbMessageForward size={18} />
                                             </button>
                                             <button
-                                                onClick={() => handleStatusChange(req.id, 'COMPLETED')}
+                                                onClick={() => handleStatusChange(req.id, 'RESOLVED')}
                                                 className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
                                                 title="완료로 변경"
                                             >

@@ -22,8 +22,8 @@
         </logger>
     </springProfile>
 
-    <!-- 그 외 프로파일: Loki 연동 JSON 포맷 -->
-    <springProfile name="!local">
+    <!-- dev 프로파일: Loki 연동 JSON 포맷 + DEBUG -->
+    <springProfile name="dev">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
                 <customFields>{"app":"${springAppName}","env":"${activeProfile}"}</customFields>
@@ -46,6 +46,34 @@
         </root>
 
         <logger name="com.hirelog" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <!-- prod 프로파일: Loki 연동 JSON 포맷 + INFO -->
+    <springProfile name="prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app":"${springAppName}","env":"${activeProfile}"}</customFields>
+
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                    <maxLength>4096</maxLength>
+                </throwableConverter>
+
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <version>[ignore]</version>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <logger name="com.hirelog" level="INFO" additivity="false">
             <appender-ref ref="CONSOLE"/>
         </logger>
     </springProfile>

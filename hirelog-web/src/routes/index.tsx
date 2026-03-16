@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, useRouteError, Link } from 'react-router-dom';
 import { RootLayout } from '../layouts/RootLayout';
 import MainPage from '../pages/MainPage';
 import LoginPage from '../pages/LoginPage';
@@ -15,10 +15,30 @@ import JobSummaryArchivePage from '../pages/JobSummaryArchivePage';
 import JdListPage from '../pages/JdListPage';
 import AdminPage from '../pages/AdminPage';
 
+function ErrorBoundary() {
+  const error = useRouteError() as any;
+  console.error(error);
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center p-6">
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md w-full">
+        <h1 className="text-4xl font-black text-rose-500 mb-4">Oops!</h1>
+        <p className="text-gray-600 mb-6 font-medium">Sorry, an unexpected error has occurred.</p>
+        <p className="bg-rose-50 text-rose-600 px-4 py-3 rounded-xl text-sm mb-6 overflow-hidden text-ellipsis whitespace-nowrap">
+          <i>{error?.statusText || error?.message || "Unknown error"}</i>
+        </p>
+        <Link to="/" className="inline-flex justify-center items-center px-6 py-3 bg-[#4CDFD5] text-white font-bold rounded-xl hover:bg-[#3ccfc5] transition-colors w-full">
+          Return to Home
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         index: true,

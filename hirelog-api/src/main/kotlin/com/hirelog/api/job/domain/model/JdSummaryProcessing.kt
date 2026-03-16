@@ -212,4 +212,27 @@ class JdSummaryProcessing protected constructor(
 
         duplicateReason = null
     }
+
+    /**
+     * Post-LLM DB 저장 실패
+     *
+     * 규칙:
+     * - SUMMARIZING 상태에서만 가능
+     * - llmResultJson이 보존된 채로 상태만 전이
+     * - 복구 스케줄러가 llmResultJson으로 재처리
+     */
+    fun markPostLlmFailed(
+        errorCode: String,
+        errorMessage: String
+    ) {
+        require(status == JdSummaryProcessingStatus.SUMMARIZING) {
+            "Invalid state transition: $status -> POST_LLM_FAILED"
+        }
+
+        status = JdSummaryProcessingStatus.POST_LLM_FAILED
+        this.errorCode = errorCode
+        this.errorMessage = errorMessage.take(ERROR_MESSAGE_MAX_LENGTH)
+
+        duplicateReason = null
+    }
 }
