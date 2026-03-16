@@ -179,6 +179,15 @@ export const JobSummarySearch: React.FC<Props> = ({
             >
               검색
             </button>
+
+            <div className="w-px h-5 bg-gray-200 shrink-0" />
+
+            <a
+              href="/jd/request"
+              className="bg-gray-900 hover:bg-gray-800 text-white font-black rounded-xl transition-colors shrink-0 px-4 py-2 text-sm whitespace-nowrap"
+            >
+              JD 등록
+            </a>
           </div>
 
           {recentKeywords.length > 0 && (

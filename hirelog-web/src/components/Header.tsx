@@ -7,7 +7,6 @@ import {
   TbX,
   TbHome,
   TbList,
-  TbPlus,
   TbUserCircle,
   TbLogout,
   TbSettings
@@ -79,7 +78,6 @@ export function Header() {
   const navLinks = [
     { label: '홈', path: '/', icon: <TbHome size={20} /> },
     { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
-    { label: 'JD 등록', path: '/jd/request', icon: <TbPlus size={20} /> },
     { label: '사용자 요청', path: '/requests', icon: <TbUserCircle size={20} /> },
   ];
 
@@ -103,8 +101,8 @@ export function Header() {
               key={link.path}
               to={link.path}
               className={`transition-colors hover:text-[#4CDFD5] ${location.pathname === link.path
-                  ? 'text-gray-900 border-b-2 border-[#4CDFD5] py-5'
-                  : ''
+                ? 'text-gray-900 border-b-2 border-[#4CDFD5] py-5'
+                : ''
                 }`}
             >
               {link.label}
