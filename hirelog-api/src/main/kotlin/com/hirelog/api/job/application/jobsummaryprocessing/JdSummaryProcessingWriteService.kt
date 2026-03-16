@@ -118,6 +118,25 @@ class JdSummaryProcessingWriteService(
     }
 
     /**
+     * Post-LLM DB 저장 실패 상태로 전이
+     *
+     * 정책:
+     * - llmResultJson은 보존 (복구 스케줄러가 재처리)
+     * - LLM 재호출 없이 복구 가능
+     */
+    @Transactional
+    fun markPostLlmFailed(
+        processingId: UUID,
+        errorCode: String,
+        errorMessage: String
+    ) {
+        val processing = getRequired(processingId)
+        processing.markPostLlmFailed(errorCode, errorMessage)
+        command.update(processing)
+        log.warn("[PROCESSING_POST_LLM_FAILED] processingId={}, errorCode={}", processingId, errorCode)
+    }
+
+    /**
      * 반드시 존재해야 하는 Processing 조회
      */
     private fun getRequired(processingId: UUID): JdSummaryProcessing =

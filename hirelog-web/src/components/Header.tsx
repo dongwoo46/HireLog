@@ -7,6 +7,7 @@ import {
   TbX,
   TbHome,
   TbList,
+  TbPlus,
   TbUserCircle,
   TbLogout,
   TbSettings

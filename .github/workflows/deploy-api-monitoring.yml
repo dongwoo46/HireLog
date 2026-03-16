@@ -1,0 +1,65 @@
+name: Deploy API Monitoring
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/api/docker-compose.prod.yml'
+      - 'docker/api/prometheus.yml'
+      - 'docker/api/loki-config.yml'
+      - 'docker/api/promtail-config.yml'
+      - 'docker/api/grafana/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose & config files to API server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: >-
+            docker/api/docker-compose.prod.yml,
+            docker/api/prometheus.yml,
+            docker/api/loki-config.yml,
+            docker/api/promtail-config.yml,
+            docker/api/grafana/
+          target: /home/hirelog/
+          strip_components: 2
+
+      - name: Write .env.prod to API server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          API_ENV_PROD: ${{ secrets.API_ENV_PROD }}
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: API_ENV_PROD
+          script: |
+            printf '%s\n' "$API_ENV_PROD" > /home/hirelog/.env.prod
+            echo "✅ .env.prod written"
+
+      - name: Restart monitoring services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            WORKDIR=/home/hirelog
+            export GITHUB_USERNAME=${{ github.repository_owner }}
+            COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
+
+            # redis는 상태 유지 서비스 → force-recreate 제외
+            $COMPOSE up -d redis redis-exporter
+            $COMPOSE up -d --force-recreate \
+              prometheus grafana loki promtail node-exporter
+
+            echo "🎉 Monitoring services restarted"

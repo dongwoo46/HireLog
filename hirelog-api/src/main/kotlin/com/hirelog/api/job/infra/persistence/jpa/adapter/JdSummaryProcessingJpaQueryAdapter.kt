@@ -26,7 +26,7 @@ class JdSummaryProcessingJpaQueryAdapter(
         repository.findById(id).orElse(null)
 
     override fun findStuckWithLlmResult(
-        status: JdSummaryProcessingStatus,
+        statuses: List<JdSummaryProcessingStatus>,
         olderThan: LocalDateTime,
         limit: Int
     ): List<JdSummaryProcessing> {
@@ -37,7 +37,7 @@ class JdSummaryProcessingJpaQueryAdapter(
         )
 
         return repository.findStuckWithLlmResult(
-            status = status,
+            statuses = statuses,
             olderThan = olderThan,
             pageable = pageable
         )

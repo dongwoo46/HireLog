@@ -302,5 +302,9 @@ class JobSummaryWriteService(
             payload = objectMapper.writeValueAsString(payload)
         )
         outboxEventWriteService.append(outboxEvent)
+        log.info(
+            "[JOB_SUMMARY_OUTBOX_APPENDED] summaryId={}, eventType={}",
+            summary.id, EventType.CREATED
+        )
     }
 }

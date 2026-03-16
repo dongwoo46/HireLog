@@ -60,13 +60,13 @@ class JdIntakeService(
             text = text,
         )
 
+        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        appendOutbox(AggregateType.JD_PREPROCESS_TEXT, message)
+
         log.info(
             "[JD_INTAKE_TEXT_REQUESTED] memberId={}, requestId={}, brandName={}, positionName={}",
             memberId, message.requestId, brandName, brandPositionName
         )
-
-        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
-        appendOutbox(AggregateType.JD_PREPROCESS_TEXT, message)
 
         return message.requestId
     }
@@ -98,13 +98,13 @@ class JdIntakeService(
             images = savedPaths,
         )
 
+        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        appendOutbox(AggregateType.JD_PREPROCESS_OCR, message)
+
         log.info(
             "[JD_INTAKE_OCR_REQUESTED] memberId={}, requestId={}, brandName={}, positionName={}, imageCount={}",
             memberId, message.requestId, brandName, brandPositionName, imageFiles.size
         )
-
-        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
-        appendOutbox(AggregateType.JD_PREPROCESS_OCR, message)
 
         return message.requestId
     }
@@ -144,13 +144,13 @@ class JdIntakeService(
             url = url,
         )
 
+        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        appendOutbox(AggregateType.JD_PREPROCESS_URL, message)
+
         log.info(
             "[JD_INTAKE_URL_REQUESTED] memberId={}, requestId={}, brandName={}, positionName={}, url={}",
             memberId, message.requestId, brandName, brandPositionName, url
         )
-
-        jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
-        appendOutbox(AggregateType.JD_PREPROCESS_URL, message)
 
         return UrlIntakeResult.NewRequest(message.requestId)
     }
@@ -159,13 +159,25 @@ class JdIntakeService(
         aggregateType: AggregateType,
         message: JdPreprocessRequestMessage
     ) {
-        val outboxEvent = OutboxEvent.occurred(
-            aggregateType = aggregateType,
-            aggregateId = message.requestId,
-            eventType = "JD_PREPROCESS_REQUESTED",
-            payload = objectMapper.writeValueAsString(message)
-        )
-        outboxEventWriteService.append(outboxEvent)
+        try {
+            val outboxEvent = OutboxEvent.occurred(
+                aggregateType = aggregateType,
+                aggregateId = message.requestId,
+                eventType = "JD_PREPROCESS_REQUESTED",
+                payload = objectMapper.writeValueAsString(message)
+            )
+            outboxEventWriteService.append(outboxEvent)
+            log.info(
+                "[JD_INTAKE_OUTBOX_APPENDED] aggregateType={}, requestId={}",
+                aggregateType, message.requestId
+            )
+        } catch (e: Exception) {
+            log.error(
+                "[JD_INTAKE_OUTBOX_FAILED] aggregateType={}, requestId={}, error={}",
+                aggregateType, message.requestId, e.message, e
+            )
+            throw e
+        }
     }
 
     private fun isValidUrl(url: String): Boolean {

@@ -60,22 +60,25 @@ class StuckProcessingRecoveryScheduler(
      */
     @Scheduled(cron = "0 */30 * * * *")
     fun recoverStuckProcessing() {
-        log.info("[STUCK_PROCESSING_RECOVERY_START]")
+        log.debug("[STUCK_PROCESSING_RECOVERY_START]")
 
         val olderThan = LocalDateTime.now().minusMinutes(STUCK_THRESHOLD_MINUTES)
 
         val stuckList = processingQuery.findStuckWithLlmResult(
-            status = JdSummaryProcessingStatus.SUMMARIZING,
+            statuses = listOf(
+                JdSummaryProcessingStatus.SUMMARIZING,
+                JdSummaryProcessingStatus.POST_LLM_FAILED
+            ),
             olderThan = olderThan,
             limit = BATCH_SIZE
         )
 
         if (stuckList.isEmpty()) {
-            log.debug("[STUCK_PROCESSING_RECOVERY_SKIP] No stuck processing found")
+            log.info("[STUCK_PROCESSING_RECOVERY_SKIP] No stuck processing found")
             return
         }
 
-        log.info("[STUCK_PROCESSING_RECOVERY_FOUND] count={}", stuckList.size)
+        log.debug("[STUCK_PROCESSING_RECOVERY_FOUND] count={}", stuckList.size)
 
         var successCount = 0
         var failCount = 0
