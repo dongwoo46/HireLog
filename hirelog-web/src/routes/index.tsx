@@ -14,6 +14,7 @@ import ProfilePage from '../pages/ProfilePage';
 import JobSummaryArchivePage from '../pages/JobSummaryArchivePage';
 import JdListPage from '../pages/JdListPage';
 import AdminPage from '../pages/AdminPage';
+import { ProtectedRoute } from '../components/common/ProtectedRoute';
 
 function ErrorBoundary() {
   const error = useRouteError() as any;
@@ -56,46 +57,53 @@ export const router = createBrowserRouter([
         path: 'recovery',
         element: <RecoveryPage />,
       },
+
+      // Protected Routes
       {
-        path: 'jd',
-        element: <JobSummaryListPage />,
-      },
-      {
-        path: 'jd/:id',
-        element: <JobSummaryDetailPage />,
-      },
-      {
-        path: 'jd/request',
-        element: <JobSummaryRequestPage />,
-      },
-      {
-        path: 'requests',
-        element: <UserRequestListPage />,
-      },
-      {
-        path: 'requests/new',
-        element: <UserRequestCreatePage />,
-      },
-      {
-        path: 'requests/:id',
-        element: <UserRequestDetailPage />,
-      },
-      {
-        path: 'profile',
-        element: <ProfilePage />,
-      },
-      {
-        path: 'archive',
-        element: <JobSummaryArchivePage />,
-      },
-      {
-        path: 'history',
-        element: <JdListPage />,
-      },
-      {
-        path: 'admin',
-        element: <AdminPage />,
-      },
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: 'jd',
+            element: <JobSummaryListPage />,
+          },
+          {
+            path: 'jd/:id',
+            element: <JobSummaryDetailPage />,
+          },
+          {
+            path: 'jd/request',
+            element: <JobSummaryRequestPage />,
+          },
+          {
+            path: 'requests',
+            element: <UserRequestListPage />,
+          },
+          {
+            path: 'requests/new',
+            element: <UserRequestCreatePage />,
+          },
+          {
+            path: 'requests/:id',
+            element: <UserRequestDetailPage />,
+          },
+          {
+            path: 'profile',
+            element: <ProfilePage />,
+          },
+          {
+            path: 'archive',
+            element: <JobSummaryArchivePage />,
+          },
+          {
+            path: 'history',
+            element: <JdListPage />,
+          },
+          {
+            path: 'admin',
+            element: <AdminPage />,
+          },
+        ]
+      }
     ],
   },
 ]);
