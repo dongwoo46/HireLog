@@ -93,28 +93,45 @@ export function Header() {
           HireLog
         </Link>
 
-        {/* 데스크탑 네비 */}
+        {/* 네비게이션 */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-gray-500">
-          {navLinks.map(link => (
-            <Link
-              key={link.path}
-              to={link.path}
-              className={`transition-colors hover:text-[#4CDFD5] ${location.pathname === link.path
-                ? 'text-gray-900 border-b-2 border-[#4CDFD5] py-5'
-                : ''
-                }`}
+          {!isAuthenticated ? (
+            <button
+              onClick={() => {
+                if (location.pathname !== '/') {
+                  navigate('/#intro');
+                } else {
+                  document.getElementById('intro')?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              className="transition-colors hover:text-[#4CDFD5]"
             >
-              {link.label}
-            </Link>
-          ))}
+              기업 소개
+            </button>
+          ) : (
+            <>
+              {navLinks.map(link => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`transition-colors hover:text-[#4CDFD5] ${location.pathname === link.path
+                    ? 'text-gray-900 border-b-2 border-[#4CDFD5] py-5'
+                    : ''
+                    }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
 
-          {user?.role === 'ADMIN' && (
-            <Link
-              to="/admin"
-              className="text-[#3FB6B2] font-bold"
-            >
-              관리자
-            </Link>
+              {user?.role === 'ADMIN' && (
+                <Link
+                  to="/admin"
+                  className="text-[#3FB6B2] font-bold"
+                >
+                  관리자
+                </Link>
+              )}
+            </>
           )}
         </nav>
 
@@ -197,30 +214,50 @@ export function Header() {
       {isMobileOpen && (
         <div className="md:hidden absolute top-[4.5rem] right-6 w-48 bg-white/95 backdrop-blur-md shadow-2xl border border-gray-100 rounded-2xl overflow-hidden z-50">
           <nav className="flex flex-col px-4 py-4 space-y-3">
-            {navLinks.map(link => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`flex items-center gap-2 text-sm font-bold transition-colors ${location.pathname === link.path
-                  ? 'text-[#4CDFD5]'
-                  : 'text-gray-600 hover:text-[#4CDFD5]'
-                  }`}
+            {!isAuthenticated ? (
+              <button
+                onClick={() => {
+                  setIsMobileOpen(false);
+                  if (location.pathname !== '/') {
+                    navigate('/#intro');
+                  } else {
+                    document.getElementById('intro')?.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-[#4CDFD5] transition-colors"
               >
-                <span className="scale-[0.85]">{link.icon}</span>
-                {link.label}
-              </Link>
-            ))}
+                기업 소개
+              </button>
+            ) : (
+              <>
+                {navLinks.map(link => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={`flex items-center gap-2 text-sm font-bold transition-colors ${location.pathname === link.path
+                      ? 'text-[#4CDFD5]'
+                      : 'text-gray-600 hover:text-[#4CDFD5]'
+                      }`}
+                  >
+                    <span className="scale-[0.85]">{link.icon}</span>
+                    {link.label}
+                  </Link>
+                ))}
 
-            {user?.role === 'ADMIN' && (
-              <div className="pt-2 border-t border-gray-100/50">
-                <Link
-                  to="/admin"
-                  className="flex items-center gap-2 text-sm font-bold text-[#3FB6B2] hover:text-[#35A09D] transition-colors"
-                >
-                  <TbSettings size={18} />
-                  관리자
-                </Link>
-              </div>
+                {user?.role === 'ADMIN' && (
+                  <div className="pt-2 border-t border-gray-100/50">
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMobileOpen(false)}
+                      className="flex items-center gap-2 text-sm font-bold text-[#3FB6B2] hover:text-[#35A09D] transition-colors"
+                    >
+                      <TbSettings size={18} />
+                      관리자
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
           </nav>
         </div>
