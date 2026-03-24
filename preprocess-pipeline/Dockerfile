@@ -35,13 +35,11 @@ WORKDIR /app
 # ─────────────────────────────────────────────────────────────────
 COPY requirements.txt .
 
-# pip toolchain 먼저 업그레이드 → 이후 requirements 설치
-RUN pip install --no-cache-dir --upgrade \
-    "pip<25" \
-    "setuptools<81" \
-    "wheel<0.46" \
-    && pip install --no-cache-dir -r requirements.txt
-
+RUN python -m pip install --no-cache-dir --upgrade \
+    "pip==24.3.1" \
+    "setuptools==68.2.2" \
+    "wheel==0.41.3" \
+    && python -m pip install --no-cache-dir --no-use-pep517 -r requirements.txt
 # ─────────────────────────────────────────────────────────────────
 # Playwright Chromium + 시스템 의존성 설치, apt 정리
 #  --with-deps: Chromium 바이너리 + libnss3 등 apt 패키지를 한 번에 처리
