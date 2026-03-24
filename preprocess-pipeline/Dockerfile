@@ -34,12 +34,8 @@ WORKDIR /app
 # Python 의존성 (소스 복사 전 레이어 분리 → 캐시 재사용)
 # ─────────────────────────────────────────────────────────────────
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN python -m pip install --no-cache-dir --upgrade \
-    "pip==24.3.1" \
-    "setuptools==68.2.2" \
-    "wheel==0.41.3" \
-    && python -m pip install --no-cache-dir --no-use-pep517 -r requirements.txt
 # ─────────────────────────────────────────────────────────────────
 # Playwright Chromium + 시스템 의존성 설치, apt 정리
 #  --with-deps: Chromium 바이너리 + libnss3 등 apt 패키지를 한 번에 처리
