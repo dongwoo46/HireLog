@@ -86,7 +86,7 @@ const MainPage = () => {
         </section>
 
         {/* 서비스 소개 */}
-        <section className="bg-[#0b121a] py-28">
+        <section id="intro" className="bg-[#0b121a] py-28">
           <div className="max-w-5xl mx-auto px-6 text-center">
             <h3 className="text-3xl font-bold mb-16">
               HireLog와 함께 성장하세요
@@ -201,4 +201,4 @@ const MainPage = () => {
   );
 };
 
-        export default MainPage;
+export default MainPage;
