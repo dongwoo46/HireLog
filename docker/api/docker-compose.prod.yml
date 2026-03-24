@@ -180,7 +180,7 @@ services:
   # Server2(10.0.1.6) Kafka 직접 연결 → hirelog_external 필요
   # ──────────────────────────────────────────────
   preprocess:
-    image: ghcr.io/${GITHUB_USERNAME}/hirelog-preprocess:latest
+    image: ${PREPROCESS_IMAGE}
     container_name: preprocess
     restart: unless-stopped
     env_file:
