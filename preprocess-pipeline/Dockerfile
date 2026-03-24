@@ -36,7 +36,10 @@ WORKDIR /app
 COPY requirements.txt .
 
 # pip toolchain 먼저 업그레이드 → 이후 requirements 설치
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+RUN pip install --no-cache-dir --upgrade \
+    "pip<25" \
+    "setuptools<81" \
+    "wheel<0.46" \
     && pip install --no-cache-dir -r requirements.txt
 
 # ─────────────────────────────────────────────────────────────────
