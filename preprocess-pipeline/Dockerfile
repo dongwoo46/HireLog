@@ -34,7 +34,10 @@ WORKDIR /app
 # Python 의존성 (소스 복사 전 레이어 분리 → 캐시 재사용)
 # ─────────────────────────────────────────────────────────────────
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# pip toolchain 먼저 업그레이드 → 이후 requirements 설치
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements.txt
 
 # ─────────────────────────────────────────────────────────────────
 # Playwright Chromium + 시스템 의존성 설치, apt 정리
