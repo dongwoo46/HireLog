@@ -37,21 +37,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image (local)
-        uses: docker/build-push-action@v5
-        with:
-          context: preprocess-pipeline
-          push: false
-          load: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Push image
+      - name: Build and Push image
         uses: docker/build-push-action@v5
         with:
           context: preprocess-pipeline
           push: true
+          platforms: linux/arm64
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
