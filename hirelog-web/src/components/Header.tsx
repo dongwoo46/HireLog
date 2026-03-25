@@ -81,16 +81,20 @@ export function Header() {
   ];
 
   return (
-    <header className="fixed w-full bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
+    <header className="fixed w-full bg-white border-b border-gray-100 z-50">
       <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
 
         {/* 로고 */}
         <Link
           to="/"
-          className="text-xl font-black tracking-tighter text-gray-900 flex items-center gap-2"
+          className="flex items-center"
+          aria-label="HireLog home"
         >
-          <div className="w-8 h-8 bg-gradient-to-tr from-[#276db8] to-[#4CDFD5] rounded-lg" />
-          HireLog
+          <img
+            src="/hirelog_no_bg.png"
+            alt="HireLog"
+            className="h-12 sm:h-14 w-auto object-contain"
+          />
         </Link>
 
         {/* 네비게이션 */}
