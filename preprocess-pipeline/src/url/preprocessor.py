@@ -135,10 +135,14 @@ def preprocess_url_text(text: str) -> List[str]:
             continue
 
         # 6. 중복 라인 제거
+        # header keyword는 탭 nav와 JD 본문에 동일하게 등장할 수 있으므로 dedup 제외
+        # _remove_menu_fragments에서 연속 5개 전부 header인 경우 탭 nav로 판단해 제거
         line_key = line.lower().replace(" ", "")
         if line_key in seen_lines:
-            continue
-        seen_lines.add(line_key)
+            if not _is_header_keyword(line, load_header_keywords()):
+                continue
+        else:
+            seen_lines.add(line_key)
 
         # 7. 특수문자 정리
         line = _clean_special_chars(line)
