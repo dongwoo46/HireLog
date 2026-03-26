@@ -69,6 +69,16 @@ UI_NOISE_PATTERNS = [
     r"^©",                     # 저작권
     r"^Copyright",             # 저작권 영문
     r"^All rights reserved",   # 저작권
+
+    # 리멤버 플랫폼 광고/UI 텍스트
+    r"^이 포지션에 합격해 입사하시면",
+    r"^합격 보상금",
+    r"^먼저 입사한 실무자에게",
+    r"^이 공고와 비슷한 공고",
+    r"^리멤버에서 수집한 기업 정보",
+    r"^정보 수정이 필요할 경우",
+    r"^로그인하고 현직자에게",
+    r"^사용자가 커넥트에 입력한",
 ]
 
 # 불필요한 메타 정보 패턴
@@ -202,7 +212,10 @@ def _remove_menu_fragments(lines: List[str]) -> List[str]:
     메뉴 잔해 패턴 제거
 
     연속된 짧은 라인(5개 이상)이 모두 10자 이하면 메뉴 잔해로 간주
-    단, header keyword가 포함된 라인은 보존
+    단, header keyword가 포함된 라인은 보존.
+
+    예외: 버퍼 전체가 header keyword로만 구성된 경우 탭 네비게이션으로 판단해 전부 제거.
+    (리멤버 등 탭 nav 패턴: 주요업무/자격요건/우대사항/채용절차/기타안내 5개 연속)
     """
     if len(lines) < 5:
         return lines
@@ -217,13 +230,14 @@ def _remove_menu_fragments(lines: List[str]) -> List[str]:
         else:
             # 버퍼에 쌓인 짧은 라인들 처리
             if len(buffer) >= 5:
-                # 5개 이상 연속 짧은 라인 → 메뉴 잔해로 판단
-                # 단, header keyword 포함 라인은 보존
-                for buf_line in buffer:
-                    if _is_header_keyword(buf_line, header_keywords):
-                        result.append(buf_line)
+                # 전부 header keyword → 탭 네비게이션으로 판단 → 전부 제거
+                if all(_is_header_keyword(l, header_keywords) for l in buffer):
+                    pass
+                else:
+                    for buf_line in buffer:
+                        if _is_header_keyword(buf_line, header_keywords):
+                            result.append(buf_line)
             else:
-                # 5개 미만이면 보존
                 result.extend(buffer)
 
             buffer = []
@@ -232,10 +246,12 @@ def _remove_menu_fragments(lines: List[str]) -> List[str]:
     # 마지막 버퍼 처리
     if buffer:
         if len(buffer) >= 5:
-            # header keyword 포함 라인만 보존
-            for buf_line in buffer:
-                if _is_header_keyword(buf_line, header_keywords):
-                    result.append(buf_line)
+            if all(_is_header_keyword(l, header_keywords) for l in buffer):
+                pass
+            else:
+                for buf_line in buffer:
+                    if _is_header_keyword(buf_line, header_keywords):
+                        result.append(buf_line)
         else:
             result.extend(buffer)
 
