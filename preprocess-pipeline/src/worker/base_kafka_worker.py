@@ -1,34 +1,34 @@
-# src/worker/base_kafka_worker.py
+﻿# src/worker/base_kafka_worker.py
 
 """
 Kafka 기반 Base Worker
 
 핵심 원칙:
 1. Python Worker는 실행기(executor) 역할만 수행
-2. 비즈니스 판단, 재시도 정책, 상태 전이는 Java(Spring)에서 담당
-3. 어떤 상황에서도 commit은 반드시 수행 (파이프라인 멈추지 않음)
-4. producer send 실패로 consumer 흐름이 중단되어선 안 됨
+2. 비즈니스 판단/정책/상태 전이는 상위 서비스에서 담당
+3. 어떤 상황에서도 commit은 반드시 수행(파이프라인 정지 방지)
+4. producer send 실패가 consumer 흐름을 중단시키지 않음
 
 실패 처리 흐름:
-1. 처리 실패 → fail 토픽 발행 시도
-2. fail 토픽 발행 실패 → 로컬 파일 백업
+1. 처리 실패 시 fail 토픽 발행 시도
+2. fail 토픽 발행 실패 시 로컬 파일 백업
 3. 무조건 commit
 """
 
-import logging
 import json
-import time
+import logging
 import threading
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+from common.exceptions import ErrorCode, ProcessingError
 from infra.config.kafka_config import WorkerConfig
 from infra.kafka.kafka_consumer import KafkaStreamConsumer
 from infra.kafka.kafka_producer import KafkaStreamProducer
-from common.exceptions import ProcessingError, ErrorCode
-from outputs.kafka_jd_preprocess_output import KafkaJdPreprocessOutput
 from outputs.kafka_fail_output import KafkaFailOutput
+from outputs.kafka_jd_preprocess_output import KafkaJdPreprocessOutput
 from utils.fail_backup import get_fail_backup_writer
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ProcessContext:
-    """처리 컨텍스트 (메시지 처리 중 필요한 정보)"""
+    """메시지 처리 시 필요한 컨텍스트 정보"""
+
     kafka_meta: Dict[str, Any]
     request_id: str
     source: str
@@ -52,7 +53,7 @@ class BaseKafkaWorker(ABC):
     - Kafka 메시지 polling
     - process() 호출
     - 성공 시 result 토픽 발행
-    - 실패 시 fail 토픽 발행 (발행 실패 시 로컬 백업)
+    - 실패 시 fail 토픽 발행(실패하면 로컬 백업)
     - 무조건 commit
     - Graceful shutdown
 
@@ -130,18 +131,16 @@ class BaseKafkaWorker(ABC):
         """
         메시지 처리 + 발행 + commit 일괄 처리
 
-        핵심: 어떤 실패도 commit을 막지 않는다
+        핵심: 어떤 실패도 commit을 막지 않음
         """
         context: Optional[ProcessContext] = None
 
         try:
-            # ==================================================
             # 1. 메시지 파싱
-            # ==================================================
             message = self._parse_kafka_message(kafka_msg)
 
             if message is None:
-                # JSON 파싱 실패: 재시도 의미 없음 → commit
+                # JSON 파싱 실패: 재시도 의미 없음 -> commit
                 return
 
             context = ProcessContext(
@@ -161,15 +160,20 @@ class BaseKafkaWorker(ABC):
                 },
             )
 
-            # ==================================================
             # 2. 전처리 실행
-            # ==================================================
             context.pipeline_stage = "PREPROCESS"
             result = self.process(message)
+            logger.info(
+                "Preprocess completed",
+                extra={
+                    "worker_name": self.worker_name,
+                    "request_id": context.request_id,
+                    "source": context.source,
+                    "preprocess_result": result.to_dict(),
+                },
+            )
 
-            # ==================================================
-            # 3. 성공 → result 토픽 발행
-            # ==================================================
+            # 3. 성공 결과 발행
             context.pipeline_stage = "PUBLISH_RESULT"
             self._publish_success(result, context)
 
@@ -179,9 +183,7 @@ class BaseKafkaWorker(ABC):
             )
 
         except ProcessingError as e:
-            # ==================================================
-            # 4. 처리 실패 → fail 토픽 발행
-            # ==================================================
+            # 4. 처리 실패 시 fail 토픽 발행
             logger.error(
                 "Processing failed",
                 extra={
@@ -194,9 +196,7 @@ class BaseKafkaWorker(ABC):
             self._handle_failure(e, context)
 
         except Exception as e:
-            # ==================================================
-            # 5. 예상치 못한 예외 → ProcessingError로 래핑
-            # ==================================================
+            # 5. 예상치 못한 예외는 ProcessingError로 래핑
             logger.exception(
                 "Unexpected error",
                 extra={
@@ -212,9 +212,7 @@ class BaseKafkaWorker(ABC):
             self._handle_failure(wrapped, context)
 
         finally:
-            # ==================================================
             # 6. 무조건 commit
-            # ==================================================
             self._safe_commit(kafka_msg)
 
     def _publish_success(self, result: KafkaJdPreprocessOutput, context: ProcessContext) -> None:
@@ -234,7 +232,7 @@ class BaseKafkaWorker(ABC):
                 },
             )
         except Exception as e:
-            # result 토픽 발행 실패 → fail 토픽으로 전환
+            # result 토픽 발행 실패 -> fail 토픽 경로로 전환
             logger.error(
                 "Failed to publish result",
                 extra={
@@ -245,16 +243,16 @@ class BaseKafkaWorker(ABC):
             )
             wrapped = ProcessingError(
                 error_code=ErrorCode.INFRA_KAFKA_001,
-                message=f"Result 토픽 발행 실패: {str(e)}",
+                message=f"Result topic publish failed: {str(e)}",
                 cause=e,
             )
             self._handle_failure(wrapped, context)
 
     def _handle_failure(self, error: ProcessingError, context: Optional[ProcessContext]) -> None:
         """
-        실패 처리: fail 토픽 발행 → 실패 시 로컬 백업
+        실패 처리: fail 토픽 발행, 실패하면 로컬 백업
 
-        핵심: 예외 전파 없음 (내부 try/except로 흡수)
+        핵심: 예외 전파 없음(내부에서 모두 흡수)
         """
         if context is None:
             context = ProcessContext(
@@ -265,7 +263,6 @@ class BaseKafkaWorker(ABC):
                 pipeline_stage="UNKNOWN",
             )
 
-        # Fail Output 생성
         fail_output = KafkaFailOutput.from_error(
             request_id=context.request_id,
             source=context.source,
@@ -276,9 +273,7 @@ class BaseKafkaWorker(ABC):
             kafka_meta=context.kafka_meta,
         )
 
-        # ==================================================
         # 1차 시도: fail 토픽 발행
-        # ==================================================
         publish_error: Optional[str] = None
 
         try:
@@ -295,7 +290,7 @@ class BaseKafkaWorker(ABC):
                     "error_code": error.error_code.value,
                 },
             )
-            return  # 성공 시 종료
+            return
 
         except Exception as e:
             publish_error = str(e)
@@ -308,9 +303,7 @@ class BaseKafkaWorker(ABC):
                 },
             )
 
-        # ==================================================
         # 2차 시도: 로컬 백업
-        # ==================================================
         self._fail_backup.write(
             request_id=context.request_id,
             source=context.source,
@@ -324,7 +317,7 @@ class BaseKafkaWorker(ABC):
         try:
             self.consumer.commit(kafka_msg)
         except Exception as e:
-            # commit 실패도 파이프라인을 멈추지 않음
+            # commit 실패여도 파이프라인은 멈추지 않음
             logger.error(
                 "Commit failed",
                 extra={
@@ -337,9 +330,9 @@ class BaseKafkaWorker(ABC):
     def _parse_kafka_message(self, kafka_msg) -> Optional[Dict[str, Any]]:
         """Kafka 메시지 파싱
 
-        Debezium outbox TEXT 컬럼 대응:
-        - JsonConverter 사용 시 payload가 JSON string으로 한 번 더 래핑됨 (이중 인코딩)
-        - json.loads() 결과가 str인 경우 재파싱
+        Debezium outbox TEXT 컬럼 특성:
+        - JsonConverter 사용 시 payload가 JSON string으로 한 번 더 래핑될 수 있음(이중 인코딩)
+        - json.loads() 결과가 str이면 한 번 더 파싱
         """
         raw_bytes = kafka_msg.value()
         raw_str = ""
@@ -348,7 +341,7 @@ class BaseKafkaWorker(ABC):
             raw_str = raw_bytes.decode("utf-8")
             message = json.loads(raw_str)
 
-            # Debezium이 TEXT 컬럼을 JsonConverter로 전송 시 이중 인코딩 발생
+            # Debezium + JsonConverter 조합에서 발생 가능한 이중 인코딩 처리
             if isinstance(message, str):
                 logger.debug(
                     "Double-encoded JSON detected, re-parsing",
