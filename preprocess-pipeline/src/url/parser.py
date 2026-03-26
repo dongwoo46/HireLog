@@ -14,14 +14,30 @@ class UrlParser:
     - 불필요한 태그(script, style 등) 제거
     """
 
-    def parse(self, html: str) -> Dict[str, str]:
+    # Remember 전용 full-body 추출 적용 도메인
+    _FULL_BODY_DOMAINS = [
+        "remember.co.kr",
+        "career.remember.co.kr",
+    ]
+
+    def _should_use_full_body_extraction(self, url: str) -> bool:
+        """
+        best-candidate 알고리즘 대신 body 전체를 사용해야 하는 사이트 판별
+
+        리멤버는 JD 각 섹션(주요업무/자격요건/우대사항)을
+        별개의 sibling div에 렌더링하므로, best-candidate 이 하나만 선택하면
+        나머지 섹션이 통째로 누락된다.
+        """
+        return any(domain in url for domain in self._FULL_BODY_DOMAINS)
+
+    def parse(self, html: str, url: str = "") -> Dict[str, str]:
         """
         HTML을 파싱하여 제목과 본문을 반환한다.
-        
+
         [Robust Extraction Strategy]
-        특정 ID/Class에 의존하는 방식은 범용성이 떨어진다.
-        따라서 '점수 기반(Score-based)' 알고리즘을 사용하여 본문을 찾는다.
-        
+        - 기본: 점수 기반(Score-based) best-candidate 선택
+        - Remember 등 섹션 분산 구조 사이트: body 전체 추출(full-body fallback)
+
         Score Factors:
         1. Text Density: 태그 대비 텍스트가 많은가?
         2. JD Keywords: '자격요건', 'Responsibilities' 등이 포함되어 있는가? (가장 강력한 시그널)
@@ -104,7 +120,11 @@ class UrlParser:
                     candidates[element] = score
 
             # 3. Best Candidate 선정
-            if not candidates:
+            # Remember 등 섹션 분산 구조: best-candidate 대신 body 전체 사용
+            if self._should_use_full_body_extraction(url):
+                body_root = soup.body if soup.body else soup
+                logger.debug("Using full-body extraction", extra={"url": url})
+            elif not candidates:
                 body_root = soup.body if soup.body else soup
             else:
                 sorted_candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)

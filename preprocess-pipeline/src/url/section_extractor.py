@@ -107,10 +107,19 @@ def _get_matched_header_keyword(line: str, header_keywords: set) -> str | None:
         normalized = normalized[1:-1]
 
     # 5. 키워드 매칭 (공백 제거된 버전으로 비교)
+    is_bracket_phrase = stripped.startswith("[") and stripped.endswith("]")
+
     for kw in header_keywords:
         kw_normalized = kw.lower().replace(" ", "")
         # 완전 일치 또는 포함
         if kw_normalized == normalized or kw_normalized in normalized:
+            # [대괄호 구문] + 짧은 키워드 부분일치 → 오탐 방지
+            # 예: [Mission of the Role] + "role"(4자) → 제외
+            # 예: [Key Responsibilities] + "responsibilities"(16자) → 허용
+            is_partial = kw_normalized != normalized and kw_normalized in normalized
+            if is_partial and is_bracket_phrase and len(kw_normalized) < 6:
+                continue
+
             # 키워드 길이가 충분히 길면 (토스 스타일) 문장형 검사 스킵
             # 짧은 키워드는 오탐 방지를 위해 문장형 검사 유지
             if len(kw_normalized) >= 6 or not _looks_like_sentence(stripped.lower()):

@@ -60,7 +60,7 @@ class UrlPipeline:
             html_content = self.dynamic_fetcher.fetch(input.url)
 
         # 2️⃣ Parse (HTML → 텍스트)
-        parsed_data = self.parser.parse(html_content)
+        parsed_data = self.parser.parse(html_content, url=input.url)
         title = parsed_data.get("title", "")
         body_text = parsed_data.get("body", "")
 
