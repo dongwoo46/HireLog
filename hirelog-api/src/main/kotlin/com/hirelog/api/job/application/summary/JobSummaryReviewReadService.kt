@@ -21,6 +21,7 @@ class JobSummaryReviewReadService(
         maxDifficultyRating: Int?,
         minSatisfactionRating: Int?,
         maxSatisfactionRating: Int?,
+        includeDeleted: Boolean,
         page: Int,
         size: Int
     ): PagedResult<JobSummaryReviewRes> {
@@ -32,6 +33,7 @@ class JobSummaryReviewReadService(
             maxDifficultyRating = maxDifficultyRating,
             minSatisfactionRating = minSatisfactionRating,
             maxSatisfactionRating = maxSatisfactionRating,
+            includeDeleted = includeDeleted,
             page = page,
             size = size
         )
@@ -50,6 +52,7 @@ class JobSummaryReviewReadService(
             satisfactionRating = view.satisfactionRating,
             experienceComment = view.experienceComment,
             interviewTip = view.interviewTip,
+            deleted = view.deleted,
             createdAt = view.createdAt
         )
 }

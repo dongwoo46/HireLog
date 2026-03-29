@@ -118,13 +118,26 @@ export const jdSummaryService = {
     await apiClient.post(`/job-summary/review/${id}`, data);
   },
 
+  updateReview: async (reviewId: number, data: ReviewWriteReq): Promise<void> => {
+    await apiClient.patch(`/job-summary/review/${reviewId}`, data);
+  },
+
+  deleteReview: async (reviewId: number): Promise<void> => {
+    await apiClient.delete(`/job-summary/review/${reviewId}`);
+  },
+
+  restoreReview: async (reviewId: number): Promise<void> => {
+    await apiClient.patch(`/job-summary/review/${reviewId}/restore`);
+  },
+
   getReviews: async (
     summaryId: number,
     page = 0,
     size = 20,
+    options?: { includeDeleted?: boolean },
   ): Promise<PagedResult<any>> => {
     const response = await apiClient.get(`/job-summary/review/${summaryId}`, {
-      params: { page, size },
+      params: { page, size, includeDeleted: options?.includeDeleted || undefined },
     });
     return response.data;
   },

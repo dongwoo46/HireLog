@@ -12,13 +12,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.stereotype.Component
 
 /**
- * JobSummaryReview Query Adapter (QueryDSL)
- *
- * 책임:
- * - Query Port를 QueryDSL로 구현
- * - 필터 + 페이징 조회
- * - Member LEFT JOIN으로 회원 정보 포함
- * - anonymous=true → memberId, memberName null
+ * JobSummaryReview 조회 어댑터(QueryDSL)
  */
 @Component
 class JobSummaryReviewJpaQueryAdapter(
@@ -35,6 +29,7 @@ class JobSummaryReviewJpaQueryAdapter(
         maxDifficultyRating: Int?,
         minSatisfactionRating: Int?,
         maxSatisfactionRating: Int?,
+        includeDeleted: Boolean,
         page: Int,
         size: Int
     ): PagedResult<JobSummaryReviewView> {
@@ -44,7 +39,10 @@ class JobSummaryReviewJpaQueryAdapter(
 
         val condition = BooleanBuilder()
             .and(review.jobSummaryId.eq(jobSummaryId))
-            .and(review.deleted.isFalse)
+
+        if (!includeDeleted) {
+            condition.and(review.deleted.isFalse)
+        }
 
         hiringStage?.let { condition.and(review.hiringStage.eq(it)) }
         minDifficultyRating?.let { condition.and(review.difficultyRating.goe(it)) }
@@ -71,6 +69,7 @@ class JobSummaryReviewJpaQueryAdapter(
                     review.satisfactionRating,
                     review.experienceComment,
                     review.interviewTip,
+                    review.deleted,
                     review.createdAt
                 )
             )

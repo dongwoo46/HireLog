@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ElementType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -53,6 +53,7 @@ const JobSummaryDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [jd, setJd] = useState<JobSummaryDetailView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +66,10 @@ const JobSummaryDetailPage = () => {
   const [showReviewComposer, setShowReviewComposer] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [reviewForm, setReviewForm] = useState<ReviewWriteReq>(reviewDefaultForm);
+  const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+  const [adminReviewForm, setAdminReviewForm] = useState<ReviewWriteReq>(reviewDefaultForm);
+  const [adminReviewSubmitting, setAdminReviewSubmitting] = useState(false);
+  const [adminReviewDeletingId, setAdminReviewDeletingId] = useState<number | null>(null);
 
   const [stages, setStages] = useState<Record<HiringStage, HiringStageView | undefined>>({} as any);
   const [activeStage, setActiveStage] = useState<HiringStage>('DOCUMENT');
@@ -72,6 +77,7 @@ const JobSummaryDetailPage = () => {
   const [stageResult, setStageResult] = useState<HiringStageResult | null>(null);
   const [prepLoading, setPrepLoading] = useState(false);
   const [savingPrep, setSavingPrep] = useState(false);
+  const [isEditingPrep, setIsEditingPrep] = useState(false);
 
   const [coverQuestion, setCoverQuestion] = useState('자기소개서 메모');
   const [coverContent, setCoverContent] = useState('');
@@ -95,7 +101,7 @@ const JobSummaryDetailPage = () => {
     if (!jd) return;
     setReviewLoading(true);
     try {
-      const data = await jdSummaryService.getReviews(jd.id);
+      const data = await jdSummaryService.getReviews(jd.id, 0, 20, { includeDeleted: isAdmin });
       setReviewPage(data);
 
       if (user?.id) {
@@ -155,6 +161,7 @@ const JobSummaryDetailPage = () => {
   useEffect(() => {
     setNote(stages[activeStage]?.note || '');
     setStageResult(stages[activeStage]?.result ?? null);
+    setIsEditingPrep(!stages[activeStage]);
   }, [activeStage, stages]);
 
   const savePreparation = async () => {
@@ -176,6 +183,7 @@ const JobSummaryDetailPage = () => {
       setJd((prev) => (prev ? { ...prev, memberSaveType: 'APPLY' } : prev));
       toast.success(`${HIRING_STAGE_LABELS[activeStage]} 준비 기록을 저장했습니다.`);
       await loadPreparationData();
+      setIsEditingPrep(false);
     } catch {
       toast.error('준비 기록 저장에 실패했습니다.');
     } finally {
@@ -238,14 +246,78 @@ const JobSummaryDetailPage = () => {
     }
   };
 
-  const prepSummary = useMemo(() => {
-    const document = stages.DOCUMENT?.note;
-    const coding = stages.CODING_TEST?.note;
-    return {
-      document: document && document.length > 0,
-      coding: coding && coding.length > 0,
-    };
-  }, [stages]);
+  const startAdminEditReview = (review: any) => {
+    setEditingReviewId(review.id);
+    setAdminReviewForm({
+      hiringStage: review.hiringStage as HiringStage,
+      anonymous: !!review.anonymous,
+      difficultyRating: review.difficultyRating,
+      satisfactionRating: review.satisfactionRating,
+      experienceComment: review.experienceComment || '',
+      interviewTip: review.interviewTip || '',
+    });
+  };
+
+  const cancelAdminEditReview = () => {
+    setEditingReviewId(null);
+    setAdminReviewForm(reviewDefaultForm);
+  };
+
+  const submitAdminEditReview = async () => {
+    if (!editingReviewId) return;
+    if (!adminReviewForm.experienceComment.trim()) {
+      toast.warn('리뷰 내용을 입력해 주세요.');
+      return;
+    }
+
+    setAdminReviewSubmitting(true);
+    try {
+      await jdSummaryService.updateReview(editingReviewId, {
+        ...adminReviewForm,
+        experienceComment: adminReviewForm.experienceComment.trim(),
+        interviewTip: adminReviewForm.interviewTip?.trim() || undefined,
+      });
+      toast.success('리뷰를 수정했습니다.');
+      await loadReviews();
+      cancelAdminEditReview();
+    } catch {
+      toast.error('리뷰 수정에 실패했습니다.');
+    } finally {
+      setAdminReviewSubmitting(false);
+    }
+  };
+
+  const deleteReviewAsAdmin = async (reviewId: number) => {
+    const ok = window.confirm('리뷰를 삭제할까요?');
+    if (!ok) return;
+
+    setAdminReviewDeletingId(reviewId);
+    try {
+      await jdSummaryService.deleteReview(reviewId);
+      toast.success('리뷰를 삭제했습니다.');
+      await loadReviews();
+      if (editingReviewId === reviewId) {
+        cancelAdminEditReview();
+      }
+    } catch {
+      toast.error('리뷰 삭제에 실패했습니다.');
+    } finally {
+      setAdminReviewDeletingId(null);
+    }
+  };
+
+  const restoreReviewAsAdmin = async (reviewId: number) => {
+    setAdminReviewDeletingId(reviewId);
+    try {
+      await jdSummaryService.restoreReview(reviewId);
+      toast.success('리뷰를 복구했습니다.');
+      await loadReviews();
+    } catch {
+      toast.error('리뷰 복구에 실패했습니다.');
+    } finally {
+      setAdminReviewDeletingId(null);
+    }
+  };
 
   if (loading) return <div className="min-h-screen bg-[#F8F9FA] pt-24" />;
 
@@ -297,16 +369,22 @@ const JobSummaryDetailPage = () => {
             setShowComposer={setShowReviewComposer}
             alreadyReviewed={alreadyReviewed}
             isAuthenticated={isAuthenticated}
+            isAdmin={isAdmin}
+            editingReviewId={editingReviewId}
+            adminReviewForm={adminReviewForm}
+            adminReviewSubmitting={adminReviewSubmitting}
+            adminReviewDeletingId={adminReviewDeletingId}
+            onStartAdminEdit={startAdminEditReview}
+            onCancelAdminEdit={cancelAdminEditReview}
+            onAdminFormChange={setAdminReviewForm}
+            onSubmitAdminEdit={submitAdminEditReview}
+            onDeleteAsAdmin={deleteReviewAsAdmin}
+            onRestoreAsAdmin={restoreReviewAsAdmin}
           />
         )}
 
         {activeTab === 'prep' && isAuthenticated && (
           <div className="space-y-6">
-            <div className="grid gap-4 rounded-2xl border border-[#3FB6B2]/20 bg-[#3FB6B2]/5 p-4 md:grid-cols-2">
-              <StatusBadge label="서류 전형" done={!!prepSummary.document} />
-              <StatusBadge label="코딩 테스트" done={!!prepSummary.coding} />
-            </div>
-
             <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
               <div className="rounded-2xl border bg-white p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">단계 선택</p>
@@ -324,7 +402,17 @@ const JobSummaryDetailPage = () => {
                         }`}
                       >
                         <span>{HIRING_STAGE_LABELS[stage]}</span>
-                        {r && <span className="rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-gray-600">{HIRING_STAGE_RESULT_LABELS[r]}</span>}
+                        {r && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              r === 'PENDING'
+                                ? 'bg-gray-200 text-gray-600'
+                                : 'bg-[#3FB6B2]/20 text-[#237b78]'
+                            }`}
+                          >
+                            {HIRING_STAGE_RESULT_LABELS[r]}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -344,7 +432,7 @@ const JobSummaryDetailPage = () => {
 
                 {prepLoading ? (
                   <div className="py-10 text-center text-sm text-gray-400">불러오는 중...</div>
-                ) : (
+                ) : isEditingPrep ? (
                   <>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-gray-500">결과</span>
@@ -375,7 +463,47 @@ const JobSummaryDetailPage = () => {
                       <TbDeviceFloppy size={16} />
                       {savingPrep ? '저장 중...' : '단계 메모 저장'}
                     </button>
+                    {stages[activeStage] && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPrep(false)}
+                        className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                      >
+                        취소
+                      </button>
+                    )}
                   </>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-500">결과</span>
+                      {stageResult ? (
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            stageResult === 'PENDING'
+                              ? 'bg-gray-100 text-gray-600'
+                              : 'bg-[#3FB6B2]/15 text-[#237b78]'
+                          }`}
+                        >
+                          {HIRING_STAGE_RESULT_LABELS[stageResult]}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500">미설정</span>
+                      )}
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+                      <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700">
+                        {stages[activeStage]?.note}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingPrep(true)}
+                      className="rounded-xl border border-[#3FB6B2] px-5 py-2.5 text-sm font-semibold text-[#2b8f8c] hover:bg-[#3FB6B2]/5"
+                    >
+                      수정하기
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -541,6 +669,17 @@ const ReviewSection = ({
   setShowComposer,
   alreadyReviewed,
   isAuthenticated,
+  isAdmin,
+  editingReviewId,
+  adminReviewForm,
+  adminReviewSubmitting,
+  adminReviewDeletingId,
+  onStartAdminEdit,
+  onCancelAdminEdit,
+  onAdminFormChange,
+  onSubmitAdminEdit,
+  onDeleteAsAdmin,
+  onRestoreAsAdmin,
 }: {
   reviewPage: any;
   loading: boolean;
@@ -552,6 +691,17 @@ const ReviewSection = ({
   setShowComposer: (value: boolean) => void;
   alreadyReviewed: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  editingReviewId: number | null;
+  adminReviewForm: ReviewWriteReq;
+  adminReviewSubmitting: boolean;
+  adminReviewDeletingId: number | null;
+  onStartAdminEdit: (review: any) => void;
+  onCancelAdminEdit: () => void;
+  onAdminFormChange: (value: ReviewWriteReq) => void;
+  onSubmitAdminEdit: () => void;
+  onDeleteAsAdmin: (reviewId: number) => void;
+  onRestoreAsAdmin: (reviewId: number) => void;
 }) => (
   <div className="space-y-5">
     {!isAuthenticated && (
@@ -683,13 +833,162 @@ const ReviewSection = ({
         {reviewPage.items.map((r: any) => (
           <div key={r.id} className="rounded-2xl border bg-white p-6">
             <div className="mb-1 text-xs text-gray-400">{HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}</div>
-            <div className="mb-3 text-xs text-gray-500">난이도 {r.difficultyRating} / 만족도 {r.satisfactionRating}</div>
-            <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
-            {r.interviewTip && <div className="mt-3 text-xs text-[#3FB6B2]">TIP: {r.interviewTip}</div>}
+            <div className="mb-3 space-y-2">
+              <RatingStarsDisplay label="난이도" value={r.difficultyRating} />
+              <RatingStarsDisplay label="만족도" value={r.satisfactionRating} />
+            </div>
+
+            {r.deleted ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                  삭제된 리뷰입니다.
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => onRestoreAsAdmin(r.id)}
+                    disabled={adminReviewDeletingId === r.id}
+                    className="rounded-lg border border-[#3FB6B2]/40 px-3 py-1.5 text-xs font-semibold text-[#2b8f8c] hover:bg-[#3FB6B2]/5 disabled:opacity-60"
+                  >
+                    {adminReviewDeletingId === r.id ? '복구 중...' : '복구'}
+                  </button>
+                )}
+              </div>
+            ) : isAdmin && editingReviewId === r.id ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold text-gray-500">채용 단계</span>
+                    <select
+                      value={adminReviewForm.hiringStage}
+                      onChange={(e) => onAdminFormChange({ ...adminReviewForm, hiringStage: e.target.value as HiringStage })}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    >
+                      {stageOrder.map((stage) => (
+                        <option key={stage} value={stage}>
+                          {HIRING_STAGE_LABELS[stage]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => onAdminFormChange({ ...adminReviewForm, anonymous: !adminReviewForm.anonymous })}
+                    className={`flex h-[74px] items-center justify-between rounded-xl border px-4 transition ${
+                      adminReviewForm.anonymous ? 'border-[#3FB6B2] bg-[#3FB6B2]/5' : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <div className="text-left">
+                      <p className="text-xs font-semibold text-gray-500">작성 방식</p>
+                      <p className="text-sm font-semibold text-gray-800">익명으로 작성</p>
+                    </div>
+                    <span
+                      className={`inline-flex h-6 w-11 items-center rounded-full p-1 transition ${
+                        adminReviewForm.anonymous ? 'bg-[#3FB6B2]' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span className={`h-4 w-4 rounded-full bg-white transition ${adminReviewForm.anonymous ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </span>
+                  </button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <ScoreSelector
+                    label="난이도"
+                    value={adminReviewForm.difficultyRating}
+                    onChange={(value) => onAdminFormChange({ ...adminReviewForm, difficultyRating: value })}
+                  />
+                  <ScoreSelector
+                    label="만족도"
+                    value={adminReviewForm.satisfactionRating}
+                    onChange={(value) => onAdminFormChange({ ...adminReviewForm, satisfactionRating: value })}
+                  />
+                </div>
+
+                <textarea
+                  value={adminReviewForm.experienceComment}
+                  onChange={(e) => onAdminFormChange({ ...adminReviewForm, experienceComment: e.target.value })}
+                  className="min-h-[120px] w-full rounded-xl border border-gray-200 p-4 text-sm"
+                  placeholder="리뷰 내용을 입력해 주세요."
+                />
+                <textarea
+                  value={adminReviewForm.interviewTip || ''}
+                  onChange={(e) => onAdminFormChange({ ...adminReviewForm, interviewTip: e.target.value })}
+                  className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
+                  placeholder="면접 팁 (선택)"
+                />
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onSubmitAdminEdit}
+                    disabled={adminReviewSubmitting}
+                    className="rounded-xl bg-[#3FB6B2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {adminReviewSubmitting ? '수정 중...' : '수정 저장'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCancelAdminEdit}
+                    className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
+                {r.interviewTip && <div className="mt-3 text-xs text-[#3FB6B2]">TIP: {r.interviewTip}</div>}
+                {isAdmin && !r.deleted && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onStartAdminEdit(r)}
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      수정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteAsAdmin(r.id)}
+                      disabled={adminReviewDeletingId === r.id}
+                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {adminReviewDeletingId === r.id ? '삭제 중...' : '삭제'}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         ))}
       </div>
     )}
+  </div>
+);
+
+const RatingStarsDisplay = ({ label, value }: { label: string; value: number }) => (
+  <div className="flex items-center gap-2">
+    <span className="w-12 text-xs font-semibold text-gray-500">{label}</span>
+    <div className="flex items-center gap-0.5">
+      {[0, 1, 2, 3, 4].map((idx) => {
+        const starValue = value / 2;
+        const fill = Math.max(0, Math.min(1, starValue - idx));
+        return (
+          <div key={`${label}-${idx}`} className="relative h-4 w-4">
+            <StarIcon className="h-4 w-4 text-gray-300" />
+            {fill > 0 && (
+              <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                <StarIcon className="h-4 w-4 text-[#F59E0B]" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+    <span className="text-xs font-medium text-gray-500">{(value / 2).toFixed(1)}</span>
   </div>
 );
 
@@ -764,15 +1063,6 @@ const TabButton = ({
   >
     {label}
   </button>
-);
-
-const StatusBadge = ({ label, done }: { label: string; done: boolean }) => (
-  <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
-    <span className="text-sm font-semibold text-gray-700">{label}</span>
-    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${done ? 'bg-[#3FB6B2]/10 text-[#3FB6B2]' : 'bg-gray-100 text-gray-500'}`}>
-      {done ? '저장됨' : '미저장'}
-    </span>
-  </div>
 );
 
 export default JobSummaryDetailPage;

@@ -15,10 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
 /**
- * JobSummaryReview Controller
- *
- * 책임:
- * - 리뷰 작성/조회/삭제 HTTP API 제공
+ * JobSummary 리뷰 API
  */
 @RestController
 @RequestMapping("/api/job-summary/review")
@@ -28,8 +25,7 @@ class JobSummaryReviewController(
 ) {
 
     /**
-     * 리뷰 작성 (1회만 가능, 수정 불가)
-     *
+     * 리뷰 작성
      * POST /api/job-summary/review/{jobSummaryId}
      */
     @PostMapping("/{jobSummaryId}")
@@ -39,40 +35,35 @@ class JobSummaryReviewController(
         @RequestBody @Valid request: JobSummaryReviewWriteReq
     ): ResponseEntity<Map<String, Long>> {
 
-        log.info("[JobSummaryReview create 0]: anaymonus:{}", request.anonymous)
+        log.info("[JOB_SUMMARY_REVIEW_CREATE] anonymous={}", request.anonymous)
 
-        val review =
-            writerService.write(
-                jobSummaryId = jobSummaryId,
-                memberId = member.memberId,
-                hiringStage = request.hiringStage,
-                anonymous = request.anonymous,
-                difficultyRating = request.difficultyRating,
-                satisfactionRating = request.satisfactionRating,
-                experienceComment = request.experienceComment,
-                interviewTip = request.interviewTip
-            )
+        val review = writerService.write(
+            jobSummaryId = jobSummaryId,
+            memberId = member.memberId,
+            hiringStage = request.hiringStage,
+            anonymous = request.anonymous,
+            difficultyRating = request.difficultyRating,
+            satisfactionRating = request.satisfactionRating,
+            experienceComment = request.experienceComment,
+            interviewTip = request.interviewTip
+        )
 
         return ResponseEntity.status(201).body(mapOf("id" to review.id))
     }
 
     /**
-     * 특정 JobSummary 리뷰 페이징 + 필터 조회
-     *
+     * 리뷰 목록 조회
      * GET /api/job-summary/review/{jobSummaryId}
-     *
-     * 필터:
-     * - hiringStage: 전형 단계
-     * - minDifficultyRating / maxDifficultyRating: 난이도 범위
-     * - minSatisfactionRating / maxSatisfactionRating: 만족도 범위
      */
     @GetMapping("/{jobSummaryId}")
     fun getReviewsByJobSummary(
         @PathVariable jobSummaryId: Long,
+        @AuthenticationPrincipal member: AuthenticatedMember?,
         @Valid request: JobSummaryReviewSearchReq
     ): ResponseEntity<PagedResult<JobSummaryReviewRes>> {
 
         request.validate()
+        val includeDeleted = request.includeDeleted && member?.role?.name == "ADMIN"
 
         val result = readService.findByJobSummaryId(
             jobSummaryId = jobSummaryId,
@@ -81,6 +72,7 @@ class JobSummaryReviewController(
             maxDifficultyRating = request.maxDifficultyRating,
             minSatisfactionRating = request.minSatisfactionRating,
             maxSatisfactionRating = request.maxSatisfactionRating,
+            includeDeleted = includeDeleted,
             page = request.page,
             size = request.size
         )
@@ -89,29 +81,45 @@ class JobSummaryReviewController(
     }
 
     /**
-     * 리뷰 삭제 (admin 전용, soft delete)
-     *
+     * 리뷰 삭제 (관리자)
      * DELETE /api/job-summary/review/{reviewId}
      */
     @DeleteMapping("/{reviewId}")
     @PreAuthorize("hasRole('ADMIN')")
-    fun deleteReview(
-        @PathVariable reviewId: Long
-    ): ResponseEntity<Void> {
+    fun deleteReview(@PathVariable reviewId: Long): ResponseEntity<Void> {
         writerService.delete(reviewId)
         return ResponseEntity.noContent().build()
     }
 
     /**
-     * 리뷰 복구 (admin 전용)
-     *
-     * PUT /api/job-summary/review/{reviewId}/restore
+     * 리뷰 수정 (관리자)
+     * PATCH /api/job-summary/review/{reviewId}
+     */
+    @PatchMapping("/{reviewId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun updateReview(
+        @PathVariable reviewId: Long,
+        @RequestBody @Valid request: JobSummaryReviewWriteReq
+    ): ResponseEntity<Void> {
+        writerService.update(
+            reviewId = reviewId,
+            hiringStage = request.hiringStage,
+            anonymous = request.anonymous,
+            difficultyRating = request.difficultyRating,
+            satisfactionRating = request.satisfactionRating,
+            experienceComment = request.experienceComment,
+            interviewTip = request.interviewTip
+        )
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * 리뷰 복구 (관리자)
+     * PATCH /api/job-summary/review/{reviewId}/restore
      */
     @PatchMapping("/{reviewId}/restore")
     @PreAuthorize("hasRole('ADMIN')")
-    fun restoreReview(
-        @PathVariable reviewId: Long
-    ): ResponseEntity<Void> {
+    fun restoreReview(@PathVariable reviewId: Long): ResponseEntity<Void> {
         writerService.restore(reviewId)
         return ResponseEntity.noContent().build()
     }
