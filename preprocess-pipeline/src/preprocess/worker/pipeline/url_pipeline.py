@@ -88,7 +88,7 @@ class UrlPipeline:
             }
 
         # 3️⃣ URL 전용 전처리 (노이즈 제거)
-        cleaned_lines = preprocess_url_text(body_text)
+        cleaned_lines = preprocess_url_text(body_text, platform=input.platform)
 
         logger.debug(
             "URL text preprocessed",

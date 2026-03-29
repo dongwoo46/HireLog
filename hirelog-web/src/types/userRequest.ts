@@ -15,6 +15,15 @@ export interface UserRequestListRes {
   createdAt: string;
 }
 
+export interface UserRequestPagedResult {
+  items: UserRequestListRes[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
 export interface UserRequestComment {
   id: number;
   content: string;

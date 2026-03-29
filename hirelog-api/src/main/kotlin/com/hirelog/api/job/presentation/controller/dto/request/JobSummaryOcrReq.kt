@@ -1,7 +1,9 @@
 package com.hirelog.api.job.presentation.controller.dto.request
 
+import com.hirelog.api.job.domain.type.JobPlatformType
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import org.springframework.web.multipart.MultipartFile
 
@@ -16,5 +18,8 @@ data class JobSummaryOcrReq(
     val brandPositionName: String = "",
 
     @field:NotEmpty(message = "이미지는 최소 1개 이상 필요합니다")
-    val images: List<MultipartFile> = emptyList()
+    val images: List<MultipartFile> = emptyList(),
+
+    @field:NotNull(message = "platform은 필수입니다")
+    val platform: JobPlatformType = JobPlatformType.OTHER,
 )

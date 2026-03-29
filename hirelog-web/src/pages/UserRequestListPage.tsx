@@ -21,7 +21,7 @@ const UserRequestListPage = () => {
       setIsLoading(true);
       try {
         const data = await userRequestService.getMyRequests();
-        setRequests(data || []);
+        setRequests(data?.items || []);
       } catch (error) {
         console.error('Failed to fetch requests', error);
       } finally {

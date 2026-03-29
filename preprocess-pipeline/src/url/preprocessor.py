@@ -6,25 +6,20 @@ URL 전용 전처리기
 역할:
 - HTML 파싱 후 추출된 텍스트에서 노이즈 제거
 - 웹 페이지 특유의 UI 요소, 버튼, 네비게이션 텍스트 제거
-- JD 본문에 집중할 수 있도록 클리닝
-
-OCR/TEXT 전처리와 다른 점:
-- 웹 UI 노이즈가 많음 (버튼, 링크, 메뉴 등)
-- 중복 텍스트가 자주 발생 (헤더/푸터 반복)
-- 짧은 단어 나열이 많음 (태그, 카테고리 등)
+- platform별 전처리 전략 분기
 """
 
 import re
 from typing import List, Set
 
 from common.section.loader import load_header_keywords
+from domain.job_platform import JobPlatform
 
 
 # ============================================================
-# UI 노이즈 패턴
+# UI 노이즈 패턴 (공통)
 # ============================================================
 
-# 완전 일치로 제거할 UI 텍스트
 UI_NOISE_EXACT = {
     # 한국어
     "닫기", "열기", "펼치기", "접기",
@@ -53,54 +48,59 @@ UI_NOISE_EXACT = {
     "Copy", "Copy Link", "Report",
 }
 
-# 부분 일치로 제거할 패턴 (시작/포함)
-UI_NOISE_PATTERNS = [
-    r"^\d+일\s*전$",           # "3일 전", "7일 전"
-    r"^\d+시간\s*전$",         # "2시간 전"
-    r"^\d+분\s*전$",           # "30분 전"
-    r"^조회\s*\d+",            # "조회 123"
-    r"^D-\d+$",                # "D-7", "D-30"
-    r"^마감\s*D-\d+",          # "마감 D-7"
-    r"^\d+명\s*지원",          # "123명 지원"
-    r"^지원자\s*\d+명",        # "지원자 50명"
-    r"^평점\s*[\d.]+",         # "평점 4.5"
-    r"^★+",                    # 별점
-    r"^⭐+",                   # 별점 이모지
-    r"^©",                     # 저작권
-    r"^Copyright",             # 저작권 영문
-    r"^All rights reserved",   # 저작권
-
-    # 리멤버 플랫폼 광고/UI 텍스트
-    r"^이 포지션에 합격해 입사하시면",
-    r"^합격 보상금",
-    r"^먼저 입사한 실무자에게",
-    r"^이 공고와 비슷한 공고",
-    r"^리멤버에서 수집한 기업 정보",
-    r"^정보 수정이 필요할 경우",
-    r"^로그인하고 현직자에게",
-    r"^사용자가 커넥트에 입력한",
+UI_NOISE_PATTERNS_COMMON = [
+    r"^\d+일\s*전$",
+    r"^\d+시간\s*전$",
+    r"^\d+분\s*전$",
+    r"^조회\s*\d+",
+    r"^D-\d+$",
+    r"^마감\s*D-\d+",
+    r"^\d+명\s*지원",
+    r"^지원자\s*\d+명",
+    r"^평점\s*[\d.]+",
+    r"^★+",
+    r"^⭐+",
+    r"^©",
+    r"^Copyright",
+    r"^All rights reserved",
 ]
 
-# 불필요한 메타 정보 패턴
 META_NOISE_PATTERNS = [
-    r"^등록일\s*:?\s*\d{4}",   # "등록일: 2024.01.01"
-    r"^수정일\s*:?\s*\d{4}",   # "수정일: 2024.01.01"
-    r"^Posted\s*:?\s*\d",      # "Posted: Jan 1"
-    r"^Updated\s*:?\s*\d",     # "Updated: Jan 1"
-    r"^마감일\s*:?\s*\d{4}",   # "마감일: 2024.12.31"
+    r"^등록일\s*:?\s*\d{4}",
+    r"^수정일\s*:?\s*\d{4}",
+    r"^Posted\s*:?\s*\d",
+    r"^Updated\s*:?\s*\d",
+    r"^마감일\s*:?\s*\d{4}",
 ]
 
 
 # ============================================================
-# 전처리 함수
+# 플랫폼 모듈 로더
 # ============================================================
 
-def preprocess_url_text(text: str) -> List[str]:
+def _get_platform_module(platform: JobPlatform):
+    if platform == JobPlatform.WANTED:
+        from url.platforms import wanted
+        return wanted
+    elif platform == JobPlatform.REMEMBER:
+        from url.platforms import remember
+        return remember
+    else:
+        from url.platforms import generic
+        return generic
+
+
+# ============================================================
+# 전처리 진입점
+# ============================================================
+
+def preprocess_url_text(text: str, platform: JobPlatform = JobPlatform.OTHER) -> List[str]:
     """
     URL에서 파싱한 텍스트를 전처리하여 클린한 라인 리스트 반환
 
     Args:
         text: HTML 파싱 후 추출된 raw 텍스트
+        platform: 채용 플랫폼 (전처리 전략 분기용)
 
     Returns:
         전처리된 라인 리스트
@@ -108,9 +108,14 @@ def preprocess_url_text(text: str) -> List[str]:
     if not text:
         return []
 
+    platform_mod = _get_platform_module(platform)
+    platform_noise_patterns = platform_mod.get_ui_noise_patterns()
+    allow_header_dedup = platform_mod.allow_header_keyword_dedup()
+
     lines = text.split("\n")
     cleaned_lines = []
-    seen_lines = set()  # 중복 제거용
+    seen_lines: Set[str] = set()
+    header_keywords = load_header_keywords()
 
     for line in lines:
         # 1. 기본 정리
@@ -121,25 +126,26 @@ def preprocess_url_text(text: str) -> List[str]:
         # 2. UI 노이즈 제거 (완전 일치)
         if line in UI_NOISE_EXACT:
             continue
-
-        # 3. UI 노이즈 제거 (대소문자 무시)
         if line.lower() in {n.lower() for n in UI_NOISE_EXACT}:
             continue
 
-        # 4. 패턴 기반 노이즈 제거
-        if _matches_noise_pattern(line):
+        # 3. 공통 패턴 기반 노이즈 제거
+        if _matches_patterns(line, UI_NOISE_PATTERNS_COMMON + META_NOISE_PATTERNS):
             continue
 
-        # 5. 너무 짧은 라인 제거 (의미 없는 단어)
+        # 4. 플랫폼 전용 노이즈 제거
+        if platform_noise_patterns and _matches_patterns(line, platform_noise_patterns):
+            continue
+
+        # 5. 너무 짧은 라인 제거
         if _is_too_short(line):
             continue
 
         # 6. 중복 라인 제거
-        # header keyword는 탭 nav와 JD 본문에 동일하게 등장할 수 있으므로 dedup 제외
-        # _remove_menu_fragments에서 연속 5개 전부 header인 경우 탭 nav로 판단해 제거
         line_key = line.lower().replace(" ", "")
         if line_key in seen_lines:
-            if not _is_header_keyword(line, load_header_keywords()):
+            # 플랫폼이 header dedup 허용이고 header keyword인 경우 통과
+            if not (allow_header_dedup and _is_header_keyword(line, header_keywords)):
                 continue
         else:
             seen_lines.add(line_key)
@@ -151,131 +157,53 @@ def preprocess_url_text(text: str) -> List[str]:
 
         cleaned_lines.append(line)
 
-    # 8. 연속된 빈 줄/짧은 줄 패턴 제거 (메뉴 잔해)
-    cleaned_lines = _remove_menu_fragments(cleaned_lines)
+    # 8. 플랫폼별 메뉴 잔해 제거
+    cleaned_lines = platform_mod.remove_menu_fragments(cleaned_lines)
 
     return cleaned_lines
 
 
+# ============================================================
+# 공통 유틸
+# ============================================================
+
 def _normalize_whitespace(line: str) -> str:
-    """공백 정규화"""
-    # 탭, 다중 공백을 단일 공백으로
     line = re.sub(r"[\t\r]+", " ", line)
     line = re.sub(r" {2,}", " ", line)
     return line.strip()
 
 
-def _matches_noise_pattern(line: str) -> bool:
-    """패턴 기반 노이즈 매칭"""
-    for pattern in UI_NOISE_PATTERNS + META_NOISE_PATTERNS:
+def _matches_patterns(line: str, patterns: List[str]) -> bool:
+    for pattern in patterns:
         if re.match(pattern, line, re.IGNORECASE):
             return True
     return False
 
 
 def _is_too_short(line: str) -> bool:
-    """
-    의미 없이 짧은 라인 판정
-
-    예외:
-    - 숫자 포함 (연봉, 경력 등)
-    - 특정 키워드 (header 가능성)
-    """
-    # 2글자 이하
     if len(line) <= 2:
-        # 숫자 포함이면 보존 ("3년", "5급" 등)
         if any(c.isdigit() for c in line):
             return False
         return True
-
-    # 3글자 이하 + 한글/영문만 있는 경우
     if len(line) <= 3:
         if line.isalpha():
-            # header 키워드일 수 있으므로 보존
-            # 이건 나중에 header 판정에서 처리
             return False
-
     return False
 
 
 def _clean_special_chars(line: str) -> str:
-    """특수문자 정리"""
-    # 이모지 제거 (선택적)
-    # line = re.sub(r'[\U00010000-\U0010ffff]', '', line)
-
-    # 연속된 특수문자 정리
-    line = re.sub(r"[·•\-]{3,}", "•", line)  # "•••" → "•"
-    line = re.sub(r"[=]{3,}", "", line)       # "===" 제거
-    line = re.sub(r"[-]{3,}", "", line)       # "---" 제거
-
+    line = re.sub(r"[·•\-]{3,}", "•", line)
+    line = re.sub(r"[=]{3,}", "", line)
+    line = re.sub(r"[-]{3,}", "", line)
     return line.strip()
 
 
-def _remove_menu_fragments(lines: List[str]) -> List[str]:
-    """
-    메뉴 잔해 패턴 제거
-
-    연속된 짧은 라인(5개 이상)이 모두 10자 이하면 메뉴 잔해로 간주
-    단, header keyword가 포함된 라인은 보존.
-
-    예외: 버퍼 전체가 header keyword로만 구성된 경우 탭 네비게이션으로 판단해 전부 제거.
-    (리멤버 등 탭 nav 패턴: 주요업무/자격요건/우대사항/채용절차/기타안내 5개 연속)
-    """
-    if len(lines) < 5:
-        return lines
-
-    header_keywords = load_header_keywords()
-    result = []
-    buffer = []
-
-    for line in lines:
-        if len(line) <= 10:
-            buffer.append(line)
-        else:
-            # 버퍼에 쌓인 짧은 라인들 처리
-            if len(buffer) >= 5:
-                # 전부 header keyword → 탭 네비게이션으로 판단 → 전부 제거
-                if all(_is_header_keyword(l, header_keywords) for l in buffer):
-                    pass
-                else:
-                    for buf_line in buffer:
-                        if _is_header_keyword(buf_line, header_keywords):
-                            result.append(buf_line)
-            else:
-                result.extend(buffer)
-
-            buffer = []
-            result.append(line)
-
-    # 마지막 버퍼 처리
-    if buffer:
-        if len(buffer) >= 5:
-            if all(_is_header_keyword(l, header_keywords) for l in buffer):
-                pass
-            else:
-                for buf_line in buffer:
-                    if _is_header_keyword(buf_line, header_keywords):
-                        result.append(buf_line)
-        else:
-            result.extend(buffer)
-
-    return result
-
-
 def _is_header_keyword(line: str, header_keywords: Set[str]) -> bool:
-    """
-    라인이 header keyword를 포함하는지 검사
-
-    - 공백 제거, 소문자 변환 후 비교
-    - 부분 일치 허용
-    """
     normalized = line.strip().lower().replace(" ", "")
     if not normalized:
         return False
-
     for kw in header_keywords:
         kw_normalized = kw.lower().replace(" ", "")
         if kw_normalized == normalized or kw_normalized in normalized:
             return True
-
     return False
