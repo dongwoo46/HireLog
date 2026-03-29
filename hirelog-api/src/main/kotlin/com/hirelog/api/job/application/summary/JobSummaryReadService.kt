@@ -29,10 +29,11 @@ class JobSummaryReadService(
     private val memberJobSummaryQuery: MemberJobSummaryQuery
 ) {
 
-    fun search(query: JobSummarySearchQuery, memberId: Long): JobSummarySearchResult {
+    fun search(query: JobSummarySearchQuery, memberId: Long?): JobSummarySearchResult {
         val result = openSearchQuery.search(query)
 
         if (result.items.isEmpty()) return result
+        if (memberId == null) return result
 
         val jobSummaryIds = result.items.map { it.id }.toSet()
         val savedStates = memberJobSummaryQuery.findSavedStatesByJobSummaryIds(
@@ -52,7 +53,7 @@ class JobSummaryReadService(
         return result.copy(items = enrichedItems)
     }
 
-    fun getDetail(jobSummaryId: Long, memberId: Long): JobSummaryDetailView? {
+    fun getDetail(jobSummaryId: Long, memberId: Long?): JobSummaryDetailView? {
         return jobSummaryQuery.findDetailById(jobSummaryId, memberId)
     }
 }

@@ -71,8 +71,12 @@ class JobSummaryJpaQueryAdapter(
      * 설계:
      * - Review는 별도 API(/api/job-summary/review/{jobSummaryId})로 분리
      */
-    override fun findDetailById(jobSummaryId: Long, memberId: Long): JobSummaryDetailView? {
+    override fun findDetailById(jobSummaryId: Long, memberId: Long?): JobSummaryDetailView? {
         val detail = queryDslRepository.findDetailById(jobSummaryId) ?: return null
+
+        if (memberId == null) {
+            return detail
+        }
 
         val memberJobSummary = memberJobSummaryJpaRepository
             .findByMemberIdAndJobSummaryId(memberId, jobSummaryId)

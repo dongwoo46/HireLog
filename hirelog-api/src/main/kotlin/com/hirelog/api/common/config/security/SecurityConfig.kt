@@ -79,6 +79,11 @@ class SecurityConfig(
                         "/api/health",
                         "/api/public/**"
                     ).permitAll()
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/job-summary/search",
+                        "/api/job-summary/*"
+                    ).permitAll()
 
                     // 회원가입 / 인증 관련 API
                     .requestMatchers(

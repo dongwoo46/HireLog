@@ -166,7 +166,14 @@ const JobSummaryDetailPage = () => {
 
     setSavingPrep(true);
     try {
-      await jdSummaryService.saveStageNote(jd.id, activeStage, note.trim(), stageResult);
+      await jdSummaryService.saveStageNote(
+        jd.id,
+        activeStage,
+        note.trim(),
+        stageResult,
+        jd.memberSaveType,
+      );
+      setJd((prev) => (prev ? { ...prev, memberSaveType: 'APPLY' } : prev));
       toast.success(`${HIRING_STAGE_LABELS[activeStage]} 준비 기록을 저장했습니다.`);
       await loadPreparationData();
     } catch {
@@ -490,12 +497,25 @@ const Block = ({
           const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
           if (!cleanLine) return null;
 
+          const bracketMatch = cleanLine.match(/^\[(.*?)\]\s*(.*)$/);
+
           return (
             <li key={idx} className="flex items-start gap-3.5 rounded-xl px-2 py-2 transition-colors hover:bg-gray-50/80 -mx-2">
               <span className="mt-2.5 flex h-1.5 w-1.5 shrink-0 items-center justify-center rounded-full bg-[#3FB6B2]/40 ring-4 ring-[#3FB6B2]/10 transition-all duration-300 group-hover:bg-[#3FB6B2] group-hover:ring-[#3FB6B2]/20" />
-              <div className="text-[15px] leading-[1.6] text-gray-600 font-medium break-keep">
-                {highlightKeywords(cleanLine)}
-              </div>
+              {bracketMatch ? (
+                <div className="flex flex-col gap-1.5 w-full mt-[-2px]">
+                  <span className="text-[12px] font-black tracking-wide text-[#3FB6B2] bg-[#3FB6B2]/10 self-start px-2 py-1.5 rounded-lg leading-none">
+                    {bracketMatch[1]}
+                  </span>
+                  <div className="text-[15px] leading-[1.6] text-gray-600 font-medium break-keep">
+                    {highlightKeywords(bracketMatch[2])}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[15px] leading-[1.6] text-gray-600 font-medium break-keep">
+                  {highlightKeywords(cleanLine)}
+                </div>
+              )}
             </li>
           );
         })}

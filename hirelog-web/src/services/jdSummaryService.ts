@@ -151,10 +151,20 @@ export const jdSummaryService = {
     stage: HiringStage,
     note: string,
     result?: import('../types/jobSummary').HiringStageResult | null,
+    currentSaveType?: MemberJobSummarySaveType,
   ): Promise<void> => {
-    try {
+    if (currentSaveType !== 'APPLY') {
+      await apiClient.patch(`/member-job-summary/${jobSummaryId}/save-type`, {
+        saveType: 'APPLY',
+      });
+    }
+
+    const existingStages = await jdSummaryService.getStages(jobSummaryId);
+    const hasStage = existingStages.some((item) => item.stage === stage);
+
+    if (hasStage) {
       await apiClient.patch(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
-    } catch {
+    } else {
       await apiClient.post(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
     }
   },
