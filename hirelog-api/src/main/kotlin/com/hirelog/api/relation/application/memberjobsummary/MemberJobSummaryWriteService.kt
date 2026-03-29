@@ -62,10 +62,11 @@ class MemberJobSummaryWriteService(
         memberId: Long,
         jobSummaryId: Long,
         stage: HiringStage,
-        note: String
+        note: String,
+        result: HiringStageResult? = null
     ) {
         val summary = getOrThrow(memberId, jobSummaryId)
-        summary.addStageRecord(stage, note)
+        summary.addStageRecord(stage, note, result)
         memberJobSummaryCommand.save(summary)
     }
 

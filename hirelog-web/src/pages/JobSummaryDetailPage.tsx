@@ -6,9 +6,12 @@ import { jdSummaryService } from '../services/jdSummaryService';
 import { useAuthStore } from '../store/authStore';
 import {
   HIRING_STAGE_LABELS,
+  HIRING_STAGE_RESULT_LABELS,
   type HiringStage,
+  type HiringStageResult,
   type HiringStageView,
   type JobSummaryDetailView,
+  type ReviewWriteReq,
 } from '../types/jobSummary';
 
 const tabs = ['detail', 'review', 'prep'] as const;
@@ -20,7 +23,9 @@ const stageOrder: HiringStage[] = [
   'ASSIGNMENT',
   'INTERVIEW_1',
   'INTERVIEW_2',
+  'INTERVIEW_3',
   'FINAL_INTERVIEW',
+  'COFFEE_CHAT',
 ];
 
 const JobSummaryDetailPage = () => {
@@ -35,10 +40,20 @@ const JobSummaryDetailPage = () => {
 
   const [reviewPage, setReviewPage] = useState<any>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewForm, setReviewForm] = useState<ReviewWriteReq>({
+    hiringStage: 'DOCUMENT',
+    anonymous: true,
+    difficultyRating: 5,
+    satisfactionRating: 5,
+    experienceComment: '',
+    interviewTip: '',
+  });
 
   const [stages, setStages] = useState<Record<HiringStage, HiringStageView | undefined>>({} as any);
   const [activeStage, setActiveStage] = useState<HiringStage>('DOCUMENT');
   const [note, setNote] = useState('');
+  const [stageResult, setStageResult] = useState<HiringStageResult | null>(null);
   const [prepLoading, setPrepLoading] = useState(false);
   const [savingPrep, setSavingPrep] = useState(false);
 
@@ -60,13 +75,22 @@ const JobSummaryDetailPage = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const loadReviews = async () => {
+    if (!jd) return;
+    setReviewLoading(true);
+    try {
+      const data = await jdSummaryService.getReviews(jd.id);
+      setReviewPage(data);
+    } catch {
+      toast.error('리뷰를 불러오지 못했습니다.');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!jd || !isAuthenticated || activeTab !== 'review') return;
-    setReviewLoading(true);
-    jdSummaryService
-      .getReviews(jd.id)
-      .then(setReviewPage)
-      .finally(() => setReviewLoading(false));
+    loadReviews();
   }, [jd, activeTab, isAuthenticated]);
 
   const loadPreparationData = async () => {
@@ -85,6 +109,7 @@ const JobSummaryDetailPage = () => {
 
       setStages(nextStages);
       setNote(nextStages[activeStage]?.note || '');
+      setStageResult(nextStages[activeStage]?.result ?? null);
 
       if (coverLetters.length > 0) {
         const first = [...coverLetters].sort((a, b) => a.sortOrder - b.sortOrder)[0];
@@ -105,6 +130,7 @@ const JobSummaryDetailPage = () => {
 
   useEffect(() => {
     setNote(stages[activeStage]?.note || '');
+    setStageResult(stages[activeStage]?.result ?? null);
   }, [activeStage, stages]);
 
   const savePreparation = async () => {
@@ -116,7 +142,7 @@ const JobSummaryDetailPage = () => {
 
     setSavingPrep(true);
     try {
-      await jdSummaryService.saveStageNote(jd.id, activeStage, note.trim());
+      await jdSummaryService.saveStageNote(jd.id, activeStage, note.trim(), stageResult);
       toast.success(`${HIRING_STAGE_LABELS[activeStage]} 준비 기록을 저장했습니다.`);
       await loadPreparationData();
     } catch {
@@ -156,6 +182,37 @@ const JobSummaryDetailPage = () => {
       coding: coding && coding.length > 0,
     };
   }, [stages]);
+
+  const handleReviewSubmit = async () => {
+    if (!jd) return;
+    if (!reviewForm.experienceComment.trim()) {
+      toast.warn('리뷰 내용을 입력해 주세요.');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      await jdSummaryService.addReview(jd.id, {
+        ...reviewForm,
+        experienceComment: reviewForm.experienceComment.trim(),
+        interviewTip: reviewForm.interviewTip?.trim() || undefined,
+      });
+      toast.success('리뷰가 등록되었습니다.');
+      setReviewForm({
+        hiringStage: 'DOCUMENT',
+        anonymous: true,
+        difficultyRating: 5,
+        satisfactionRating: 5,
+        experienceComment: '',
+        interviewTip: '',
+      });
+      await loadReviews();
+    } catch {
+      toast.error('리뷰 등록에 실패했습니다.');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   if (loading) {
     return <div className="min-h-screen bg-[#F8F9FA] pt-24" />;
@@ -208,7 +265,14 @@ const JobSummaryDetailPage = () => {
         {activeTab === 'detail' && <DetailSection jd={jd} />}
 
         {activeTab === 'review' && isAuthenticated && (
-          <ReviewSection reviewPage={reviewPage} loading={reviewLoading} />
+          <ReviewSection
+            reviewPage={reviewPage}
+            loading={reviewLoading}
+            form={reviewForm}
+            submitting={reviewSubmitting}
+            onChange={setReviewForm}
+            onSubmit={handleReviewSubmit}
+          />
         )}
 
         {activeTab === 'prep' && isAuthenticated && (
@@ -222,19 +286,31 @@ const JobSummaryDetailPage = () => {
               <div className="rounded-2xl border bg-white p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">단계 선택</p>
                 <div className="space-y-2">
-                  {stageOrder.map((stage) => (
-                    <button
-                      key={stage}
-                      onClick={() => setActiveStage(stage)}
-                      className={`w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
-                        activeStage === stage
-                          ? 'bg-[#3FB6B2] text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {HIRING_STAGE_LABELS[stage]}
-                    </button>
-                  ))}
+                  {stageOrder.map((stage) => {
+                    const r = stages[stage]?.result;
+                    return (
+                      <button
+                        key={stage}
+                        onClick={() => setActiveStage(stage)}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
+                          activeStage === stage
+                            ? 'bg-[#3FB6B2] text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        <span>{HIRING_STAGE_LABELS[stage]}</span>
+                        {r && (
+                          <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                            r === 'PASSED' ? 'bg-emerald-100 text-emerald-600' :
+                            r === 'FAILED' ? 'bg-red-100 text-red-500' :
+                            'bg-gray-200 text-gray-500'
+                          }`}>
+                            {HIRING_STAGE_RESULT_LABELS[r]}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -253,6 +329,27 @@ const JobSummaryDetailPage = () => {
                   <div className="py-10 text-center text-sm text-gray-400">불러오는 중...</div>
                 ) : (
                   <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-500">결과</span>
+                      {(['PASSED', 'FAILED', 'PENDING'] as HiringStageResult[]).map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setStageResult(stageResult === r ? null : r)}
+                          className={`rounded-lg px-3 py-1 text-xs font-bold transition ${
+                            stageResult === r
+                              ? r === 'PASSED'
+                                ? 'bg-emerald-500 text-white'
+                                : r === 'FAILED'
+                                ? 'bg-red-400 text-white'
+                                : 'bg-gray-400 text-white'
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          }`}
+                        >
+                          {HIRING_STAGE_RESULT_LABELS[r]}
+                        </button>
+                      ))}
+                    </div>
                     <textarea
                       className="min-h-[220px] w-full rounded-xl border border-gray-200 p-4 text-sm"
                       value={note}
@@ -321,28 +418,142 @@ const Block = ({ title, content }: { title: string; content?: string | null }) =
     </div>
   ) : null;
 
-const ReviewSection = ({ reviewPage, loading }: { reviewPage: any; loading: boolean }) => {
-  if (loading) {
-    return <div className="py-10 text-center text-sm text-gray-400">리뷰를 불러오는 중...</div>;
-  }
-
-  if (!reviewPage?.items?.length) {
-    return <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-400">등록된 리뷰가 없습니다.</div>;
-  }
-
+const ReviewSection = ({
+  reviewPage,
+  loading,
+  form,
+  submitting,
+  onChange,
+  onSubmit,
+}: {
+  reviewPage: any;
+  loading: boolean;
+  form: ReviewWriteReq;
+  submitting: boolean;
+  onChange: (value: ReviewWriteReq) => void;
+  onSubmit: () => void;
+}) => {
   return (
-    <div className="space-y-4">
-      {reviewPage.items.map((r: any) => (
-        <div key={r.id} className="rounded-2xl border bg-white p-6">
-          <div className="mb-2 text-xs text-gray-400">
-            {HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}
-          </div>
-          <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
+    <div className="space-y-5">
+      <div className="rounded-2xl border bg-white p-6">
+        <h3 className="mb-4 text-base font-bold text-gray-900">리뷰 작성</h3>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2">
+            <span className="text-xs font-semibold text-gray-500">채용 단계</span>
+            <select
+              value={form.hiringStage}
+              onChange={(e) => onChange({ ...form, hiringStage: e.target.value as HiringStage })}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            >
+              {stageOrder.map((stage) => (
+                <option key={stage} value={stage}>
+                  {HIRING_STAGE_LABELS[stage]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-end gap-2 rounded-xl border border-gray-200 px-3 py-2">
+            <input
+              type="checkbox"
+              checked={form.anonymous}
+              onChange={(e) => onChange({ ...form, anonymous: e.target.checked })}
+            />
+            <span className="text-sm text-gray-700">익명으로 작성</span>
+          </label>
         </div>
-      ))}
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <ScoreSelector
+            label="난이도"
+            value={form.difficultyRating}
+            onChange={(value) => onChange({ ...form, difficultyRating: value })}
+          />
+          <ScoreSelector
+            label="만족도"
+            value={form.satisfactionRating}
+            onChange={(value) => onChange({ ...form, satisfactionRating: value })}
+          />
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <textarea
+            value={form.experienceComment}
+            onChange={(e) => onChange({ ...form, experienceComment: e.target.value })}
+            className="min-h-[130px] w-full rounded-xl border border-gray-200 p-4 text-sm"
+            placeholder="면접/전형 경험을 공유해 주세요."
+          />
+          <textarea
+            value={form.interviewTip || ''}
+            onChange={(e) => onChange({ ...form, interviewTip: e.target.value })}
+            className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
+            placeholder="도움이 된 팁이 있다면 작성해 주세요. (선택)"
+          />
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={onSubmit}
+            disabled={submitting}
+            className="rounded-xl bg-[#3FB6B2] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {submitting ? '등록 중...' : '리뷰 등록'}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-10 text-center text-sm text-gray-400">리뷰를 불러오는 중...</div>
+      ) : !reviewPage?.items?.length ? (
+        <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-400">등록된 리뷰가 없습니다.</div>
+      ) : (
+        <div className="space-y-4">
+          {reviewPage.items.map((r: any) => (
+            <div key={r.id} className="rounded-2xl border bg-white p-6">
+              <div className="mb-1 text-xs text-gray-400">
+                {HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}
+              </div>
+              <div className="mb-3 text-xs text-gray-500">난이도 {r.difficultyRating} / 만족도 {r.satisfactionRating}</div>
+              <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
+              {r.interviewTip && <div className="mt-3 text-xs text-[#3FB6B2]">TIP: {r.interviewTip}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
+
+const ScoreSelector = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) => (
+  <div className="space-y-2">
+    <div className="text-xs font-semibold text-gray-500">
+      {label} <span className="text-[#3FB6B2]">{value}</span>
+    </div>
+    <div className="grid grid-cols-5 gap-2">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`rounded-lg px-2 py-1.5 text-xs font-semibold ${
+            value === n ? 'bg-[#3FB6B2] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 const TabButton = ({
   label,

@@ -167,10 +167,18 @@ export interface MemberJobSummaryListItem {
   createdAt: string;
 }
 
+export type HiringStageResult = 'PASSED' | 'FAILED' | 'PENDING';
+
+export const HIRING_STAGE_RESULT_LABELS: Record<HiringStageResult, string> = {
+  PASSED: '합격',
+  FAILED: '불합격',
+  PENDING: '대기중',
+};
+
 export interface HiringStageView {
   stage: HiringStage;
   note: string;
-  result?: string | null;
+  result?: HiringStageResult | null;
   recordedAt: string;
 }
 
