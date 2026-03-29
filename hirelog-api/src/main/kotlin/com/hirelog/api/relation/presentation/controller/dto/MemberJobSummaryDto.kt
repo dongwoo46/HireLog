@@ -33,7 +33,9 @@ data class AddStageReq(
     val stage: HiringStage,
 
     @field:NotBlank
-    val note: String
+    val note: String,
+
+    val result: HiringStageResult? = null
 )
 
 data class UpdateStageReq(

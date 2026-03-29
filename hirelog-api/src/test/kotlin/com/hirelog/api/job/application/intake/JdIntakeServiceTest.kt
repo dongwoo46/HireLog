@@ -7,6 +7,7 @@ import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.JobPlatformType
 import io.mockk.*
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -49,7 +50,8 @@ class JdIntakeServiceTest {
                 memberId = 1L,
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
-                text = "JD 내용입니다."
+                text = "JD 내용입니다.",
+                platform = JobPlatformType.OTHER,
             )
 
             assertThat(requestId).isNotBlank()
@@ -61,7 +63,7 @@ class JdIntakeServiceTest {
         @DisplayName("brandName이 빈 값이면 예외를 던진다")
         fun shouldThrowWhenBrandNameBlank() {
             assertThatThrownBy {
-                service.requestText(1L, "", "Backend Engineer", "JD 내용입니다.")
+                service.requestText(1L, "", "Backend Engineer", "JD 내용입니다.", JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("brandName")
         }
@@ -70,7 +72,7 @@ class JdIntakeServiceTest {
         @DisplayName("brandPositionName이 빈 값이면 예외를 던진다")
         fun shouldThrowWhenPositionNameBlank() {
             assertThatThrownBy {
-                service.requestText(1L, "Toss", "", "JD 내용입니다.")
+                service.requestText(1L, "Toss", "", "JD 내용입니다.", JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("positionName")
         }
@@ -79,7 +81,7 @@ class JdIntakeServiceTest {
         @DisplayName("text가 빈 값이면 예외를 던진다")
         fun shouldThrowWhenTextBlank() {
             assertThatThrownBy {
-                service.requestText(1L, "Toss", "Backend Engineer", "")
+                service.requestText(1L, "Toss", "Backend Engineer", "", JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("text")
         }
@@ -101,7 +103,8 @@ class JdIntakeServiceTest {
                 memberId = 1L,
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
-                imageFiles = listOf(imageFile)
+                imageFiles = listOf(imageFile),
+                platform = JobPlatformType.OTHER,
             )
 
             assertThat(requestId).isNotBlank()
@@ -114,7 +117,7 @@ class JdIntakeServiceTest {
         @DisplayName("이미지 목록이 비어있으면 예외를 던진다")
         fun shouldThrowWhenImageFilesEmpty() {
             assertThatThrownBy {
-                service.requestOcr(1L, "Toss", "Backend Engineer", emptyList())
+                service.requestOcr(1L, "Toss", "Backend Engineer", emptyList(), JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("imageFiles")
         }
@@ -125,7 +128,7 @@ class JdIntakeServiceTest {
             val imageFile = MockMultipartFile("file", "test.png", "image/png", byteArrayOf(1, 2, 3))
 
             assertThatThrownBy {
-                service.requestOcr(1L, "", "Backend Engineer", listOf(imageFile))
+                service.requestOcr(1L, "", "Backend Engineer", listOf(imageFile), JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("brandName")
         }
@@ -163,7 +166,8 @@ class JdIntakeServiceTest {
                 memberId = 1L,
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
-                url = "https://www.toss.im/careers/123"
+                url = "https://www.toss.im/careers/123",
+                platform = JobPlatformType.OTHER,
             )
 
             assertThat(result).isInstanceOf(UrlIntakeResult.NewRequest::class.java)
@@ -181,7 +185,8 @@ class JdIntakeServiceTest {
                 memberId = 1L,
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
-                url = "https://www.toss.im/careers/123"
+                url = "https://www.toss.im/careers/123",
+                platform = JobPlatformType.OTHER,
             )
 
             assertThat(result).isInstanceOf(UrlIntakeResult.Duplicate::class.java)
@@ -194,7 +199,7 @@ class JdIntakeServiceTest {
         @DisplayName("잘못된 URL 형식이면 예외를 던진다")
         fun shouldThrowWhenInvalidUrl() {
             assertThatThrownBy {
-                service.requestUrl(1L, "Toss", "Backend Engineer", "not-a-url")
+                service.requestUrl(1L, "Toss", "Backend Engineer", "not-a-url", JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid URL")
         }
@@ -203,7 +208,7 @@ class JdIntakeServiceTest {
         @DisplayName("http/https가 아닌 scheme은 거부한다")
         fun shouldRejectNonHttpScheme() {
             assertThatThrownBy {
-                service.requestUrl(1L, "Toss", "Backend Engineer", "ftp://example.com/jd")
+                service.requestUrl(1L, "Toss", "Backend Engineer", "ftp://example.com/jd", JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid URL")
         }
@@ -212,7 +217,7 @@ class JdIntakeServiceTest {
         @DisplayName("brandName이 빈 값이면 예외를 던진다")
         fun shouldThrowWhenBrandNameBlank() {
             assertThatThrownBy {
-                service.requestUrl(1L, "", "Backend Engineer", "https://example.com")
+                service.requestUrl(1L, "", "Backend Engineer", "https://example.com", JobPlatformType.OTHER)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("brandName")
         }

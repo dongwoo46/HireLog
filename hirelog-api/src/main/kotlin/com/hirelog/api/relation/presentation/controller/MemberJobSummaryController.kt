@@ -87,7 +87,8 @@ class MemberJobSummaryController(
             memberId = member.memberId,
             jobSummaryId = jobSummaryId,
             stage = request.stage,
-            note = request.note
+            note = request.note,
+            result = request.result
         )
 
         return ResponseEntity.status(HttpStatus.CREATED).build()
