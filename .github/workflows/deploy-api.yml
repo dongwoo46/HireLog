@@ -167,8 +167,8 @@ jobs:
 
             echo "▶ Image: ${{ env.IMAGE }}:$IMAGE_TAG"
 
-            # ── 지원 서비스 기동 (변경사항 적용) ─────────────────
-            $COMPOSE up -d redis redis-exporter prometheus grafana loki promtail node-exporter
+            # ── Redis 기동 (api 의존) ─────────────────────────────
+            $COMPOSE up -d redis
 
             # ── 현재 활성 슬롯 판별 ──────────────────────────────
             if grep -q "8080" $ACTIVE_CONF 2>/dev/null; then

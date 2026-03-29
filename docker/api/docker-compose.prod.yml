@@ -180,7 +180,7 @@ services:
   # Server2(10.0.1.6) Kafka 직접 연결 → hirelog_external 필요
   # ──────────────────────────────────────────────
   preprocess:
-    image: ${PREPROCESS_IMAGE}
+    image: ${PREPROCESS_IMAGE:-ghcr.io/dongwoo46/hirelog-preprocess:latest}
     container_name: preprocess
     restart: unless-stopped
     env_file:
