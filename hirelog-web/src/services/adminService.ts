@@ -1,5 +1,11 @@
 ﻿import { apiClient } from '../utils/apiClient';
-import type { AdminPagedResult, BrandListView, CompanyView, MemberSummaryView } from '../types/admin';
+import type {
+  AdminJobSummaryDirectCreateReq,
+  AdminPagedResult,
+  BrandListView,
+  CompanyView,
+  MemberSummaryView,
+} from '../types/admin';
 
 export const adminService = {
   getAllMembers: async (page = 0, size = 20): Promise<AdminPagedResult<MemberSummaryView>> => {
@@ -27,6 +33,11 @@ export const adminService = {
 
   deactivateJob: async (id: number): Promise<void> => {
     await apiClient.patch(`/job-summary/${id}/deactivate`);
+  },
+
+  createJobSummaryDirectly: async (payload: AdminJobSummaryDirectCreateReq): Promise<{ summaryId: number }> => {
+    const response = await apiClient.post('/admin/job-summary/direct', payload);
+    return response.data;
   },
 
   getAllBrands: async (page = 0, size = 20): Promise<AdminPagedResult<BrandListView>> => {

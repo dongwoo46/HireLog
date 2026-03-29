@@ -28,27 +28,31 @@ const stageOrder: HiringStage[] = [
   'COFFEE_CHAT',
 ];
 
+const reviewDefaultForm: ReviewWriteReq = {
+  hiringStage: 'DOCUMENT',
+  anonymous: true,
+  difficultyRating: 5,
+  satisfactionRating: 5,
+  experienceComment: '',
+  interviewTip: '',
+};
+
 const JobSummaryDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
 
   const [jd, setJd] = useState<JobSummaryDetailView | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('detail');
-  const { isAuthenticated } = useAuthStore();
 
   const [reviewPage, setReviewPage] = useState<any>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewForm, setReviewForm] = useState<ReviewWriteReq>({
-    hiringStage: 'DOCUMENT',
-    anonymous: true,
-    difficultyRating: 5,
-    satisfactionRating: 5,
-    experienceComment: '',
-    interviewTip: '',
-  });
+  const [showReviewComposer, setShowReviewComposer] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [reviewForm, setReviewForm] = useState<ReviewWriteReq>(reviewDefaultForm);
 
   const [stages, setStages] = useState<Record<HiringStage, HiringStageView | undefined>>({} as any);
   const [activeStage, setActiveStage] = useState<HiringStage>('DOCUMENT');
@@ -81,6 +85,14 @@ const JobSummaryDetailPage = () => {
     try {
       const data = await jdSummaryService.getReviews(jd.id);
       setReviewPage(data);
+
+      if (user?.id) {
+        const hasOwnVisibleReview = (data?.items || []).some((item: any) => item.memberId === user.id);
+        if (hasOwnVisibleReview) {
+          setAlreadyReviewed(true);
+          setShowReviewComposer(false);
+        }
+      }
     } catch {
       toast.error('리뷰를 불러오지 못했습니다.');
     } finally {
@@ -89,9 +101,9 @@ const JobSummaryDetailPage = () => {
   };
 
   useEffect(() => {
-    if (!jd || !isAuthenticated || activeTab !== 'review') return;
+    if (!jd || activeTab !== 'review') return;
     loadReviews();
-  }, [jd, activeTab, isAuthenticated]);
+  }, [jd, activeTab]);
 
   const loadPreparationData = async () => {
     if (!jd) return;
@@ -126,7 +138,7 @@ const JobSummaryDetailPage = () => {
   useEffect(() => {
     if (!jd || !isAuthenticated || activeTab !== 'prep') return;
     loadPreparationData();
-  }, [jd, activeTab, isAuthenticated]);
+  }, [jd, isAuthenticated, activeTab]);
 
   useEffect(() => {
     setNote(stages[activeStage]?.note || '');
@@ -174,15 +186,6 @@ const JobSummaryDetailPage = () => {
     }
   };
 
-  const prepSummary = useMemo(() => {
-    const document = stages.DOCUMENT?.note;
-    const coding = stages.CODING_TEST?.note;
-    return {
-      document: document && document.length > 0,
-      coding: coding && coding.length > 0,
-    };
-  }, [stages]);
-
   const handleReviewSubmit = async () => {
     if (!jd) return;
     if (!reviewForm.experienceComment.trim()) {
@@ -198,25 +201,34 @@ const JobSummaryDetailPage = () => {
         interviewTip: reviewForm.interviewTip?.trim() || undefined,
       });
       toast.success('리뷰가 등록되었습니다.');
-      setReviewForm({
-        hiringStage: 'DOCUMENT',
-        anonymous: true,
-        difficultyRating: 5,
-        satisfactionRating: 5,
-        experienceComment: '',
-        interviewTip: '',
-      });
+      setAlreadyReviewed(true);
+      setShowReviewComposer(false);
+      setReviewForm(reviewDefaultForm);
       await loadReviews();
-    } catch {
-      toast.error('리뷰 등록에 실패했습니다.');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || '';
+      if (typeof message === 'string' && message.includes('이미')) {
+        setAlreadyReviewed(true);
+        setShowReviewComposer(false);
+        toast.info('이미 이 공고에 리뷰를 작성하셨습니다.');
+      } else {
+        toast.error('리뷰 등록에 실패했습니다.');
+      }
     } finally {
       setReviewSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <div className="min-h-screen bg-[#F8F9FA] pt-24" />;
-  }
+  const prepSummary = useMemo(() => {
+    const document = stages.DOCUMENT?.note;
+    const coding = stages.CODING_TEST?.note;
+    return {
+      document: document && document.length > 0,
+      coding: coding && coding.length > 0,
+    };
+  }, [stages]);
+
+  if (loading) return <div className="min-h-screen bg-[#F8F9FA] pt-24" />;
 
   if (!jd || loadFailed) {
     return (
@@ -242,29 +254,19 @@ const JobSummaryDetailPage = () => {
 
         <div className="mb-8 flex gap-6 border-b text-sm font-bold">
           <TabButton label="상세 정보" active={activeTab === 'detail'} onClick={() => setActiveTab('detail')} />
-          <TabButton
-            label="리뷰"
-            active={activeTab === 'review'}
-            onClick={() => setActiveTab('review')}
-            disabled={!isAuthenticated}
-          />
-          <TabButton
-            label="준비 기록"
-            active={activeTab === 'prep'}
-            onClick={() => setActiveTab('prep')}
-            disabled={!isAuthenticated}
-          />
+          <TabButton label="리뷰" active={activeTab === 'review'} onClick={() => setActiveTab('review')} />
+          <TabButton label="준비 기록" active={activeTab === 'prep'} onClick={() => setActiveTab('prep')} disabled={!isAuthenticated} />
         </div>
 
         {!isAuthenticated && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            비로그인 상태에서는 JD 상세 조회만 가능합니다. 리뷰/준비기록 기능은 로그인 후 이용해 주세요.
+            비로그인 상태에서는 JD/리뷰 조회만 가능합니다. 리뷰 작성과 준비기록 저장은 로그인 후 이용해 주세요.
           </div>
         )}
 
         {activeTab === 'detail' && <DetailSection jd={jd} />}
 
-        {activeTab === 'review' && isAuthenticated && (
+        {activeTab === 'review' && (
           <ReviewSection
             reviewPage={reviewPage}
             loading={reviewLoading}
@@ -272,6 +274,10 @@ const JobSummaryDetailPage = () => {
             submitting={reviewSubmitting}
             onChange={setReviewForm}
             onSubmit={handleReviewSubmit}
+            showComposer={showReviewComposer}
+            setShowComposer={setShowReviewComposer}
+            alreadyReviewed={alreadyReviewed}
+            isAuthenticated={isAuthenticated}
           />
         )}
 
@@ -299,15 +305,7 @@ const JobSummaryDetailPage = () => {
                         }`}
                       >
                         <span>{HIRING_STAGE_LABELS[stage]}</span>
-                        {r && (
-                          <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                            r === 'PASSED' ? 'bg-emerald-100 text-emerald-600' :
-                            r === 'FAILED' ? 'bg-red-100 text-red-500' :
-                            'bg-gray-200 text-gray-500'
-                          }`}>
-                            {HIRING_STAGE_RESULT_LABELS[r]}
-                          </span>
-                        )}
+                        {r && <span className="rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-gray-600">{HIRING_STAGE_RESULT_LABELS[r]}</span>}
                       </button>
                     );
                   })}
@@ -337,13 +335,7 @@ const JobSummaryDetailPage = () => {
                           type="button"
                           onClick={() => setStageResult(stageResult === r ? null : r)}
                           className={`rounded-lg px-3 py-1 text-xs font-bold transition ${
-                            stageResult === r
-                              ? r === 'PASSED'
-                                ? 'bg-emerald-500 text-white'
-                                : r === 'FAILED'
-                                ? 'bg-red-400 text-white'
-                                : 'bg-gray-400 text-white'
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            stageResult === r ? 'bg-[#3FB6B2] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                           }`}
                         >
                           {HIRING_STAGE_RESULT_LABELS[r]}
@@ -425,6 +417,10 @@ const ReviewSection = ({
   submitting,
   onChange,
   onSubmit,
+  showComposer,
+  setShowComposer,
+  alreadyReviewed,
+  isAuthenticated,
 }: {
   reviewPage: any;
   loading: boolean;
@@ -432,11 +428,54 @@ const ReviewSection = ({
   submitting: boolean;
   onChange: (value: ReviewWriteReq) => void;
   onSubmit: () => void;
-}) => {
-  return (
-    <div className="space-y-5">
+  showComposer: boolean;
+  setShowComposer: (value: boolean) => void;
+  alreadyReviewed: boolean;
+  isAuthenticated: boolean;
+}) => (
+  <div className="space-y-5">
+    {!isAuthenticated && (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        비로그인 상태에서는 리뷰를 조회만 할 수 있습니다.
+      </div>
+    )}
+
+    {isAuthenticated && !alreadyReviewed && !showComposer && (
       <div className="rounded-2xl border bg-white p-6">
-        <h3 className="mb-4 text-base font-bold text-gray-900">리뷰 작성</h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-gray-900">리뷰 작성</h3>
+            <p className="mt-1 text-xs text-gray-500">이 공고에 대한 실제 경험을 남겨주세요.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowComposer(true)}
+            className="rounded-xl bg-[#3FB6B2] px-4 py-2 text-sm font-semibold text-white"
+          >
+            리뷰 작성
+          </button>
+        </div>
+      </div>
+    )}
+
+    {isAuthenticated && alreadyReviewed && (
+      <div className="rounded-2xl border border-[#3FB6B2]/30 bg-[#3FB6B2]/5 px-4 py-3 text-sm text-[#2f8e8a]">
+        이 공고에는 이미 리뷰를 작성하셨습니다. 리뷰 수정/삭제는 관리자 권한에서만 가능합니다.
+      </div>
+    )}
+
+    {isAuthenticated && showComposer && !alreadyReviewed && (
+      <div className="rounded-2xl border bg-white p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-bold text-gray-900">리뷰 작성</h3>
+          <button
+            type="button"
+            onClick={() => setShowComposer(false)}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600"
+          >
+            닫기
+          </button>
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2">
@@ -454,14 +493,25 @@ const ReviewSection = ({
             </select>
           </label>
 
-          <label className="flex items-end gap-2 rounded-xl border border-gray-200 px-3 py-2">
-            <input
-              type="checkbox"
-              checked={form.anonymous}
-              onChange={(e) => onChange({ ...form, anonymous: e.target.checked })}
-            />
-            <span className="text-sm text-gray-700">익명으로 작성</span>
-          </label>
+          <button
+            type="button"
+            onClick={() => onChange({ ...form, anonymous: !form.anonymous })}
+            className={`flex h-[74px] items-center justify-between rounded-xl border px-4 transition ${
+              form.anonymous ? 'border-[#3FB6B2] bg-[#3FB6B2]/5' : 'border-gray-200 bg-white'
+            }`}
+          >
+            <div className="text-left">
+              <p className="text-xs font-semibold text-gray-500">작성 방식</p>
+              <p className="text-sm font-semibold text-gray-800">익명으로 작성</p>
+            </div>
+            <span
+              className={`inline-flex h-6 w-11 items-center rounded-full p-1 transition ${
+                form.anonymous ? 'bg-[#3FB6B2]' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`h-4 w-4 rounded-full bg-white transition ${form.anonymous ? 'translate-x-5' : 'translate-x-0'}`} />
+            </span>
+          </button>
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -482,7 +532,7 @@ const ReviewSection = ({
             value={form.experienceComment}
             onChange={(e) => onChange({ ...form, experienceComment: e.target.value })}
             className="min-h-[130px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-            placeholder="면접/전형 경험을 공유해 주세요."
+            placeholder="면접/전형 경험을 공유해 주세요. (최소 10자)"
           />
           <textarea
             value={form.interviewTip || ''}
@@ -502,28 +552,26 @@ const ReviewSection = ({
           </button>
         </div>
       </div>
+    )}
 
-      {loading ? (
-        <div className="py-10 text-center text-sm text-gray-400">리뷰를 불러오는 중...</div>
-      ) : !reviewPage?.items?.length ? (
-        <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-400">등록된 리뷰가 없습니다.</div>
-      ) : (
-        <div className="space-y-4">
-          {reviewPage.items.map((r: any) => (
-            <div key={r.id} className="rounded-2xl border bg-white p-6">
-              <div className="mb-1 text-xs text-gray-400">
-                {HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}
-              </div>
-              <div className="mb-3 text-xs text-gray-500">난이도 {r.difficultyRating} / 만족도 {r.satisfactionRating}</div>
-              <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
-              {r.interviewTip && <div className="mt-3 text-xs text-[#3FB6B2]">TIP: {r.interviewTip}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+    {loading ? (
+      <div className="py-10 text-center text-sm text-gray-400">리뷰를 불러오는 중...</div>
+    ) : !reviewPage?.items?.length ? (
+      <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-400">등록된 리뷰가 없습니다.</div>
+    ) : (
+      <div className="space-y-4">
+        {reviewPage.items.map((r: any) => (
+          <div key={r.id} className="rounded-2xl border bg-white p-6">
+            <div className="mb-1 text-xs text-gray-400">{HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}</div>
+            <div className="mb-3 text-xs text-gray-500">난이도 {r.difficultyRating} / 만족도 {r.satisfactionRating}</div>
+            <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
+            {r.interviewTip && <div className="mt-3 text-xs text-[#3FB6B2]">TIP: {r.interviewTip}</div>}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
 
 const ScoreSelector = ({
   label,
@@ -538,21 +586,44 @@ const ScoreSelector = ({
     <div className="text-xs font-semibold text-gray-500">
       {label} <span className="text-[#3FB6B2]">{value}</span>
     </div>
-    <div className="grid grid-cols-5 gap-2">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange(n)}
-          className={`rounded-lg px-2 py-1.5 text-xs font-semibold ${
-            value === n ? 'bg-[#3FB6B2] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          {n}
-        </button>
-      ))}
+    <div>
+      <div className="mb-2 flex items-center gap-1">
+        {[0, 1, 2, 3, 4].map((idx) => {
+          const starValue = value / 2;
+          const fill = Math.max(0, Math.min(1, starValue - idx));
+          return (
+            <div key={idx} className="relative h-8 w-8">
+              <StarIcon className="text-gray-300" />
+              {fill > 0 && (
+                <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                  <StarIcon className="text-[#F59E0B]" />
+                </div>
+              )}
+              <button
+                type="button"
+                aria-label={`${label} ${idx * 2 + 1}점`}
+                onClick={() => onChange(idx * 2 + 1)}
+                className="absolute left-0 top-0 h-full w-1/2"
+              />
+              <button
+                type="button"
+                aria-label={`${label} ${idx * 2 + 2}점`}
+                onClick={() => onChange(idx * 2 + 2)}
+                className="absolute right-0 top-0 h-full w-1/2"
+              />
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-gray-400">반별(0.5별) 단위로 선택됩니다. 0.5별 = 1점</p>
     </div>
   </div>
+);
+
+const StarIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={`h-8 w-8 ${className || ''}`} fill="currentColor" aria-hidden="true">
+    <path d="M12 2.6l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.43l-5.8 3.05 1.11-6.46-4.7-4.58 6.49-.94L12 2.6z" />
+  </svg>
 );
 
 const TabButton = ({
@@ -569,9 +640,7 @@ const TabButton = ({
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`pb-2 ${
-      active ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2]' : 'text-gray-400'
-    } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+    className={`pb-2 ${active ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2]' : 'text-gray-400'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
   >
     {label}
   </button>
@@ -580,11 +649,7 @@ const TabButton = ({
 const StatusBadge = ({ label, done }: { label: string; done: boolean }) => (
   <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
     <span className="text-sm font-semibold text-gray-700">{label}</span>
-    <span
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-        done ? 'bg-[#3FB6B2]/10 text-[#3FB6B2]' : 'bg-gray-100 text-gray-500'
-      }`}
-    >
+    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${done ? 'bg-[#3FB6B2]/10 text-[#3FB6B2]' : 'bg-gray-100 text-gray-500'}`}>
       {done ? '저장됨' : '미저장'}
     </span>
   </div>

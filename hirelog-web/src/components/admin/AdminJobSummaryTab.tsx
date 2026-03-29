@@ -70,7 +70,7 @@ export default function AdminJobSummaryTab() {
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Job Summary 관리</h2>
         <button
-          onClick={() => window.open('/jd/request', '_blank')}
+          onClick={() => window.open('/admin/jd/request', '_blank')}
           className="rounded-xl bg-[#3FB6B2] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#34a09c]"
         >
           JD 수동 등록
