@@ -60,7 +60,7 @@ class UrlPipeline:
             html_content = self.dynamic_fetcher.fetch(input.url)
 
         # 2️⃣ Parse (HTML → 텍스트)
-        parsed_data = self.parser.parse(html_content)
+        parsed_data = self.parser.parse(html_content, url=input.url)
         title = parsed_data.get("title", "")
         body_text = parsed_data.get("body", "")
 
@@ -88,7 +88,7 @@ class UrlPipeline:
             }
 
         # 3️⃣ URL 전용 전처리 (노이즈 제거)
-        cleaned_lines = preprocess_url_text(body_text)
+        cleaned_lines = preprocess_url_text(body_text, platform=input.platform)
 
         logger.debug(
             "URL text preprocessed",

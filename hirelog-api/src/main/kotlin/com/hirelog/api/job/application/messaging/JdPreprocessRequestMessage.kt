@@ -1,5 +1,6 @@
 package com.hirelog.api.job.application.messaging
 
+import com.hirelog.api.job.domain.type.JobPlatformType
 import com.hirelog.api.job.domain.type.JobSourceType
 
 data class JdPreprocessRequestMessage(
@@ -15,6 +16,7 @@ data class JdPreprocessRequestMessage(
     val brandName: String,
     val positionName: String,
     val source: JobSourceType,
+    val platform: JobPlatformType,
 
     // === Source별 데이터 (Python 측 필수 필드) ===
     val text: String? = null,           // TEXT 소스용
