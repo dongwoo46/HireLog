@@ -84,15 +84,7 @@ const JobSummaryListPage = () => {
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20 relative">
 
-      {/* 🔥 사이드 열려있을 때 버튼 숨김 */}
-      {!isSideOpen && (
-        <button
-          onClick={() => setIsSideOpen(true)}
-          className="fixed right-0 top-48 z-50 bg-[#3FB6B2] text-white px-4 py-3 rounded-l-2xl shadow-lg hover:bg-[#35A09D] transition"
-        >
-          〈 등록한 공고 보기
-        </button>
-      )}
+      {/* 🔥 사이드 패널 토글용 플로팅 버튼은 리스트 겹침 문제로 본문 상단으로 이동됨 */}
 
       {/* ================== 사이드 패널 ================== */}
       <div
@@ -223,6 +215,22 @@ const JobSummaryListPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6">
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={() => setIsSideOpen(true)}
+            className="group flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-full shadow-sm hover:shadow-md hover:border-[#3FB6B2] hover:text-[#3FB6B2] transition-all duration-300 font-medium text-sm"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 group-hover:text-[#3FB6B2] transition-colors">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            등록 / 저장 공고 보기
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="text-center py-20">Loading...</div>
         ) : jds.length > 0 ? (
