@@ -153,7 +153,7 @@ class MemberJobSummary private constructor(
      * 채용 단계 관리
      * ========================= */
 
-    fun addStageRecord(stage: HiringStage, note: String) {
+    fun addStageRecord(stage: HiringStage, note: String, result: HiringStageResult? = null) {
         require(saveType == MemberJobSummarySaveType.APPLY) {
             "Stage records can be managed only in APPLY state"
         }
@@ -168,7 +168,8 @@ class MemberJobSummary private constructor(
             HiringStageRecord(
                 memberJobSummaryId = id,
                 stage = stage,
-                note = note
+                note = note,
+                result = result
             )
         )
     }

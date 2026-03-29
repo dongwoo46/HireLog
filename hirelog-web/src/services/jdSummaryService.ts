@@ -146,11 +146,16 @@ export const jdSummaryService = {
     return response.data;
   },
 
-  saveStageNote: async (jobSummaryId: number, stage: HiringStage, note: string): Promise<void> => {
+  saveStageNote: async (
+    jobSummaryId: number,
+    stage: HiringStage,
+    note: string,
+    result?: import('../types/jobSummary').HiringStageResult | null,
+  ): Promise<void> => {
     try {
-      await apiClient.patch(`/member-job-summary/${jobSummaryId}/stages`, { stage, note });
+      await apiClient.patch(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
     } catch {
-      await apiClient.post(`/member-job-summary/${jobSummaryId}/stages`, { stage, note });
+      await apiClient.post(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
     }
   },
 
