@@ -10,7 +10,7 @@ import {
   TbUserCheck,
   TbStar,
   TbBulb,
-  TbDiscountCheck,
+  TbDiscount,
   TbMessages,
 } from 'react-icons/tb';
 import { toast } from 'react-toastify';
@@ -420,7 +420,7 @@ const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => (
       <Block title="준비 포인트" content={jd.preparationFocus} icon={TbBulb} delay={400} />
     </div>
     <div className="col-span-1">
-      <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscountCheck} delay={500} />
+      <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} delay={500} />
     </div>
     <div className="col-span-1 md:col-span-2">
       <Block title="면접 질문" content={jd.questionsToAsk} icon={TbMessages} delay={600} />
@@ -430,12 +430,12 @@ const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => (
 
 const highlightKeywords = (text: string) => {
   const keywords = [
-    'Python', 'TypeScript', 'JavaScript', 'Java', 'Spring', 'React', 'Vue', 'Node.js', 'Go', 'C\\\\+\\\\+', 
-    'AWS', 'GCP', 'Docker', 'Kubernetes', 'CI\\\\/CD', 'Git', 'SQL', 'NoSQL', 'RDBMS', 'RESTful', 'API', 
+    'Python', 'TypeScript', 'JavaScript', 'Java', 'Spring', 'React', 'Vue', 'Node.js', 'Go', 'C\\+\\+', 
+    'AWS', 'GCP', 'Docker', 'Kubernetes', 'CI\\/CD', 'Git', 'SQL', 'NoSQL', 'RDBMS', 'RESTful', 'API', 
     'AI', '데이터', '플랫폼', '인프라', '파이프라인', '백엔드', '프론트엔드', '풀스택', '아키텍처', '글로벌'
   ];
-  const splitRegex = new RegExp('(' + keywords.join('|') + ')', 'gi');
-  const matchRegex = new RegExp('^(' + keywords.join('|') + ')$', 'i');
+  const splitRegex = new RegExp(`(${keywords.join('|')})`, 'gi');
+  const matchRegex = new RegExp(`^(${keywords.join('|')})$`, 'i');
   
   const parts = text.split(splitRegex);
   
@@ -468,12 +468,12 @@ const Block = ({
 }) => {
   if (!content) return null;
 
-  const lines = content.split('\\n').filter((line) => line.trim() !== '');
+  const lines = content.split('\n').filter((line) => line.trim() !== '');
 
   return (
     <div 
       className="group flex flex-col h-full rounded-3xl border border-gray-100 bg-white p-7 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:border-[#3FB6B2]/40 hover:shadow-[0_8px_30px_-4px_rgba(63,182,178,0.15)] overflow-hidden relative"
-      style={{ animationDelay: \`\${delay}ms\`, animationFillMode: 'both', animationName: 'fadeUp', animationDuration: '0.6s' }}
+      style={{ animationDelay: `${delay}ms`, animationFillMode: 'both', animationName: 'fadeUp', animationDuration: '0.6s' }}
     >
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#3FB6B2] to-[#6EC8A7] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       
@@ -487,7 +487,7 @@ const Block = ({
       </div>
       <ul className="space-y-4 grow">
         {lines.map((line, idx) => {
-          const cleanLine = line.replace(/^[-•*]\\s*/, '').trim();
+          const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
           if (!cleanLine) return null;
 
           return (
@@ -500,12 +500,12 @@ const Block = ({
           );
         })}
       </ul>
-      <style>{\`
+      <style>{`
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
-      \`}</style>
+      `}</style>
     </div>
   );
 };
@@ -596,20 +596,20 @@ const ReviewSection = ({
           <button
             type="button"
             onClick={() => onChange({ ...form, anonymous: !form.anonymous })}
-            className={\`flex h-[74px] items-center justify-between rounded-xl border px-4 transition \${
+            className={`flex h-[74px] items-center justify-between rounded-xl border px-4 transition ${
               form.anonymous ? 'border-[#3FB6B2] bg-[#3FB6B2]/5' : 'border-gray-200 bg-white'
-            }\`}
+            }`}
           >
             <div className="text-left">
               <p className="text-xs font-semibold text-gray-500">작성 방식</p>
               <p className="text-sm font-semibold text-gray-800">익명으로 작성</p>
             </div>
             <span
-              className={\`inline-flex h-6 w-11 items-center rounded-full p-1 transition \${
+              className={`inline-flex h-6 w-11 items-center rounded-full p-1 transition ${
                 form.anonymous ? 'bg-[#3FB6B2]' : 'bg-gray-300'
-              }\`}
+              }`}
             >
-              <span className={\`h-4 w-4 rounded-full bg-white transition \${form.anonymous ? 'translate-x-5' : 'translate-x-0'}\`} />
+              <span className={`h-4 w-4 rounded-full bg-white transition ${form.anonymous ? 'translate-x-5' : 'translate-x-0'}`} />
             </span>
           </button>
         </div>
@@ -695,19 +695,19 @@ const ScoreSelector = ({
             <div key={idx} className="relative h-8 w-8">
               <StarIcon className="text-gray-300" />
               {fill > 0 && (
-                <div className="absolute inset-0 overflow-hidden" style={{ width: \`\${fill * 100}%\` }}>
+                <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
                   <StarIcon className="text-[#F59E0B]" />
                 </div>
               )}
               <button
                 type="button"
-                aria-label={\`\${label} \${idx * 2 + 1}점\`}
+                aria-label={`${label} ${idx * 2 + 1}점`}
                 onClick={() => onChange(idx * 2 + 1)}
                 className="absolute left-0 top-0 h-full w-1/2"
               />
               <button
                 type="button"
-                aria-label={\`\${label} \${idx * 2 + 2}점\`}
+                aria-label={`${label} ${idx * 2 + 2}점`}
                 onClick={() => onChange(idx * 2 + 2)}
                 className="absolute right-0 top-0 h-full w-1/2"
               />
@@ -721,7 +721,7 @@ const ScoreSelector = ({
 );
 
 const StarIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={\`h-8 w-8 \${className || ''}\`} fill="currentColor" aria-hidden="true">
+  <svg viewBox="0 0 24 24" className={`h-8 w-8 ${className || ''}`} fill="currentColor" aria-hidden="true">
     <path d="M12 2.6l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.43l-5.8 3.05 1.11-6.46-4.7-4.58 6.49-.94L12 2.6z" />
   </svg>
 );
@@ -740,7 +740,7 @@ const TabButton = ({
   <button
     onClick={onClick}
     disabled={disabled}
-    className={\`pb-2 \${active ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2]' : 'text-gray-400'} \${disabled ? 'cursor-not-allowed opacity-50' : ''}\`}
+    className={`pb-2 ${active ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2]' : 'text-gray-400'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
   >
     {label}
   </button>
@@ -749,7 +749,7 @@ const TabButton = ({
 const StatusBadge = ({ label, done }: { label: string; done: boolean }) => (
   <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
     <span className="text-sm font-semibold text-gray-700">{label}</span>
-    <span className={\`rounded-full px-2.5 py-1 text-xs font-semibold \${done ? 'bg-[#3FB6B2]/10 text-[#3FB6B2]' : 'bg-gray-100 text-gray-500'}\`}>
+    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${done ? 'bg-[#3FB6B2]/10 text-[#3FB6B2]' : 'bg-gray-100 text-gray-500'}`}>
       {done ? '저장됨' : '미저장'}
     </span>
   </div>
