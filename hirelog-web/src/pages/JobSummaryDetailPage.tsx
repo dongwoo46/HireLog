@@ -549,7 +549,7 @@ const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => (
       <Block title="준비 포인트" content={jd.preparationFocus} icon={TbBulb} delay={400} />
     </div>
     <div className="col-span-1">
-      <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} delay={500} />
+      <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} useProofMetricsLayout delay={500} />
     </div>
     <div className="col-span-1 md:col-span-2">
       <Block title="면접 질문" content={jd.questionsToAsk} icon={TbMessages} delay={600} />
@@ -559,45 +559,143 @@ const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => (
 
 const highlightKeywords = (text: string) => {
   const keywords = [
-    'Python', 'TypeScript', 'JavaScript', 'Java', 'Spring', 'React', 'Vue', 'Node.js', 'Go', 'C\\+\\+', 
-    'AWS', 'GCP', 'Docker', 'Kubernetes', 'CI\\/CD', 'Git', 'SQL', 'NoSQL', 'RDBMS', 'RESTful', 'API', 
+    'Python', 'TypeScript', 'JavaScript', 'Java', 'Spring', 'React', 'Vue', 'Node.js', 'Go', 'C++',
+    'AWS', 'GCP', 'Docker', 'Kubernetes', 'CI/CD', 'Git', 'SQL', 'NoSQL', 'RDBMS', 'RESTful', 'API',
     'AI', '데이터', '플랫폼', '인프라', '파이프라인', '백엔드', '프론트엔드', '풀스택', '아키텍처', '글로벌'
   ];
-  const splitRegex = new RegExp(`(${keywords.join('|')})`, 'gi');
-  const matchRegex = new RegExp(`^(${keywords.join('|')})$`, 'i');
-  
-  const parts = text.split(splitRegex);
-  
+
+  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const joined = keywords.map(escapeRegex).join('|');
+  const tokenRegex = new RegExp(`(${joined})`, 'gi');
+  const isAsciiWordChar = (char: string) => /[A-Za-z0-9_]/.test(char);
+
+  const parts: Array<{ value: string; highlighted: boolean }> = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(tokenRegex)) {
+    const value = match[0];
+    const start = match.index ?? 0;
+    const end = start + value.length;
+    const prev = start > 0 ? text[start - 1] : '';
+    const next = end < text.length ? text[end] : '';
+
+    // Prevent false positives like 'tailwind' -> 'ai'.
+    if (isAsciiWordChar(prev) || isAsciiWordChar(next)) {
+      continue;
+    }
+
+    if (start > lastIndex) {
+      parts.push({ value: text.slice(lastIndex, start), highlighted: false });
+    }
+    parts.push({ value, highlighted: true });
+    lastIndex = end;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ value: text.slice(lastIndex), highlighted: false });
+  }
+
+  if (parts.length === 0) return <>{text}</>;
+
   return (
     <>
-      {parts.map((part, i) => {
-        if (matchRegex.test(part)) {
-          return (
-            <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 -my-0.5 align-baseline text-[13px] font-extrabold text-[#3FB6B2] bg-[#3FB6B2]/10 rounded-md shadow-sm ring-1 ring-[#3FB6B2]/20">
-              {part}
-            </span>
-          );
-        }
-        return part;
-      })}
+      {parts.map((part, i) => (
+        part.highlighted ? (
+          <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 -my-0.5 align-baseline text-[13px] font-extrabold text-[#3FB6B2] bg-[#3FB6B2]/10 rounded-md shadow-sm ring-1 ring-[#3FB6B2]/20">
+            {part.value}
+          </span>
+        ) : part.value
+      ))}
     </>
   );
+};
+
+const parseProofMetricsSections = (content: string) => {
+  const lines = content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const proofs: string[] = [];
+  const metrics: string[] = [];
+  let currentSection: 'proof' | 'metric' | null = null;
+
+  const pushToCurrent = (value: string) => {
+    if (!value) return;
+    if (currentSection === 'metric') {
+      metrics.push(value);
+      return;
+    }
+    proofs.push(value);
+  };
+
+  for (const rawLine of lines) {
+    const cleanLine = rawLine.replace(/^[-•*]\s*/, '').trim();
+    if (!cleanLine) continue;
+
+    const bracketMatch = cleanLine.match(/^\[(.*?)\]\s*(.*)$/);
+    if (bracketMatch) {
+      const label = bracketMatch[1].trim();
+      const value = bracketMatch[2].trim();
+      if (/지표|metric/i.test(label)) {
+        currentSection = 'metric';
+        if (value) metrics.push(value);
+        continue;
+      }
+      if (/증명|증거|proof/i.test(label)) {
+        currentSection = 'proof';
+        if (value) proofs.push(value);
+        continue;
+      }
+    }
+
+    const labeledMatch = cleanLine.match(/^(증명|증거|proof|지표|metric|metrics)\s*[:：]\s*(.+)$/i);
+    if (labeledMatch) {
+      const label = labeledMatch[1];
+      const value = labeledMatch[2].trim();
+      if (/지표|metric/i.test(label)) {
+        currentSection = 'metric';
+        metrics.push(value);
+      } else {
+        currentSection = 'proof';
+        proofs.push(value);
+      }
+      continue;
+    }
+
+    if (/^(증명|증거|proof)\s*[:：]?$/i.test(cleanLine)) {
+      currentSection = 'proof';
+      continue;
+    }
+
+    if (/^(지표|metric|metrics)\s*[:：]?$/i.test(cleanLine)) {
+      currentSection = 'metric';
+      continue;
+    }
+
+    pushToCurrent(cleanLine);
+  }
+
+  return { proofs, metrics };
 };
 
 const Block = ({
   title,
   content,
   icon: Icon,
+  useProofMetricsLayout = false,
   delay = 0,
 }: {
   title: string;
   content?: string | null;
   icon?: ElementType;
+  useProofMetricsLayout?: boolean;
   delay?: number;
 }) => {
   if (!content) return null;
 
   const lines = content.split('\n').filter((line) => line.trim() !== '');
+  const proofMetrics = useProofMetricsLayout ? parseProofMetricsSections(content) : null;
 
   return (
     <div 
@@ -614,6 +712,55 @@ const Block = ({
         )}
         {title}
       </div>
+      {useProofMetricsLayout && proofMetrics ? (
+        <div className="grow space-y-4">
+          {proofMetrics.proofs.length > 0 && (
+            <div className="rounded-2xl bg-gray-50/80 p-4">
+              <div className="mb-2 text-sm font-extrabold text-gray-800">- 증명</div>
+              <ul className="space-y-2 pl-4">
+                {proofMetrics.proofs.map((item, idx) => (
+                  <li key={`proof-${idx}`} className="text-[15px] leading-[1.6] text-gray-600 font-medium break-keep">
+                    <span className="mr-1.5 text-[#3FB6B2]">-</span>
+                    {highlightKeywords(item)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {proofMetrics.metrics.length > 0 && (
+            <div className="rounded-2xl bg-gray-50/80 p-4">
+              <div className="mb-2 text-sm font-extrabold text-gray-800">- 지표</div>
+              <ul className="space-y-2 pl-4">
+                {proofMetrics.metrics.map((item, idx) => (
+                  <li key={`metric-${idx}`} className="text-[15px] leading-[1.6] text-gray-600 font-medium break-keep">
+                    <span className="mr-1.5 text-[#3FB6B2]">-</span>
+                    {highlightKeywords(item)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {proofMetrics.proofs.length === 0 && proofMetrics.metrics.length === 0 && (
+            <ul className="space-y-4">
+              {lines.map((line, idx) => {
+                const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
+                if (!cleanLine) return null;
+
+                return (
+                  <li key={idx} className="flex items-start gap-3.5 rounded-xl px-2 py-2 transition-colors hover:bg-gray-50/80 -mx-2">
+                    <span className="mt-2.5 flex h-1.5 w-1.5 shrink-0 items-center justify-center rounded-full bg-[#3FB6B2]/40 ring-4 ring-[#3FB6B2]/10 transition-all duration-300 group-hover:bg-[#3FB6B2] group-hover:ring-[#3FB6B2]/20" />
+                    <div className="text-[15px] leading-[1.6] text-gray-600 font-medium break-keep">
+                      {highlightKeywords(cleanLine)}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      ) : (
       <ul className="space-y-4 grow">
         {lines.map((line, idx) => {
           const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
@@ -642,6 +789,7 @@ const Block = ({
           );
         })}
       </ul>
+      )}
       <style>{`
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(20px); }
