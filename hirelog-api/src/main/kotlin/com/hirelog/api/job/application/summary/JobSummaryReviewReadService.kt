@@ -5,16 +5,19 @@ import com.hirelog.api.job.application.review.port.JobSummaryReviewQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryReviewView
 import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.job.presentation.controller.dto.response.JobSummaryReviewRes
+import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 @Transactional(readOnly = true)
 class JobSummaryReviewReadService(
-    private val query: JobSummaryReviewQuery
+    private val query: JobSummaryReviewQuery,
+    private val memberJobSummaryQuery: MemberJobSummaryQuery
 ) {
 
     fun findByJobSummaryId(
+        memberId: Long,
         jobSummaryId: Long,
         hiringStage: HiringStage?,
         minDifficultyRating: Int?,
@@ -25,6 +28,10 @@ class JobSummaryReviewReadService(
         page: Int,
         size: Int
     ): PagedResult<JobSummaryReviewRes> {
+        // 정책: 리뷰 조회는 최소 1건 이상의 "내 JD 등록 이력"이 있는 사용자만 가능
+        require(memberJobSummaryQuery.existsAnyByMemberId(memberId)) {
+            "리뷰 조회는 본인이 등록한 JD가 1개 이상 있을 때 가능합니다."
+        }
 
         val result = query.findByJobSummaryId(
             jobSummaryId = jobSummaryId,

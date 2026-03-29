@@ -98,7 +98,7 @@ const JobSummaryDetailPage = () => {
   }, [id]);
 
   const loadReviews = async () => {
-    if (!jd) return;
+    if (!jd || !isAuthenticated) return;
     setReviewLoading(true);
     try {
       const data = await jdSummaryService.getReviews(jd.id, 0, 20, { includeDeleted: isAdmin });
@@ -119,9 +119,9 @@ const JobSummaryDetailPage = () => {
   };
 
   useEffect(() => {
-    if (!jd || activeTab !== 'review') return;
+    if (!jd || activeTab !== 'review' || !isAuthenticated) return;
     loadReviews();
-  }, [jd, activeTab]);
+  }, [jd, activeTab, isAuthenticated]);
 
   const loadPreparationData = async () => {
     if (!jd) return;
@@ -348,12 +348,6 @@ const JobSummaryDetailPage = () => {
           <TabButton label="리뷰" active={activeTab === 'review'} onClick={() => setActiveTab('review')} />
           <TabButton label="준비 기록" active={activeTab === 'prep'} onClick={() => setActiveTab('prep')} disabled={!isAuthenticated} />
         </div>
-
-        {!isAuthenticated && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            비로그인 상태에서는 JD/리뷰 조회만 가능합니다. 리뷰 작성과 준비기록 저장은 로그인 후 이용해 주세요.
-          </div>
-        )}
 
         {activeTab === 'detail' && <DetailSection jd={jd} />}
 
@@ -824,7 +818,7 @@ const ReviewSection = ({
       </div>
     )}
 
-    {loading ? (
+    {!isAuthenticated ? null : loading ? (
       <div className="py-10 text-center text-sm text-gray-400">리뷰를 불러오는 중...</div>
     ) : !reviewPage?.items?.length ? (
       <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-400">등록된 리뷰가 없습니다.</div>

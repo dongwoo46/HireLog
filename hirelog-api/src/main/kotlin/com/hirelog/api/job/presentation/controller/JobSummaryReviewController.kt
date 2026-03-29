@@ -56,16 +56,19 @@ class JobSummaryReviewController(
      * GET /api/job-summary/review/{jobSummaryId}
      */
     @GetMapping("/{jobSummaryId}")
+    @PreAuthorize("isAuthenticated()")
     fun getReviewsByJobSummary(
         @PathVariable jobSummaryId: Long,
-        @AuthenticationPrincipal member: AuthenticatedMember?,
+        @AuthenticationPrincipal member: AuthenticatedMember,
         @Valid request: JobSummaryReviewSearchReq
     ): ResponseEntity<PagedResult<JobSummaryReviewRes>> {
 
         request.validate()
-        val includeDeleted = request.includeDeleted && member?.role?.name == "ADMIN"
+        // 리뷰 조회는 로그인 사용자 기준으로만 허용한다.
+        val includeDeleted = request.includeDeleted && member.role.name == "ADMIN"
 
         val result = readService.findByJobSummaryId(
+            memberId = member.memberId,
             jobSummaryId = jobSummaryId,
             hiringStage = request.hiringStage,
             minDifficultyRating = request.minDifficultyRating,

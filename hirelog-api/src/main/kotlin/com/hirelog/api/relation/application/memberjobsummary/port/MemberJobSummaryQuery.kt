@@ -31,6 +31,11 @@ interface MemberJobSummaryQuery {
     ): PagedResult<MemberJobSummaryListView>
 
     /**
+     * 회원이 등록한 JD(멤버-공고 관계)가 1건 이상인지 확인
+     */
+    fun existsAnyByMemberId(memberId: Long): Boolean
+
+    /**
      * 채용 단계 목록 조회
      */
     fun findStages(

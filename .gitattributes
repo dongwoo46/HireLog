@@ -1,0 +1,33 @@
+# Normalize text files and preserve intended EOL.
+* text=auto
+
+# Scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.ps1 text eol=lf
+*.bat text eol=crlf
+gradlew text eol=lf
+
+# Source and config files must stay UTF-8 text.
+*.kt text working-tree-encoding=UTF-8 eol=lf
+*.kts text working-tree-encoding=UTF-8 eol=lf
+*.java text working-tree-encoding=UTF-8 eol=lf
+*.ts text working-tree-encoding=UTF-8 eol=lf
+*.tsx text working-tree-encoding=UTF-8 eol=lf
+*.js text working-tree-encoding=UTF-8 eol=lf
+*.jsx text working-tree-encoding=UTF-8 eol=lf
+*.json text working-tree-encoding=UTF-8 eol=lf
+*.yml text working-tree-encoding=UTF-8 eol=lf
+*.yaml text working-tree-encoding=UTF-8 eol=lf
+*.md text working-tree-encoding=UTF-8 eol=lf
+*.sql text working-tree-encoding=UTF-8 eol=lf
+*.properties text working-tree-encoding=UTF-8 eol=lf
+
+# Binary
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
