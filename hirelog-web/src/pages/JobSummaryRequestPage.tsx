@@ -212,8 +212,11 @@ import { jdSummaryService } from '../services/jdSummaryService';
 import { TbChevronLeft, TbFileText, TbCamera, TbLink, TbCloudUpload } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import React, { useState } from 'react';
+import { type JobPlatformType, JOB_PLATFORM_LABELS } from '../types/jobSummary';
 
 type RequestTab = 'text' | 'ocr' | 'url';
+
+const PLATFORM_OPTIONS = Object.entries(JOB_PLATFORM_LABELS) as [JobPlatformType, string][];
 
 const JobSummaryRequestPage = () => {
   const navigate = useNavigate();
@@ -222,6 +225,7 @@ const JobSummaryRequestPage = () => {
 
   const [brandName, setBrandName] = useState('');
   const [brandPositionName, setBrandPositionName] = useState('');
+  const [platform, setPlatform] = useState<JobPlatformType>('OTHER');
   const [jdText, setJdText] = useState('');
   const [url, setUrl] = useState('');
   const [images, setImages] = useState<File[]>([]);
@@ -237,13 +241,13 @@ const JobSummaryRequestPage = () => {
     try {
       if (activeTab === 'text') {
         if (!jdText) throw new Error('JD 내용을 입력해주세요.');
-        await jdSummaryService.requestText({ brandName, brandPositionName, jdText });
+        await jdSummaryService.requestText({ brandName, brandPositionName, jdText, platform });
       } else if (activeTab === 'ocr') {
         if (images.length === 0) throw new Error('이미지를 업로드해주세요.');
-        await jdSummaryService.requestOcr({ brandName, brandPositionName, images });
+        await jdSummaryService.requestOcr({ brandName, brandPositionName, images, platform });
       } else if (activeTab === 'url') {
         if (!url) throw new Error('URL을 입력해주세요.');
-        const res = await jdSummaryService.requestUrl({ brandName, brandPositionName, url });
+        const res = await jdSummaryService.requestUrl({ brandName, brandPositionName, url, platform });
         if (res.isDuplicate && res.jobSummaryId) {
           navigate(`/jd/${res.jobSummaryId}`);
           return;
@@ -307,6 +311,21 @@ const JobSummaryRequestPage = () => {
                 onChange={(e) => setBrandPositionName(e.target.value)}
                 required
               />
+            </div>
+
+            {/* 채용 플랫폼 */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700 ml-1">채용 플랫폼</label>
+              <select
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value as JobPlatformType)}
+                className="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none bg-white"
+                required
+              >
+                {PLATFORM_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
 
             {/* 탭 */}

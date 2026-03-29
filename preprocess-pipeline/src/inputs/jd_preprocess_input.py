@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass
 from typing import Optional
+from domain.job_platform import JobPlatform
 
 
 @dataclass
@@ -17,7 +18,7 @@ class JdPreprocessInput:
     request_id: str
     brand_name: str
     position_name: str
-    source: str              # ✅ 추가 (TEXT / IMAGE / URL)
+    source: str              # TEXT / IMAGE / URL
 
     created_at: int
     message_version: str
@@ -25,4 +26,6 @@ class JdPreprocessInput:
     # ---- payload ----
     text: Optional[str] = None
     images: Optional[list] = None
-    url: Optional[str] = None          # ✅ 추가
+    url: Optional[str] = None
+
+    platform: JobPlatform = JobPlatform.OTHER

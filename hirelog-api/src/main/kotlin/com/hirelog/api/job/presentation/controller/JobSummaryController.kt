@@ -86,6 +86,7 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             text = request.jdText,
+            platform = request.platform,
         )
 
         return ResponseEntity.ok().build()
@@ -112,6 +113,7 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             imageFiles = request.images,
+            platform = request.platform,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))
@@ -134,6 +136,7 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             url = request.url,
+            platform = request.platform,
         )) {
             is UrlIntakeResult.Duplicate -> ResponseEntity.ok(JobSummaryUrlRes.duplicateOf(result.existing))
             is UrlIntakeResult.NewRequest -> ResponseEntity.ok(JobSummaryUrlRes.newRequest(result.requestId))

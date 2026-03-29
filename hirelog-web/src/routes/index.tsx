@@ -4,6 +4,7 @@ import MainPage from '../pages/MainPage';
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
 import RecoveryPage from '../pages/RecoveryPage';
+import ServiceIntroPage from '../pages/ServiceIntroPage';
 import JobSummaryListPage from '../pages/JobSummaryListPage';
 import JobSummaryDetailPage from '../pages/JobSummaryDetailPage';
 import JobSummaryRequestPage from '../pages/JobSummaryRequestPage';
@@ -57,19 +58,23 @@ export const router = createBrowserRouter([
         path: 'recovery',
         element: <RecoveryPage />,
       },
+      {
+        path: 'service-intro',
+        element: <ServiceIntroPage />,
+      },
+      {
+        path: 'jd',
+        element: <JobSummaryListPage />,
+      },
+      {
+        path: 'jd/:id',
+        element: <JobSummaryDetailPage />,
+      },
 
       // Protected Routes
       {
         element: <ProtectedRoute />,
         children: [
-          {
-            path: 'jd',
-            element: <JobSummaryListPage />,
-          },
-          {
-            path: 'jd/:id',
-            element: <JobSummaryDetailPage />,
-          },
           {
             path: 'jd/request',
             element: <JobSummaryRequestPage />,
