@@ -89,6 +89,9 @@ jobs:
 
             echo "▶ Image: $PREPROCESS_IMAGE"
 
+            docker image prune -af
+            docker builder prune -af
+
             docker pull $PREPROCESS_IMAGE
 
             $COMPOSE up -d --no-deps preprocess
