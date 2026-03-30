@@ -1,4 +1,5 @@
-﻿import { apiClient } from '../utils/apiClient';
+﻿import axios from 'axios';
+import { apiClient } from '../utils/apiClient';
 import type {
   CoverLetterView,
   HiringStage,
@@ -107,9 +108,21 @@ export const jdSummaryService = {
   },
 
   unsave: async (jobSummaryId: number): Promise<void> => {
-    await apiClient.patch(`/member-job-summary/${jobSummaryId}/save-type`, {
-      saveType: 'UNSAVED',
-    });
+    try {
+      await apiClient.patch(`/member-job-summary/${jobSummaryId}/save-type`, {
+        saveType: 'UNSAVED',
+      });
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 400 &&
+        typeof error.response.data?.message === 'string' &&
+        error.response.data.message.includes('MemberJobSummary not found')
+      ) {
+        return;
+      }
+      throw error;
+    }
   },
 
   addReview: async (id: number, data: ReviewWriteReq): Promise<void> => {
@@ -162,21 +175,21 @@ export const jdSummaryService = {
     stage: HiringStage,
     note: string,
     result?: import('../types/jobSummary').HiringStageResult | null,
-    currentSaveType?: MemberJobSummarySaveType,
+    _currentSaveType?: MemberJobSummarySaveType,
   ): Promise<void> => {
-    if (currentSaveType !== 'APPLY') {
-      await apiClient.patch(`/member-job-summary/${jobSummaryId}/save-type`, {
-        saveType: 'APPLY',
-      });
-    }
-
-    const existingStages = await jdSummaryService.getStages(jobSummaryId);
-    const hasStage = existingStages.some((item) => item.stage === stage);
-
-    if (hasStage) {
-      await apiClient.patch(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
-    } else {
+    try {
       await apiClient.post(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 400 &&
+        typeof error.response.data?.message === 'string' &&
+        error.response.data.message.includes('already exists')
+      ) {
+        await apiClient.patch(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
+        return;
+      }
+      throw error;
     }
   },
 

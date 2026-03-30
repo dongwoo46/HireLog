@@ -1,17 +1,24 @@
 ﻿package com.hirelog.api.relation.application.memberjobsummary
 
+import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.relation.domain.model.MemberJobSummary
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
-import io.mockk.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 
-@DisplayName("MemberJobSummaryWriteService - CoverLetter CRUD ?뚯뒪??)
+@DisplayName("MemberJobSummaryWriteService 테스트")
 class MemberJobSummaryWriteServiceTest {
 
     private lateinit var service: MemberJobSummaryWriteService
     private lateinit var command: MemberJobSummaryCommand
+    private lateinit var jobSummaryCommand: JobSummaryCommand
 
     private fun createSummary() = MemberJobSummary.create(
         memberId = 1L,
@@ -25,7 +32,8 @@ class MemberJobSummaryWriteServiceTest {
     @BeforeEach
     fun setUp() {
         command = mockk(relaxed = true)
-        service = MemberJobSummaryWriteService(command)
+        jobSummaryCommand = mockk(relaxed = true)
+        service = MemberJobSummaryWriteService(command, jobSummaryCommand)
     }
 
     @Nested
@@ -33,8 +41,8 @@ class MemberJobSummaryWriteServiceTest {
     inner class SaveTest {
 
         @Test
-        @DisplayName("restores archived summary when save is requested again")
-        fun shouldRestoreArchivedSummary() {
+        @DisplayName("UNSAVED 상태의 기존 요약은 save 호출 시 SAVED로 복구된다")
+        fun restoresArchivedSummary() {
             val summary = createSummary()
             summary.changeStatus(MemberJobSummarySaveType.UNSAVED)
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns summary
@@ -56,116 +64,104 @@ class MemberJobSummaryWriteServiceTest {
     }
 
     @Nested
-    @DisplayName("addCoverLetter??)
-    inner class AddCoverLetterTest {
+    @DisplayName("changeSaveType")
+    inner class ChangeSaveTypeTest {
 
         @Test
-        @DisplayName("sortOrder ?놁씠 ?먭린?뚭컻?쒕? 異붽??섍퀬 aggregate瑜???ν븳??)
-        fun shouldAddCoverLetterWithDefaultSortOrderAndSave() {
+        @DisplayName("요약이 없고 SAVED 요청이면 MemberJobSummary를 생성해 저장한다")
+        fun createsWhenMissingAndSaved() {
             val summary = createSummary()
-            every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns summary
+            every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
+            every { jobSummaryCommand.findById(100L) } returns summary
 
-            service.addCoverLetter(1L, 100L, "吏???숆린", "???..", null)
+            service.changeSaveType(1L, 100L, MemberJobSummarySaveType.SAVED)
 
-            verify { command.save(match { it.getCoverLetters().size == 1 }) }
-            assertThat(summary.getCoverLetters()[0].question).isEqualTo("吏???숆린")
+            verify {
+                command.save(match {
+                    it.memberId == 1L &&
+                        it.jobSummaryId == 100L &&
+                        it.saveType == MemberJobSummarySaveType.SAVED
+                })
+            }
         }
 
         @Test
-        @DisplayName("sortOrder瑜?紐낆떆?곸쑝濡?吏?뺥븯硫??대떦 sortOrder濡?異붽??쒕떎")
-        fun shouldAddCoverLetterWithExplicitSortOrder() {
+        @DisplayName("요약이 없고 APPLY 요청이면 MemberJobSummary를 생성해 APPLY로 저장한다")
+        fun createsWhenMissingAndApply() {
             val summary = createSummary()
-            every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns summary
+            every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
+            every { jobSummaryCommand.findById(100L) } returns summary
 
-            service.addCoverLetter(1L, 100L, "吏???숆린", "???..", 5)
+            service.changeSaveType(1L, 100L, MemberJobSummarySaveType.APPLY)
 
-            verify { command.save(match { it.getCoverLetters()[0].sortOrder == 5 }) }
+            verify {
+                command.save(match {
+                    it.memberId == 1L &&
+                        it.jobSummaryId == 100L &&
+                        it.saveType == MemberJobSummarySaveType.APPLY
+                })
+            }
         }
 
         @Test
-        @DisplayName("MemberJobSummary媛 ?놁쑝硫?IllegalStateException???섏쭊??)
-        fun shouldThrowWhenNotFound() {
+        @DisplayName("요약이 없고 UNSAVED 요청이면 아무 작업도 하지 않는다")
+        fun ignoresUnsaveWhenMissing() {
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
 
-            assertThatThrownBy {
-                service.addCoverLetter(1L, 100L, "吏덈Ц", "?댁슜", null)
-            }.isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("MemberJobSummary not found")
+            service.changeSaveType(1L, 100L, MemberJobSummarySaveType.UNSAVED)
+
+            verify(exactly = 0) { command.save(any()) }
+            verify(exactly = 0) { jobSummaryCommand.findById(any()) }
         }
     }
 
     @Nested
-    @DisplayName("updateCoverLetter??)
-    inner class UpdateCoverLetterTest {
+    @DisplayName("cover letter")
+    inner class CoverLetterTest {
 
         @Test
-        @DisplayName("議댁옱?섎뒗 ?먭린?뚭컻?쒖쓽 ?댁슜???섏젙?섍퀬 aggregate瑜???ν븳??)
-        fun shouldUpdateCoverLetterAndSave() {
-            val summary = createSummary()
-            summary.addCoverLetter("?먮옒 吏덈Ц", "?먮옒 ?댁슜")
-            val letterId = summary.getCoverLetters()[0].id  // id=0 (DB 誘몄궗??
-
-            every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns summary
-
-            service.updateCoverLetter(1L, 100L, letterId, "?섏젙??吏덈Ц", "?섏젙???댁슜", 2)
-
-            verify { command.save(summary) }
-            assertThat(summary.getCoverLetters()[0].question).isEqualTo("?섏젙??吏덈Ц")
-            assertThat(summary.getCoverLetters()[0].sortOrder).isEqualTo(2)
-        }
-
-        @Test
-        @DisplayName("MemberJobSummary媛 ?놁쑝硫?IllegalStateException???섏쭊??)
-        fun shouldThrowWhenNotFound() {
+        @DisplayName("addCoverLetter: 요약이 없으면 IllegalArgumentException을 던진다")
+        fun addCoverLetterThrowsWhenNotFound() {
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
 
             assertThatThrownBy {
-                service.updateCoverLetter(1L, 100L, 0L, "吏덈Ц", "?댁슜", 0)
+                service.addCoverLetter(1L, 100L, "q", "a", null)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("MemberJobSummary not found")
         }
 
         @Test
-        @DisplayName("議댁옱?섏? ?딅뒗 coverLetterId?대㈃ IllegalStateException???섏쭊??)
-        fun shouldThrowWhenCoverLetterNotFound() {
+        @DisplayName("updateCoverLetter: 요약이 없으면 IllegalArgumentException을 던진다")
+        fun updateCoverLetterThrowsWhenSummaryNotFound() {
+            every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
+
+            assertThatThrownBy {
+                service.updateCoverLetter(1L, 100L, 1L, "q", "a", 0)
+            }.isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("MemberJobSummary not found")
+        }
+
+        @Test
+        @DisplayName("updateCoverLetter: 커버레터가 없으면 IllegalStateException을 던진다")
+        fun updateCoverLetterThrowsWhenLetterNotFound() {
             val summary = createSummary()
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns summary
 
             assertThatThrownBy {
-                service.updateCoverLetter(1L, 100L, 9999L, "吏덈Ц", "?댁슜", 0)
+                service.updateCoverLetter(1L, 100L, 999L, "q", "a", 0)
             }.isInstanceOf(IllegalStateException::class.java)
                 .hasMessageContaining("CoverLetter not found")
         }
-    }
-
-    @Nested
-    @DisplayName("removeCoverLetter??)
-    inner class RemoveCoverLetterTest {
 
         @Test
-        @DisplayName("?먭린?뚭컻?쒕? ??젣?섍퀬 aggregate瑜???ν븳??)
-        fun shouldRemoveCoverLetterAndSave() {
-            val summary = createSummary()
-            summary.addCoverLetter("吏덈Ц", "?댁슜")
-            val letterId = summary.getCoverLetters()[0].id
-
-            every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns summary
-
-            service.removeCoverLetter(1L, 100L, letterId)
-
-            verify { command.save(match { it.getCoverLetters().isEmpty() }) }
-        }
-
-        @Test
-        @DisplayName("MemberJobSummary媛 ?놁쑝硫?IllegalStateException???섏쭊??)
-        fun shouldThrowWhenNotFound() {
+        @DisplayName("removeCoverLetter: 요약이 없으면 IllegalArgumentException을 던진다")
+        fun removeCoverLetterThrowsWhenNotFound() {
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
 
             assertThatThrownBy {
-                service.removeCoverLetter(1L, 100L, 0L)
+                service.removeCoverLetter(1L, 100L, 1L)
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("MemberJobSummary not found")
         }
     }
 }
-

@@ -1245,9 +1245,9 @@ const ReviewSection = ({
     ) : (
       <div className="space-y-4">
         {reviewPage.items.map((r: any) => (
-          <div key={r.id} className="rounded-2xl border bg-white p-6">
+          <div key={r.id} className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
             <div className="mb-1 text-xs text-gray-400">{HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}</div>
-            <div className="mb-3 space-y-2">
+            <div className="mb-4 grid gap-2 rounded-xl bg-gray-50/80 p-3">
               <RatingStarsDisplay label="난이도" value={r.difficultyRating} />
               <RatingStarsDisplay label="만족도" value={r.satisfactionRating} />
             </div>
@@ -1383,12 +1383,14 @@ const ReviewSection = ({
   </div>
 );
 
+const normalizeScore = (value: number) => Math.min(10, Math.max(1, Math.round(value)));
+
 const RatingStarsDisplay = ({ label, value }: { label: string; value: number }) => (
-  <div className="flex items-center gap-2">
-    <span className="w-12 text-xs font-semibold text-gray-500">{label}</span>
+  <div className="grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-lg bg-white px-3 py-2">
+    <span className="text-xs font-semibold text-gray-500">{label}</span>
     <div className="flex items-center gap-0.5">
       {[0, 1, 2, 3, 4].map((idx) => {
-        const starValue = value / 2;
+        const starValue = normalizeScore(value) / 2;
         const fill = Math.max(0, Math.min(1, starValue - idx));
         return (
           <div key={`${label}-${idx}`} className="relative h-4 w-4">
@@ -1402,7 +1404,7 @@ const RatingStarsDisplay = ({ label, value }: { label: string; value: number }) 
         );
       })}
     </div>
-    <span className="text-xs font-medium text-gray-500">{(value / 2).toFixed(1)}</span>
+    <span className="text-xs font-semibold tabular-nums text-gray-600">{(normalizeScore(value) / 2).toFixed(1)}</span>
   </div>
 );
 
@@ -1415,14 +1417,17 @@ const ScoreSelector = ({
   value: number;
   onChange: (value: number) => void;
 }) => (
-  <div className="space-y-2">
-    <div className="text-xs font-semibold text-gray-500">
-      {label} <span className="text-[#3FB6B2]">{value}</span>
+  <div className="rounded-xl border border-gray-100 bg-white p-4">
+    <div className="mb-3 flex items-center justify-between">
+      <span className="text-xs font-semibold text-gray-500">{label}</span>
+      <span className="rounded-full bg-[#3FB6B2]/10 px-2 py-0.5 text-xs font-bold tabular-nums text-[#2d918d]">
+        {(normalizeScore(value) / 2).toFixed(1)} / 5.0
+      </span>
     </div>
     <div>
-      <div className="mb-2 flex items-center gap-1">
+      <div className="mb-1 flex items-center gap-1">
         {[0, 1, 2, 3, 4].map((idx) => {
-          const starValue = value / 2;
+          const starValue = normalizeScore(value) / 2;
           const fill = Math.max(0, Math.min(1, starValue - idx));
           return (
             <div key={idx} className="relative h-8 w-8">

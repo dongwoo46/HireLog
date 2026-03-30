@@ -1,6 +1,7 @@
 package com.hirelog.api.relation.application.memberjobsummary
 
 import com.hirelog.api.job.domain.type.HiringStage
+import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.relation.application.view.CreateMemberJobSummaryCommand
 import com.hirelog.api.relation.domain.model.MemberJobSummary
 import com.hirelog.api.relation.domain.type.HiringStageResult
@@ -22,7 +23,8 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional
 class MemberJobSummaryWriteService(
-    private val memberJobSummaryCommand: MemberJobSummaryCommand
+    private val memberJobSummaryCommand: MemberJobSummaryCommand,
+    private val jobSummaryCommand: JobSummaryCommand
 ) {
 
     fun save(command: CreateMemberJobSummaryCommand) {
@@ -59,7 +61,7 @@ class MemberJobSummaryWriteService(
         jobSummaryId: Long,
         saveType: MemberJobSummarySaveType
     ) {
-        val summary = getOrThrow(memberId, jobSummaryId)
+        val summary = getOrCreateForSaveType(memberId, jobSummaryId, saveType) ?: return
         summary.changeStatus(saveType)
         memberJobSummaryCommand.save(summary)
     }
@@ -71,7 +73,13 @@ class MemberJobSummaryWriteService(
         note: String,
         result: HiringStageResult? = null
     ) {
-        val summary = getOrThrow(memberId, jobSummaryId)
+        val summary = getOrCreateForStage(memberId, jobSummaryId)
+        if (summary.saveType == MemberJobSummarySaveType.UNSAVED) {
+            summary.restoreFromArchived()
+        }
+        if (summary.saveType != MemberJobSummarySaveType.APPLY) {
+            summary.changeStatus(MemberJobSummarySaveType.APPLY)
+        }
         summary.addStageRecord(stage, note, result)
         memberJobSummaryCommand.save(summary)
     }
@@ -146,6 +154,55 @@ class MemberJobSummaryWriteService(
             jobSummaryId = jobSummaryId
         ) ?: throw IllegalArgumentException(
             "MemberJobSummary not found (memberId=$memberId, jobSummaryId=$jobSummaryId)"
+        )
+    }
+
+    private fun getOrCreateForSaveType(
+        memberId: Long,
+        jobSummaryId: Long,
+        saveType: MemberJobSummarySaveType
+    ): MemberJobSummary? {
+        val existing = memberJobSummaryCommand.findEntityByMemberIdAndJobSummaryId(
+            memberId = memberId,
+            jobSummaryId = jobSummaryId
+        )
+        if (existing != null) {
+            return existing
+        }
+
+        // UNSAVED on a missing row is already the desired state (idempotent unsave).
+        if (saveType == MemberJobSummarySaveType.UNSAVED) {
+            return null
+        }
+
+        if (saveType == MemberJobSummarySaveType.APPLY) {
+            throw IllegalArgumentException("APPLY is set only when preparation records are written")
+        }
+
+        return createFromJobSummary(memberId, jobSummaryId)
+    }
+
+    private fun getOrCreateForStage(
+        memberId: Long,
+        jobSummaryId: Long
+    ): MemberJobSummary {
+        return memberJobSummaryCommand.findEntityByMemberIdAndJobSummaryId(
+            memberId = memberId,
+            jobSummaryId = jobSummaryId
+        ) ?: createFromJobSummary(memberId, jobSummaryId)
+    }
+
+    private fun createFromJobSummary(memberId: Long, jobSummaryId: Long): MemberJobSummary {
+        val jobSummary = jobSummaryCommand.findById(jobSummaryId)
+            ?: throw IllegalArgumentException("JobSummary not found: $jobSummaryId")
+
+        return MemberJobSummary.create(
+            memberId = memberId,
+            jobSummaryId = jobSummary.id,
+            brandName = jobSummary.brandName,
+            positionName = jobSummary.positionName,
+            brandPositionName = jobSummary.brandPositionName,
+            positionCategoryName = jobSummary.positionCategoryName
         )
     }
 }

@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TbBell, TbHome, TbList, TbMenu2, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
+import { TbBell, TbList, TbMenu2, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
 import { notificationService, type NotificationItem } from '../services/notificationService';
 
@@ -16,7 +16,6 @@ export function Header() {
 
   const navLinks = useMemo(
     () => [
-      { label: '홈', path: '/', icon: <TbHome size={20} />, authOnly: true },
       { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
       { label: '요청 내역', path: '/requests', icon: <TbUserCircle size={20} />, authOnly: true },
     ],

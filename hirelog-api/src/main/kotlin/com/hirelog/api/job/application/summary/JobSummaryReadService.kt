@@ -45,7 +45,7 @@ class JobSummaryReadService(
         val enrichedItems = result.items.map { item ->
             val state = savedStates[item.id]
             item.copy(
-                isSaved = state?.saveType != MemberJobSummarySaveType.UNSAVED,
+                isSaved = state != null && state.saveType != MemberJobSummarySaveType.UNSAVED,
                 memberJobSummaryId = state?.memberJobSummaryId,
                 memberSaveType = state?.saveType?.name
             )
