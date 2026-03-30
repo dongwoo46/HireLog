@@ -32,8 +32,10 @@ class MemberJobSummaryWriteService(
             jobSummaryId = command.jobSummaryId
         )
 
-        require(exists == null) {
-            "MemberJobSummary already exists"
+        if (exists != null) {
+            exists.changeStatus(MemberJobSummarySaveType.SAVED)
+            memberJobSummaryCommand.save(exists)
+            return
         }
 
         val summary = MemberJobSummary.create(

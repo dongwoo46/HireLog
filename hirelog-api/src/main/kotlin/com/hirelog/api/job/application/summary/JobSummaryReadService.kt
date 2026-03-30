@@ -6,6 +6,7 @@ import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
 import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
+import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import org.springframework.stereotype.Service
 
 /**
@@ -44,7 +45,7 @@ class JobSummaryReadService(
         val enrichedItems = result.items.map { item ->
             val state = savedStates[item.id]
             item.copy(
-                isSaved = state != null,
+                isSaved = state?.saveType != MemberJobSummarySaveType.UNSAVED,
                 memberJobSummaryId = state?.memberJobSummaryId,
                 memberSaveType = state?.saveType?.name
             )

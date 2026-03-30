@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TbBookmark, TbBookmarkFilled } from 'react-icons/tb';
 import { toast } from 'react-toastify';
@@ -16,6 +16,10 @@ export const JobSummaryCompactCard: React.FC<Props> = ({ summary }) => {
 
   const [isSaved, setIsSaved] = useState(summary.isSaved || false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setIsSaved(Boolean(summary.isSaved));
+  }, [summary.isSaved]);
 
   const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,3 +93,4 @@ export const JobSummaryCompactCard: React.FC<Props> = ({ summary }) => {
     </div>
   );
 };
+
