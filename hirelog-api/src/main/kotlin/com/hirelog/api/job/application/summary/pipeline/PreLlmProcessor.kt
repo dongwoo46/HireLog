@@ -38,7 +38,7 @@ class PreLlmProcessor(
     fun execute(processingId: UUID, command: JobSummaryGenerateCommand): PreLlmResult? {
 
         if (!jdIntakePolicy.isValidJd(command)) {
-            log.warn(
+            log.error(
                 "[JD_INTAKE_INVALID_INPUT] processingId={}, source={}",
                 processingId, command.source
             )

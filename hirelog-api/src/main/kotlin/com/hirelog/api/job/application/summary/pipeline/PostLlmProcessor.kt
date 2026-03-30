@@ -175,7 +175,7 @@ class PostLlmProcessor(
                 jdSummaryId, brandId, companyCandidate
             )
         } catch (e: Exception) {
-            log.warn(
+            log.error(
                 "[COMPANY_CANDIDATE_FAILED] jdSummaryId={}, brandId={}, companyCandidate={}, error={}",
                 jdSummaryId, brandId, companyCandidate, e.message, e
             )

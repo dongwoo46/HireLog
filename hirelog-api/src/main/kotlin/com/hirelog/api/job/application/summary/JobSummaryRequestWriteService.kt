@@ -82,7 +82,7 @@ class JobSummaryRequestWriteService(
         )
 
         if (request == null) {
-            log.warn(
+            log.error(
                 "[COMPLETE_REQUEST_NOT_FOUND] requestId={}, status=PENDING → 해당 요청 없음",
                 requestId
             )
@@ -144,7 +144,7 @@ class JobSummaryRequestWriteService(
         request.markFailed()
         jobSummaryRequestCommand.save(request)
 
-        log.info(
+        log.error(
             "[JOB_SUMMARY_REQUEST_FAILED] requestId={}, memberId={}",
             requestId, request.memberId
         )

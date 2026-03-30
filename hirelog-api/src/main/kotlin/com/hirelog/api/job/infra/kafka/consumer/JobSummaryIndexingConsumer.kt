@@ -73,7 +73,7 @@ class JobSummaryIndexingConsumer(
                     val unwrapped = unwrapDoubleSerializedJson(payload)
                     val tree = objectMapper.readTree(unwrapped)
                     if (tree.size() == 1 && tree.has("id")) {
-                        log.warn(
+                        log.error(
                             "[JOB_SUMMARY_INDEXING_MISROUTED_DELETE] aggregateId={}, eventType={}, payload is delete-shaped — routing to delete. Check Debezium eventType header config.",
                             aggregateId, eventType
                         )
@@ -130,7 +130,7 @@ class JobSummaryIndexingConsumer(
     private fun extractEventType(record: ConsumerRecord<String, String>): String {
         val header = record.headers().lastHeader(EVENT_TYPE_HEADER)
         if (header == null) {
-            log.warn(
+            log.error(
                 "[JOB_SUMMARY_INDEXING_HEADER_MISSING] aggregateId={}, header={} not found, defaulting to CREATED",
                 record.key(), EVENT_TYPE_HEADER
             )

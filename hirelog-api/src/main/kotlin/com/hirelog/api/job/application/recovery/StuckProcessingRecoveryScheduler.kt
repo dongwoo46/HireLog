@@ -204,7 +204,7 @@ class StuckProcessingRecoveryScheduler(
             )
         }
 
-        log.warn(
+        log.error(
             "[STUCK_PROCESSING_MARKED_FAILED] processingId={}",
             processing.id
         )

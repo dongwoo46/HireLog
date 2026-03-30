@@ -26,7 +26,7 @@ class LlmInvocationService(
             existCompanies,
             command.canonicalMap
         ).exceptionallyCompose { ex ->
-            log.warn(
+            log.error(
                 "[LLM_PRIMARY_FAILED_FALLBACK] brandName={}, positionName={}, error={}",
                 command.brandName, command.positionName, ex.message
             )
