@@ -1,4 +1,5 @@
 from inputs.jd_preprocess_input import JdPreprocessInput
+from domain.job_platform import JobPlatform
 
 
 class MessageParseError(ValueError):
@@ -71,6 +72,9 @@ def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
 
     url = values.get("payload.sourceUrl") or values.get("payload.url")
 
+    platform_str = values.get("payload.platform") or values.get("platform", "OTHER")
+    platform = JobPlatform.from_string(platform_str)
+
     if source == "TEXT" and not text:
         raise ValueError("payload.text is required when source=TEXT")
 
@@ -98,4 +102,5 @@ def parse_jd_preprocess_message(message: dict) -> JdPreprocessInput:
         text=text,
         images=images,
         url=url,
+        platform=platform,
     )

@@ -1,4 +1,36 @@
-export type CareerType = 'NEW' | 'EXPERIENCED' | 'ANY';
+﻿export type CareerType = 'NEW' | 'EXPERIENCED' | 'ANY';
+export type MemberJobSummarySaveType = 'SAVED' | 'APPLY' | 'UNSAVED';
+
+export type JobPlatformType =
+  | 'WANTED'
+  | 'REMEMBER'
+  | 'SARAMIN'
+  | 'JOBKOREA'
+  | 'ROCKETPUNCH'
+  | 'PROGRAMMERS'
+  | 'JUMPIT'
+  | 'RALLIT'
+  | 'CATCH'
+  | 'INCRUIT'
+  | 'GREPP'
+  | 'LINKEDIN'
+  | 'OTHER';
+
+export const JOB_PLATFORM_LABELS: Record<JobPlatformType, string> = {
+  WANTED: '원티드',
+  REMEMBER: '리멤버',
+  SARAMIN: '사람인',
+  JOBKOREA: '잡코리아',
+  ROCKETPUNCH: '로켓펀치',
+  PROGRAMMERS: '프로그래머스',
+  JUMPIT: '점핏',
+  RALLIT: '랠릿',
+  CATCH: '캐치',
+  INCRUIT: '인크루트',
+  GREPP: '그렙',
+  LINKEDIN: '링크드인',
+  OTHER: '기타',
+};
 
 export interface JobSummarySearchReq {
   keyword?: string;
@@ -19,7 +51,7 @@ export interface JobSummarySearchReq {
 
   techStacks?: string[];
   sortBy?: string; // e.g., "CREATED_AT_DESC"
-  page?: number;
+  cursor?: string;
   size?: number;
   isSaved?: boolean;
 }
@@ -37,17 +69,19 @@ export interface JobSummaryView {
   thumbnailUrl?: string;
   createdAt?: string;
   isSaved?: boolean;
+  memberJobSummaryId?: number;
+  memberSaveType?: MemberJobSummarySaveType;
 }
 
 export interface JobSummarySearchResult {
   items: JobSummaryView[];
-  totalElements: number;
-  totalPages: number;
   size: number;
-  number: number;
+  hasNext: boolean;
+  nextCursor: string | null;
 }
 
 export interface JobSummaryDetailView extends JobSummaryView {
+  summaryId?: number;
   responsibilities: string;
   requiredQualifications: string;
   preferredQualifications?: string;
@@ -55,22 +89,26 @@ export interface JobSummaryDetailView extends JobSummaryView {
   recruitmentProcess?: string;
   sourceUrl?: string;
   memberJobSummaryId?: number;
-  memberSaveType?: 'SAVE' | 'LIKE';
-  isActive: boolean;
+  memberSaveType?: MemberJobSummarySaveType;
   insights?: string;
   reviews?: any[];
+  preparationFocus?: string;
+  proofPointsAndMetrics?: string;
+  questionsToAsk?: string;
 }
 
 export interface JobSummaryTextReq {
   brandName: string;
   brandPositionName: string;
   jdText: string;
+  platform: JobPlatformType;
 }
 
 export interface JobSummaryUrlReq {
   brandName: string;
   brandPositionName: string;
   url: string;
+  platform: JobPlatformType;
 }
 
 export type HiringStage =
@@ -107,4 +145,46 @@ export interface JobSummaryUrlRes {
   requestId?: string;
   jobSummaryId?: number;
   isDuplicate: boolean;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface MemberJobSummaryListItem {
+  memberJobSummaryId: number;
+  jobSummaryId: number;
+  brandName: string;
+  positionName: string;
+  brandPositionName: string;
+  positionCategoryName: string;
+  saveType: MemberJobSummarySaveType;
+  createdAt: string;
+}
+
+export type HiringStageResult = 'PASSED' | 'FAILED' | 'PENDING';
+
+export const HIRING_STAGE_RESULT_LABELS: Record<HiringStageResult, string> = {
+  PASSED: '합격',
+  FAILED: '불합격',
+  PENDING: '대기중',
+};
+
+export interface HiringStageView {
+  stage: HiringStage;
+  note: string;
+  result?: HiringStageResult | null;
+  recordedAt: string;
+}
+
+export interface CoverLetterView {
+  id: number;
+  question: string;
+  content: string;
+  sortOrder: number;
 }

@@ -29,6 +29,7 @@ TOPICS=(
   "jd.preprocess.response"
   "jd.preprocess.response.fail"
   "hirelog.outbox.JobSummary"
+  "hirelog.outbox.JobSummary.DLT"
   "hirelog.outbox.JdPreprocessText"
   "hirelog.outbox.JdPreprocessOcr"
   "hirelog.outbox.JdPreprocessUrl"

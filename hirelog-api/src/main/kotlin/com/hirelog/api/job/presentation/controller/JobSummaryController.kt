@@ -40,9 +40,9 @@ class JobSummaryController(
     @GetMapping("/search")
     fun search(
         request: JobSummarySearchReq,
-        @CurrentUser member: AuthenticatedMember
+        @CurrentUser member: AuthenticatedMember?
     ): ResponseEntity<JobSummarySearchResult> {
-        val result = readService.search(request.toQuery(), member.memberId)
+        val result = readService.search(request.toQuery(), member?.memberId)
         return ResponseEntity.ok(result)
     }
 
@@ -58,9 +58,9 @@ class JobSummaryController(
     @GetMapping("/{id}")
     fun getDetail(
         @PathVariable id: Long,
-        @CurrentUser member: AuthenticatedMember
+        @CurrentUser member: AuthenticatedMember?
     ): ResponseEntity<JobSummaryDetailView> {
-        val detail = readService.getDetail(id, member.memberId)
+        val detail = readService.getDetail(id, member?.memberId)
             ?: throw IllegalArgumentException("JobSummary not found: $id")
         return ResponseEntity.ok(detail)
     }
@@ -86,6 +86,7 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             text = request.jdText,
+            platform = request.platform,
         )
 
         return ResponseEntity.ok().build()
@@ -112,6 +113,7 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             imageFiles = request.images,
+            platform = request.platform,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))
@@ -134,6 +136,7 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             url = request.url,
+            platform = request.platform,
         )) {
             is UrlIntakeResult.Duplicate -> ResponseEntity.ok(JobSummaryUrlRes.duplicateOf(result.existing))
             is UrlIntakeResult.NewRequest -> ResponseEntity.ok(JobSummaryUrlRes.newRequest(result.requestId))

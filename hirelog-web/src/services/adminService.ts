@@ -1,123 +1,99 @@
-import { apiClient } from '../utils/apiClient';
+﻿import { apiClient } from '../utils/apiClient';
 import type {
-    AdminPagedResult,
-    BrandListView,
-    CompanyView,
-    MemberSummaryView,
-    AdminReviewView
+  AdminJobSummaryDirectCreateReq,
+  AdminPagedResult,
+  BrandListView,
+  CompanyView,
+  MemberSummaryView,
 } from '../types/admin';
 
 export const adminService = {
-    /* ---------------------- 멤버 관리 ---------------------- */
+  getAllMembers: async (page = 0, size = 20): Promise<AdminPagedResult<MemberSummaryView>> => {
+    const response = await apiClient.get('/admin/member', {
+      params: { page, size },
+    });
+    return response.data;
+  },
 
-    getAllMembers: async (page = 0, size = 20): Promise<AdminPagedResult<MemberSummaryView>> => {
-        const response = await apiClient.get('/admin/member', {
-            params: { page, size }
-        });
-        return response.data;
-    },
+  suspendMember: async (memberId: number): Promise<void> => {
+    await apiClient.post(`/admin/member/${memberId}/suspend`);
+  },
 
-    suspendMember: async (memberId: number): Promise<void> => {
-        await apiClient.post(`/admin/member/${memberId}/suspend`);
-    },
+  activateMember: async (memberId: number): Promise<void> => {
+    await apiClient.post(`/admin/member/${memberId}/activate`);
+  },
 
-    activateMember: async (memberId: number): Promise<void> => {
-        await apiClient.post(`/admin/member/${memberId}/activate`);
-    },
+  deleteMember: async (memberId: number): Promise<void> => {
+    await apiClient.delete(`/admin/member/${memberId}`);
+  },
 
-    deleteMember: async (memberId: number): Promise<void> => {
-        await apiClient.delete(`/admin/member/${memberId}`);
-    },
+  activateJob: async (id: number): Promise<void> => {
+    await apiClient.patch(`/job-summary/${id}/activate`);
+  },
 
-    /* ---------------------- JD(Job Summary) 관리 ---------------------- */
+  deactivateJob: async (id: number): Promise<void> => {
+    await apiClient.patch(`/job-summary/${id}/deactivate`);
+  },
 
-    // 일반 검색과 동일하지만 관리자 전용 필터링이나 액션이 추가될 수 있음
-    // 현재는 기존 search API를 활용하거나 필요시 추가
-    activateJob: async (id: number): Promise<void> => {
-        await apiClient.patch(`/job-summary/${id}/activate`);
-    },
+  createJobSummaryDirectly: async (payload: AdminJobSummaryDirectCreateReq): Promise<{ summaryId: number }> => {
+    const response = await apiClient.post('/admin/job-summary/direct', payload);
+    return response.data;
+  },
 
-    deactivateJob: async (id: number): Promise<void> => {
-        await apiClient.patch(`/job-summary/${id}/deactivate`);
-    },
+  getAllBrands: async (page = 0, size = 20): Promise<AdminPagedResult<BrandListView>> => {
+    const response = await apiClient.get('/brand', {
+      params: { page, size },
+    });
+    return response.data;
+  },
 
-    /* ---------------------- 브랜드 관리 ---------------------- */
+  verifyBrand: async (brandId: number): Promise<void> => {
+    await apiClient.patch(`/brand/${brandId}/verify`);
+  },
 
-    getAllBrands: async (page = 0, size = 20): Promise<AdminPagedResult<BrandListView>> => {
-        const response = await apiClient.get('/brand', {
-            params: { page, size }
-        });
-        return response.data;
-    },
+  rejectBrand: async (brandId: number): Promise<void> => {
+    await apiClient.patch(`/brand/${brandId}/reject`);
+  },
 
-    verifyBrand: async (brandId: number): Promise<void> => {
-        await apiClient.patch(`/brand/${brandId}/verify`);
-    },
+  activateBrand: async (brandId: number): Promise<void> => {
+    await apiClient.patch(`/brand/${brandId}/activate`);
+  },
 
-    rejectBrand: async (brandId: number): Promise<void> => {
-        await apiClient.patch(`/brand/${brandId}/reject`);
-    },
+  deactivateBrand: async (brandId: number): Promise<void> => {
+    await apiClient.patch(`/brand/${brandId}/deactivate`);
+  },
 
-    activateBrand: async (brandId: number): Promise<void> => {
-        await apiClient.patch(`/brand/${brandId}/activate`);
-    },
+  getAllCompanies: async (page = 0, size = 20): Promise<AdminPagedResult<CompanyView>> => {
+    const response = await apiClient.get('/companies', {
+      params: { page, size },
+    });
+    return response.data;
+  },
 
-    deactivateBrand: async (brandId: number): Promise<void> => {
-        await apiClient.patch(`/brand/${brandId}/deactivate`);
-    },
+  activateCompany: async (companyId: number): Promise<void> => {
+    await apiClient.patch(`/companies/${companyId}/activate`);
+  },
 
-    /* ---------------------- 기업 관리 ---------------------- */
+  deactivateCompany: async (companyId: number): Promise<void> => {
+    await apiClient.patch(`/companies/${companyId}/deactivate`);
+  },
 
-    getAllCompanies: async (page = 0, size = 20): Promise<AdminPagedResult<CompanyView>> => {
-        const response = await apiClient.get('/companies', {
-            params: { page, size }
-        });
-        return response.data;
-    },
+  getAllUserRequests: async (page = 0, size = 20, status?: string): Promise<AdminPagedResult<any>> => {
+    const response = await apiClient.get('/user-requests/admin', {
+      params: { page, size, status },
+    });
+    return response.data;
+  },
 
-    activateCompany: async (companyId: number): Promise<void> => {
-        await apiClient.patch(`/companies/${companyId}/activate`);
-    },
+  updateUserRequestStatus: async (requestId: number, status: string): Promise<void> => {
+    await apiClient.patch(`/user-requests/${requestId}/status`, { status });
+  },
 
-    deactivateCompany: async (companyId: number): Promise<void> => {
-        await apiClient.patch(`/companies/${companyId}/deactivate`);
-    },
+  deleteReview: async (reviewId: number): Promise<void> => {
+    await apiClient.delete(`/job-summary/review/${reviewId}`);
+  },
 
-    /* ---------------------- 사용자 요청 관리 ---------------------- */
-
-    getAllUserRequests: async (page = 0, size = 20, status?: string): Promise<AdminPagedResult<any>> => {
-        const response = await apiClient.get('/user-requests/admin', {
-            params: { page, size, status }
-        });
-        return response.data;
-    },
-
-    updateUserRequestStatus: async (requestId: number, status: string): Promise<void> => {
-        await apiClient.patch(`/user-requests/${requestId}/status`, { status });
-    },
-
-    /* ---------------------- 리뷰 관리 ---------------------- */
-
-    getAllReviews: async (page = 0, size = 20): Promise<AdminPagedResult<AdminReviewView>> => {
-        const response = await apiClient.get('/job-summary/review/admin', {
-            params: { page, size }
-        });
-        return response.data;
-    },
-
-    deleteReview: async (reviewId: number): Promise<void> => {
-        await apiClient.delete(`/job-summary/review/${reviewId}`);
-    },
-
-    restoreReview: async (reviewId: number): Promise<void> => {
-        await apiClient.patch(`/job-summary/review/${reviewId}/restore`);
-    },
-
-    /* ---------------------- 관리자 인증 (Deprecated) ---------------------- */
-    // 역할 기반 인증(RBAC)으로 전환됨에 따라 더 이상 사용되지 않음
-    /*
-    verifyAdminPassword: async (password: string): Promise<void> => {
-        await apiClient.post('/admin/job-summary/verify', { password });
-    },
-    */
+  restoreReview: async (reviewId: number): Promise<void> => {
+    await apiClient.patch(`/job-summary/review/${reviewId}/restore`);
+  },
 };

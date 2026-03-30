@@ -48,3 +48,10 @@ export interface AdminReviewView {
     createdAt: string;
     deleted: boolean;
 }
+
+export interface AdminJobSummaryDirectCreateReq {
+    brandName: string;
+    positionName: string;
+    jdText: string;
+    sourceUrl?: string;
+}

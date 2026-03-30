@@ -1,24 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { TbBell, TbHome, TbList, TbMenu2, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
-import {
-  TbBell,
-  TbMenu2,
-  TbX,
-  TbHome,
-  TbList,
-  TbUserCircle,
-  TbSettings
-} from 'react-icons/tb';
-import { apiClient } from '../utils/apiClient';
-
-interface Notification {
-  id: number;
-  message: string;
-  type: 'APPROVED' | 'REJECTED' | 'INFO';
-  isRead: boolean;
-  createdAt: string;
-}
+import { notificationService, type NotificationItem } from '../services/notificationService';
 
 export function Header() {
   const { isAuthenticated, user, logout } = useAuthStore();
@@ -27,237 +11,237 @@ export function Header() {
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const navLinks = useMemo(
+    () => [
+      { label: '홈', path: '/', icon: <TbHome size={20} />, authOnly: true },
+      { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
+      { label: '요청 내역', path: '/requests', icon: <TbUserCircle size={20} />, authOnly: true },
+    ],
+    [],
+  );
 
-  /* ---------- 알림 로드 ---------- */
+  const moveToServiceIntro = () => {
+    navigate('/service-intro');
+  };
+
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
 
-    const load = async () => {
+    const loadNotifications = async () => {
       try {
-        const res = await apiClient.get('/notifications');
-        if (Array.isArray(res.data)) {
-          setNotifications(res.data);
-        }
-      } catch (err) {
-        console.warn('Notification load failed');
+        const [paged, count] = await Promise.all([
+          notificationService.getNotifications(0, 20),
+          notificationService.getUnreadCount(),
+        ]);
+        setNotifications(paged.items || []);
+        setUnreadCount(count);
+      } catch {
+        // ignore
       }
     };
 
-    load();
+    loadNotifications();
   }, [isAuthenticated]);
 
-  /* ---------- 라우트 변경 시 메뉴 닫기 ---------- */
   useEffect(() => {
     setIsMobileOpen(false);
     setIsNotificationOpen(false);
   }, [location.pathname]);
-
-  /* ---------- 읽음 처리 ---------- */
-  const handleRead = async (id: number) => {
-    try {
-      await apiClient.patch(`/notifications/${id}/read`);
-      setNotifications(prev =>
-        prev.map(n =>
-          n.id === id ? { ...n, isRead: true } : n
-        )
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
 
-  const navLinks = [
-    { label: '홈', path: '/', icon: <TbHome size={20} /> },
-    { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
-    { label: '사용자 요청', path: '/requests', icon: <TbUserCircle size={20} /> },
-  ];
+  const handleNotificationClick = async (notification: NotificationItem) => {
+    if (!notification.isRead) {
+      try {
+        await notificationService.markAsRead([notification.id]);
+        setNotifications((prev) => prev.map((item) => (item.id === notification.id ? { ...item, isRead: true } : item)));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch {
+        // ignore
+      }
+    }
+
+    if (notification.referenceType === 'JOB_SUMMARY' && notification.referenceId) {
+      navigate(`/jd/${notification.referenceId}`);
+      return;
+    }
+
+    if (notification.referenceType === 'USER_REQUEST' && notification.referenceId) {
+      navigate(`/requests/${notification.referenceId}`);
+    }
+  };
 
   return (
-    <header className="fixed w-full bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
-
-        {/* 로고 */}
-        <Link
-          to="/"
-          className="text-xl font-black tracking-tighter text-gray-900 flex items-center gap-2"
-        >
-          <div className="w-8 h-8 bg-gradient-to-tr from-[#276db8] to-[#4CDFD5] rounded-lg" />
-          HireLog
+    <header className="fixed z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+        <Link to={isAuthenticated ? '/' : '/jd'} className="flex items-center" aria-label="HireLog home">
+          <img src="/hirelog_no_bg.png" alt="HireLog" className="h-12 w-auto object-contain sm:h-14" />
         </Link>
 
-        {/* 네비게이션 */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-gray-500">
-          {!isAuthenticated ? (
-            <button
-              onClick={() => {
-                if (location.pathname !== '/') {
-                  navigate('/#intro');
-                } else {
-                  document.getElementById('intro')?.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-              className="transition-colors hover:text-[#4CDFD5]"
-            >
-              기업 소개
-            </button>
-          ) : (
-            <>
-              {navLinks.map(link => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`transition-colors hover:text-[#4CDFD5] ${location.pathname === link.path
-                    ? 'text-gray-900 border-b-2 border-[#4CDFD5] py-5'
-                    : ''
-                    }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
+        <nav className="hidden items-center gap-8 text-sm font-bold text-gray-500 md:flex">
+          {navLinks
+            .filter((link) => !link.authOnly || isAuthenticated)
+            .map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`transition-colors hover:text-[#4CDFD5] ${
+                  location.pathname === link.path ? 'border-b-2 border-[#4CDFD5] py-5 text-gray-900' : ''
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
 
-              {user?.role === 'ADMIN' && (
-                <Link
-                  to="/admin"
-                  className="text-[#3FB6B2] font-bold"
-                >
-                  관리자
-                </Link>
-              )}
-            </>
+          <button onClick={moveToServiceIntro} className="transition-colors hover:text-[#4CDFD5]">
+            서비스 소개
+          </button>
+
+          {user?.role === 'ADMIN' && (
+            <Link to="/admin" className="font-bold text-[#3FB6B2]">
+              관리자
+            </Link>
           )}
         </nav>
 
-        {/* 오른쪽 */}
-        <div className="flex items-center gap-6">
-
+        <div className="flex items-center gap-4">
           {isAuthenticated ? (
             <>
-              {/* 알림 */}
               <div className="relative">
                 <button
-                  onClick={() => setIsNotificationOpen(prev => !prev)}
-                  className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-50"
+                  onClick={() => setIsNotificationOpen((prev) => !prev)}
+                  className="relative rounded-xl p-2 text-gray-500 transition hover:bg-gray-50"
                 >
                   <TbBell size={22} />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 h-4 min-w-[1rem] flex items-center justify-center rounded-full">
+                    <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">
                       {unreadCount}
                     </span>
                   )}
                 </button>
 
                 {isNotificationOpen && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white border border-gray-100 rounded-2xl shadow-2xl">
+                  <div className="absolute right-0 mt-3 max-h-[28rem] w-96 overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl">
+                    <div className="border-b border-gray-100 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">알림</div>
                     {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-gray-400 text-sm">
-                        새로운 알림이 없습니다.
-                      </div>
+                      <div className="p-6 text-center text-sm text-gray-400">새로운 알림이 없습니다.</div>
                     ) : (
-                      notifications.map(n => (
-                        <div
-                          key={n.id}
-                          onClick={() => handleRead(n.id)}
-                          className={`p-4 text-sm cursor-pointer ${!n.isRead ? 'bg-[#4CDFD5]/5 font-bold' : ''
-                            }`}
+                      notifications.map((notification) => (
+                        <button
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={`w-full border-b border-gray-50 px-4 py-3 text-left text-sm transition last:border-none ${
+                            notification.isRead
+                              ? 'bg-white text-gray-600 hover:bg-gray-50'
+                              : 'bg-[#4CDFD5]/5 font-semibold text-gray-800 hover:bg-[#4CDFD5]/10'
+                          }`}
                         >
-                          {n.message}
-                        </div>
+                          <p className="mb-1 line-clamp-1">{notification.title}</p>
+                          {notification.message && <p className="line-clamp-2 text-xs font-normal text-gray-500">{notification.message}</p>}
+                        </button>
                       ))
                     )}
                   </div>
                 )}
               </div>
 
-              {/* 프로필 */}
-              <div
-                className="h-10 w-10 rounded-full bg-gradient-to-tr from-[#276db8] to-[#4CDFD5] text-white flex items-center justify-center text-sm font-black cursor-pointer uppercase"
+              <button
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-[#276db8] to-[#4CDFD5] text-sm font-black uppercase text-white"
                 onClick={() => navigate('/profile')}
               >
                 {user?.username?.charAt(0) || 'U'}
-              </div>
+              </button>
 
-              <button
-                onClick={handleLogout}
-                className="text-gray-400 hover:text-rose-500 text-sm font-bold"
-              >
+              <button onClick={handleLogout} className="text-sm font-bold text-gray-400 hover:text-rose-500">
                 로그아웃
               </button>
             </>
           ) : (
-            <Link
-              to="/login"
-              className="px-6 py-2 bg-gray-900 text-white text-sm font-bold rounded-full"
-            >
-              로그인
-            </Link>
+            <div className="hidden items-center gap-2 md:flex">
+              <Link to="/login" className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                로그인
+              </Link>
+              <Link to="/signup" className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black">
+                회원가입
+              </Link>
+            </div>
           )}
 
-          {/* 모바일 버튼 */}
-          <button
-            className="md:hidden p-2 text-gray-600"
-            onClick={() => setIsMobileOpen(prev => !prev)}
-          >
+          <button className="p-2 text-gray-600 md:hidden" onClick={() => setIsMobileOpen((prev) => !prev)}>
             {isMobileOpen ? <TbX size={26} /> : <TbMenu2 size={26} />}
           </button>
         </div>
       </div>
 
-      {/* 모바일 네비게이션 */}
       {isMobileOpen && (
-        <div className="md:hidden absolute top-[4.5rem] right-6 w-48 bg-white/95 backdrop-blur-md shadow-2xl border border-gray-100 rounded-2xl overflow-hidden z-50">
-          <nav className="flex flex-col px-4 py-4 space-y-3">
-            {!isAuthenticated ? (
-              <button
-                onClick={() => {
-                  setIsMobileOpen(false);
-                  if (location.pathname !== '/') {
-                    navigate('/#intro');
-                  } else {
-                    document.getElementById('intro')?.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }}
-                className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-[#4CDFD5] transition-colors"
-              >
-                기업 소개
-              </button>
-            ) : (
-              <>
-                {navLinks.map(link => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    onClick={() => setIsMobileOpen(false)}
-                    className={`flex items-center gap-2 text-sm font-bold transition-colors ${location.pathname === link.path
-                      ? 'text-[#4CDFD5]'
-                      : 'text-gray-600 hover:text-[#4CDFD5]'
-                      }`}
-                  >
-                    <span className="scale-[0.85]">{link.icon}</span>
-                    {link.label}
-                  </Link>
-                ))}
+        <div className="absolute right-6 top-[4.5rem] z-50 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white/95 shadow-2xl backdrop-blur md:hidden">
+          <nav className="flex flex-col space-y-3 px-4 py-4">
+            {navLinks
+              .filter((link) => !link.authOnly || isAuthenticated)
+              .map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={() => setIsMobileOpen(false)}
+                  className={`flex items-center gap-2 text-sm font-bold transition-colors ${
+                    location.pathname === link.path ? 'text-[#4CDFD5]' : 'text-gray-600 hover:text-[#4CDFD5]'
+                  }`}
+                >
+                  <span className="scale-[0.85]">{link.icon}</span>
+                  {link.label}
+                </Link>
+              ))}
 
-                {user?.role === 'ADMIN' && (
-                  <div className="pt-2 border-t border-gray-100/50">
-                    <Link
-                      to="/admin"
-                      onClick={() => setIsMobileOpen(false)}
-                      className="flex items-center gap-2 text-sm font-bold text-[#3FB6B2] hover:text-[#35A09D] transition-colors"
-                    >
-                      <TbSettings size={18} />
-                      관리자
-                    </Link>
-                  </div>
-                )}
-              </>
+            <button
+              onClick={() => {
+                setIsMobileOpen(false);
+                moveToServiceIntro();
+              }}
+              className="text-left text-sm font-bold text-gray-600 transition-colors hover:text-[#4CDFD5]"
+            >
+              서비스 소개
+            </button>
+
+            {user?.role === 'ADMIN' && (
+              <div className="border-t border-gray-100/50 pt-2">
+                <Link
+                  to="/admin"
+                  onClick={() => setIsMobileOpen(false)}
+                  className="flex items-center gap-2 text-sm font-bold text-[#3FB6B2] transition-colors hover:text-[#35A09D]"
+                >
+                  <TbSettings size={18} />
+                  관리자
+                </Link>
+              </div>
+            )}
+
+            {!isAuthenticated && (
+              <div className="border-t border-gray-100/50 pt-2">
+                <Link
+                  to="/login"
+                  onClick={() => setIsMobileOpen(false)}
+                  className="mb-2 block rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-semibold text-gray-700"
+                >
+                  로그인
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={() => setIsMobileOpen(false)}
+                  className="block rounded-lg bg-gray-900 px-3 py-2 text-center text-sm font-semibold text-white"
+                >
+                  회원가입
+                </Link>
+              </div>
             )}
           </nav>
         </div>

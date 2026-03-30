@@ -32,6 +32,7 @@ interface JobSummaryReviewQuery {
         maxDifficultyRating: Int?,
         minSatisfactionRating: Int?,
         maxSatisfactionRating: Int?,
+        includeDeleted: Boolean,
         page: Int,
         size: Int
     ): PagedResult<JobSummaryReviewView>

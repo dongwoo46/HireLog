@@ -17,7 +17,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
        github.event.pull_request.head.ref == 'develop')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -37,21 +37,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image (local)
-        uses: docker/build-push-action@v5
-        with:
-          context: preprocess-pipeline
-          push: false
-          load: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Push image
-        uses: docker/build-push-action@v5
+      - name: Build and Push image
+        uses: docker/build-push-action@v6
         with:
           context: preprocess-pipeline
           push: true
+          platforms: linux/arm64
+          no-cache: true
+          provenance: false
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}

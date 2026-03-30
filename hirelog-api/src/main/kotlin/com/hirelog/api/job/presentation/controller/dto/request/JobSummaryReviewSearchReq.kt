@@ -4,6 +4,9 @@ import com.hirelog.api.job.domain.type.HiringStage
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 
+/**
+ * 리뷰 조회 요청 파라미터
+ */
 data class JobSummaryReviewSearchReq(
 
     val hiringStage: HiringStage? = null,
@@ -28,13 +31,16 @@ data class JobSummaryReviewSearchReq(
     val page: Int = 0,
 
     @field:Min(1)
-    val size: Int = 20
+    val size: Int = 20,
+
+    /**
+     * 관리자에서만 유효. 일반 사용자는 무시된다.
+     */
+    val includeDeleted: Boolean = false
 ) {
 
     /**
-     * 범위 조건 정합성 검증
-     *
-     * - min <= max
+     * 범위 조건 검증
      */
     fun validate() {
         if (minDifficultyRating != null && maxDifficultyRating != null) {

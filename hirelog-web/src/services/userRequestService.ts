@@ -1,7 +1,7 @@
 import { apiClient } from '../utils/apiClient';
 import type { 
   UserRequestCreateReq, 
-  UserRequestListRes, 
+  UserRequestPagedResult,
   UserRequestDetailRes, 
   UserRequestStatusUpdateReq, 
   UserRequestCommentCreateReq 
@@ -19,8 +19,10 @@ export const userRequestService = {
   /**
    * 내 요청 목록 조회
    */
-  getMyRequests: async () => {
-    const response = await apiClient.get<UserRequestListRes[]>('/user-requests/my');
+  getMyRequests: async (page = 0, size = 20) => {
+    const response = await apiClient.get<UserRequestPagedResult>('/user-requests/my', {
+      params: { page, size }
+    });
     return response.data;
   },
 
