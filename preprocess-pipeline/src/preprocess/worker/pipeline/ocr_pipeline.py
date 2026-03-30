@@ -1,5 +1,7 @@
 import logging
 from inputs.jd_preprocess_input import JdPreprocessInput
+from domain.job_platform import JobPlatform
+from url.preprocessor import preprocess_lines_by_platform
 from ocr.pipeline import process_ocr_input
 from ocr.structure.header_grouping import extract_sections_by_header
 from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
@@ -28,6 +30,8 @@ class OcrPipeline:
         if not input.images:
             raise ValueError("images is required for OcrPipeline")
 
+        platform = getattr(input, 'platform', JobPlatform.OTHER)
+
         # 1️⃣ OCR 실행
         ocr_result = process_ocr_input(input.images)
 
@@ -51,8 +55,20 @@ class OcrPipeline:
             )
             raise RuntimeError("OCR failed: confidence too low")
 
+        # 1.5️⃣ Platform 전용 필터 (OCR dict lines 기준)
+        ocr_lines = _filter_ocr_lines_by_platform(ocr_result["lines"], platform)
+
+        logger.debug(
+            "OCR platform filtered",
+            extra={
+                "platform": platform.value,
+                "before": len(ocr_result["lines"]),
+                "after": len(ocr_lines),
+            },
+        )
+
         # 2️⃣ Header 기반 구조화 (OCR 전용)
-        raw_sections = extract_sections_by_header(ocr_result["lines"])
+        raw_sections = extract_sections_by_header(ocr_lines)
 
         logger.debug("OCR sections extracted", extra={"section_count": len(raw_sections)})
 
@@ -110,3 +126,30 @@ class OcrPipeline:
             "canonical_map": canonical_map,
             "document_meta": document_meta,
         }
+
+
+def _filter_ocr_lines_by_platform(lines: list[dict], platform: JobPlatform) -> list[dict]:
+    """
+    OCR dict lines에 platform 전용 필터 적용
+
+    preprocess_lines_by_platform은 List[str] 기반이므로,
+    text 추출 → 필터 → 순서 기반으로 dict lines 복원
+    """
+    if not lines:
+        return lines
+
+    text_strs = [l.get("text", "") for l in lines]
+    cleaned_strs = preprocess_lines_by_platform(text_strs, platform)
+
+    # 순서 기반 매핑: cleaned_strs는 원본 순서 보존 부분집합
+    result = []
+    clean_iter = iter(cleaned_strs)
+    next_clean = next(clean_iter, None)
+
+    for line in lines:
+        text = line.get("text", "")
+        if text == next_clean:
+            result.append(line)
+            next_clean = next(clean_iter, None)
+
+    return result

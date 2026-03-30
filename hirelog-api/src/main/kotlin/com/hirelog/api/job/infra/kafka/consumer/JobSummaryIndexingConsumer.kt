@@ -69,7 +69,19 @@ class JobSummaryIndexingConsumer(
 
             when (eventType) {
                 EventType.DELETED -> handleDelete(aggregateId, payload)
-                else -> handleIndex(payload)
+                else -> {
+                    val unwrapped = unwrapDoubleSerializedJson(payload)
+                    val tree = objectMapper.readTree(unwrapped)
+                    if (tree.size() == 1 && tree.has("id")) {
+                        log.warn(
+                            "[JOB_SUMMARY_INDEXING_MISROUTED_DELETE] aggregateId={}, eventType={}, payload is delete-shaped — routing to delete. Check Debezium eventType header config.",
+                            aggregateId, eventType
+                        )
+                        handleDelete(aggregateId, unwrapped)
+                    } else {
+                        handleIndex(payload)
+                    }
+                }
             }
 
             acknowledgment.acknowledge()

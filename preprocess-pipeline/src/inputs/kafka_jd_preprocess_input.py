@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Optional, List
 from domain.job_source import JobSource
+from domain.job_platform import JobPlatform
 
 
 @dataclass
@@ -28,6 +29,9 @@ class KafkaJdPreprocessInput:
     text: Optional[str] = None
     images: Optional[List[str]] = field(default_factory=list)
     url: Optional[str] = None
+
+    # 플랫폼 (전처리 전략 분기용)
+    platform: JobPlatform = JobPlatform.OTHER
 
     # 선택적 메타데이터 (Kafka 메시지에서 추가)
     event_id: Optional[str] = None

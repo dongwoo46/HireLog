@@ -78,7 +78,7 @@ META_NOISE_PATTERNS = [
 # 플랫폼 모듈 로더
 # ============================================================
 
-def _get_platform_module(platform: JobPlatform):
+def get_platform_module(platform: JobPlatform):
     if platform == JobPlatform.WANTED:
         from url.platforms import wanted
         return wanted
@@ -94,6 +94,27 @@ def _get_platform_module(platform: JobPlatform):
 # 전처리 진입점
 # ============================================================
 
+def preprocess_lines_by_platform(lines: List[str], platform: JobPlatform = JobPlatform.OTHER) -> List[str]:
+    """
+    TEXT/OCR 파이프라인용 platform 전용 필터
+
+    URL 전용 노이즈(HTML UI 요소 등)는 제거하지 않고
+    platform 모듈의 noise pattern + menu fragment 제거만 적용
+    """
+    if not lines:
+        return lines
+
+    platform_mod = get_platform_module(platform)
+    platform_noise_patterns = platform_mod.get_ui_noise_patterns()
+
+    filtered = [
+        line for line in lines
+        if not (platform_noise_patterns and _matches_patterns(line, platform_noise_patterns))
+    ]
+
+    return platform_mod.remove_menu_fragments(filtered)
+
+
 def preprocess_url_text(text: str, platform: JobPlatform = JobPlatform.OTHER) -> List[str]:
     """
     URL에서 파싱한 텍스트를 전처리하여 클린한 라인 리스트 반환
@@ -108,7 +129,7 @@ def preprocess_url_text(text: str, platform: JobPlatform = JobPlatform.OTHER) ->
     if not text:
         return []
 
-    platform_mod = _get_platform_module(platform)
+    platform_mod = get_platform_module(platform)
     platform_noise_patterns = platform_mod.get_ui_noise_patterns()
     allow_header_dedup = platform_mod.allow_header_keyword_dedup()
 

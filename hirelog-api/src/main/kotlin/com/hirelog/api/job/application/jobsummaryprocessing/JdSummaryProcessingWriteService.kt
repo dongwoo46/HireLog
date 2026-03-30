@@ -108,7 +108,14 @@ class JdSummaryProcessingWriteService(
         errorCode: String,
         errorMessage: String
     ) {
-        val processing = getRequired(processingId)
+        val processing = query.findById(processingId)
+        if (processing == null) {
+            log.warn(
+                "[PROCESSING_NOT_FOUND_ON_FAIL] processingId={}, errorCode={} — skip markFailed (orphaned fail event or race condition)",
+                processingId, errorCode
+            )
+            return
+        }
         processing.markFailed(
             errorCode = errorCode,
             errorMessage = errorMessage
