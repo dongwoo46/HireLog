@@ -95,6 +95,14 @@ export interface JobSummaryDetailView extends JobSummaryView {
   preparationFocus?: string;
   proofPointsAndMetrics?: string;
   questionsToAsk?: string;
+  // AI 분석 필드
+  idealCandidate?: string;
+  mustHaveSignals?: string;
+  transferableStrengthsAndGapPlan?: string;
+  storyAngles?: string;
+  keyChallenges?: string;
+  technicalContext?: string;
+  considerations?: string;
 }
 
 export interface JobSummaryTextReq {

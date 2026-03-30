@@ -16,6 +16,13 @@ import {
   TbRoute,
   TbEye,
   TbExternalLink,
+  TbTarget,
+  TbShieldCheck,
+  TbScale,
+  TbStars,
+  TbMountain,
+  TbCpu,
+  TbAlertCircle,
 } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { jdSummaryService } from '../services/jdSummaryService';
@@ -590,6 +597,13 @@ const RecruitmentProcessBlock = ({ content, delay = 0 }: { content: string; dela
   );
 };
 
+const SectionDivider = ({ label }: { label: string }) => (
+  <div className="flex items-center gap-3 pt-2">
+    <span className="text-xs font-black uppercase tracking-widest text-gray-400">{label}</span>
+    <div className="flex-1 border-t border-gray-100" />
+  </div>
+);
+
 const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => {
   const techTags = jd.techStackParsed?.length
     ? jd.techStackParsed
@@ -611,6 +625,8 @@ const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => {
         </a>
       )}
 
+      {/* 공고 핵심 정보 */}
+      <SectionDivider label="공고 핵심 정보" />
       <div className="grid gap-6 md:grid-cols-2">
         <div className="col-span-1 md:col-span-2">
           <Block title="요약" content={jd.summaryText} icon={TbNotes} delay={0} />
@@ -635,14 +651,45 @@ const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => {
           </div>
         )}
         <div className="col-span-1">
-          <Block title="준비 포인트" content={jd.preparationFocus} icon={TbBulb} delay={400} />
+          <Block title="기술 맥락" content={jd.technicalContext} icon={TbCpu} delay={400} />
         </div>
         <div className="col-span-1">
-          <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} useProofMetricsLayout delay={500} />
+          <Block title="핵심 도전과제" content={jd.keyChallenges} icon={TbMountain} delay={420} />
+        </div>
+      </div>
+
+      {/* 지원 전략 */}
+      <SectionDivider label="지원 전략" />
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="col-span-1 md:col-span-2">
+          <Block title="이상적인 후보자" content={jd.idealCandidate} icon={TbTarget} delay={440} />
+        </div>
+        <div className="col-span-1">
+          <Block title="필수 신호" content={jd.mustHaveSignals} icon={TbShieldCheck} delay={460} />
+        </div>
+        <div className="col-span-1">
+          <Block title="고려사항" content={jd.considerations} icon={TbAlertCircle} delay={480} />
+        </div>
+        <div className="col-span-1">
+          <Block title="준비 포인트" content={jd.preparationFocus} icon={TbBulb} delay={500} />
+        </div>
+        <div className="col-span-1">
+          <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} useProofMetricsLayout delay={520} />
+        </div>
+        <div className="col-span-1 md:col-span-2">
+          <Block title="강점 및 보완점" content={jd.transferableStrengthsAndGapPlan} icon={TbScale} delay={540} />
+        </div>
+      </div>
+
+      {/* 면접 준비 */}
+      <SectionDivider label="면접 준비" />
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="col-span-1 md:col-span-2">
+          <Block title="스토리 앵글" content={jd.storyAngles} icon={TbStars} delay={560} />
         </div>
         {jd.insights && (
           <div className="col-span-1 md:col-span-2">
-            <Block title="인사이트" content={jd.insights} icon={TbEye} delay={550} />
+            <Block title="인사이트" content={jd.insights} icon={TbEye} delay={580} />
           </div>
         )}
         <div className="col-span-1 md:col-span-2">
