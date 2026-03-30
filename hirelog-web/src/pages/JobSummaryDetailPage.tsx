@@ -97,6 +97,7 @@ const JobSummaryDetailPage = () => {
   const [coverQuestion, setCoverQuestion] = useState('자기소개서 메모');
   const [coverContent, setCoverContent] = useState('');
   const [savingCover, setSavingCover] = useState(false);
+  const [isEditingCover, setIsEditingCover] = useState(true);
 
   const latestRecordedStage = stageOrder
     .map((stage) => stages[stage])
@@ -170,6 +171,9 @@ const JobSummaryDetailPage = () => {
         const first = [...coverLetters].sort((a, b) => a.sortOrder - b.sortOrder)[0];
         setCoverQuestion(first.question);
         setCoverContent(first.content);
+        setIsEditingCover(false);
+      } else {
+        setIsEditingCover(true);
       }
     } catch {
       toast.info('아직 저장된 준비 기록이 없습니다.');
@@ -231,6 +235,7 @@ const JobSummaryDetailPage = () => {
         sortOrder: 1,
       });
       toast.success('자소서 메모를 저장했습니다.');
+      setIsEditingCover(false);
     } catch {
       toast.error('자소서 메모 저장에 실패했습니다.');
     } finally {
@@ -598,26 +603,66 @@ const JobSummaryDetailPage = () => {
             </div>
 
             <div className="space-y-3 rounded-2xl border bg-white p-5">
-              <h3 className="text-base font-bold text-gray-900">자소서 메모</h3>
-              <input
-                value={coverQuestion}
-                onChange={(e) => setCoverQuestion(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2 text-sm"
-                placeholder="메모 제목"
-              />
-              <textarea
-                value={coverContent}
-                onChange={(e) => setCoverContent(e.target.value)}
-                className="min-h-[260px] w-full resize-y rounded-xl border border-gray-200 p-4 text-sm"
-                placeholder="자소서 핵심 메시지, 사례, 숫자 근거 등을 정리해 주세요."
-              />
-              <button
-                onClick={saveCoverLetter}
-                disabled={savingCover}
-                className="rounded-xl border border-[#3FB6B2] px-5 py-2.5 text-sm font-semibold text-[#3FB6B2] disabled:opacity-60"
-              >
-                {savingCover ? '저장 중...' : '자소서 메모 저장'}
-              </button>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-base font-bold text-gray-900">자소서 메모</h3>
+                {!isEditingCover && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingCover(true)}
+                    className="rounded-xl border border-[#3FB6B2] px-4 py-2 text-sm font-semibold text-[#2b8f8c] hover:bg-[#3FB6B2]/5"
+                  >
+                    수정하기
+                  </button>
+                )}
+              </div>
+
+              {isEditingCover ? (
+                <>
+                  <input
+                    value={coverQuestion}
+                    onChange={(e) => setCoverQuestion(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2 text-sm"
+                    placeholder="메모 제목"
+                  />
+                  <textarea
+                    value={coverContent}
+                    onChange={(e) => setCoverContent(e.target.value)}
+                    className="min-h-[260px] w-full resize-y rounded-xl border border-gray-200 p-4 text-sm"
+                    placeholder="자소서 핵심 메시지, 사례, 숫자 근거 등을 정리해 주세요."
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={saveCoverLetter}
+                      disabled={savingCover}
+                      className="rounded-xl border border-[#3FB6B2] px-5 py-2.5 text-sm font-semibold text-[#3FB6B2] disabled:opacity-60"
+                    >
+                      {savingCover ? '저장 중...' : '자소서 메모 저장'}
+                    </button>
+                    {!!coverContent.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingCover(false);
+                          void loadPreparationData();
+                        }}
+                        className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                      >
+                        취소
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+                    <p className="text-xs font-semibold text-gray-500">메모 제목</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-800">{coverQuestion}</p>
+                  </div>
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700">{coverContent}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
