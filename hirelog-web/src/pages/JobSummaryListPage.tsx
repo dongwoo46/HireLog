@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import type { CareerType, JobSummarySearchReq, JobSummaryView } from '../types/jobSummary';
 import { jdSummaryService } from '../services/jdSummaryService';
 import { JobSummaryCard } from '../components/JobSummaryCard';
@@ -20,6 +21,7 @@ const JobSummaryListPage = () => {
   const [sideFilter, setSideFilter] = useState<'SAVED' | 'APPLY'>('SAVED');
   const [sideJds, setSideJds] = useState<JobSummaryView[]>([]);
   const [sideLoading, setSideLoading] = useState(false);
+  const [sideUnsaveId, setSideUnsaveId] = useState<number | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const fetchMoreRef = useRef<() => void>(() => {});
@@ -133,6 +135,32 @@ const JobSummaryListPage = () => {
     fetchSideList();
   }, [isSideOpen, sideFilter]);
 
+  const handleSideUnsave = useCallback(
+    async (jobSummaryId: number) => {
+      if (sideUnsaveId === jobSummaryId) return;
+
+      setSideUnsaveId(jobSummaryId);
+      try {
+        await jdSummaryService.unsave(jobSummaryId);
+        setSideJds((prev) => prev.filter((item) => item.id !== jobSummaryId));
+        setJds((prev) =>
+          prev.map((item) =>
+            item.id === jobSummaryId
+              ? { ...item, isSaved: false, memberSaveType: 'UNSAVED' }
+              : item,
+          ),
+        );
+        toast.info('저장을 해제했습니다.');
+      } catch (error) {
+        console.error(error);
+        toast.error('저장 해제에 실패했습니다.');
+      } finally {
+        setSideUnsaveId(null);
+      }
+    },
+    [sideUnsaveId],
+  );
+
   return (
     <div className="relative min-h-screen bg-[#F6F8FA] pb-20">
       {isAuthenticated && !isSideOpen && (
@@ -186,17 +214,28 @@ const JobSummaryListPage = () => {
               <div className="text-center text-sm text-gray-400">목록을 불러오는 중...</div>
             ) : sideJds.length > 0 ? (
               sideJds.map((jd) => (
-                <a
+                <div
                   key={`${jd.id}-${jd.memberSaveType}`}
-                  href={`/jd/${jd.id}`}
-                  className="block rounded-xl border border-gray-100 p-4 transition hover:border-[#3FB6B2]/30 hover:bg-[#3FB6B2]/5"
+                  className="rounded-xl border border-gray-100 p-4 transition hover:border-[#3FB6B2]/30 hover:bg-[#3FB6B2]/5"
                 >
-                  <p className="text-sm font-bold text-gray-900">{jd.brandName}</p>
-                  <p className="mt-1 text-xs text-gray-500">{jd.brandPositionName}</p>
-                  <p className="mt-2 text-[11px] text-gray-400">
-                    {jd.createdAt ? new Date(jd.createdAt).toLocaleDateString() : ''}
-                  </p>
-                </a>
+                  <a href={`/jd/${jd.id}`} className="block">
+                    <p className="text-sm font-bold text-gray-900">{jd.brandName}</p>
+                    <p className="mt-1 text-xs text-gray-500">{jd.brandPositionName}</p>
+                    <p className="mt-2 text-[11px] text-gray-400">
+                      {jd.createdAt ? new Date(jd.createdAt).toLocaleDateString() : ''}
+                    </p>
+                  </a>
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleSideUnsave(jd.id)}
+                      disabled={sideUnsaveId === jd.id}
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {sideUnsaveId === jd.id ? '처리 중...' : '저장 취소'}
+                    </button>
+                  </div>
+                </div>
               ))
             ) : (
               <div className="mt-10 text-center text-sm text-gray-400">표시할 공고가 없습니다.</div>
