@@ -16,7 +16,7 @@ data class JdPreprocessRequestMessage(
     val brandName: String,
     val positionName: String,
     val source: JobSourceType,
-    val platform: JobPlatformType,
+    val platform: JobPlatformType? = null,
 
     // === Source별 데이터 (Python 측 필수 필드) ===
     val text: String? = null,           // TEXT 소스용

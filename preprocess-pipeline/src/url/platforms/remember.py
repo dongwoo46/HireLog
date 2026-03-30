@@ -86,6 +86,12 @@ def get_ui_noise_patterns() -> List[str]:
     return _REMEMBER_UI_NOISE_PATTERNS
 
 
+def extract_sections(lines: List[str]) -> dict:
+    """섹션 분리 (리멤버 전략 — 현재 generic과 동일, 추후 튜닝)"""
+    from url.section_extractor import extract_url_sections
+    return extract_url_sections(lines)
+
+
 def _is_header_keyword(line: str, header_keywords: Set[str]) -> bool:
     normalized = line.strip().lower().replace(" ", "")
     if not normalized:

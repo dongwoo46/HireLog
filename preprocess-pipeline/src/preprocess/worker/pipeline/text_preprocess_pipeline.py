@@ -1,7 +1,5 @@
 import logging
 from inputs.jd_preprocess_input import JdPreprocessInput
-from domain.job_platform import JobPlatform
-from url.preprocessor import preprocess_lines_by_platform
 
 from preprocess.core_preprocess.core_preprocessor import CorePreprocessor
 from preprocess.structural_preprocess.structural_preprocessor import StructuralPreprocessor
@@ -38,15 +36,11 @@ class TextPreprocessPipeline:
         """
 
         raw_text = input.text
-        platform = getattr(input, 'platform', JobPlatform.OTHER)
 
         # 1️⃣ Core
         # - 줄 단위 정규화
         # - 노이즈 제거
         core_lines = self.core.process(raw_text)
-
-        # 1.5️⃣ Platform 전용 필터 (노이즈 패턴 + 메뉴 잔해 제거)
-        core_lines = preprocess_lines_by_platform(core_lines, platform)
 
         # 2️⃣ Metadata (문서 전역 메타)
         document_meta = self.metadata.process(core_lines)

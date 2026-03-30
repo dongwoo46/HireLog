@@ -45,7 +45,6 @@ class JdIntakeService(
         brandName: String,
         brandPositionName: String,
         text: String,
-        platform: JobPlatformType,
     ): String {
         require(brandName.isNotBlank()) { "brandName is required" }
         require(brandPositionName.isNotBlank()) { "positionName is required" }
@@ -59,7 +58,6 @@ class JdIntakeService(
             brandName = brandName,
             positionName = brandPositionName,
             source = JobSourceType.TEXT,
-            platform = platform,
             text = text,
         )
 
@@ -83,7 +81,6 @@ class JdIntakeService(
         brandName: String,
         brandPositionName: String,
         imageFiles: List<MultipartFile>,
-        platform: JobPlatformType,
     ): String {
         require(brandName.isNotBlank()) { "brandName is required" }
         require(brandPositionName.isNotBlank()) { "positionName is required" }
@@ -99,7 +96,6 @@ class JdIntakeService(
             brandName = brandName,
             positionName = brandPositionName,
             source = JobSourceType.IMAGE,
-            platform = platform,
             images = savedPaths,
         )
 

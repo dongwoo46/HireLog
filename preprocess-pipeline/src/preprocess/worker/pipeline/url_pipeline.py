@@ -3,8 +3,7 @@ from inputs.jd_preprocess_input import JdPreprocessInput
 from url.fetcher import UrlFetcher
 from url.playwright_fetcher import PlaywrightFetcher
 from url.parser import UrlParser
-from url.preprocessor import preprocess_url_text
-from url.section_extractor import extract_url_sections
+from url.preprocessor import preprocess_url_text, get_platform_module
 from preprocess.adapter.url_section_adapter import adapt_url_sections_to_sections
 from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
 from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
@@ -106,8 +105,9 @@ class UrlPipeline:
                 "document_meta": None,
             }
 
-        # 4️⃣ Header 기반 섹션 분리 (OCR 방식)
-        raw_sections = extract_url_sections(cleaned_lines)
+        # 4️⃣ Header 기반 섹션 분리 (platform별 전략)
+        platform_mod = get_platform_module(input.platform)
+        raw_sections = platform_mod.extract_sections(cleaned_lines)
 
         # 4.5️⃣ 섹션 구조 후보정
         raw_sections = validate_raw_sections(raw_sections)

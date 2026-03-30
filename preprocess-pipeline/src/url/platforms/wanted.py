@@ -61,6 +61,12 @@ def allow_header_keyword_dedup() -> bool:
     return False
 
 
+def extract_sections(lines: List[str]) -> dict:
+    """섹션 분리 (원티드 전략 — 현재 generic과 동일, 추후 튜닝)"""
+    from url.section_extractor import extract_url_sections
+    return extract_url_sections(lines)
+
+
 def get_ui_noise_patterns() -> List[str]:
     """원티드 전용 UI 노이즈 패턴"""
     return [

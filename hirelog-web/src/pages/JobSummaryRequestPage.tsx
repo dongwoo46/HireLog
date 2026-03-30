@@ -241,10 +241,10 @@ const JobSummaryRequestPage = () => {
     try {
       if (activeTab === 'text') {
         if (!jdText) throw new Error('JD 내용을 입력해주세요.');
-        await jdSummaryService.requestText({ brandName, brandPositionName, jdText, platform });
+        await jdSummaryService.requestText({ brandName, brandPositionName, jdText });
       } else if (activeTab === 'ocr') {
         if (images.length === 0) throw new Error('이미지를 업로드해주세요.');
-        await jdSummaryService.requestOcr({ brandName, brandPositionName, images, platform });
+        await jdSummaryService.requestOcr({ brandName, brandPositionName, images });
       } else if (activeTab === 'url') {
         if (!url) throw new Error('URL을 입력해주세요.');
         const res = await jdSummaryService.requestUrl({ brandName, brandPositionName, url, platform });
@@ -313,21 +313,6 @@ const JobSummaryRequestPage = () => {
               />
             </div>
 
-            {/* 채용 플랫폼 */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700 ml-1">채용 플랫폼</label>
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value as JobPlatformType)}
-                className="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none bg-white"
-                required
-              >
-                {PLATFORM_OPTIONS.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-
             {/* 탭 */}
             <div className="flex p-1 bg-gray-100 rounded-2xl">
               <TabButton active={activeTab === 'text'} onClick={() => setActiveTab('text')} icon={<TbFileText />} label="텍스트 입력" />
@@ -359,13 +344,27 @@ const JobSummaryRequestPage = () => {
             )}
 
             {activeTab === 'url' && (
-              <input
-                type="url"
-                placeholder="https://example.com/job"
-                className="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
+              <div className="space-y-4">
+                <input
+                  type="url"
+                  placeholder="https://example.com/job"
+                  className="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                />
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700 ml-1">채용 플랫폼</label>
+                  <select
+                    value={platform}
+                    onChange={(e) => setPlatform(e.target.value as JobPlatformType)}
+                    className="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none bg-white"
+                  >
+                    {PLATFORM_OPTIONS.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             )}
 
             {/* 🔥 메인 버튼 컬러 변경 */}

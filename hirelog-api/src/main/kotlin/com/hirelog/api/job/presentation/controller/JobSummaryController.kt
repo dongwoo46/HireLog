@@ -86,7 +86,6 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             text = request.jdText,
-            platform = request.platform,
         )
 
         return ResponseEntity.ok().build()
@@ -113,7 +112,6 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             imageFiles = request.images,
-            platform = request.platform,
         )
 
         return ResponseEntity.ok(mapOf("requestId" to requestId))

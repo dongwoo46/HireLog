@@ -101,7 +101,6 @@ export interface JobSummaryTextReq {
   brandName: string;
   brandPositionName: string;
   jdText: string;
-  platform: JobPlatformType;
 }
 
 export interface JobSummaryUrlReq {

@@ -69,12 +69,10 @@ export const jdSummaryService = {
     brandName: string;
     brandPositionName: string;
     images: File[];
-    platform: import('../types/jobSummary').JobPlatformType;
   }): Promise<any> => {
     const formData = new FormData();
     formData.append('brandName', data.brandName);
     formData.append('brandPositionName', data.brandPositionName);
-    formData.append('platform', data.platform);
 
     data.images.forEach((image) => {
       formData.append('images', image);
