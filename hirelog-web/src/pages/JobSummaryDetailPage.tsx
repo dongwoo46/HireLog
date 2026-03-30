@@ -3,6 +3,8 @@ import type { ElementType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   TbChevronLeft,
+  TbChevronDown,
+  TbChevronUp,
   TbDeviceFloppy,
   TbReload,
   TbNotes,
@@ -89,10 +91,22 @@ const JobSummaryDetailPage = () => {
   const [prepLoading, setPrepLoading] = useState(false);
   const [savingPrep, setSavingPrep] = useState(false);
   const [isEditingPrep, setIsEditingPrep] = useState(false);
+  const [isStageSelectorCollapsed, setIsStageSelectorCollapsed] = useState(false);
+  const [isPrepMemoCollapsed, setIsPrepMemoCollapsed] = useState(false);
 
   const [coverQuestion, setCoverQuestion] = useState('자기소개서 메모');
   const [coverContent, setCoverContent] = useState('');
   const [savingCover, setSavingCover] = useState(false);
+
+  const latestRecordedStage = stageOrder
+    .map((stage) => stages[stage])
+    .filter((stage): stage is HiringStageView => Boolean(stage))
+    .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())[0];
+  const latestStageLabel = latestRecordedStage ? HIRING_STAGE_LABELS[latestRecordedStage.stage] : null;
+  const latestStageResultLabel = latestRecordedStage?.result ? HIRING_STAGE_RESULT_LABELS[latestRecordedStage.result] : null;
+  const latestStageNoteSummary = latestRecordedStage?.note?.trim()
+    ? `${latestRecordedStage.note.trim().slice(0, 100)}${latestRecordedStage.note.trim().length > 100 ? '...' : ''}`
+    : '메모가 아직 없습니다.';
 
   useEffect(() => {
     if (!id) return;
@@ -392,50 +406,120 @@ const JobSummaryDetailPage = () => {
           <div className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
               <div className="rounded-2xl border bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">단계 선택</p>
-                <div className="space-y-2">
-                  {stageOrder.map((stage) => {
-                    const r = stages[stage]?.result;
-                    return (
-                      <button
-                        key={stage}
-                        onClick={() => setActiveStage(stage)}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
-                          activeStage === stage
-                            ? 'bg-[#3FB6B2] text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        <span>{HIRING_STAGE_LABELS[stage]}</span>
-                        {r && (
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              r === 'PENDING'
-                                ? 'bg-gray-200 text-gray-600'
-                                : 'bg-[#3FB6B2]/20 text-[#237b78]'
-                            }`}
-                          >
-                            {HIRING_STAGE_RESULT_LABELS[r]}
+                <button
+                  type="button"
+                  onClick={() => setIsStageSelectorCollapsed((prev) => !prev)}
+                  className="mb-3 flex w-full items-center justify-between rounded-xl px-1 py-1 text-left"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">단계 선택</p>
+                  {isStageSelectorCollapsed ? (
+                    <TbChevronDown className="text-gray-500" size={16} />
+                  ) : (
+                    <TbChevronUp className="text-gray-500" size={16} />
+                  )}
+                </button>
+
+                {isStageSelectorCollapsed ? (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+                    <p className="text-xs font-semibold text-gray-500">최신 전형 상태</p>
+                    {latestRecordedStage ? (
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-gray-700">{latestStageLabel}</span>
+                        {latestStageResultLabel ? (
+                          <span className="rounded-full bg-[#3FB6B2]/15 px-2.5 py-1 text-xs font-bold text-[#237b78]">
+                            {latestStageResultLabel}
                           </span>
+                        ) : (
+                          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500">미설정</span>
                         )}
-                      </button>
-                    );
-                  })}
-                </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-gray-500">아직 기록된 전형이 없습니다.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {stageOrder.map((stage) => {
+                      const r = stages[stage]?.result;
+                      return (
+                        <button
+                          key={stage}
+                          onClick={() => setActiveStage(stage)}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
+                            activeStage === stage
+                              ? 'bg-[#3FB6B2] text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span>{HIRING_STAGE_LABELS[stage]}</span>
+                          {r && (
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                r === 'PENDING'
+                                  ? 'bg-gray-200 text-gray-600'
+                                  : 'bg-[#3FB6B2]/20 text-[#237b78]'
+                              }`}
+                            >
+                              {HIRING_STAGE_RESULT_LABELS[r]}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4 rounded-2xl border bg-white p-5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-gray-900">{HIRING_STAGE_LABELS[activeStage]} 준비 메모</h3>
-                  <button
-                    onClick={loadPreparationData}
-                    className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                  >
-                    <TbReload size={14} /> 동기화
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={loadPreparationData}
+                      className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                    >
+                      <TbReload size={14} /> 새로고침
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPrepMemoCollapsed((prev) => !prev)}
+                      className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                    >
+                      {isPrepMemoCollapsed ? (
+                        <>
+                          펼치기 <TbChevronDown size={14} />
+                        </>
+                      ) : (
+                        <>
+                          접기 <TbChevronUp size={14} />
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
-                {prepLoading ? (
+                {isPrepMemoCollapsed ? (
+                  <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-700">최신 전형 상태</p>
+                      {latestRecordedStage ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-700">{latestStageLabel}</span>
+                          {latestStageResultLabel ? (
+                            <span className="rounded-full bg-[#3FB6B2]/15 px-2.5 py-1 text-xs font-bold text-[#237b78]">
+                              {latestStageResultLabel}
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500">미설정</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">기록 없음</span>
+                      )}
+                    </div>
+                    <p className="text-sm leading-6 text-gray-600">{latestStageNoteSummary}</p>
+                  </div>
+                ) : prepLoading ? (
                   <div className="py-10 text-center text-sm text-gray-400">불러오는 중...</div>
                 ) : isEditingPrep ? (
                   <>
@@ -524,7 +608,7 @@ const JobSummaryDetailPage = () => {
               <textarea
                 value={coverContent}
                 onChange={(e) => setCoverContent(e.target.value)}
-                className="min-h-[180px] w-full rounded-xl border border-gray-200 p-4 text-sm"
+                className="min-h-[260px] w-full resize-y rounded-xl border border-gray-200 p-4 text-sm"
                 placeholder="자소서 핵심 메시지, 사례, 숫자 근거 등을 정리해 주세요."
               />
               <button
