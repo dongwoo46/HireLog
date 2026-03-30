@@ -12,6 +12,10 @@ import {
   TbBulb,
   TbDiscount,
   TbMessages,
+  TbCode,
+  TbRoute,
+  TbEye,
+  TbExternalLink,
 } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { jdSummaryService } from '../services/jdSummaryService';
@@ -531,31 +535,123 @@ const JobSummaryDetailPage = () => {
   );
 };
 
-const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => (
-  <div className="grid gap-6 md:grid-cols-2">
-    <div className="col-span-1 md:col-span-2">
-      <Block title="요약" content={jd.summaryText} icon={TbNotes} delay={0} />
+const TechStackBlock = ({ tags, delay = 0 }: { tags: string[]; delay?: number }) => (
+  <div
+    className="group flex flex-col rounded-3xl border border-gray-100 bg-white p-7 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:border-[#3FB6B2]/40 hover:shadow-[0_8px_30px_-4px_rgba(63,182,178,0.15)] overflow-hidden relative"
+    style={{ animationDelay: `${delay}ms`, animationFillMode: 'both', animationName: 'fadeUp', animationDuration: '0.6s' }}
+  >
+    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#3FB6B2] to-[#6EC8A7] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+    <div className="mb-5 flex items-center gap-3 text-xl font-bold text-gray-800">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3FB6B2]/10 to-[#6EC8A7]/10 text-2xl text-[#3FB6B2] transition-all duration-300 group-hover:scale-110 group-hover:bg-[#3FB6B2] group-hover:text-white group-hover:shadow-md">
+        <TbCode />
+      </div>
+      기술 스택
     </div>
-    <div className="col-span-1 md:col-span-2">
-      <Block title="주요 업무" content={jd.responsibilities} icon={TbBriefcase} delay={100} />
-    </div>
-    <div className="col-span-1">
-      <Block title="자격 요건" content={jd.requiredQualifications} icon={TbUserCheck} delay={200} />
-    </div>
-    <div className="col-span-1">
-      <Block title="우대 사항" content={jd.preferredQualifications} icon={TbStar} delay={300} />
-    </div>
-    <div className="col-span-1">
-      <Block title="준비 포인트" content={jd.preparationFocus} icon={TbBulb} delay={400} />
-    </div>
-    <div className="col-span-1">
-      <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} useProofMetricsLayout delay={500} />
-    </div>
-    <div className="col-span-1 md:col-span-2">
-      <Block title="면접 질문" content={jd.questionsToAsk} icon={TbMessages} delay={600} />
+    <div className="flex flex-wrap gap-2">
+      {tags.map((tag, i) => (
+        <span key={i} className="inline-flex items-center rounded-xl bg-[#3FB6B2]/10 px-3 py-1.5 text-sm font-bold text-[#3FB6B2] ring-1 ring-[#3FB6B2]/20">
+          {tag}
+        </span>
+      ))}
     </div>
   </div>
 );
+
+const RecruitmentProcessBlock = ({ content, delay = 0 }: { content: string; delay?: number }) => {
+  const steps = content
+    .split(/\n|→|->/)
+    .map((s) => s.replace(/^[-•*\d.]\s*/, '').trim())
+    .filter(Boolean);
+
+  return (
+    <div
+      className="group flex flex-col rounded-3xl border border-gray-100 bg-white p-7 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-1 hover:border-[#3FB6B2]/40 hover:shadow-[0_8px_30px_-4px_rgba(63,182,178,0.15)] overflow-hidden relative"
+      style={{ animationDelay: `${delay}ms`, animationFillMode: 'both', animationName: 'fadeUp', animationDuration: '0.6s' }}
+    >
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#3FB6B2] to-[#6EC8A7] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="mb-5 flex items-center gap-3 text-xl font-bold text-gray-800">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3FB6B2]/10 to-[#6EC8A7]/10 text-2xl text-[#3FB6B2] transition-all duration-300 group-hover:scale-110 group-hover:bg-[#3FB6B2] group-hover:text-white group-hover:shadow-md">
+          <TbRoute />
+        </div>
+        채용 프로세스
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {steps.map((step, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-4 py-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#3FB6B2] text-[11px] font-black text-white">{i + 1}</span>
+              <span className="text-sm font-semibold text-gray-700">{step}</span>
+            </div>
+            {i < steps.length - 1 && <span className="text-sm font-bold text-[#3FB6B2]">→</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => {
+  const techTags = jd.techStackParsed?.length
+    ? jd.techStackParsed
+    : jd.techStack
+      ? jd.techStack.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+      : [];
+
+  return (
+    <div className="space-y-6">
+      {jd.sourceUrl && (
+        <a
+          href={jd.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 w-fit rounded-2xl border border-[#3FB6B2]/30 bg-[#3FB6B2]/5 px-4 py-2.5 text-sm font-bold text-[#3FB6B2] transition-all hover:bg-[#3FB6B2]/10 hover:border-[#3FB6B2]/50"
+        >
+          <TbExternalLink size={16} />
+          원본 공고 보기
+        </a>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="col-span-1 md:col-span-2">
+          <Block title="요약" content={jd.summaryText} icon={TbNotes} delay={0} />
+        </div>
+        <div className="col-span-1 md:col-span-2">
+          <Block title="주요 업무" content={jd.responsibilities} icon={TbBriefcase} delay={100} />
+        </div>
+        <div className="col-span-1">
+          <Block title="자격 요건" content={jd.requiredQualifications} icon={TbUserCheck} delay={200} />
+        </div>
+        <div className="col-span-1">
+          <Block title="우대 사항" content={jd.preferredQualifications} icon={TbStar} delay={300} />
+        </div>
+        {techTags.length > 0 && (
+          <div className="col-span-1 md:col-span-2">
+            <TechStackBlock tags={techTags} delay={350} />
+          </div>
+        )}
+        {jd.recruitmentProcess && (
+          <div className="col-span-1 md:col-span-2">
+            <RecruitmentProcessBlock content={jd.recruitmentProcess} delay={380} />
+          </div>
+        )}
+        <div className="col-span-1">
+          <Block title="준비 포인트" content={jd.preparationFocus} icon={TbBulb} delay={400} />
+        </div>
+        <div className="col-span-1">
+          <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} useProofMetricsLayout delay={500} />
+        </div>
+        {jd.insights && (
+          <div className="col-span-1 md:col-span-2">
+            <Block title="인사이트" content={jd.insights} icon={TbEye} delay={550} />
+          </div>
+        )}
+        <div className="col-span-1 md:col-span-2">
+          <Block title="면접 질문" content={jd.questionsToAsk} icon={TbMessages} delay={600} />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const highlightKeywords = (text: string) => {
   const keywords = [
