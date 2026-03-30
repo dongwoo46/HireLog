@@ -55,6 +55,15 @@ class TextPreprocessPipeline:
         # 3️⃣ Canonical (공통 후반 파이프라인)
         canonical_map = self.canonical.process(sections)
 
+        logger.info(
+            "TEXT pipeline completed",
+            extra={
+                "core_lines_count": len(core_lines),
+                "sections_count": len(sections),
+                "canonical_keys": list(canonical_map.keys()),
+            },
+        )
+
         return {
             "canonical_map": canonical_map,
             "document_meta": document_meta,

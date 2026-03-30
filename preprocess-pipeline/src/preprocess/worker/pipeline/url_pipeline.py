@@ -138,6 +138,19 @@ class UrlPipeline:
         canonical_map = self.canonical.process(sections)
 
         # 8️⃣ 최종 결과
+        logger.info(
+            "URL pipeline completed",
+            extra={
+                "url": input.url,
+                "platform": input.platform.value if input.platform else None,
+                "fetched_length": len(html_content),
+                "parsed_length": len(body_text),
+                "cleaned_lines_count": len(cleaned_lines),
+                "sections_count": len(raw_sections),
+                "canonical_keys": list(canonical_map.keys()),
+            },
+        )
+
         return {
             "url_meta": {
                 "url": input.url,

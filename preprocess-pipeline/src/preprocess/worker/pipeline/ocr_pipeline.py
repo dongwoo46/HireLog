@@ -89,6 +89,16 @@ class OcrPipeline:
         canonical_map = self.canonical.process(sections)
 
         # 6️⃣ 최종 결과
+        logger.info(
+            "OCR pipeline completed",
+            extra={
+                "confidence": round(ocr_result.get("confidence", 0), 2),
+                "line_count": len(ocr_result.get("lines", [])),
+                "sections_count": len(raw_sections),
+                "canonical_keys": list(canonical_map.keys()),
+            },
+        )
+
         return {
             "ocr": {
                 "status": ocr_result["status"],
