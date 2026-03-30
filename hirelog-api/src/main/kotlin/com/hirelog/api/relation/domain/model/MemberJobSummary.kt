@@ -149,6 +149,13 @@ class MemberJobSummary private constructor(
         }
     }
 
+    fun restoreFromArchived() {
+        require(saveType == MemberJobSummarySaveType.UNSAVED) {
+            "Only archived summary can be restored"
+        }
+        saveType = MemberJobSummarySaveType.SAVED
+    }
+
     /* =========================
      * 채용 단계 관리
      * ========================= */

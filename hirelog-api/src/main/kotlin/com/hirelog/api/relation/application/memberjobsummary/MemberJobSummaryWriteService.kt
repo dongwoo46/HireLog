@@ -33,7 +33,11 @@ class MemberJobSummaryWriteService(
         )
 
         if (exists != null) {
-            exists.changeStatus(MemberJobSummarySaveType.SAVED)
+            if (exists.saveType == MemberJobSummarySaveType.UNSAVED) {
+                exists.restoreFromArchived()
+            } else {
+                exists.changeStatus(MemberJobSummarySaveType.SAVED)
+            }
             memberJobSummaryCommand.save(exists)
             return
         }
@@ -140,7 +144,7 @@ class MemberJobSummaryWriteService(
         return memberJobSummaryCommand.findEntityByMemberIdAndJobSummaryId(
             memberId = memberId,
             jobSummaryId = jobSummaryId
-        ) ?: throw IllegalStateException(
+        ) ?: throw IllegalArgumentException(
             "MemberJobSummary not found (memberId=$memberId, jobSummaryId=$jobSummaryId)"
         )
     }
