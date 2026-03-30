@@ -33,7 +33,7 @@ interface JobSummaryQuery {
      * @param memberId 현재 로그인 사용자 ID
      * @return 상세 View (없으면 null)
      */
-    fun findDetailById(jobSummaryId: Long, memberId: Long): JobSummaryDetailView?
+    fun findDetailById(jobSummaryId: Long, memberId: Long?): JobSummaryDetailView?
 
     /**
      * URL 기반 중복 체크

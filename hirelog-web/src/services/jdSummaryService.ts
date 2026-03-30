@@ -118,13 +118,26 @@ export const jdSummaryService = {
     await apiClient.post(`/job-summary/review/${id}`, data);
   },
 
+  updateReview: async (reviewId: number, data: ReviewWriteReq): Promise<void> => {
+    await apiClient.patch(`/job-summary/review/${reviewId}`, data);
+  },
+
+  deleteReview: async (reviewId: number): Promise<void> => {
+    await apiClient.delete(`/job-summary/review/${reviewId}`);
+  },
+
+  restoreReview: async (reviewId: number): Promise<void> => {
+    await apiClient.patch(`/job-summary/review/${reviewId}/restore`);
+  },
+
   getReviews: async (
     summaryId: number,
     page = 0,
     size = 20,
+    options?: { includeDeleted?: boolean },
   ): Promise<PagedResult<any>> => {
     const response = await apiClient.get(`/job-summary/review/${summaryId}`, {
-      params: { page, size },
+      params: { page, size, includeDeleted: options?.includeDeleted || undefined },
     });
     return response.data;
   },
@@ -151,10 +164,20 @@ export const jdSummaryService = {
     stage: HiringStage,
     note: string,
     result?: import('../types/jobSummary').HiringStageResult | null,
+    currentSaveType?: MemberJobSummarySaveType,
   ): Promise<void> => {
-    try {
+    if (currentSaveType !== 'APPLY') {
+      await apiClient.patch(`/member-job-summary/${jobSummaryId}/save-type`, {
+        saveType: 'APPLY',
+      });
+    }
+
+    const existingStages = await jdSummaryService.getStages(jobSummaryId);
+    const hasStage = existingStages.some((item) => item.stage === stage);
+
+    if (hasStage) {
       await apiClient.patch(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
-    } catch {
+    } else {
       await apiClient.post(`/member-job-summary/${jobSummaryId}/stages`, { stage, note, result });
     }
   },

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CareerType, JobSummarySearchReq, JobSummaryView } from '../types/jobSummary';
 import { jdSummaryService } from '../services/jdSummaryService';
@@ -12,15 +12,17 @@ const JobSummaryListPage = () => {
 
   const [jds, setJds] = useState<JobSummaryView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const [currentPage, setCurrentPage] = useState(0);
-  const [cursorHistory, setCursorHistory] = useState<Array<string | null>>([null]);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(false);
 
   const [isSideOpen, setIsSideOpen] = useState(false);
   const [sideFilter, setSideFilter] = useState<'SAVED' | 'APPLY'>('SAVED');
   const [sideJds, setSideJds] = useState<JobSummaryView[]>([]);
   const [sideLoading, setSideLoading] = useState(false);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const fetchMoreRef = useRef<() => void>(() => { });
 
   const queryKey = useMemo(
     () =>
@@ -32,45 +34,83 @@ const JobSummaryListPage = () => {
     [searchParams],
   );
 
-  useEffect(() => {
-    setCurrentPage(0);
-    setCursorHistory([null]);
-  }, [queryKey]);
+  const buildParams = useCallback(
+    (cursor?: string | null): JobSummarySearchReq => ({
+      keyword: searchParams.get('keyword') || undefined,
+      careerType: (searchParams.get('careerType') as CareerType) || undefined,
+      sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
+      size: 12,
+      cursor: cursor || undefined,
+    }),
+    [searchParams],
+  );
 
+  // 검색 조건 변경 시 초기화 후 첫 페이지 로드
   useEffect(() => {
-    const currentCursor = cursorHistory[currentPage];
+    let cancelled = false;
 
-    const fetchJds = async () => {
+    const fetchFirst = async () => {
       setIsLoading(true);
-      try {
-        const params: JobSummarySearchReq = {
-          keyword: searchParams.get('keyword') || undefined,
-          careerType: (searchParams.get('careerType') as CareerType) || undefined,
-          sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
-          size: 12,
-          cursor: currentCursor || undefined,
-        };
+      setJds([]);
+      setNextCursor(null);
+      setHasNext(false);
 
-        const result = await jdSummaryService.search(params);
+      try {
+        const result = await jdSummaryService.search(buildParams(null));
+        if (cancelled) return;
         setJds(result?.items || []);
         setHasNext(result?.hasNext || false);
-
-        setCursorHistory((prev) => {
-          if (!result?.nextCursor) return prev;
-          if (prev[currentPage + 1] === result.nextCursor) return prev;
-          const next = [...prev];
-          next[currentPage + 1] = result.nextCursor;
-          return next;
-        });
+        setNextCursor(result?.nextCursor || null);
       } catch (error) {
         console.error(error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
-    fetchJds();
-  }, [searchParams, currentPage, queryKey]);
+    fetchFirst();
+    return () => {
+      cancelled = true;
+    };
+  }, [queryKey]);
+
+  // 추가 페이지 로드
+  const fetchMore = useCallback(async () => {
+    if (!hasNext || isFetchingMore || isLoading) return;
+
+    setIsFetchingMore(true);
+    try {
+      const result = await jdSummaryService.search(buildParams(nextCursor));
+      setJds((prev) => [...prev, ...(result?.items || [])]);
+      setHasNext(result?.hasNext || false);
+      setNextCursor(result?.nextCursor || null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [hasNext, isFetchingMore, isLoading, nextCursor, buildParams]);
+
+  // fetchMore 최신 참조 유지 (Observer 재구독 방지)
+  useEffect(() => {
+    fetchMoreRef.current = fetchMore;
+  }, [fetchMore]);
+
+  // IntersectionObserver (마운트 시 1회만 등록)
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) fetchMoreRef.current();
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!isSideOpen) return;
@@ -94,20 +134,21 @@ const JobSummaryListPage = () => {
   }, [isSideOpen, sideFilter]);
 
   return (
-    <div className="relative min-h-screen bg-[#F6F8FA] pb-20">
-      {isAuthenticated && !isSideOpen && (
+    <div className="min-h-screen bg-[#F8F9FA] pb-20 relative">
+
+      {/* 🔥 사이드 열려있을 때 버튼 숨김 */}
+      {!isSideOpen && (
         <button
           onClick={() => setIsSideOpen(true)}
-          className="fixed right-0 top-48 z-50 rounded-l-2xl bg-[#3FB6B2] px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#35A09D]"
+          className="fixed right-0 top-48 z-50 bg-[#3FB6B2] text-white px-4 py-3 rounded-l-2xl shadow-lg hover:bg-[#35A09D] transition"
         >
-          내 저장/지원 공고
+          〈 등록한 공고 보기
         </button>
       )}
 
       <div
-        className={`fixed right-0 top-0 z-40 h-full w-full max-w-md border-l border-gray-100 bg-white shadow-2xl transition-transform duration-300 ${
-          isAuthenticated && isSideOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed right-0 top-0 z-40 h-full w-full max-w-md border-l border-gray-100 bg-white shadow-2xl transition-transform duration-300 ${isAuthenticated && isSideOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         <div className="flex h-full flex-col">
           <div className="border-b border-gray-100 px-6 pb-4 pt-24">
@@ -124,17 +165,15 @@ const JobSummaryListPage = () => {
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
               <button
                 onClick={() => setSideFilter('SAVED')}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  sideFilter === 'SAVED' ? 'bg-white text-[#3FB6B2] shadow-sm' : 'text-gray-500'
-                }`}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${sideFilter === 'SAVED' ? 'bg-white text-[#3FB6B2] shadow-sm' : 'text-gray-500'
+                  }`}
               >
                 저장한 공고
               </button>
               <button
                 onClick={() => setSideFilter('APPLY')}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  sideFilter === 'APPLY' ? 'bg-white text-[#3FB6B2] shadow-sm' : 'text-gray-500'
-                }`}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${sideFilter === 'APPLY' ? 'bg-white text-[#3FB6B2] shadow-sm' : 'text-gray-500'
+                  }`}
               >
                 지원한 공고
               </button>
@@ -184,7 +223,7 @@ const JobSummaryListPage = () => {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="max-w-7xl mx-auto px-6">
         {isLoading ? (
           <div className="py-20 text-center">Loading...</div>
         ) : jds.length > 0 ? (
@@ -199,26 +238,15 @@ const JobSummaryListPage = () => {
           </div>
         )}
 
-        {!isLoading && (
-          <div className="mt-10 flex items-center justify-center gap-3">
-            <button
-              disabled={currentPage === 0}
-              onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
-              className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              이전
-            </button>
-            <span className="min-w-[64px] text-center text-sm font-semibold text-gray-700">
-              {currentPage + 1} 페이지
-            </span>
-            <button
-              disabled={!hasNext}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              className="rounded-xl bg-[#3FB6B2] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              다음
-            </button>
-          </div>
+        {/* 무한스크롤 센티넬 */}
+        <div ref={sentinelRef} className="h-10" />
+
+        {isFetchingMore && (
+          <div className="py-6 text-center text-sm text-gray-400">불러오는 중...</div>
+        )}
+
+        {!hasNext && !isLoading && jds.length > 0 && (
+          <div className="py-6 text-center text-sm text-gray-300">모든 공고를 불러왔습니다.</div>
         )}
       </div>
     </div>

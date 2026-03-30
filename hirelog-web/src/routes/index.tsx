@@ -15,6 +15,7 @@ import ProfilePage from '../pages/ProfilePage';
 import JobSummaryArchivePage from '../pages/JobSummaryArchivePage';
 import JdListPage from '../pages/JdListPage';
 import AdminPage from '../pages/AdminPage';
+import AdminJobSummaryRequestPage from '../pages/AdminJobSummaryRequestPage';
 import { ProtectedRoute } from '../components/common/ProtectedRoute';
 
 function ErrorBoundary() {
@@ -106,6 +107,10 @@ export const router = createBrowserRouter([
           {
             path: 'admin',
             element: <AdminPage />,
+          },
+          {
+            path: 'admin/jd/request',
+            element: <AdminJobSummaryRequestPage />,
           },
         ]
       }

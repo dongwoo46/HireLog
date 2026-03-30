@@ -40,9 +40,9 @@ class JobSummaryController(
     @GetMapping("/search")
     fun search(
         request: JobSummarySearchReq,
-        @CurrentUser member: AuthenticatedMember
+        @CurrentUser member: AuthenticatedMember?
     ): ResponseEntity<JobSummarySearchResult> {
-        val result = readService.search(request.toQuery(), member.memberId)
+        val result = readService.search(request.toQuery(), member?.memberId)
         return ResponseEntity.ok(result)
     }
 
@@ -58,9 +58,9 @@ class JobSummaryController(
     @GetMapping("/{id}")
     fun getDetail(
         @PathVariable id: Long,
-        @CurrentUser member: AuthenticatedMember
+        @CurrentUser member: AuthenticatedMember?
     ): ResponseEntity<JobSummaryDetailView> {
-        val detail = readService.getDetail(id, member.memberId)
+        val detail = readService.getDetail(id, member?.memberId)
             ?: throw IllegalArgumentException("JobSummary not found: $id")
         return ResponseEntity.ok(detail)
     }

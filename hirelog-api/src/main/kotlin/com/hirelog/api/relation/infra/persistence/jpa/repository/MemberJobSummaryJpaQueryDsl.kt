@@ -16,6 +16,15 @@ class MemberJobSummaryJpaQueryDsl(
     private val queryFactory: JPAQueryFactory
 ) {
 
+    fun existsAnyByMemberId(memberId: Long): Boolean {
+        // member_job_summary에 1건이라도 존재하면 true
+        return queryFactory
+            .selectOne()
+            .from(memberJobSummary)
+            .where(memberJobSummary.memberId.eq(memberId))
+            .fetchFirst() != null
+    }
+
     fun findMySummaries(
         memberId: Long,
         saveType: MemberJobSummarySaveType?,

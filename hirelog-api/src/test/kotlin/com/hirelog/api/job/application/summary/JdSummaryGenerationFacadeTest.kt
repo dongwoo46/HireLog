@@ -159,7 +159,7 @@ class JdSummaryGenerationFacadeTest {
             val future = facade.execute(command)
             future.get()
 
-            verify { errorHandler.handle(processingId, any(), command.requestId, "LLM_OR_POST_LLM") }
+            verify { errorHandler.handle(processingId, any(), command.requestId, "LLM") }
         }
     }
 }

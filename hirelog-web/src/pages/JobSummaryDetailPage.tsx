@@ -1,6 +1,18 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { ElementType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { TbChevronLeft, TbDeviceFloppy, TbReload } from 'react-icons/tb';
+import {
+  TbChevronLeft,
+  TbDeviceFloppy,
+  TbReload,
+  TbNotes,
+  TbBriefcase,
+  TbUserCheck,
+  TbStar,
+  TbBulb,
+  TbDiscount,
+  TbMessages,
+} from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { jdSummaryService } from '../services/jdSummaryService';
 import { useAuthStore } from '../store/authStore';
@@ -13,53 +25,29 @@ import {
   type JobSummaryDetailView,
   type ReviewWriteReq,
 } from '../types/jobSummary';
+import {
+  TbChevronLeft,
+} from 'react-icons/tb';
+import { toast } from 'react-toastify';
 
-const tabs = ['detail', 'review', 'prep'] as const;
-type TabType = (typeof tabs)[number];
-
-const stageOrder: HiringStage[] = [
-  'DOCUMENT',
-  'CODING_TEST',
-  'ASSIGNMENT',
-  'INTERVIEW_1',
-  'INTERVIEW_2',
-  'INTERVIEW_3',
-  'FINAL_INTERVIEW',
-  'COFFEE_CHAT',
-];
+/* ========================================================= */
 
 const JobSummaryDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [jd, setJd] = useState<JobSummaryDetailView | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('detail');
-  const { isAuthenticated } = useAuthStore();
+
+  // ✅ 탭 확장
+  const [activeTab, setActiveTab] =
+    useState<'detail' | 'review' | 'memo' | 'resume'>('detail');
 
   const [reviewPage, setReviewPage] = useState<any>(null);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewForm, setReviewForm] = useState<ReviewWriteReq>({
-    hiringStage: 'DOCUMENT',
-    anonymous: true,
-    difficultyRating: 5,
-    satisfactionRating: 5,
-    experienceComment: '',
-    interviewTip: '',
-  });
 
-  const [stages, setStages] = useState<Record<HiringStage, HiringStageView | undefined>>({} as any);
-  const [activeStage, setActiveStage] = useState<HiringStage>('DOCUMENT');
-  const [note, setNote] = useState('');
-  const [stageResult, setStageResult] = useState<HiringStageResult | null>(null);
-  const [prepLoading, setPrepLoading] = useState(false);
-  const [savingPrep, setSavingPrep] = useState(false);
 
-  const [coverQuestion, setCoverQuestion] = useState('자기소개서 메모');
-  const [coverContent, setCoverContent] = useState('');
-  const [savingCover, setSavingCover] = useState(false);
+  /* ---------------- JD 조회 ---------------- */
 
   useEffect(() => {
     if (!id) return;
@@ -75,158 +63,14 @@ const JobSummaryDetailPage = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const loadReviews = async () => {
-    if (!jd) return;
-    setReviewLoading(true);
-    try {
-      const data = await jdSummaryService.getReviews(jd.id);
-      setReviewPage(data);
-    } catch {
-      toast.error('리뷰를 불러오지 못했습니다.');
-    } finally {
-      setReviewLoading(false);
-    }
-  };
+  /* ---------------- 리뷰 조회 ---------------- */
 
   useEffect(() => {
-    if (!jd || !isAuthenticated || activeTab !== 'review') return;
-    loadReviews();
-  }, [jd, activeTab, isAuthenticated]);
+    if (!jd || activeTab !== 'review') return;
+    jdSummaryService.getReviews(jd.id).then(setReviewPage);
+  }, [jd, activeTab]);
 
-  const loadPreparationData = async () => {
-    if (!jd) return;
-    setPrepLoading(true);
-    try {
-      const [stageItems, coverLetters] = await Promise.all([
-        jdSummaryService.getStages(jd.id),
-        jdSummaryService.getCoverLetters(jd.id),
-      ]);
-
-      const nextStages = stageItems.reduce((acc, item) => {
-        acc[item.stage] = item;
-        return acc;
-      }, {} as Record<HiringStage, HiringStageView | undefined>);
-
-      setStages(nextStages);
-      setNote(nextStages[activeStage]?.note || '');
-      setStageResult(nextStages[activeStage]?.result ?? null);
-
-      if (coverLetters.length > 0) {
-        const first = [...coverLetters].sort((a, b) => a.sortOrder - b.sortOrder)[0];
-        setCoverQuestion(first.question);
-        setCoverContent(first.content);
-      }
-    } catch {
-      toast.info('아직 저장된 준비 기록이 없습니다.');
-    } finally {
-      setPrepLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!jd || !isAuthenticated || activeTab !== 'prep') return;
-    loadPreparationData();
-  }, [jd, activeTab, isAuthenticated]);
-
-  useEffect(() => {
-    setNote(stages[activeStage]?.note || '');
-    setStageResult(stages[activeStage]?.result ?? null);
-  }, [activeStage, stages]);
-
-  const savePreparation = async () => {
-    if (!jd) return;
-    if (!note.trim()) {
-      toast.warn('내용을 입력해 주세요.');
-      return;
-    }
-
-    setSavingPrep(true);
-    try {
-      await jdSummaryService.saveStageNote(jd.id, activeStage, note.trim(), stageResult);
-      toast.success(`${HIRING_STAGE_LABELS[activeStage]} 준비 기록을 저장했습니다.`);
-      await loadPreparationData();
-    } catch {
-      toast.error('준비 기록 저장에 실패했습니다.');
-    } finally {
-      setSavingPrep(false);
-    }
-  };
-
-  const saveCoverLetter = async () => {
-    if (!jd) return;
-    if (!coverQuestion.trim() || !coverContent.trim()) {
-      toast.warn('제목과 내용을 모두 입력해 주세요.');
-      return;
-    }
-
-    setSavingCover(true);
-    try {
-      await jdSummaryService.saveCoverLetter(jd.id, {
-        question: coverQuestion.trim(),
-        content: coverContent.trim(),
-        sortOrder: 1,
-      });
-      toast.success('자소서 메모를 저장했습니다.');
-    } catch {
-      toast.error('자소서 메모 저장에 실패했습니다.');
-    } finally {
-      setSavingCover(false);
-    }
-  };
-
-  const prepSummary = useMemo(() => {
-    const document = stages.DOCUMENT?.note;
-    const coding = stages.CODING_TEST?.note;
-    return {
-      document: document && document.length > 0,
-      coding: coding && coding.length > 0,
-    };
-  }, [stages]);
-
-  const handleReviewSubmit = async () => {
-    if (!jd) return;
-    if (!reviewForm.experienceComment.trim()) {
-      toast.warn('리뷰 내용을 입력해 주세요.');
-      return;
-    }
-
-    setReviewSubmitting(true);
-    try {
-      await jdSummaryService.addReview(jd.id, {
-        ...reviewForm,
-        experienceComment: reviewForm.experienceComment.trim(),
-        interviewTip: reviewForm.interviewTip?.trim() || undefined,
-      });
-      toast.success('리뷰가 등록되었습니다.');
-      setReviewForm({
-        hiringStage: 'DOCUMENT',
-        anonymous: true,
-        difficultyRating: 5,
-        satisfactionRating: 5,
-        experienceComment: '',
-        interviewTip: '',
-      });
-      await loadReviews();
-    } catch {
-      toast.error('리뷰 등록에 실패했습니다.');
-    } finally {
-      setReviewSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return <div className="min-h-screen bg-[#F8F9FA] pt-24" />;
-  }
-
-  if (!jd || loadFailed) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] px-6 pt-24">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-600">
-          공고 상세를 불러올 수 없습니다.
-        </div>
-      </div>
-    );
-  }
+  if (!jd) return null;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20 pt-24">
@@ -240,354 +84,213 @@ const JobSummaryDetailPage = () => {
           <h2 className="text-lg font-semibold">{jd.brandPositionName}</h2>
         </div>
 
-        <div className="mb-8 flex gap-6 border-b text-sm font-bold">
-          <TabButton label="상세 정보" active={activeTab === 'detail'} onClick={() => setActiveTab('detail')} />
-          <TabButton
-            label="리뷰"
-            active={activeTab === 'review'}
-            onClick={() => setActiveTab('review')}
-            disabled={!isAuthenticated}
-          />
-          <TabButton
-            label="준비 기록"
-            active={activeTab === 'prep'}
-            onClick={() => setActiveTab('prep')}
-            disabled={!isAuthenticated}
-          />
+        {/* 탭 */}
+        <div className="flex gap-6 border-b mb-8 font-bold text-sm">
+          <TabButton label="상세정보" active={activeTab === 'detail'} onClick={() => setActiveTab('detail')} />
+          <TabButton label="리뷰" active={activeTab === 'review'} onClick={() => setActiveTab('review')} />
+          <TabButton label="준비 기록" active={activeTab === 'prep'} onClick={() => setActiveTab('prep')} disabled={!isAuthenticated} />
         </div>
 
-        {!isAuthenticated && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            비로그인 상태에서는 JD 상세 조회만 가능합니다. 리뷰/준비기록 기능은 로그인 후 이용해 주세요.
-          </div>
-        )}
-
         {activeTab === 'detail' && <DetailSection jd={jd} />}
+        {activeTab === 'review' && <ReviewSection reviewPage={reviewPage} />}
+        {activeTab === 'memo' && <PreparationSection jd={jd} />}
+        {activeTab === 'resume' && <ResumeSection jd={jd} />}
 
-        {activeTab === 'review' && isAuthenticated && (
-          <ReviewSection
-            reviewPage={reviewPage}
-            loading={reviewLoading}
-            form={reviewForm}
-            submitting={reviewSubmitting}
-            onChange={setReviewForm}
-            onSubmit={handleReviewSubmit}
-          />
-        )}
-
-        {activeTab === 'prep' && isAuthenticated && (
-          <div className="space-y-6">
-            <div className="grid gap-4 rounded-2xl border border-[#3FB6B2]/20 bg-[#3FB6B2]/5 p-4 md:grid-cols-2">
-              <StatusBadge label="서류 전형" done={!!prepSummary.document} />
-              <StatusBadge label="코딩 테스트" done={!!prepSummary.coding} />
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-              <div className="rounded-2xl border bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">단계 선택</p>
-                <div className="space-y-2">
-                  {stageOrder.map((stage) => {
-                    const r = stages[stage]?.result;
-                    return (
-                      <button
-                        key={stage}
-                        onClick={() => setActiveStage(stage)}
-                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
-                          activeStage === stage
-                            ? 'bg-[#3FB6B2] text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        <span>{HIRING_STAGE_LABELS[stage]}</span>
-                        {r && (
-                          <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                            r === 'PASSED' ? 'bg-emerald-100 text-emerald-600' :
-                            r === 'FAILED' ? 'bg-red-100 text-red-500' :
-                            'bg-gray-200 text-gray-500'
-                          }`}>
-                            {HIRING_STAGE_RESULT_LABELS[r]}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-4 rounded-2xl border bg-white p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-gray-900">{HIRING_STAGE_LABELS[activeStage]} 준비 메모</h3>
-                  <button
-                    onClick={loadPreparationData}
-                    className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                  >
-                    <TbReload size={14} /> 동기화
-                  </button>
-                </div>
-
-                {prepLoading ? (
-                  <div className="py-10 text-center text-sm text-gray-400">불러오는 중...</div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-gray-500">결과</span>
-                      {(['PASSED', 'FAILED', 'PENDING'] as HiringStageResult[]).map((r) => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setStageResult(stageResult === r ? null : r)}
-                          className={`rounded-lg px-3 py-1 text-xs font-bold transition ${
-                            stageResult === r
-                              ? r === 'PASSED'
-                                ? 'bg-emerald-500 text-white'
-                                : r === 'FAILED'
-                                ? 'bg-red-400 text-white'
-                                : 'bg-gray-400 text-white'
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          }`}
-                        >
-                          {HIRING_STAGE_RESULT_LABELS[r]}
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      className="min-h-[220px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="이 단계에서 받은 질문, 부족했던 점, 다음 액션을 기록해 주세요."
-                    />
-                    <button
-                      onClick={savePreparation}
-                      disabled={savingPrep}
-                      className="flex items-center gap-2 rounded-xl bg-[#3FB6B2] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      <TbDeviceFloppy size={16} />
-                      {savingPrep ? '저장 중...' : '단계 메모 저장'}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3 rounded-2xl border bg-white p-5">
-              <h3 className="text-base font-bold text-gray-900">자소서 메모</h3>
-              <input
-                value={coverQuestion}
-                onChange={(e) => setCoverQuestion(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2 text-sm"
-                placeholder="메모 제목"
-              />
-              <textarea
-                value={coverContent}
-                onChange={(e) => setCoverContent(e.target.value)}
-                className="min-h-[180px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-                placeholder="자소서 핵심 메시지, 사례, 숫자 근거 등을 정리해 주세요."
-              />
-              <button
-                onClick={saveCoverLetter}
-                disabled={savingCover}
-                className="rounded-xl border border-[#3FB6B2] px-5 py-2.5 text-sm font-semibold text-[#3FB6B2] disabled:opacity-60"
-              >
-                {savingCover ? '저장 중...' : '자소서 메모 저장'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
+/* ========================================================= */
+/* 상세 탭 */
+/* ========================================================= */
+
 const DetailSection = ({ jd }: { jd: JobSummaryDetailView }) => (
-  <div className="space-y-5">
-    <Block title="요약" content={jd.summaryText} />
-    <Block title="주요 업무" content={jd.responsibilities} />
-    <Block title="자격 요건" content={jd.requiredQualifications} />
-    <Block title="우대 사항" content={jd.preferredQualifications} />
-    <Block title="준비 포인트" content={jd.preparationFocus} />
-    <Block title="증명 포인트" content={jd.proofPointsAndMetrics} />
-    <Block title="면접 질문" content={jd.questionsToAsk} />
+  <div className="grid gap-6 md:grid-cols-2">
+    <div className="col-span-1 md:col-span-2">
+      <Block title="요약" content={jd.summaryText} icon={TbNotes} delay={0} />
+    </div>
+    <div className="col-span-1 md:col-span-2">
+      <Block title="주요 업무" content={jd.responsibilities} icon={TbBriefcase} delay={100} />
+    </div>
+    <div className="col-span-1">
+      <Block title="자격 요건" content={jd.requiredQualifications} icon={TbUserCheck} delay={200} />
+    </div>
+    <div className="col-span-1">
+      <Block title="우대 사항" content={jd.preferredQualifications} icon={TbStar} delay={300} />
+    </div>
+    <div className="col-span-1">
+      <Block title="준비 포인트" content={jd.preparationFocus} icon={TbBulb} delay={400} />
+    </div>
+    <div className="col-span-1">
+      <Block title="증명 포인트" content={jd.proofPointsAndMetrics} icon={TbDiscount} useProofMetricsLayout delay={500} />
+    </div>
+    <div className="col-span-1 md:col-span-2">
+      <Block title="면접 질문" content={jd.questionsToAsk} icon={TbMessages} delay={600} />
+    </div>
   </div>
 );
 
-const Block = ({ title, content }: { title: string; content?: string | null }) =>
+const Block = ({ title, content }: any) =>
   content ? (
-    <div className="rounded-2xl border bg-white p-6">
-      <div className="mb-2 font-bold text-[#3FB6B2]">{title}</div>
-      <div className="whitespace-pre-line text-sm text-gray-700">{content}</div>
+    <div className="bg-white p-6 rounded-2xl border">
+      <div className="font-bold mb-2 text-[#3FB6B2]">{title}</div>
+      <div className="text-sm whitespace-pre-line">{content}</div>
     </div>
   ) : null;
 
-const ReviewSection = ({
-  reviewPage,
-  loading,
-  form,
-  submitting,
-  onChange,
-  onSubmit,
-}: {
-  reviewPage: any;
-  loading: boolean;
-  form: ReviewWriteReq;
-  submitting: boolean;
-  onChange: (value: ReviewWriteReq) => void;
-  onSubmit: () => void;
-}) => {
+/* ========================================================= */
+/* 리뷰 탭 */
+/* ========================================================= */
+
+const ReviewSection = ({ reviewPage }: any) => {
+  if (!reviewPage?.items) return null;
+
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border bg-white p-6">
-        <h3 className="mb-4 text-base font-bold text-gray-900">리뷰 작성</h3>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-2">
-            <span className="text-xs font-semibold text-gray-500">채용 단계</span>
-            <select
-              value={form.hiringStage}
-              onChange={(e) => onChange({ ...form, hiringStage: e.target.value as HiringStage })}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            >
-              {stageOrder.map((stage) => (
-                <option key={stage} value={stage}>
-                  {HIRING_STAGE_LABELS[stage]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex items-end gap-2 rounded-xl border border-gray-200 px-3 py-2">
-            <input
-              type="checkbox"
-              checked={form.anonymous}
-              onChange={(e) => onChange({ ...form, anonymous: e.target.checked })}
-            />
-            <span className="text-sm text-gray-700">익명으로 작성</span>
-          </label>
+    <div className="space-y-6">
+      {reviewPage.items.map((r: any) => (
+        <div key={r.id} className="bg-white p-6 rounded-2xl border">
+          <div className="text-sm whitespace-pre-line">
+            {r.experienceComment}
+          </div>
         </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <ScoreSelector
-            label="난이도"
-            value={form.difficultyRating}
-            onChange={(value) => onChange({ ...form, difficultyRating: value })}
-          />
-          <ScoreSelector
-            label="만족도"
-            value={form.satisfactionRating}
-            onChange={(value) => onChange({ ...form, satisfactionRating: value })}
-          />
-        </div>
-
-        <div className="mt-4 space-y-3">
-          <textarea
-            value={form.experienceComment}
-            onChange={(e) => onChange({ ...form, experienceComment: e.target.value })}
-            className="min-h-[130px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-            placeholder="면접/전형 경험을 공유해 주세요."
-          />
-          <textarea
-            value={form.interviewTip || ''}
-            onChange={(e) => onChange({ ...form, interviewTip: e.target.value })}
-            className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-            placeholder="도움이 된 팁이 있다면 작성해 주세요. (선택)"
-          />
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={onSubmit}
-            disabled={submitting}
-            className="rounded-xl bg-[#3FB6B2] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {submitting ? '등록 중...' : '리뷰 등록'}
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="py-10 text-center text-sm text-gray-400">리뷰를 불러오는 중...</div>
-      ) : !reviewPage?.items?.length ? (
-        <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-400">등록된 리뷰가 없습니다.</div>
-      ) : (
-        <div className="space-y-4">
-          {reviewPage.items.map((r: any) => (
-            <div key={r.id} className="rounded-2xl border bg-white p-6">
-              <div className="mb-1 text-xs text-gray-400">
-                {HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}
-              </div>
-              <div className="mb-3 text-xs text-gray-500">난이도 {r.difficultyRating} / 만족도 {r.satisfactionRating}</div>
-              <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
-              {r.interviewTip && <div className="mt-3 text-xs text-[#3FB6B2]">TIP: {r.interviewTip}</div>}
-            </div>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 };
 
-const ScoreSelector = ({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) => (
-  <div className="space-y-2">
-    <div className="text-xs font-semibold text-gray-500">
-      {label} <span className="text-[#3FB6B2]">{value}</span>
-    </div>
-    <div className="grid grid-cols-5 gap-2">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange(n)}
-          className={`rounded-lg px-2 py-1.5 text-xs font-semibold ${
-            value === n ? 'bg-[#3FB6B2] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          {n}
-        </button>
-      ))}
-    </div>
-  </div>
-);
+/* ========================================================= */
+/* 준비기록 탭 (작성 + 정리보기) */
+/* ========================================================= */
 
-const TabButton = ({
-  label,
-  active,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) => (
+const stages: HiringStage[] = [
+  'DOCUMENT',
+  'CODING_TEST',
+  'ASSIGNMENT',
+  'INTERVIEW_1',
+  'INTERVIEW_2',
+  'FINAL_INTERVIEW',
+];
+
+const PreparationSection = ({ jd }: { jd: JobSummaryDetailView }) => {
+  const key = `prep-${jd.id}`;
+  const [data, setData] = useState<Record<string, string>>({});
+  const [activeStage, setActiveStage] = useState<HiringStage>('DOCUMENT');
+  const [mode, setMode] = useState<'edit' | 'overview'>('edit');
+
+  useEffect(() => {
+    const saved = localStorage.getItem(key);
+    if (saved) setData(JSON.parse(saved));
+  }, [key]);
+
+  const save = () => {
+    localStorage.setItem(key, JSON.stringify(data));
+    toast.success('저장 완료');
+  };
+
+  if (mode === 'overview') {
+    return (
+      <div className="space-y-6">
+        <button onClick={() => setMode('edit')} className="text-[#3FB6B2] text-sm">
+          ← 다시 작성하기
+        </button>
+
+        {stages.map((s) => (
+          <div key={s} className="bg-white p-6 rounded-2xl border">
+            <div className="font-bold text-[#3FB6B2] mb-2">
+              {HIRING_STAGE_LABELS[s]}
+            </div>
+            <div className="text-sm whitespace-pre-line">
+              {data[s] || '기록 없음'}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2">
+        {stages.map((s) => (
+          <button
+            key={s}
+            onClick={() => setActiveStage(s)}
+            className={`px-4 py-2 rounded-xl text-sm ${activeStage === s ? 'bg-[#3FB6B2] text-white' : 'bg-gray-100'
+              }`}
+          >
+            {HIRING_STAGE_LABELS[s]}
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        className="w-full border rounded-2xl p-4 min-h-[200px]"
+        value={data[activeStage] || ''}
+        onChange={(e) =>
+          setData({ ...data, [activeStage]: e.target.value })
+        }
+        placeholder="이 단계에서 받은 질문, 개선점, 전략 기록"
+      />
+
+      <div className="flex gap-4">
+        <button onClick={save} className="px-6 py-2 bg-[#3FB6B2] text-white rounded-xl">
+          저장
+        </button>
+        <button onClick={() => setMode('overview')} className="px-6 py-2 border rounded-xl">
+          전체 기록 보기
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/* ========================================================= */
+/* 자소서/이력서 탭 */
+/* ========================================================= */
+
+const ResumeSection = ({ jd }: { jd: JobSummaryDetailView }) => {
+  const key = `resume-${jd.id}`;
+  const [content, setContent] = useState('');
+
+  useEffect(() => {
+    const saved = localStorage.getItem(key);
+    if (saved) setContent(saved);
+  }, [key]);
+
+  const save = () => {
+    localStorage.setItem(key, content);
+    toast.success('저장 완료');
+  };
+
+  return (
+    <div className="space-y-6">
+      <textarea
+        className="w-full border rounded-2xl p-4 min-h-[300px]"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="이 공고에 제출한 자소서/이력서 전체 내용 기록"
+      />
+
+      <button onClick={save} className="px-6 py-2 bg-[#3FB6B2] text-white rounded-xl">
+        저장
+      </button>
+    </div>
+  );
+};
+
+/* ========================================================= */
+
+const TabButton = ({ label, active, onClick }: any) => (
   <button
     onClick={onClick}
-    disabled={disabled}
-    className={`pb-2 ${
-      active ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2]' : 'text-gray-400'
-    } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+    className={`pb-2 ${active
+      ? 'border-b-2 border-[#3FB6B2] text-[#3FB6B2]'
+      : 'text-gray-400'
+      }`}
   >
     {label}
   </button>
-);
-
-const StatusBadge = ({ label, done }: { label: string; done: boolean }) => (
-  <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
-    <span className="text-sm font-semibold text-gray-700">{label}</span>
-    <span
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-        done ? 'bg-[#3FB6B2]/10 text-[#3FB6B2]' : 'bg-gray-100 text-gray-500'
-      }`}
-    >
-      {done ? '저장됨' : '미저장'}
-    </span>
-  </div>
 );
 
 export default JobSummaryDetailPage;

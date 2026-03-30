@@ -38,6 +38,10 @@ class MemberJobSummaryJpaQuery(
         )
     }
 
+    override fun existsAnyByMemberId(memberId: Long): Boolean {
+        return querydslRepository.existsAnyByMemberId(memberId)
+    }
+
     override fun findStages(
         memberId: Long,
         jobSummaryId: Long

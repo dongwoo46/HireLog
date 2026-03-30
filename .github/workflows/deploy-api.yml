@@ -167,8 +167,8 @@ jobs:
 
             echo "▶ Image: ${{ env.IMAGE }}:$IMAGE_TAG"
 
-            # ── 지원 서비스 기동 (변경사항 적용) ─────────────────
-            $COMPOSE up -d redis redis-exporter prometheus grafana loki promtail node-exporter
+            # ── Redis 기동 (api 의존) ─────────────────────────────
+            $COMPOSE up -d redis
 
             # ── 현재 활성 슬롯 판별 ──────────────────────────────
             if grep -q "8080" $ACTIVE_CONF 2>/dev/null; then
@@ -192,22 +192,24 @@ jobs:
             fi
 
             # ── Health Check ─────────────────────────────────────
+            # Spring Boot start_period=40s → 최소 40초 이후부터 UP 응답
+            # 20회 × 6초 = 최대 120초 대기
             echo "▶ Waiting for $NEXT to be healthy..."
-            for i in $(seq 1 10); do
+            for i in $(seq 1 20); do
               RESPONSE=$(curl -sf http://localhost:$NEXT_PORT/actuator/health 2>/dev/null || true)
               STATUS=$(echo "$RESPONSE" | grep -o '"status":"[^"]*"' | head -1 || true)
-              echo "  [$i/10] status=$STATUS response=$RESPONSE"
+              echo "  [$i/20] status=$STATUS response=$RESPONSE"
               if echo "$STATUS" | grep -q "UP"; then
                 echo "✅ $NEXT is healthy"
                 break
               fi
-              if [ $i -eq 10 ]; then
+              if [ $i -eq 20 ]; then
                 echo "❌ Health check failed — container logs:"
                 docker logs --tail 30 $(docker compose -f $WORKDIR/docker-compose.prod.yml ps -q $NEXT_SVC) 2>/dev/null || true
                 $COMPOSE stop $NEXT_SVC
                 exit 1
               fi
-              sleep 3
+              sleep 6
             done
 
             # ── nginx upstream 전환 ──────────────────────────────

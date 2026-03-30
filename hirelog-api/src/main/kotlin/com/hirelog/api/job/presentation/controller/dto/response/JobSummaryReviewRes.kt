@@ -5,13 +5,7 @@ import com.hirelog.api.job.domain.model.JobSummaryReview
 import java.time.LocalDateTime
 
 /**
- * JobSummaryReview Response
- *
- * 책임:
- * - 외부 노출 전용 Read Model
- *
- * 정책:
- * - anonymous=true → memberId, memberName null
+ * JobSummaryReview API 응답 모델
  */
 data class JobSummaryReviewRes(
     val id: Long,
@@ -23,6 +17,7 @@ data class JobSummaryReviewRes(
     val satisfactionRating: Int,
     val experienceComment: String,
     val interviewTip: String?,
+    val deleted: Boolean,
     val createdAt: LocalDateTime
 ) {
     companion object {
@@ -37,6 +32,7 @@ data class JobSummaryReviewRes(
                 satisfactionRating = review.satisfactionRating,
                 experienceComment = review.experienceComment,
                 interviewTip = review.interviewTip,
+                deleted = review.deleted,
                 createdAt = review.createdAt
             )
 
@@ -51,6 +47,7 @@ data class JobSummaryReviewRes(
                 satisfactionRating = view.satisfactionRating,
                 experienceComment = view.experienceComment,
                 interviewTip = view.interviewTip,
+                deleted = view.deleted,
                 createdAt = view.createdAt
             )
     }

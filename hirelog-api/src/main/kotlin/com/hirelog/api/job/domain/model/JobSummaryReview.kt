@@ -26,30 +26,18 @@ class JobSummaryReview protected constructor(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0L,
 
-    /* =========================
-     * Identity
-     * ========================= */
-
     @Column(name = "job_summary_id", nullable = false, updatable = false)
     val jobSummaryId: Long,
 
     @Column(name = "member_id", nullable = false, updatable = false)
     val memberId: Long,
 
-    /* =========================
-     * Stage & Visibility
-     * ========================= */
-
     @Enumerated(EnumType.STRING)
     @Column(name = "hiring_stage", nullable = false, length = 30)
-    val hiringStage: HiringStage,
+    var hiringStage: HiringStage,
 
     @Column(name = "is_anonymous", nullable = false)
-    val anonymous: Boolean,
-
-    /* =========================
-     * Ratings
-     * ========================= */
+    var anonymous: Boolean,
 
     @field:Min(1)
     @field:Max(10)
@@ -58,7 +46,7 @@ class JobSummaryReview protected constructor(
         nullable = false,
         columnDefinition = "INTEGER CHECK (difficulty_rating >= 1 AND difficulty_rating <= 10)"
     )
-    val difficultyRating: Int,
+    var difficultyRating: Int,
 
     @field:Min(1)
     @field:Max(10)
@@ -67,30 +55,18 @@ class JobSummaryReview protected constructor(
         nullable = false,
         columnDefinition = "INTEGER CHECK (satisfaction_rating >= 1 AND satisfaction_rating <= 10)"
     )
-    val satisfactionRating: Int,
-
-    /* =========================
-     * Free Text
-     * ========================= */
+    var satisfactionRating: Int,
 
     @Column(name = "experience_comment", columnDefinition = "TEXT", nullable = false)
-    val experienceComment: String,
+    var experienceComment: String,
 
     @Column(name = "interview_tip", columnDefinition = "TEXT")
-    val interviewTip: String? = null,
-
-    /* =========================
-     * Soft Delete
-     * ========================= */
+    var interviewTip: String? = null,
 
     @Column(name = "deleted", nullable = false)
     var deleted: Boolean = false
 
 ) : BaseEntity() {
-
-    /* =========================
-     * Factory
-     * ========================= */
 
     companion object {
 
@@ -104,7 +80,7 @@ class JobSummaryReview protected constructor(
             experienceComment: String,
             interviewTip: String?
         ): JobSummaryReview {
-            log.info("[JobSummaryReview create 2]: anaymonus:{}", anonymous)
+            log.info("[JOB_SUMMARY_REVIEW_CREATE] anonymous={}", anonymous)
             validateRating(difficultyRating)
             validateRating(satisfactionRating)
             validateComment(experienceComment)
@@ -135,22 +111,33 @@ class JobSummaryReview protected constructor(
         }
     }
 
-    /* =========================
-     * Domain Behavior
-     * ========================= */
-
-    /**
-     * Soft Delete
-     */
     fun softDelete() {
         this.deleted = true
     }
 
-    /**
-     * Restore (Soft Delete 복구)
-     */
     fun restore() {
         this.deleted = false
+    }
+
+    fun update(
+        hiringStage: HiringStage,
+        anonymous: Boolean,
+        difficultyRating: Int,
+        satisfactionRating: Int,
+        experienceComment: String,
+        interviewTip: String?
+    ) {
+        validateRating(difficultyRating)
+        validateRating(satisfactionRating)
+        validateComment(experienceComment)
+        validateComment(interviewTip)
+
+        this.hiringStage = hiringStage
+        this.anonymous = anonymous
+        this.difficultyRating = difficultyRating
+        this.satisfactionRating = satisfactionRating
+        this.experienceComment = experienceComment
+        this.interviewTip = interviewTip
     }
 
     fun isDeleted(): Boolean = deleted

@@ -4,11 +4,7 @@ import com.hirelog.api.job.domain.type.HiringStage
 import java.time.LocalDateTime
 
 /**
- * JobSummaryReview 조회 View
- *
- * 정책:
- * - anonymous=true → memberId, memberName 모두 null
- * - anonymous=false → memberId, memberName 포함
+ * JobSummaryReview 조회용 View 모델
  */
 data class JobSummaryReviewView(
     val reviewId: Long,
@@ -20,5 +16,6 @@ data class JobSummaryReviewView(
     val satisfactionRating: Int,
     val experienceComment: String,
     val interviewTip: String?,
+    val deleted: Boolean,
     val createdAt: LocalDateTime
 )
