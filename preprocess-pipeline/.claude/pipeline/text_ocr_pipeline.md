@@ -54,6 +54,27 @@ raw_text
 ⚠️ **Rule 6 (bullet follows rule)**: 한국어 소제목(19자 이하)이 bullet 앞에 있으면 헤더로 판정됨
 → `detect_semantic_zone`에서 키워드 미매칭 시 "others" zone으로 빠질 수 있음
 
+## 로깅
+
+### TEXT 파이프라인
+| 단계 | 레벨 | 내용 |
+|---|---|---|
+| **파이프라인 완료** | **INFO** | core_lines_count, sections_count, canonical_keys |
+
+### OCR 파이프라인
+| 단계 | 레벨 | 내용 |
+|---|---|---|
+| OCR 실행 완료 | INFO | status, confidence, line_count, image_count |
+| OCR 신뢰도 낮음 | WARNING | confidence, image_count |
+| 섹션 없음 | WARNING | confidence, line_count |
+| **파이프라인 완료** | **INFO** | confidence, line_count, sections_count, canonical_keys |
+
+## platform 사용 여부
+
+TEXT / OCR 파이프라인은 platform 필드를 **사용하지 않음**.
+`KafkaJdPreprocessInput`에 `platform` 필드는 있으나 파이프라인 내부에서 참조 안 함.
+platform 분기는 URL 파이프라인 전용.
+
 ## Section dataclass
 
 ```python

@@ -95,3 +95,15 @@ def extract_sections(lines) -> dict: ...          ← 섹션 분리도 플랫폼
 | `generic` | header keyword 보존, 나머지 제거 | False |
 
 `extract_sections`는 현재 모두 `extract_url_sections` 위임 (플랫폼별 튜닝 예정)
+
+## 로깅
+
+| 단계 | 레벨 | 내용 |
+|---|---|---|
+| JS 렌더링 전환 | DEBUG | url |
+| static fetch 실패 | WARNING | url, error |
+| fetch/parse 완료 | DEBUG | url, title, fetched_length, parsed_length |
+| body_text 없음 | WARNING | url |
+| 전처리 후 lines 없음 | WARNING | url, parsed_length |
+| 섹션 없음 | WARNING | url, cleaned_line_count |
+| **파이프라인 완료** | **INFO** | url, platform, fetched/parsed/cleaned_lines_count, sections_count, canonical_keys |

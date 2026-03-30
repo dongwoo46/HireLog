@@ -1,24 +1,26 @@
 # 채용 플랫폼 선택 UI
 
 **작업일**: 2026-03-30
-**페이지**: JobSummaryRequestPage (`/jd/request`)
 
 ---
 
-## 변경 내용
+## 현재 상태
 
-JD 요약 요청 폼에 채용 플랫폼 선택 드롭다운 추가.
+platform 입력은 **URL 탭에만** 존재. TEXT / OCR 탭에는 없음.
 
 ### 위치
-회사명 / 포지션명 입력 필드 아래, 탭(텍스트/OCR/URL) 위
+`JobSummaryRequestPage` → URL 탭 내부 (URL 입력 아래)
 
 ### UI 구성
 ```tsx
-<select value={platform} onChange={...}>
-  {PLATFORM_OPTIONS.map(([value, label]) => (
-    <option key={value} value={value}>{label}</option>
-  ))}
-</select>
+{activeTab === 'url' && (
+  <div className="space-y-4">
+    <input type="url" ... />
+    <select value={platform} onChange={...}>
+      {PLATFORM_OPTIONS.map(...)}
+    </select>
+  </div>
+)}
 ```
 
 ### 지원 플랫폼 (JOB_PLATFORM_LABELS)
@@ -31,19 +33,20 @@ JD 요약 요청 폼에 채용 플랫폼 선택 드롭다운 추가.
 
 | 파일 | 변경 |
 |---|---|
-| `src/types/jobSummary.ts` | `JobPlatformType` union type 추가, `JOB_PLATFORM_LABELS` Record 추가, `JobSummaryTextReq`·`JobSummaryUrlReq`에 `platform` 필드 추가 |
-| `src/pages/JobSummaryRequestPage.tsx` | `platform` state 추가, 드롭다운 UI 추가, 각 submit 시 platform 전달 |
-| `src/services/jdSummaryService.ts` | `requestOcr` FormData에 `platform` 추가 |
+| `src/types/jobSummary.ts` | `JobSummaryTextReq`에서 `platform` 제거 |
+| `src/pages/JobSummaryRequestPage.tsx` | 공통 platform select 제거 → URL 탭 내부로 이동, TEXT/OCR submit에서 platform 제거 |
+| `src/services/jdSummaryService.ts` | `requestOcr` FormData에서 `platform` 제거, `requestOcr` 파라미터 타입에서 `platform` 제거 |
 
 ---
 
 ## 기본값
 
-`OTHER` (기타) — 선택 안 해도 요청 가능
+`OTHER` (기타) — `platform` state는 컴포넌트 전체에 유지되나 URL 탭에서만 사용
 
 ---
 
 ## API 연동
 
-- Text/URL: `{ ..., platform: "WANTED" }` JSON body
-- OCR: FormData에 `platform` 필드 추가 (`formData.append('platform', data.platform)`)
+- URL: `{ ..., platform: "WANTED" }` JSON body
+- TEXT: platform 필드 없음
+- OCR: platform 필드 없음 (FormData에 미포함)
