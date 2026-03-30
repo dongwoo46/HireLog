@@ -58,24 +58,11 @@ class OcrPipeline:
         # 1.5️⃣ Platform 전용 필터 (OCR dict lines 기준)
         ocr_lines = _filter_ocr_lines_by_platform(ocr_result["lines"], platform)
 
-        logger.debug(
-            "OCR platform filtered",
-            extra={
-                "platform": platform.value,
-                "before": len(ocr_result["lines"]),
-                "after": len(ocr_lines),
-            },
-        )
-
         # 2️⃣ Header 기반 구조화 (OCR 전용)
         raw_sections = extract_sections_by_header(ocr_lines)
 
-        logger.debug("OCR sections extracted", extra={"section_count": len(raw_sections)})
-
         # 2.5️⃣ 섹션 구조 후보정
         raw_sections = validate_raw_sections(raw_sections)
-
-        logger.debug("OCR sections post-validated", extra={"section_count": len(raw_sections)})
 
         if not raw_sections:
             logger.warning(
@@ -107,14 +94,6 @@ class OcrPipeline:
 
         # 5️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
         canonical_map = self.canonical.process(sections)
-
-        logger.debug(
-            "OCR pipeline stages completed",
-            extra={
-                "section_count": len(raw_sections),
-                "canonical_zone_count": len(canonical_map),
-            },
-        )
 
         # 6️⃣ 최종 결과
         return {

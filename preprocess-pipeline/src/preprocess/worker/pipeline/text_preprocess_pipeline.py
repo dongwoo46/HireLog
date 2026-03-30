@@ -45,15 +45,8 @@ class TextPreprocessPipeline:
         # - 노이즈 제거
         core_lines = self.core.process(raw_text)
 
-        logger.debug("Text core preprocessed", extra={"line_count": len(core_lines)})
-
         # 1.5️⃣ Platform 전용 필터 (노이즈 패턴 + 메뉴 잔해 제거)
         core_lines = preprocess_lines_by_platform(core_lines, platform)
-
-        logger.debug(
-            "Text platform filtered",
-            extra={"platform": platform.value, "line_count": len(core_lines)},
-        )
 
         # 2️⃣ Metadata (문서 전역 메타)
         document_meta = self.metadata.process(core_lines)
@@ -65,21 +58,8 @@ class TextPreprocessPipeline:
         # 2.5️⃣ 섹션 구조 후보정
         sections = validate_section_objects(sections)
 
-        logger.debug(
-            "Text sections extracted",
-            extra={"section_count": len(sections)},
-        )
-
         # 3️⃣ Canonical (공통 후반 파이프라인)
         canonical_map = self.canonical.process(sections)
-
-        logger.debug(
-            "Text pipeline stages completed",
-            extra={
-                "section_count": len(sections),
-                "canonical_zone_count": len(canonical_map),
-            },
-        )
 
         return {
             "canonical_map": canonical_map,

@@ -90,11 +90,6 @@ class UrlPipeline:
         # 3️⃣ URL 전용 전처리 (노이즈 제거)
         cleaned_lines = preprocess_url_text(body_text, platform=input.platform)
 
-        logger.debug(
-            "URL text preprocessed",
-            extra={"url": input.url, "cleaned_line_count": len(cleaned_lines)},
-        )
-
         if not cleaned_lines:
             logger.warning(
                 "No lines after URL preprocessing",
@@ -116,11 +111,6 @@ class UrlPipeline:
 
         # 4.5️⃣ 섹션 구조 후보정
         raw_sections = validate_raw_sections(raw_sections)
-
-        logger.debug(
-            "URL sections extracted",
-            extra={"url": input.url, "section_count": len(raw_sections)},
-        )
 
         if not raw_sections:
             logger.warning(
@@ -146,15 +136,6 @@ class UrlPipeline:
 
         # 7️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
         canonical_map = self.canonical.process(sections)
-
-        logger.debug(
-            "URL pipeline stages completed",
-            extra={
-                "url": input.url,
-                "section_count": len(raw_sections),
-                "canonical_zone_count": len(canonical_map),
-            },
-        )
 
         # 8️⃣ 최종 결과
         return {
