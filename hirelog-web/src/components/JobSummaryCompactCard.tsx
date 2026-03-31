@@ -79,8 +79,7 @@ export const JobSummaryCompactCard: React.FC<Props> = ({ summary }) => {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-4">
-        <span className="text-xs font-semibold text-gray-400">리뷰 0개</span>
+      <div className="mt-4 flex items-center justify-end border-t border-gray-50 pt-4">
         <button
           onClick={handleBookmark}
           className={`p-1 transition-colors ${isSaved ? 'text-[#4CDFD5]' : 'text-gray-200 hover:text-[#4CDFD5]'}`}

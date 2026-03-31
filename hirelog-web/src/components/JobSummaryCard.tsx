@@ -90,9 +90,8 @@ export const JobSummaryCard: React.FC<Props> = ({ summary }) => {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4 text-xs text-gray-400">
+      <div className="mt-6 flex items-center justify-end border-t border-gray-100 pt-4 text-xs text-gray-400">
         <span>{summary.createdAt?.slice(0, 10).replace(/-/g, '.') || '2024.01.01'}</span>
-        <span>리뷰 0</span>
       </div>
     </div>
   );
