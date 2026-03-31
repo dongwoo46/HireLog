@@ -199,3 +199,136 @@ HireLog는 다음 흐름으로 동작한다.
 > 그 결과를 시간 흐름에 따라 기록함으로써  
 > 기업과 시장의 상태를 읽어낼 수 있게 하는  
 > 채용 로그 시스템이다.**
+
+---
+
+## 10. 시스템 아키텍처
+
+```
+hirelog-web (React / TypeScript)
+  │
+  ▼  REST API
+hirelog-api (Spring Boot / Kotlin)
+  │  Outbox Pattern
+  ▼
+Debezium → Kafka
+  │
+  ▼
+preprocess-pipeline (Python)
+  ├── URL Worker   — HTML 크롤링 + 플랫폼별 전처리
+  ├── TEXT Worker  — 직접 입력 텍스트 전처리
+  └── OCR Worker   — 이미지 텍스트 전처리
+  │
+  ▼  Kafka response
+hirelog-api consumer
+  ├── LLM 요약 (Claude API)
+  └── OpenSearch 인덱싱
+```
+
+전처리 파이프라인을 API와 비동기로 분리한 이유는 세 가지다.
+
+- 크롤링 + JS 렌더링 + LLM 호출은 수 초가 걸릴 수 있다. API 레이턴시에 영향을 주지 않으려면 응답과 처리를 분리해야 한다.
+- 전처리 실패 시 Kafka offset 관리로 재처리가 가능하다.
+- URL / TEXT / OCR 워커를 독립적으로 스케일할 수 있다.
+
+---
+
+## 11. 핵심 구현
+
+### 3-track 전처리 파이프라인
+
+채용 공고는 URL, 직접 입력(TEXT), 이미지(OCR) 세 경로로 입력된다. 경로마다 전처리 과정이 다르지만 최종 출력은 동일한 `canonical_map`으로 정규화된다.
+
+```python
+# 모든 파이프라인의 공통 출력 구조
+{
+  "responsibilities": [...],  # 주요업무
+  "requirements":    [...],  # 자격요건
+  "preferred":       [...],  # 우대사항
+  "process":         [...],  # 채용절차
+  "company":         [...],  # 회사소개
+  "benefits":        [...],  # 복지
+  "skills":          [...],  # 기술스택
+  "experience":      [...],  # 경력
+  "others":          [...],  # 미분류
+}
+```
+
+URL 파이프라인은 가장 복잡하다.  
+`정적 크롤링 → JS 렌더링(Playwright) fallback → HTML 파싱 → 노이즈 제거 → 섹션 추출 → semantic zone 태깅 → canonical 정규화` 순으로 처리된다.
+
+---
+
+### 플랫폼별 전처리 분리 (Strategy Pattern)
+
+처음에는 모든 플랫폼을 단일 전처리 로직으로 처리했다.  
+리멤버(remember.co.kr) 파싱을 개선하는 과정에서 **원티드(wanted.co.kr) 섹션 분리가 깨지는 회귀**가 발생했다.
+
+원인은 플랫폼마다 HTML 구조가 근본적으로 다르다는 점이었다.
+
+| 항목 | 원티드 | 리멤버 |
+|---|---|---|
+| 연속 섹션 헤더 5개 | 실제 섹션 헤더 → **보존** | 탭 내비게이션 → **전체 제거** |
+| 헤더 keyword 중복 | 중복 제거 불필요 | 탭 nav + 본문 중복으로 **제거 필수** |
+| 고유 UI 노이즈 | `채용중인 포지션`, `연봉상위` 등 | `합격 보상금`, `현직자에게` 등 |
+
+단일 휴리스틱으로는 커버가 불가능하다고 판단해 전처리 전략을 플랫폼별로 분리했다.
+
+```
+preprocess-pipeline/src/url/platforms/
+  ├── wanted.py    — 원티드 전용 전처리 전략
+  ├── remember.py  — 리멤버 전용 전처리 전략
+  └── generic.py   — 기본 전략 (기타 플랫폼)
+```
+
+`platform` 필드를 Kafka 메시지에 추가하고 Spring → Python 전체 스택에 전파했다.  
+신규 플랫폼 추가 시 `platforms/` 아래 파일 하나만 추가하면 된다.
+
+---
+
+### 섹션 추출 정확도 문제 해결
+
+채용 공고 텍스트에서 섹션을 정확히 추출하는 것이 파이프라인의 핵심 난관이다.  
+단순 키워드 매칭만으로는 오탐이 발생한다.
+
+**오탐 사례**: `[MissionoftheRole]` → "role"(4자) 부분일치 → 가짜 섹션 생성  
+→ 대괄호 구문 + 키워드 길이 < 6 + 부분일치 조합은 skip 처리. URL/TEXT/OCR 파이프라인 모두 적용.
+
+추출 후에는 3가지 후보정 규칙을 적용한다.
+
+1. **intro 흡수** — 첫 keyword-match 섹션 이전의 미매칭 헤더를 `__intro__`로 처리 (coverage ≥ 40% 조건으로 오탐 방지)
+2. **빈 header 병합** — content가 없는 header는 다음 섹션 내용을 흡수 (연속 체인 처리 가능)
+3. **푸터 노이즈 제거** — 마지막 섹션 끝 연속 짧은 라인(≤15자, 2개 이상) 제거
+
+---
+
+### 채용 단계 이력 관리
+
+지원한 공고에 대해 채용 단계와 합불 결과를 기록한다.
+
+```kotlin
+enum class HiringStageResult { PASSED, FAILED, PENDING }
+
+class HiringStageRecord(
+    val stage: HiringStage,
+    var note: String,
+    var result: HiringStageResult? = null,
+    var recordedAt: LocalDateTime
+)
+```
+
+초기에는 PATCH(수정)에서만 result를 저장할 수 있고, POST(신규 추가) 시에는 result를 전달하지 못하는 버그가 있었다. `AddStageReq`에 `result` 필드를 추가하고 도메인 레이어까지 전파해 수정했다.
+
+---
+
+## 12. 기술 스택
+
+| 레이어 | 기술 |
+|---|---|
+| Backend | Spring Boot, Kotlin, JPA |
+| Messaging | Apache Kafka, Debezium (Outbox Pattern) |
+| Search | OpenSearch |
+| AI | Claude API |
+| Frontend | React, TypeScript |
+| Pipeline | Python, Playwright, BeautifulSoup |
+| Infra | Docker |
