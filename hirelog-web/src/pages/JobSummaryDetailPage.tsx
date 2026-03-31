@@ -1249,13 +1249,14 @@ const ReviewSection = ({
             key={r.id}
             className="rounded-2xl border border-[#3FB6B2]/20 bg-gradient-to-b from-[#f9fffe] to-white p-6 shadow-[0_10px_24px_rgba(16,24,40,0.06)]"
           >
-            <div className="mb-2">
-              <span className="inline-flex items-center rounded-full border border-[#3FB6B2]/35 bg-[#3FB6B2]/10 px-3 py-1 text-xs font-bold text-[#1f6f6c]">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="inline-flex items-center rounded-full border border-[#3FB6B2]/20 bg-[#3FB6B2]/10 px-3 py-1 text-xs font-black text-[#1f6f6c] shadow-sm">
                 {HIRING_STAGE_LABELS[r.hiringStage as HiringStage] || r.hiringStage}
               </span>
             </div>
-            <div className="mb-4 grid gap-2 rounded-xl border border-[#3FB6B2]/10 bg-[#f6fcfb] p-3">
+            <div className="mb-5 flex flex-col md:flex-row md:items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50/50 p-4">
               <RatingStarsDisplay label="난이도" value={r.difficultyRating} />
+              <div className="hidden h-10 w-px bg-gray-200 md:block" />
               <RatingStarsDisplay label="만족도" value={r.satisfactionRating} />
             </div>
 
@@ -1396,27 +1397,29 @@ const normalizeScore = (value: number) => {
 };
 
 const RatingStarsDisplay = ({ label, value }: { label: string; value: number }) => (
-  <div className="grid grid-cols-[72px_minmax(0,1fr)_66px] items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-2.5">
-    <span className="text-xs font-semibold text-gray-700">{label}</span>
-    <div className="flex min-w-[120px] items-center gap-1">
-      {[0, 1, 2, 3, 4].map((idx) => {
-        const starValue = normalizeScore(value) / 2;
-        const fill = Math.max(0, Math.min(1, starValue - idx));
-        return (
-          <div key={`${label}-${idx}`} className="relative h-5 w-5">
-            <StarIcon className="h-5 w-5 text-gray-300" />
-            {fill > 0 && (
-              <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
-                <StarIcon className="h-5 w-5 text-[#F59E0B]" />
-              </div>
-            )}
-          </div>
-        );
-      })}
+  <div className="flex flex-1 items-center justify-between md:justify-start md:gap-4 lg:gap-6">
+    <span className="text-sm font-bold text-gray-700">{label}</span>
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        {[0, 1, 2, 3, 4].map((idx) => {
+          const starValue = normalizeScore(value) / 2;
+          const fill = Math.max(0, Math.min(1, starValue - idx));
+          return (
+            <div key={`${label}-${idx}`} className="relative h-6 w-6">
+              <StarIcon className="h-6 w-6 text-gray-200" />
+              {fill > 0 && (
+                <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                  <StarIcon className="h-6 w-6 max-w-none text-[#F59E0B] drop-shadow-sm" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <span className="w-8 text-right text-sm font-black tabular-nums text-[#F59E0B]">
+        {(normalizeScore(value) / 2).toFixed(1)}
+      </span>
     </div>
-    <span className="inline-flex h-6 items-center justify-center rounded-full bg-amber-50 px-2.5 text-sm font-bold tabular-nums text-amber-700">
-      {(normalizeScore(value) / 2).toFixed(1)}
-    </span>
   </div>
 );
 
@@ -1429,48 +1432,48 @@ const ScoreSelector = ({
   value: number;
   onChange: (value: number) => void;
 }) => (
-  <div className="rounded-xl border border-[#3FB6B2]/20 bg-white p-4">
-    <div className="mb-3 flex items-center justify-between">
-      <span className="text-xs font-semibold text-gray-600">{label}</span>
-      <span className="rounded-full bg-[#3FB6B2]/10 px-2 py-0.5 text-xs font-bold tabular-nums text-[#2d918d]">
+  <div className="flex flex-col rounded-2xl border border-gray-100 bg-gray-50/50 p-5 shadow-sm transition-all hover:bg-white hover:shadow-md">
+    <div className="mb-4 flex items-center justify-between">
+      <span className="text-sm font-bold text-gray-800">{label}</span>
+      <span className="rounded-full bg-[#3FB6B2]/10 px-3 py-1 text-xs font-black tabular-nums text-[#3FB6B2]">
         {(normalizeScore(value) / 2).toFixed(1)} / 5.0
       </span>
     </div>
-    <div>
-      <div className="mb-1 flex items-center gap-1.5">
+    <div className="flex flex-col items-center">
+      <div className="mb-2 flex items-center gap-2">
         {[0, 1, 2, 3, 4].map((idx) => {
           const starValue = normalizeScore(value) / 2;
           const fill = Math.max(0, Math.min(1, starValue - idx));
           return (
-            <div key={idx} className="relative h-9 w-9">
-              <StarIcon className="h-9 w-9 text-gray-300" />
+            <div key={idx} className="relative h-10 w-10 transition-transform hover:scale-110">
+              <StarIcon className="h-10 w-10 text-gray-200" />
               {fill > 0 && (
                 <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
-                  <StarIcon className="h-9 w-9 text-[#F59E0B]" />
+                  <StarIcon className="h-10 w-10 max-w-none text-[#F59E0B] drop-shadow-sm" />
                 </div>
               )}
               <button
                 type="button"
                 aria-label={`${label} ${idx * 2 + 1}점`}
                 onClick={() => onChange(idx * 2 + 1)}
-                className="absolute left-0 top-0 h-full w-1/2"
+                className="absolute left-0 top-0 h-full w-1/2 cursor-pointer outline-none"
               />
               <button
                 type="button"
                 aria-label={`${label} ${idx * 2 + 2}점`}
                 onClick={() => onChange(idx * 2 + 2)}
-                className="absolute right-0 top-0 h-full w-1/2"
+                className="absolute right-0 top-0 h-full w-1/2 cursor-pointer outline-none"
               />
             </div>
           );
         })}
       </div>
-      <p className="text-[11px] text-gray-500">반별(0.5별) 단위로 선택됩니다. 0.5별 = 1점</p>
+      <p className="text-[11px] font-medium text-gray-400">0.5별(1점) 단위로 평가할 수 있습니다</p>
     </div>
   </div>
 );
 const StarIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={`h-8 w-8 ${className || ''}`} fill="currentColor" aria-hidden="true">
+  <svg viewBox="0 0 24 24" className={`${className || ''}`} fill="currentColor" aria-hidden="true">
     <path d="M12 2.6l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.43l-5.8 3.05 1.11-6.46-4.7-4.58 6.49-.94L12 2.6z" />
   </svg>
 );

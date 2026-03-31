@@ -1,6 +1,6 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TbBell, TbList, TbMenu2, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
+import { TbBell, TbList, TbMenu2, TbSettings, TbUserCircle, TbX, TbReload } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
 import { notificationService, type NotificationItem } from '../services/notificationService';
 
@@ -26,6 +26,20 @@ export function Header() {
     navigate('/service-intro');
   };
 
+  const loadNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const [paged, count] = await Promise.all([
+        notificationService.getNotifications(0, 20),
+        notificationService.getUnreadCount(),
+      ]);
+      setNotifications(paged.items || []);
+      setUnreadCount(count);
+    } catch {
+      // ignore
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setNotifications([]);
@@ -33,21 +47,8 @@ export function Header() {
       return;
     }
 
-    const loadNotifications = async () => {
-      try {
-        const [paged, count] = await Promise.all([
-          notificationService.getNotifications(0, 20),
-          notificationService.getUnreadCount(),
-        ]);
-        setNotifications(paged.items || []);
-        setUnreadCount(count);
-      } catch {
-        // ignore
-      }
-    };
-
     loadNotifications();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadNotifications]);
 
   useEffect(() => {
     setIsMobileOpen(false);
@@ -131,7 +132,19 @@ export function Header() {
 
                 {isNotificationOpen && (
                   <div className="absolute right-0 mt-3 max-h-[28rem] w-96 overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl">
-                    <div className="border-b border-gray-100 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">알림</div>
+                    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">알림</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          loadNotifications();
+                        }}
+                        className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-gray-400 transition hover:bg-gray-50 hover:text-gray-700"
+                        title="새로고침"
+                      >
+                        <TbReload size={14} /> 새로고침
+                      </button>
+                    </div>
                     {notifications.length === 0 ? (
                       <div className="p-6 text-center text-sm text-gray-400">새로운 알림이 없습니다.</div>
                     ) : (

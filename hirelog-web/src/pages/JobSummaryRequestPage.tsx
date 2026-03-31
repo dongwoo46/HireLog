@@ -216,16 +216,20 @@ import { type JobPlatformType, JOB_PLATFORM_LABELS } from '../types/jobSummary';
 
 type RequestTab = 'text' | 'ocr' | 'url';
 
-const PLATFORM_OPTIONS = Object.entries(JOB_PLATFORM_LABELS) as [JobPlatformType, string][];
+const PLATFORM_OPTIONS: [JobPlatformType, string][] = [
+  ['WANTED', JOB_PLATFORM_LABELS['WANTED']],
+  ['OTHER', JOB_PLATFORM_LABELS['OTHER']],
+  ['REMEMBER', JOB_PLATFORM_LABELS['REMEMBER']],
+];
 
 const JobSummaryRequestPage = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<RequestTab>('text');
+  const [activeTab, setActiveTab] = useState<RequestTab>('url');
   const [isLoading, setIsLoading] = useState(false);
 
   const [brandName, setBrandName] = useState('');
   const [brandPositionName, setBrandPositionName] = useState('');
-  const [platform, setPlatform] = useState<JobPlatformType>('OTHER');
+  const [platform, setPlatform] = useState<JobPlatformType>('WANTED');
   const [jdText, setJdText] = useState('');
   const [url, setUrl] = useState('');
   const [images, setImages] = useState<File[]>([]);
@@ -315,34 +319,12 @@ const JobSummaryRequestPage = () => {
 
             {/* 탭 */}
             <div className="flex p-1 bg-gray-100 rounded-2xl">
+              <TabButton active={activeTab === 'url'} onClick={() => setActiveTab('url')} icon={<TbLink />} label="URL" />
               <TabButton active={activeTab === 'text'} onClick={() => setActiveTab('text')} icon={<TbFileText />} label="텍스트 입력" />
               <TabButton active={activeTab === 'ocr'} onClick={() => setActiveTab('ocr')} icon={<TbCamera />} label="이미지(OCR)" />
-              <TabButton active={activeTab === 'url'} onClick={() => setActiveTab('url')} icon={<TbLink />} label="URL" />
             </div>
 
             {/* 내용 */}
-            {activeTab === 'text' && (
-              <textarea
-                className="w-full h-64 px-5 py-4 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none resize-none"
-                value={jdText}
-                onChange={(e) => setJdText(e.target.value)}
-              />
-            )}
-
-            {activeTab === 'ocr' && (
-              <div className="relative border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center hover:border-[#4CDFD5] hover:bg-[#4CDFD5]/5 transition-all cursor-pointer group">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <TbCloudUpload size={48} className="mx-auto text-gray-300 group-hover:text-[#4CDFD5] mb-4" />
-                <p className="text-gray-500">이미지 업로드</p>
-              </div>
-            )}
-
             {activeTab === 'url' && (
               <div className="space-y-4">
                 <input
@@ -364,6 +346,28 @@ const JobSummaryRequestPage = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'text' && (
+              <textarea
+                className="w-full h-64 px-5 py-4 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none resize-none"
+                value={jdText}
+                onChange={(e) => setJdText(e.target.value)}
+              />
+            )}
+
+            {activeTab === 'ocr' && (
+              <div className="relative border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center hover:border-[#4CDFD5] hover:bg-[#4CDFD5]/5 transition-all cursor-pointer group">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <TbCloudUpload size={48} className="mx-auto text-gray-300 group-hover:text-[#4CDFD5] mb-4" />
+                <p className="text-gray-500">이미지 업로드</p>
               </div>
             )}
 
