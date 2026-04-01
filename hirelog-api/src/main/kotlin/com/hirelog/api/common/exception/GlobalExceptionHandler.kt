@@ -9,6 +9,7 @@ import org.springframework.validation.BindException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.Instant
 
@@ -89,6 +90,65 @@ class GlobalExceptionHandler {
                 timestamp = Instant.now(),
                 status = status.value(),
                 error = status.reasonPhrase,
+                path = request.requestURI
+            )
+        )
+    }
+
+    @ExceptionHandler(BusinessException::class)
+    fun handleBusinessException(
+        ex: BusinessException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+
+        val status = ex.errorCode.status
+
+        log.warn(
+            "[BUSINESS_EXCEPTION] path={}, method={}, code={}, message={}",
+            request.requestURI,
+            request.method,
+            ex.errorCode.code,
+            ex.message
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = ex.errorCode.code,
+                message = ex.message,
+                path = request.requestURI
+            )
+        )
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException::class)
+    fun handleMethodArgumentTypeMismatch(
+        ex: MethodArgumentTypeMismatchException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val status = HttpStatus.BAD_REQUEST
+        val parameterName = ex.name
+        val requiredType = ex.requiredType?.simpleName ?: "unknown"
+        val rejectedValue = ex.value
+        val message = "요청 파라미터 형식이 올바르지 않습니다: $parameterName=$rejectedValue ($requiredType)"
+
+        log.warn(
+            "[TYPE_MISMATCH] path={}, method={}, param={}, value={}, requiredType={}, message={}",
+            request.requestURI,
+            request.method,
+            parameterName,
+            rejectedValue,
+            requiredType,
+            ex.message
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = BusinessErrorCode.INVALID_REQUEST_PARAMETER.code,
+                message = message,
                 path = request.requestURI
             )
         )
