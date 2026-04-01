@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TbBell, TbList, TbMenu2, TbSettings, TbUserCircle, TbX, TbReload } from 'react-icons/tb';
+import { TbBell, TbList, TbMenu2, TbSettings, TbUserCircle, TbX, TbReload, TbMessageCircle } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
 import { notificationService, type NotificationItem } from '../services/notificationService';
 
@@ -17,6 +17,7 @@ export function Header() {
   const navLinks = useMemo(
     () => [
       { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
+      { label: '게시판', path: '/board', icon: <TbMessageCircle size={20} /> },
       { label: '요청 내역', path: '/requests', icon: <TbUserCircle size={20} />, authOnly: true },
     ],
     [],
@@ -95,9 +96,8 @@ export function Header() {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`transition-colors hover:text-[#4CDFD5] ${
-                  location.pathname === link.path ? 'border-b-2 border-[#4CDFD5] py-5 text-gray-900' : ''
-                }`}
+                className={`transition-colors hover:text-[#4CDFD5] ${location.pathname === link.path ? 'border-b-2 border-[#4CDFD5] py-5 text-gray-900' : ''
+                  }`}
               >
                 {link.label}
               </Link>
@@ -152,11 +152,10 @@ export function Header() {
                         <button
                           key={notification.id}
                           onClick={() => handleNotificationClick(notification)}
-                          className={`w-full border-b border-gray-50 px-4 py-3 text-left text-sm transition last:border-none ${
-                            notification.isRead
+                          className={`w-full border-b border-gray-50 px-4 py-3 text-left text-sm transition last:border-none ${notification.isRead
                               ? 'bg-white text-gray-600 hover:bg-gray-50'
                               : 'bg-[#4CDFD5]/5 font-semibold text-gray-800 hover:bg-[#4CDFD5]/10'
-                          }`}
+                            }`}
                         >
                           <p className="mb-1 line-clamp-1">{notification.title}</p>
                           {notification.message && <p className="line-clamp-2 text-xs font-normal text-gray-500">{notification.message}</p>}
@@ -205,9 +204,8 @@ export function Header() {
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsMobileOpen(false)}
-                  className={`flex items-center gap-2 text-sm font-bold transition-colors ${
-                    location.pathname === link.path ? 'text-[#4CDFD5]' : 'text-gray-600 hover:text-[#4CDFD5]'
-                  }`}
+                  className={`flex items-center gap-2 text-sm font-bold transition-colors ${location.pathname === link.path ? 'text-[#4CDFD5]' : 'text-gray-600 hover:text-[#4CDFD5]'
+                    }`}
                 >
                   <span className="scale-[0.85]">{link.icon}</span>
                   {link.label}

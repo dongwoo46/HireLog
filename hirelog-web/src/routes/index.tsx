@@ -14,6 +14,8 @@ import UserRequestCreatePage from '../pages/UserRequestCreatePage';
 import ProfilePage from '../pages/ProfilePage';
 import JobSummaryArchivePage from '../pages/JobSummaryArchivePage';
 import JdListPage from '../pages/JdListPage';
+import BoardListPage from '../pages/BoardListPage';
+import BoardDetailPage from '../pages/BoardDetailPage';
 import AdminPage from '../pages/AdminPage';
 import AdminJobSummaryRequestPage from '../pages/AdminJobSummaryRequestPage';
 import { ProtectedRoute } from '../components/common/ProtectedRoute';
@@ -62,6 +64,14 @@ export const router = createBrowserRouter([
       {
         path: 'service-intro',
         element: <ServiceIntroPage />,
+      },
+      {
+        path: 'board',
+        element: <BoardListPage />,
+      },
+      {
+        path: 'board/:id',
+        element: <BoardDetailPage />,
       },
       {
         path: 'jd',
