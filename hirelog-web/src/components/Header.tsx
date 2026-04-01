@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TbBell, TbList, TbMenu2, TbSettings, TbUserCircle, TbX, TbReload } from 'react-icons/tb';
+import { TbBell, TbList, TbMenu2, TbMessageCircle, TbReload, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
 import { notificationService, type NotificationItem } from '../services/notificationService';
 
@@ -17,6 +17,7 @@ export function Header() {
   const navLinks = useMemo(
     () => [
       { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
+      { label: '게시판', path: '/boards', icon: <TbMessageCircle size={20} />, authOnly: true },
       { label: '요청 내역', path: '/requests', icon: <TbUserCircle size={20} />, authOnly: true },
     ],
     [],
@@ -46,7 +47,6 @@ export function Header() {
       setUnreadCount(0);
       return;
     }
-
     loadNotifications();
   }, [isAuthenticated, loadNotifications]);
 
@@ -159,7 +159,9 @@ export function Header() {
                           }`}
                         >
                           <p className="mb-1 line-clamp-1">{notification.title}</p>
-                          {notification.message && <p className="line-clamp-2 text-xs font-normal text-gray-500">{notification.message}</p>}
+                          {notification.message && (
+                            <p className="line-clamp-2 text-xs font-normal text-gray-500">{notification.message}</p>
+                          )}
                         </button>
                       ))
                     )}

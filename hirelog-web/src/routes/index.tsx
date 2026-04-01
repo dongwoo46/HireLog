@@ -16,6 +16,7 @@ import JobSummaryArchivePage from '../pages/JobSummaryArchivePage';
 import JdListPage from '../pages/JdListPage';
 import AdminPage from '../pages/AdminPage';
 import AdminJobSummaryRequestPage from '../pages/AdminJobSummaryRequestPage';
+import BoardPage from '../pages/BoardPage';
 import { ProtectedRoute } from '../components/common/ProtectedRoute';
 
 function ErrorBoundary() {
@@ -103,6 +104,10 @@ export const router = createBrowserRouter([
           {
             path: 'history',
             element: <JdListPage />,
+          },
+          {
+            path: 'boards',
+            element: <BoardPage />,
           },
           {
             path: 'admin',

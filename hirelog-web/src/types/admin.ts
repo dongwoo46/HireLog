@@ -37,14 +37,18 @@ export interface AdminPagedResult<T> {
 
 export interface AdminReviewView {
     id: number;
+    jobSummaryId: number;
+    brandPositionName?: string | null;
     anonymous: boolean;
     memberId?: number;
     memberName?: string;
     hiringStage: string;
     difficultyRating: number;
     satisfactionRating: number;
-    experienceComment: string;
-    interviewTip?: string;
+    prosComment: string;
+    consComment: string;
+    tip?: string;
+    likeCount: number;
     createdAt: string;
     deleted: boolean;
 }

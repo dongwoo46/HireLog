@@ -2,10 +2,12 @@
 import type {
   AdminJobSummaryDirectCreateReq,
   AdminPagedResult,
+  AdminReviewView,
   BrandListView,
   CompanyView,
   MemberSummaryView,
 } from '../types/admin';
+import type { HiringStage, ReviewSortType } from '../types/jobSummary';
 
 export const adminService = {
   getAllMembers: async (page = 0, size = 20): Promise<AdminPagedResult<MemberSummaryView>> => {
@@ -95,5 +97,42 @@ export const adminService = {
 
   restoreReview: async (reviewId: number): Promise<void> => {
     await apiClient.patch(`/job-summary/review/${reviewId}/restore`);
+  },
+
+  getAllReviews: async (
+    page = 0,
+    size = 20,
+    params?: {
+      jobSummaryId?: number;
+      memberName?: string;
+      hiringStage?: HiringStage;
+      minDifficultyRating?: number;
+      maxDifficultyRating?: number;
+      minSatisfactionRating?: number;
+      maxSatisfactionRating?: number;
+      sortBy?: ReviewSortType;
+      createdFrom?: string;
+      createdTo?: string;
+      includeDeleted?: boolean;
+    },
+  ): Promise<AdminPagedResult<AdminReviewView>> => {
+    const response = await apiClient.get('/job-summary/review/admin', {
+      params: {
+        page,
+        size,
+        jobSummaryId: params?.jobSummaryId,
+        memberName: params?.memberName,
+        hiringStage: params?.hiringStage,
+        minDifficultyRating: params?.minDifficultyRating,
+        maxDifficultyRating: params?.maxDifficultyRating,
+        minSatisfactionRating: params?.minSatisfactionRating,
+        maxSatisfactionRating: params?.maxSatisfactionRating,
+        sortBy: params?.sortBy,
+        createdFrom: params?.createdFrom,
+        createdTo: params?.createdTo,
+        includeDeleted: params?.includeDeleted,
+      },
+    });
+    return response.data;
   },
 };

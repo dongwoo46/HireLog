@@ -30,8 +30,9 @@ class JobSummaryReviewWriteService(
         anonymous: Boolean,
         difficultyRating: Int,
         satisfactionRating: Int,
-        experienceComment: String,
-        interviewTip: String?
+        prosComment: String,
+        consComment: String,
+        tip: String?
     ): JobSummaryReview {
 
         val existing = command.findByJobSummaryIdAndMemberId(
@@ -50,8 +51,9 @@ class JobSummaryReviewWriteService(
             anonymous = anonymous,
             difficultyRating = difficultyRating,
             satisfactionRating = satisfactionRating,
-            experienceComment = experienceComment,
-            interviewTip = interviewTip
+            prosComment = prosComment,
+            consComment = consComment,
+            tip = tip
         )
 
         val saved = command.save(review)
@@ -92,8 +94,9 @@ class JobSummaryReviewWriteService(
         anonymous: Boolean,
         difficultyRating: Int,
         satisfactionRating: Int,
-        experienceComment: String,
-        interviewTip: String?
+        prosComment: String,
+        consComment: String,
+        tip: String?
     ) {
         val review = command.findById(reviewId)
             ?: throw IllegalArgumentException("리뷰를 찾을 수 없습니다: $reviewId")
@@ -107,8 +110,9 @@ class JobSummaryReviewWriteService(
             anonymous = anonymous,
             difficultyRating = difficultyRating,
             satisfactionRating = satisfactionRating,
-            experienceComment = experienceComment,
-            interviewTip = interviewTip
+            prosComment = prosComment,
+            consComment = consComment,
+            tip = tip
         )
         command.save(review)
 

@@ -3,10 +3,15 @@ package com.hirelog.api.job.application.review
 import com.hirelog.api.job.application.review.port.JobSummaryReviewCommand
 import com.hirelog.api.job.domain.model.JobSummaryReview
 import com.hirelog.api.job.domain.type.HiringStage
-import io.mockk.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 
 @DisplayName("JobSummaryReviewWriteService 테스트")
 class JobSummaryReviewWriteServiceTest {
@@ -39,8 +44,9 @@ class JobSummaryReviewWriteServiceTest {
                 anonymous = false,
                 difficultyRating = 3,
                 satisfactionRating = 4,
-                experienceComment = "좋은 면접이었습니다.",
-                interviewTip = null
+                prosComment = "좋은 면접이었습니다.",
+                consComment = "대기 시간이 길었습니다.",
+                tip = null
             )
 
             assertThat(result).isEqualTo(savedReview)
@@ -61,8 +67,9 @@ class JobSummaryReviewWriteServiceTest {
                     anonymous = false,
                     difficultyRating = 3,
                     satisfactionRating = 4,
-                    experienceComment = "중복 리뷰",
-                    interviewTip = null
+                    prosComment = "중복 리뷰",
+                    consComment = "중복 리뷰",
+                    tip = null
                 )
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("이미 해당 공고에 리뷰를 작성했습니다")
@@ -91,7 +98,7 @@ class JobSummaryReviewWriteServiceTest {
         }
 
         @Test
-        @DisplayName("이미 삭제된 리뷰는 예외를 던진다")
+        @DisplayName("이미 삭제된 리뷰면 예외를 던진다")
         fun shouldThrowWhenAlreadyDeleted() {
             val review = mockk<JobSummaryReview>()
             every { review.isDeleted() } returns true
@@ -105,7 +112,7 @@ class JobSummaryReviewWriteServiceTest {
         }
 
         @Test
-        @DisplayName("존재하지 않는 리뷰는 예외를 던진다")
+        @DisplayName("존재하지 않는 리뷰면 예외를 던진다")
         fun shouldThrowWhenNotFound() {
             every { command.findById(999L) } returns null
 

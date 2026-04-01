@@ -3,7 +3,16 @@ package com.hirelog.api.job.domain.model
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.domain.type.HiringStage
-import jakarta.persistence.*
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
+import jakarta.persistence.Id
+import jakarta.persistence.Index
+import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 
@@ -21,7 +30,6 @@ import jakarta.validation.constraints.Min
     ]
 )
 class JobSummaryReview protected constructor(
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0L,
@@ -57,19 +65,20 @@ class JobSummaryReview protected constructor(
     )
     var satisfactionRating: Int,
 
-    @Column(name = "experience_comment", columnDefinition = "TEXT", nullable = false)
-    var experienceComment: String,
+    @Column(name = "pros_comment", columnDefinition = "TEXT", nullable = false)
+    var prosComment: String,
 
-    @Column(name = "interview_tip", columnDefinition = "TEXT")
-    var interviewTip: String? = null,
+    @Column(name = "cons_comment", columnDefinition = "TEXT", nullable = false)
+    var consComment: String,
+
+    @Column(name = "tip", columnDefinition = "TEXT")
+    var tip: String? = null,
 
     @Column(name = "deleted", nullable = false)
     var deleted: Boolean = false
-
 ) : BaseEntity() {
 
     companion object {
-
         fun create(
             jobSummaryId: Long,
             memberId: Long,
@@ -77,14 +86,16 @@ class JobSummaryReview protected constructor(
             anonymous: Boolean,
             difficultyRating: Int,
             satisfactionRating: Int,
-            experienceComment: String,
-            interviewTip: String?
+            prosComment: String,
+            consComment: String,
+            tip: String?
         ): JobSummaryReview {
             log.info("[JOB_SUMMARY_REVIEW_CREATE] anonymous={}", anonymous)
             validateRating(difficultyRating)
             validateRating(satisfactionRating)
-            validateComment(experienceComment)
-            validateComment(interviewTip)
+            validateLongComment(prosComment)
+            validateLongComment(consComment)
+            validateTip(tip)
 
             return JobSummaryReview(
                 jobSummaryId = jobSummaryId,
@@ -93,21 +104,22 @@ class JobSummaryReview protected constructor(
                 anonymous = anonymous,
                 difficultyRating = difficultyRating,
                 satisfactionRating = satisfactionRating,
-                experienceComment = experienceComment,
-                interviewTip = interviewTip
+                prosComment = prosComment,
+                consComment = consComment,
+                tip = tip
             )
         }
 
         private fun validateRating(value: Int) {
-            require(value in 1..10) {
-                "평점은 1~10 사이여야 합니다."
-            }
+            require(value in 1..10) { "평점은 1~10 사이여야 합니다." }
         }
 
-        private fun validateComment(text: String?) {
-            require(text == null || text.length <= 2000) {
-                "리뷰 텍스트는 2000자를 초과할 수 없습니다."
-            }
+        private fun validateLongComment(text: String) {
+            require(text.length <= 2000) { "리뷰 텍스트는 2000자를 초과할 수 없습니다." }
+        }
+
+        private fun validateTip(text: String?) {
+            require(text == null || text.length <= 1000) { "팁은 1000자를 초과할 수 없습니다." }
         }
     }
 
@@ -124,20 +136,23 @@ class JobSummaryReview protected constructor(
         anonymous: Boolean,
         difficultyRating: Int,
         satisfactionRating: Int,
-        experienceComment: String,
-        interviewTip: String?
+        prosComment: String,
+        consComment: String,
+        tip: String?
     ) {
         validateRating(difficultyRating)
         validateRating(satisfactionRating)
-        validateComment(experienceComment)
-        validateComment(interviewTip)
+        validateLongComment(prosComment)
+        validateLongComment(consComment)
+        validateTip(tip)
 
         this.hiringStage = hiringStage
         this.anonymous = anonymous
         this.difficultyRating = difficultyRating
         this.satisfactionRating = satisfactionRating
-        this.experienceComment = experienceComment
-        this.interviewTip = interviewTip
+        this.prosComment = prosComment
+        this.consComment = consComment
+        this.tip = tip
     }
 
     fun isDeleted(): Boolean = deleted

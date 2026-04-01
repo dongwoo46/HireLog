@@ -144,8 +144,45 @@ export interface ReviewWriteReq {
   anonymous: boolean;
   difficultyRating: number;
   satisfactionRating: number;
-  experienceComment: string;
-  interviewTip?: string;
+  prosComment: string;
+  consComment: string;
+  tip?: string;
+}
+
+export type ReviewSortType = 'LATEST' | 'LIKES' | 'RATING' | 'DIFFICULTY' | 'SATISFACTION';
+
+export interface JobSummaryReviewView {
+  id: number;
+  anonymous: boolean;
+  memberId?: number | null;
+  memberName?: string | null;
+  hiringStage: HiringStage | string;
+  difficultyRating: number;
+  satisfactionRating: number;
+  prosComment: string;
+  consComment: string;
+  tip?: string | null;
+  likeCount: number;
+  deleted: boolean;
+  createdAt: string;
+}
+
+export interface ReviewLikeStat {
+  reviewId: number;
+  likeCount: number;
+  likedByMe: boolean;
+}
+
+export interface JobSummaryReviewSearchParams {
+  hiringStage?: HiringStage;
+  minDifficultyRating?: number;
+  maxDifficultyRating?: number;
+  minSatisfactionRating?: number;
+  maxSatisfactionRating?: number;
+  sortBy?: ReviewSortType;
+  createdFrom?: string;
+  createdTo?: string;
+  includeDeleted?: boolean;
 }
 
 export interface JobSummaryUrlRes {

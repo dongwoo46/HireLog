@@ -82,7 +82,9 @@ class SecurityConfig(
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/job-summary/search",
-                        "/api/job-summary/*"
+                        "/api/job-summary/*",
+                        "/api/job-summary/review/*",
+                        "/api/job-summary/review/*/like"
                     ).permitAll()
 
                     // 회원가입 / 인증 관련 API

@@ -1,16 +1,13 @@
 package com.hirelog.api.job.presentation.controller.dto.request
 
 import com.hirelog.api.job.domain.type.HiringStage
-import jakarta.validation.constraints.*
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 
-/**
- * JobSummaryReview Write Request
- *
- * 책임:
- * - 컨트롤러 입력 검증 전용
- */
 data class JobSummaryReviewWriteReq(
-
     @field:NotNull(message = "hiringStage는 필수입니다")
     val hiringStage: HiringStage,
 
@@ -27,17 +24,25 @@ data class JobSummaryReviewWriteReq(
     @field:Max(value = 10, message = "satisfactionRating은 10 이하여야 합니다")
     val satisfactionRating: Int,
 
-    @field:NotBlank(message = "경험 후기는 필수입니다")
+    @field:NotBlank(message = "장점은 필수입니다")
     @field:Size(
         min = 10,
         max = 2000,
-        message = "경험 후기는 10자 이상 2000자 이하여야 합니다"
+        message = "장점은 10자 이상 2000자 이하여야 합니다"
     )
-    val experienceComment: String,
+    val prosComment: String,
+
+    @field:NotBlank(message = "단점은 필수입니다")
+    @field:Size(
+        min = 10,
+        max = 2000,
+        message = "단점은 10자 이상 2000자 이하여야 합니다"
+    )
+    val consComment: String,
 
     @field:Size(
         max = 1000,
-        message = "면접 팁은 1000자를 초과할 수 없습니다"
+        message = "팁은 1000자를 초과할 수 없습니다"
     )
-    val interviewTip: String?
+    val tip: String?
 )

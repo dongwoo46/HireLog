@@ -35,7 +35,10 @@ import {
   type HiringStage,
   type HiringStageResult,
   type HiringStageView,
+  type JobSummaryReviewView,
   type JobSummaryDetailView,
+  type PagedResult,
+  type ReviewSortType,
   type ReviewWriteReq,
 } from '../types/jobSummary';
 
@@ -58,8 +61,9 @@ const reviewDefaultForm: ReviewWriteReq = {
   anonymous: true,
   difficultyRating: 5,
   satisfactionRating: 5,
-  experienceComment: '',
-  interviewTip: '',
+  prosComment: '',
+  consComment: '',
+  tip: '',
 };
 
 const JobSummaryDetailPage = () => {
@@ -73,9 +77,13 @@ const JobSummaryDetailPage = () => {
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('detail');
 
-  const [reviewPage, setReviewPage] = useState<any>(null);
+  const [reviewPage, setReviewPage] = useState<PagedResult<JobSummaryReviewView> | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSortBy, setReviewSortBy] = useState<ReviewSortType>('LATEST');
+  const [reviewPageNumber, setReviewPageNumber] = useState(0);
+  const [likedByMeMap, setLikedByMeMap] = useState<Record<number, boolean>>({});
+  const [reviewLikePendingId, setReviewLikePendingId] = useState<number | null>(null);
   const [showReviewComposer, setShowReviewComposer] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [reviewForm, setReviewForm] = useState<ReviewWriteReq>(reviewDefaultForm);
@@ -124,18 +132,42 @@ const JobSummaryDetailPage = () => {
   }, [id]);
 
   const loadReviews = async () => {
-    if (!jd || !isAuthenticated) return;
+    if (!jd) return;
     setReviewLoading(true);
     try {
-      const data = await jdSummaryService.getReviews(jd.id, 0, 20, { includeDeleted: isAdmin });
+      const data = await jdSummaryService.getReviews(jd.id, reviewPageNumber, 20, {
+        includeDeleted: isAdmin,
+        sortBy: reviewSortBy,
+      });
       setReviewPage(data);
 
+      if (isAuthenticated && data?.items?.length) {
+        const stats = await Promise.all(
+          data.items.map(async (item) => {
+            try {
+              return await jdSummaryService.getReviewLikeStat(item.id);
+            } catch {
+              return { reviewId: item.id, likeCount: item.likeCount, likedByMe: false };
+            }
+          }),
+        );
+        const nextLikedByMeMap: Record<number, boolean> = {};
+        stats.forEach((stat) => {
+          nextLikedByMeMap[stat.reviewId] = stat.likedByMe;
+        });
+        setLikedByMeMap(nextLikedByMeMap);
+      } else {
+        setLikedByMeMap({});
+      }
+
       if (user?.id) {
-        const hasOwnVisibleReview = (data?.items || []).some((item: any) => item.memberId === user.id);
+        const hasOwnVisibleReview = (data?.items || []).some((item) => item.memberId === user.id);
         if (hasOwnVisibleReview) {
           setAlreadyReviewed(true);
           setShowReviewComposer(false);
         }
+      } else {
+        setAlreadyReviewed(false);
       }
     } catch {
       toast.error('리뷰를 불러오지 못했습니다.');
@@ -145,9 +177,9 @@ const JobSummaryDetailPage = () => {
   };
 
   useEffect(() => {
-    if (!jd || activeTab !== 'review' || !isAuthenticated) return;
+    if (!jd || activeTab !== 'review') return;
     loadReviews();
-  }, [jd, activeTab, isAuthenticated]);
+  }, [jd, activeTab, reviewPageNumber, reviewSortBy, isAdmin, user?.id]);
 
   const loadPreparationData = async () => {
     if (!jd) return;
@@ -245,7 +277,7 @@ const JobSummaryDetailPage = () => {
 
   const handleReviewSubmit = async () => {
     if (!jd) return;
-    if (!reviewForm.experienceComment.trim()) {
+    if (!reviewForm.prosComment.trim() || !reviewForm.consComment.trim()) {
       toast.warn('리뷰 내용을 입력해 주세요.');
       return;
     }
@@ -254,8 +286,9 @@ const JobSummaryDetailPage = () => {
     try {
       await jdSummaryService.addReview(jd.id, {
         ...reviewForm,
-        experienceComment: reviewForm.experienceComment.trim(),
-        interviewTip: reviewForm.interviewTip?.trim() || undefined,
+        prosComment: reviewForm.prosComment.trim(),
+        consComment: reviewForm.consComment.trim(),
+        tip: reviewForm.tip?.trim() || undefined,
       });
       toast.success('리뷰가 등록되었습니다.');
       setAlreadyReviewed(true);
@@ -276,15 +309,16 @@ const JobSummaryDetailPage = () => {
     }
   };
 
-  const startAdminEditReview = (review: any) => {
+  const startAdminEditReview = (review: JobSummaryReviewView) => {
     setEditingReviewId(review.id);
     setAdminReviewForm({
       hiringStage: review.hiringStage as HiringStage,
       anonymous: !!review.anonymous,
       difficultyRating: review.difficultyRating,
       satisfactionRating: review.satisfactionRating,
-      experienceComment: review.experienceComment || '',
-      interviewTip: review.interviewTip || '',
+      prosComment: review.prosComment || '',
+      consComment: review.consComment || '',
+      tip: review.tip || '',
     });
   };
 
@@ -295,7 +329,7 @@ const JobSummaryDetailPage = () => {
 
   const submitAdminEditReview = async () => {
     if (!editingReviewId) return;
-    if (!adminReviewForm.experienceComment.trim()) {
+    if (!adminReviewForm.prosComment.trim() || !adminReviewForm.consComment.trim()) {
       toast.warn('리뷰 내용을 입력해 주세요.');
       return;
     }
@@ -304,8 +338,9 @@ const JobSummaryDetailPage = () => {
     try {
       await jdSummaryService.updateReview(editingReviewId, {
         ...adminReviewForm,
-        experienceComment: adminReviewForm.experienceComment.trim(),
-        interviewTip: adminReviewForm.interviewTip?.trim() || undefined,
+        prosComment: adminReviewForm.prosComment.trim(),
+        consComment: adminReviewForm.consComment.trim(),
+        tip: adminReviewForm.tip?.trim() || undefined,
       });
       toast.success('리뷰를 수정했습니다.');
       await loadReviews();
@@ -314,6 +349,40 @@ const JobSummaryDetailPage = () => {
       toast.error('리뷰 수정에 실패했습니다.');
     } finally {
       setAdminReviewSubmitting(false);
+    }
+  };
+
+  const handleToggleReviewLike = async (reviewId: number) => {
+    if (!isAuthenticated) {
+      toast.info('좋아요는 로그인 후 사용할 수 있습니다.');
+      return;
+    }
+    if (reviewLikePendingId === reviewId) return;
+
+    setReviewLikePendingId(reviewId);
+    try {
+      const likedByMe = !!likedByMeMap[reviewId];
+      const stat = likedByMe
+        ? await jdSummaryService.unlikeReview(reviewId)
+        : await jdSummaryService.likeReview(reviewId);
+
+      setLikedByMeMap((prev) => ({
+        ...prev,
+        [reviewId]: stat.likedByMe,
+      }));
+      setReviewPage((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === reviewId ? { ...item, likeCount: stat.likeCount } : item,
+          ),
+        };
+      });
+    } catch {
+      toast.error('좋아요 처리에 실패했습니다.');
+    } finally {
+      setReviewLikePendingId(null);
     }
   };
 
@@ -394,6 +463,20 @@ const JobSummaryDetailPage = () => {
             alreadyReviewed={alreadyReviewed}
             isAuthenticated={isAuthenticated}
             isAdmin={isAdmin}
+            sortBy={reviewSortBy}
+            onSortChange={(value) => {
+              setReviewPageNumber(0);
+              setReviewSortBy(value);
+            }}
+            onPrevPage={() => setReviewPageNumber((prev) => Math.max(0, prev - 1))}
+            onNextPage={() => {
+              if (reviewPage?.hasNext) {
+                setReviewPageNumber((prev) => prev + 1);
+              }
+            }}
+            likedByMeMap={likedByMeMap}
+            reviewLikePendingId={reviewLikePendingId}
+            onToggleReviewLike={handleToggleReviewLike}
             editingReviewId={editingReviewId}
             adminReviewForm={adminReviewForm}
             adminReviewSubmitting={adminReviewSubmitting}
@@ -1084,6 +1167,13 @@ const ReviewSection = ({
   alreadyReviewed,
   isAuthenticated,
   isAdmin,
+  sortBy,
+  onSortChange,
+  onPrevPage,
+  onNextPage,
+  likedByMeMap,
+  reviewLikePendingId,
+  onToggleReviewLike,
   editingReviewId,
   adminReviewForm,
   adminReviewSubmitting,
@@ -1095,7 +1185,7 @@ const ReviewSection = ({
   onDeleteAsAdmin,
   onRestoreAsAdmin,
 }: {
-  reviewPage: any;
+  reviewPage: PagedResult<JobSummaryReviewView> | null;
   loading: boolean;
   form: ReviewWriteReq;
   submitting: boolean;
@@ -1106,11 +1196,18 @@ const ReviewSection = ({
   alreadyReviewed: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  sortBy: ReviewSortType;
+  onSortChange: (value: ReviewSortType) => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+  likedByMeMap: Record<number, boolean>;
+  reviewLikePendingId: number | null;
+  onToggleReviewLike: (reviewId: number) => void;
   editingReviewId: number | null;
   adminReviewForm: ReviewWriteReq;
   adminReviewSubmitting: boolean;
   adminReviewDeletingId: number | null;
-  onStartAdminEdit: (review: any) => void;
+  onStartAdminEdit: (review: JobSummaryReviewView) => void;
   onCancelAdminEdit: () => void;
   onAdminFormChange: (value: ReviewWriteReq) => void;
   onSubmitAdminEdit: () => void;
@@ -1123,6 +1220,42 @@ const ReviewSection = ({
         비로그인 상태에서는 리뷰를 조회만 할 수 있습니다.
       </div>
     )}
+
+    <div className="flex items-center justify-between rounded-2xl border bg-white px-4 py-3">
+      <select
+        value={sortBy}
+        onChange={(e) => onSortChange(e.target.value as ReviewSortType)}
+        className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+      >
+        <option value="LATEST">최신순</option>
+        <option value="LIKES">좋아요순</option>
+        <option value="RATING">종합평점순</option>
+        <option value="DIFFICULTY">난이도순</option>
+        <option value="SATISFACTION">만족도순</option>
+      </select>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onPrevPage}
+          disabled={!reviewPage || reviewPage.page <= 0}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-50"
+        >
+          이전
+        </button>
+        <span className="text-xs text-gray-500">
+          {(reviewPage?.page ?? 0) + 1} / {Math.max(1, reviewPage?.totalPages ?? 1)}
+        </span>
+        <button
+          type="button"
+          onClick={onNextPage}
+          disabled={!reviewPage?.hasNext}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-50"
+        >
+          다음
+        </button>
+      </div>
+    </div>
 
     {isAuthenticated && !alreadyReviewed && !showComposer && (
       <div className="rounded-2xl border bg-white p-6">
@@ -1213,14 +1346,14 @@ const ReviewSection = ({
 
         <div className="mt-4 space-y-3">
           <textarea
-            value={form.experienceComment}
-            onChange={(e) => onChange({ ...form, experienceComment: e.target.value })}
+            value={form.prosComment}
+            onChange={(e) => onChange({ ...form, prosComment: e.target.value })}
             className="min-h-[130px] w-full rounded-xl border border-gray-200 p-4 text-sm"
             placeholder="면접/전형 경험을 공유해 주세요. (최소 10자)"
           />
           <textarea
-            value={form.interviewTip || ''}
-            onChange={(e) => onChange({ ...form, interviewTip: e.target.value })}
+            value={form.consComment}
+            onChange={(e) => onChange({ ...form, consComment: e.target.value })}
             className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
             placeholder="도움이 된 팁이 있다면 작성해 주세요. (선택)"
           />
@@ -1238,13 +1371,13 @@ const ReviewSection = ({
       </div>
     )}
 
-    {!isAuthenticated ? null : loading ? (
+    {loading ? (
       <div className="py-10 text-center text-sm text-gray-400">리뷰를 불러오는 중...</div>
     ) : !reviewPage?.items?.length ? (
       <div className="rounded-2xl border bg-white p-8 text-center text-sm text-gray-400">등록된 리뷰가 없습니다.</div>
     ) : (
       <div className="space-y-4">
-        {reviewPage.items.map((r: any) => (
+        {reviewPage.items.map((r: JobSummaryReviewView) => (
           <div
             key={r.id}
             className="rounded-2xl border border-[#3FB6B2]/20 bg-gradient-to-b from-[#f9fffe] to-white p-6 shadow-[0_10px_24px_rgba(16,24,40,0.06)]"
@@ -1329,14 +1462,14 @@ const ReviewSection = ({
                 </div>
 
                 <textarea
-                  value={adminReviewForm.experienceComment}
-                  onChange={(e) => onAdminFormChange({ ...adminReviewForm, experienceComment: e.target.value })}
+                  value={adminReviewForm.prosComment}
+                  onChange={(e) => onAdminFormChange({ ...adminReviewForm, prosComment: e.target.value })}
                   className="min-h-[120px] w-full rounded-xl border border-gray-200 p-4 text-sm"
                   placeholder="리뷰 내용을 입력해 주세요."
                 />
                 <textarea
-                  value={adminReviewForm.interviewTip || ''}
-                  onChange={(e) => onAdminFormChange({ ...adminReviewForm, interviewTip: e.target.value })}
+                  value={adminReviewForm.consComment}
+                  onChange={(e) => onAdminFormChange({ ...adminReviewForm, consComment: e.target.value })}
                   className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
                   placeholder="면접 팁 (선택)"
                 />
@@ -1361,8 +1494,36 @@ const ReviewSection = ({
               </div>
             ) : (
               <>
-                <div className="whitespace-pre-line text-sm text-gray-700">{r.experienceComment}</div>
-                {r.interviewTip && <div className="mt-3 text-xs text-[#3FB6B2]">TIP: {r.interviewTip}</div>}
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                    <p className="mb-1 text-xs font-bold text-emerald-700">장점</p>
+                    <p className="whitespace-pre-line text-sm text-gray-700">{r.prosComment}</p>
+                  </div>
+                  <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3">
+                    <p className="mb-1 text-xs font-bold text-rose-700">단점</p>
+                    <p className="whitespace-pre-line text-sm text-gray-700">{r.consComment}</p>
+                  </div>
+                  {r.tip && (
+                    <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3">
+                      <p className="mb-1 text-xs font-bold text-sky-700">팁</p>
+                      <p className="whitespace-pre-line text-sm text-gray-700">{r.tip}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => onToggleReviewLike(r.id)}
+                    disabled={!isAuthenticated || reviewLikePendingId === r.id}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                      likedByMeMap[r.id]
+                        ? 'border-[#3FB6B2] bg-[#3FB6B2]/10 text-[#1f6f6c]'
+                        : 'border-gray-200 text-gray-700'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {likedByMeMap[r.id] ? '좋아요 취소' : '좋아요'} ({r.likeCount})
+                  </button>
+                </div>
                 {isAdmin && !r.deleted && (
                   <div className="mt-4 flex items-center gap-2">
                     <button
