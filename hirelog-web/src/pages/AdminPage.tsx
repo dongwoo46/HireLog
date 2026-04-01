@@ -2,51 +2,46 @@ import { useState } from 'react';
 import {
   TbAlertTriangle,
   TbBriefcase,
-  TbBuilding,
   TbMessageDots,
   TbShieldCheck,
   TbStar,
   TbUsers,
 } from 'react-icons/tb';
 import AdminBrandTab from '../components/admin/AdminBrandTab';
-import AdminCompanyTab from '../components/admin/AdminCompanyTab';
 import AdminJobSummaryTab from '../components/admin/AdminJobSummaryTab';
 import AdminMemberTab from '../components/admin/AdminMemberTab';
 import AdminReportTab from '../components/admin/AdminReportTab';
 import AdminReviewTab from '../components/admin/AdminReviewTab';
 import AdminUserRequestTab from '../components/admin/AdminUserRequestTab';
 
-type AdminTab = 'job-summary' | 'brand' | 'reports' | 'user-request' | 'reviews' | 'members' | 'company';
+type AdminTab = 'job-summary' | 'reports' | 'brand' | 'user-request' | 'reviews' | 'members';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('job-summary');
 
   const tabs = [
-    { id: 'job-summary', label: 'Job Summary', icon: TbBriefcase },
-    { id: 'brand', label: '브랜드', icon: TbShieldCheck },
+    { id: 'job-summary', label: '채용공고', icon: TbBriefcase },
     { id: 'reports', label: '신고 처리', icon: TbAlertTriangle },
+    { id: 'brand', label: '브랜드', icon: TbShieldCheck },
     { id: 'user-request', label: '사용자 문의', icon: TbMessageDots },
     { id: 'reviews', label: '리뷰 관리', icon: TbStar },
-    { id: 'members', label: '멤버 관리', icon: TbUsers },
-    { id: 'company', label: '회사 관리', icon: TbBuilding },
+    { id: 'members', label: '사용자 관리', icon: TbUsers },
   ] as const;
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'job-summary':
         return <AdminJobSummaryTab />;
-      case 'brand':
-        return <AdminBrandTab />;
       case 'reports':
         return <AdminReportTab />;
+      case 'brand':
+        return <AdminBrandTab />;
       case 'user-request':
         return <AdminUserRequestTab />;
       case 'reviews':
         return <AdminReviewTab />;
       case 'members':
         return <AdminMemberTab />;
-      case 'company':
-        return <AdminCompanyTab />;
       default:
         return null;
     }
