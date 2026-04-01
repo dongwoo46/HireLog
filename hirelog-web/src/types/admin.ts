@@ -37,14 +37,18 @@ export interface AdminPagedResult<T> {
 
 export interface AdminReviewView {
     id: number;
+    jobSummaryId: number;
+    brandPositionName?: string | null;
     anonymous: boolean;
     memberId?: number;
     memberName?: string;
     hiringStage: string;
     difficultyRating: number;
     satisfactionRating: number;
-    experienceComment: string;
-    interviewTip?: string;
+    prosComment: string;
+    consComment: string;
+    tip?: string;
+    likeCount: number;
     createdAt: string;
     deleted: boolean;
 }
@@ -54,4 +58,22 @@ export interface AdminJobSummaryDirectCreateReq {
     positionName: string;
     jdText: string;
     sourceUrl?: string;
+}
+
+export type ReportStatus = 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'REJECTED';
+export type ReportTargetType = 'JOB_SUMMARY' | 'JOB_SUMMARY_REVIEW' | 'MEMBER' | 'BOARD' | 'COMMENT';
+export type ReportProcessType = 'REVIEW' | 'RESOLVE' | 'RESOLVE_AND_DELETE_TARGET' | 'REJECT';
+
+export interface AdminReportView {
+    id: number;
+    reporterId: number;
+    reporterUsername: string;
+    targetType: ReportTargetType;
+    targetId: number;
+    targetLabel?: string | null;
+    reason: string;
+    detail?: string | null;
+    status: ReportStatus;
+    reviewedAt?: string | null;
+    createdAt: string;
 }

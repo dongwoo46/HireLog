@@ -22,8 +22,8 @@ set +a
 # 2. Validate required environment variables
 # ─────────────────────────────────────────────
 
-: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env.dev}"
 : "${POSTGRES_USER:?POSTGRES_USER is not set in .env.dev}"
+: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env.dev}"
 : "${POSTGRES_DB:?POSTGRES_DB is not set in .env.dev}"
 
 POSTGRES_CONTAINER=pg_dev

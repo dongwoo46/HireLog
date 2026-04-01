@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -20,6 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 class SecurityConfig(
     private val oAuth2LoginSuccessHandler: OAuth2LoginSuccessHandler,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
@@ -82,7 +84,28 @@ class SecurityConfig(
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/job-summary/search",
-                        "/api/job-summary/*"
+                        "/api/job-summary/*",
+                        "/api/job-summary/review/*",
+                        "/api/job-summary/review/*/like",
+                        "/api/boards",
+                        "/api/boards/*",
+                        "/api/boards/*/like",
+                        "/api/boards/*/comments"
+                    ).permitAll()
+                    .requestMatchers(
+                        HttpMethod.POST,
+                        "/api/boards",
+                        "/api/boards/*/comments"
+                    ).permitAll()
+                    .requestMatchers(
+                        HttpMethod.PATCH,
+                        "/api/boards/*",
+                        "/api/boards/*/comments/*"
+                    ).permitAll()
+                    .requestMatchers(
+                        HttpMethod.DELETE,
+                        "/api/boards/*",
+                        "/api/boards/*/comments/*"
                     ).permitAll()
 
                     // 회원가입 / 인증 관련 API
@@ -91,6 +114,7 @@ class SecurityConfig(
                         "/api/auth/refresh",
                         "/api/auth/logout"
                     ).permitAll()
+                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             }
 

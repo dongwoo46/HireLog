@@ -17,6 +17,8 @@ import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
+import com.hirelog.api.notification.application.NotificationWriteService
+import com.hirelog.api.notification.domain.type.NotificationType
 import com.hirelog.api.position.application.port.PositionCommand
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -45,6 +47,7 @@ class StuckProcessingRecoveryScheduler(
     private val positionCommand: PositionCommand,
     private val objectMapper: ObjectMapper,
     private val jobSummaryRequestWriteService: JobSummaryRequestWriteService,
+    private val notificationWriteService: NotificationWriteService,
     private val sseEmitterManager: SseEmitterManager
 ) {
 
@@ -193,6 +196,25 @@ class StuckProcessingRecoveryScheduler(
         )
 
         if (memberId != null) {
+            try {
+                notificationWriteService.create(
+                    memberId = memberId,
+                    type = NotificationType.JOB_SUMMARY_FAILED,
+                    title = "채용공고 분석 실패",
+                    message = "요청하신 채용공고 분석이 실패했습니다.",
+                    metadata = mapOf(
+                        "requestId" to processing.id.toString(),
+                        "errorCode" to "RECOVERY_FAILED",
+                        "retryable" to false
+                    )
+                )
+            } catch (e: Exception) {
+                log.error(
+                    "[STUCK_PROCESSING_NOTIFICATION_CREATE_FAILED] processingId={}, memberId={}, error={}",
+                    processing.id, memberId, e.message, e
+                )
+            }
+
             sseEmitterManager.send(
                 memberId = memberId,
                 eventName = "JOB_SUMMARY_FAILED",

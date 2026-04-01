@@ -3,7 +3,9 @@ package com.hirelog.api.job.domain.model
 import com.hirelog.api.job.domain.type.HiringStage
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 
 @DisplayName("JobSummaryReview 도메인 테스트")
 class JobSummaryReviewTest {
@@ -11,8 +13,9 @@ class JobSummaryReviewTest {
     private fun makeReview(
         difficultyRating: Int = 5,
         satisfactionRating: Int = 7,
-        experienceComment: String = "좋은 경험이었습니다.",
-        interviewTip: String? = null
+        prosComment: String = "좋은 경험이었습니다.",
+        consComment: String = "아쉬운 점도 있었습니다.",
+        tip: String? = null
     ): JobSummaryReview = JobSummaryReview.create(
         jobSummaryId = 1L,
         memberId = 100L,
@@ -20,8 +23,9 @@ class JobSummaryReviewTest {
         anonymous = false,
         difficultyRating = difficultyRating,
         satisfactionRating = satisfactionRating,
-        experienceComment = experienceComment,
-        interviewTip = interviewTip
+        prosComment = prosComment,
+        consComment = consComment,
+        tip = tip
     )
 
     @Nested
@@ -61,17 +65,17 @@ class JobSummaryReviewTest {
         }
 
         @Test
-        @DisplayName("experienceComment가 2000자를 초과하면 예외를 던진다")
+        @DisplayName("prosComment가 2000자를 초과하면 예외를 던진다")
         fun shouldThrowWhenCommentTooLong() {
-            assertThatThrownBy { makeReview(experienceComment = "a".repeat(2001)) }
+            assertThatThrownBy { makeReview(prosComment = "a".repeat(2001)) }
                 .isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("2000자")
         }
 
         @Test
-        @DisplayName("interviewTip이 2000자를 초과하면 예외를 던진다")
+        @DisplayName("tip이 1000자를 초과하면 예외를 던진다")
         fun shouldThrowWhenTipTooLong() {
-            assertThatThrownBy { makeReview(interviewTip = "b".repeat(2001)) }
+            assertThatThrownBy { makeReview(tip = "b".repeat(1001)) }
                 .isInstanceOf(IllegalArgumentException::class.java)
         }
     }

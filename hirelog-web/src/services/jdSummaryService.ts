@@ -4,6 +4,8 @@ import type {
   CoverLetterView,
   HiringStage,
   HiringStageView,
+  JobSummaryReviewSearchParams,
+  JobSummaryReviewView,
   JobSummaryDetailView,
   JobSummarySearchReq,
   JobSummarySearchResult,
@@ -14,6 +16,7 @@ import type {
   MemberJobSummaryListItem,
   MemberJobSummarySaveType,
   PagedResult,
+  ReviewLikeStat,
   ReviewWriteReq,
 } from '../types/jobSummary';
 
@@ -145,11 +148,38 @@ export const jdSummaryService = {
     summaryId: number,
     page = 0,
     size = 20,
-    options?: { includeDeleted?: boolean },
-  ): Promise<PagedResult<any>> => {
+    options?: JobSummaryReviewSearchParams,
+  ): Promise<PagedResult<JobSummaryReviewView>> => {
     const response = await apiClient.get(`/job-summary/review/${summaryId}`, {
-      params: { page, size, includeDeleted: options?.includeDeleted || undefined },
+      params: {
+        page,
+        size,
+        hiringStage: options?.hiringStage,
+        minDifficultyRating: options?.minDifficultyRating,
+        maxDifficultyRating: options?.maxDifficultyRating,
+        minSatisfactionRating: options?.minSatisfactionRating,
+        maxSatisfactionRating: options?.maxSatisfactionRating,
+        sortBy: options?.sortBy,
+        createdFrom: options?.createdFrom,
+        createdTo: options?.createdTo,
+        includeDeleted: options?.includeDeleted || undefined,
+      },
     });
+    return response.data;
+  },
+
+  getReviewLikeStat: async (reviewId: number): Promise<ReviewLikeStat> => {
+    const response = await apiClient.get(`/job-summary/review/${reviewId}/like`);
+    return response.data;
+  },
+
+  likeReview: async (reviewId: number): Promise<ReviewLikeStat> => {
+    const response = await apiClient.post(`/job-summary/review/${reviewId}/like`);
+    return response.data;
+  },
+
+  unlikeReview: async (reviewId: number): Promise<ReviewLikeStat> => {
+    const response = await apiClient.delete(`/job-summary/review/${reviewId}/like`);
     return response.data;
   },
 

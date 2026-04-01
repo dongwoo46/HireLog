@@ -101,7 +101,7 @@ const UserRequestListPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              나의 요청 내역
+              나의 문의사항
             </h1>
             <p className="text-gray-500 text-sm mt-1">
               내가 보낸 의견과 처리 상태를 확인할 수 있습니다.
@@ -113,7 +113,7 @@ const UserRequestListPage = () => {
             className="flex items-center gap-2 px-6 py-3 bg-[#4CDFD5] hover:bg-[#3CCFC5] active:bg-[#35C3BA] text-white font-semibold rounded-xl transition-all"
           >
             <TbPlus size={20} />
-            새로운 요청
+            새로운 문의사항
           </button>
         </div>
 
@@ -181,13 +181,13 @@ const UserRequestListPage = () => {
 
           <div className="text-center py-28 bg-white rounded-xl border border-dashed border-gray-200">
             <p className="text-gray-400 text-sm mb-4">
-              아직 작성된 요청이 없습니다.
+              아직 작성된 문의 내역이 없습니다.
             </p>
             <button
               onClick={() => navigate('/requests/new')}
               className="text-[#4CDFD5] font-semibold hover:underline"
             >
-              첫 요청 작성하기
+              첫 문의사항 작성하기
             </button>
           </div>
 

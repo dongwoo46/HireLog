@@ -15,8 +15,10 @@ data class JobSummaryReviewRes(
     val hiringStage: String,
     val difficultyRating: Int,
     val satisfactionRating: Int,
-    val experienceComment: String,
-    val interviewTip: String?,
+    val prosComment: String,
+    val consComment: String,
+    val tip: String?,
+    val likeCount: Long,
     val deleted: Boolean,
     val createdAt: LocalDateTime
 ) {
@@ -30,8 +32,10 @@ data class JobSummaryReviewRes(
                 hiringStage = review.hiringStage.name,
                 difficultyRating = review.difficultyRating,
                 satisfactionRating = review.satisfactionRating,
-                experienceComment = review.experienceComment,
-                interviewTip = review.interviewTip,
+                prosComment = review.prosComment,
+                consComment = review.consComment,
+                tip = review.tip,
+                likeCount = 0L,
                 deleted = review.deleted,
                 createdAt = review.createdAt
             )
@@ -45,8 +49,10 @@ data class JobSummaryReviewRes(
                 hiringStage = view.hiringStage.name,
                 difficultyRating = view.difficultyRating,
                 satisfactionRating = view.satisfactionRating,
-                experienceComment = view.experienceComment,
-                interviewTip = view.interviewTip,
+                prosComment = view.prosComment,
+                consComment = view.consComment,
+                tip = view.tip,
+                likeCount = view.likeCount,
                 deleted = view.deleted,
                 createdAt = view.createdAt
             )

@@ -18,7 +18,9 @@ import BoardListPage from '../pages/BoardListPage';
 import BoardDetailPage from '../pages/BoardDetailPage';
 import AdminPage from '../pages/AdminPage';
 import AdminJobSummaryRequestPage from '../pages/AdminJobSummaryRequestPage';
+import BoardPage from '../pages/BoardPage';
 import { ProtectedRoute } from '../components/common/ProtectedRoute';
+import { AdminRoute } from '../components/common/AdminRoute';
 
 function ErrorBoundary() {
   const error = useRouteError() as any;
@@ -81,6 +83,10 @@ export const router = createBrowserRouter([
         path: 'jd/:id',
         element: <JobSummaryDetailPage />,
       },
+      {
+        path: 'boards',
+        element: <BoardPage />,
+      },
 
       // Protected Routes
       {
@@ -114,13 +120,19 @@ export const router = createBrowserRouter([
             path: 'history',
             element: <JdListPage />,
           },
+
           {
-            path: 'admin',
-            element: <AdminPage />,
-          },
-          {
-            path: 'admin/jd/request',
-            element: <AdminJobSummaryRequestPage />,
+            element: <AdminRoute />,
+            children: [
+              {
+                path: 'admin',
+                element: <AdminPage />,
+              },
+              {
+                path: 'admin/jd/request',
+                element: <AdminJobSummaryRequestPage />,
+              },
+            ],
           },
         ]
       }

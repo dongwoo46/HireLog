@@ -2,8 +2,8 @@ package com.hirelog.api.job.application.messaging
 
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
-import com.hirelog.api.job.application.summary.port.JobSummaryRequestCommand
-import com.hirelog.api.job.domain.type.JobSummaryRequestStatus
+import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -12,16 +12,17 @@ import java.util.UUID
  * JdPreprocessFailHandler
  *
  * 책임:
- * - Python 파이프라인 전처리 실패 시 도메인 상태 일괄 변경
+ * - Python 파이프라인 전처리 실패 시 JdSummaryProcessing 상태 변경
+ * - JobSummaryRequest 상태 전이 + 알림 + SSE는 이벤트 발행으로 JobSummaryLifecycleListener에 위임
  *
  * 트랜잭션 정책:
- * - JdSummaryProcessing + JobSummaryRequest 상태 변경을 하나의 트랜잭션에서 원자적 처리
- * - 하나만 FAILED로 변경되고 다른 하나는 PENDING으로 남는 상태 불일치 방지
+ * - JdSummaryProcessing 상태 변경은 현재 트랜잭션에서 처리
+ * - 이벤트는 AFTER_COMMIT 후 리스너에서 처리 (LLM 실패 경로와 동일한 패턴)
  */
 @Service
 class JdPreprocessFailHandler(
     private val processingWriteService: JdSummaryProcessingWriteService,
-    private val jobSummaryRequestCommand: JobSummaryRequestCommand
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional
@@ -35,21 +36,16 @@ class JdPreprocessFailHandler(
             errorMessage = event.errorMessage
         )
 
-        // 2. JobSummaryRequest → FAILED
-        val request = jobSummaryRequestCommand.findByRequestIdAndStatus(
-            requestId = event.requestId,
-            status = JobSummaryRequestStatus.PENDING
-        )
-
-        if (request != null) {
-            request.markFailed()
-            jobSummaryRequestCommand.save(request)
-        } else {
-            log.error(
-                "[JD_PREPROCESS_FAIL_REQUEST_NOT_FOUND] requestId={} - PENDING 상태 없음, 이미 상태 전이됐거나 데이터 불일치",
-                event.requestId
+        // 2. JobSummaryRequest 상태 전이 + 알림 + SSE는 리스너에 위임
+        // JobSummaryLifecycleListener.onFailed() → failRequest() + notification + SSE
+        // AFTER_COMMIT 보장: 현재 트랜잭션 커밋 후 리스너 실행
+        eventPublisher.publishEvent(
+            JobSummaryRequestEvent.Failed.of(
+                processingId = event.requestId,
+                errorCode = event.errorCode,
+                requestId = event.requestId
             )
-        }
+        )
 
         log.info(
             "[JD_PREPROCESS_FAIL_HANDLED] requestId={}, errorCode={}, errorCategory={}",

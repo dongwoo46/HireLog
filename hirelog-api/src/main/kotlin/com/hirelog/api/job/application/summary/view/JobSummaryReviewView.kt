@@ -8,14 +8,18 @@ import java.time.LocalDateTime
  */
 data class JobSummaryReviewView(
     val reviewId: Long,
+    val jobSummaryId: Long,
+    val brandPositionName: String?,
     val anonymous: Boolean,
     val memberId: Long?,
     val memberName: String?,
     val hiringStage: HiringStage,
     val difficultyRating: Int,
     val satisfactionRating: Int,
-    val experienceComment: String,
-    val interviewTip: String?,
+    val prosComment: String,
+    val consComment: String,
+    val tip: String?,
+    val likeCount: Long,
     val deleted: Boolean,
     val createdAt: LocalDateTime
 )

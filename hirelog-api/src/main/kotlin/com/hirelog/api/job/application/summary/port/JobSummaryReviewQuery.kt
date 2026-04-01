@@ -3,6 +3,8 @@ package com.hirelog.api.job.application.review.port
 import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.job.application.summary.view.JobSummaryReviewView
 import com.hirelog.api.job.domain.type.HiringStage
+import com.hirelog.api.job.domain.type.ReviewSortType
+import java.time.LocalDate
 
 /**
  * JobSummaryReview Query Port
@@ -32,6 +34,25 @@ interface JobSummaryReviewQuery {
         maxDifficultyRating: Int?,
         minSatisfactionRating: Int?,
         maxSatisfactionRating: Int?,
+        sortBy: ReviewSortType,
+        createdFrom: LocalDate?,
+        createdTo: LocalDate?,
+        includeDeleted: Boolean,
+        page: Int,
+        size: Int
+    ): PagedResult<JobSummaryReviewView>
+
+    fun findAll(
+        jobSummaryId: Long?,
+        memberName: String?,
+        hiringStage: HiringStage?,
+        minDifficultyRating: Int?,
+        maxDifficultyRating: Int?,
+        minSatisfactionRating: Int?,
+        maxSatisfactionRating: Int?,
+        sortBy: ReviewSortType,
+        createdFrom: LocalDate?,
+        createdTo: LocalDate?,
         includeDeleted: Boolean,
         page: Int,
         size: Int

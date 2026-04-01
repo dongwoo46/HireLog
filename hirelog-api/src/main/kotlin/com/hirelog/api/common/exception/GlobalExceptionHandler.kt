@@ -2,10 +2,13 @@ package com.hirelog.api.common.exception
 
 import com.hirelog.api.common.logging.log
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.validation.BindException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.Instant
 
@@ -208,6 +211,93 @@ class GlobalExceptionHandler {
                     message = ex.message
                 )
             )
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleMethodArgumentNotValid(
+        ex: MethodArgumentNotValidException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val status = HttpStatus.BAD_REQUEST
+        val message = ex.bindingResult.fieldErrors
+            .firstOrNull()
+            ?.defaultMessage
+            ?: "요청 값이 올바르지 않습니다."
+
+        log.warn(
+            "[VALIDATION_FAILED] path={}, method={}, message={}",
+            request.requestURI,
+            request.method,
+            message
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = status.reasonPhrase,
+                message = message,
+                path = request.requestURI
+            )
+        )
+    }
+
+    @ExceptionHandler(BindException::class)
+    fun handleBindException(
+        ex: BindException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val status = HttpStatus.BAD_REQUEST
+        val message = ex.bindingResult.fieldErrors
+            .firstOrNull()
+            ?.defaultMessage
+            ?: "요청 파라미터가 올바르지 않습니다."
+
+        log.warn(
+            "[BIND_EXCEPTION] path={}, method={}, message={}",
+            request.requestURI,
+            request.method,
+            message
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = status.reasonPhrase,
+                message = message,
+                path = request.requestURI
+            )
+        )
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleDataIntegrityViolation(
+        ex: DataIntegrityViolationException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val status = HttpStatus.BAD_REQUEST
+        val message = ex.mostSpecificCause.message
+            ?: ex.message
+            ?: "데이터 제약조건을 위반했습니다."
+
+        log.warn(
+            "[DATA_INTEGRITY_VIOLATION] path={}, method={}, message={}",
+            request.requestURI,
+            request.method,
+            message,
+            ex
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = status.reasonPhrase,
+                message = message,
+                path = request.requestURI
+            )
+        )
     }
 
 }

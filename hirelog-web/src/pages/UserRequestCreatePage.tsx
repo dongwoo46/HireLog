@@ -46,10 +46,10 @@ const UserRequestCreatePage = () => {
 
     try {
       await userRequestService.create({ title, content, requestType });
-      toast.success('요청이 성공적으로 등록되었습니다.');
+      toast.success('문의사항이 성공적으로 등록되었습니다.');
       navigate('/requests');
     } catch (error: any) {
-      toast.error(error.message || '요청 등록 중 오류가 발생했습니다.');
+      toast.error(error.message || '문의사항 등록 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -179,7 +179,7 @@ const UserRequestCreatePage = () => {
               className="w-full py-4 bg-[#4CDFD5] hover:bg-[#3CCFC5] active:bg-[#35C3BA] text-white font-bold text-lg rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
             >
               <TbSend size={22} />
-              {isLoading ? '전송 중...' : '요청 보내기'}
+              {isLoading ? '전송 중...' : '문의하기'}
             </button>
 
           </form>

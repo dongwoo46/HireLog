@@ -17,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Service
 class ProcessedEventService(
-    private val processedEventCommand: ProcessedEventCommand
+    private val processedEventCommand: ProcessedEventCommand,
+    private val processedEventQuery: ProcessedEventQuery
 ) {
 
     /**
@@ -44,6 +45,31 @@ class ProcessedEventService(
         } catch (e: DataIntegrityViolationException) {
             // unique constraint 위반 → 이미 처리됨
             true
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun isAlreadyProcessed(
+        eventId: ProcessedEventId,
+        consumerGroup: String
+    ): Boolean {
+        return processedEventQuery.exists(eventId = eventId, consumerGroup = consumerGroup)
+    }
+
+    @Transactional
+    fun markProcessed(
+        eventId: ProcessedEventId,
+        consumerGroup: String
+    ): Boolean {
+        return try {
+            val processedEvent = ProcessedEvent.processed(
+                eventId = eventId,
+                consumerGroup = consumerGroup
+            )
+            processedEventCommand.save(processedEvent)
+            true
+        } catch (e: DataIntegrityViolationException) {
+            false
         }
     }
 }
