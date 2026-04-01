@@ -12,10 +12,6 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-    properties:
-      security.protocol: SASL_PLAINTEXT
-      sasl.mechanism: PLAIN
-      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
     admin:
       auto-create: true # 운영환경에서는 false로 설정
 
@@ -58,9 +54,8 @@ hirelog:
 opensearch:
   host: ${OPENSEARCH_HOST:localhost}
   port: 9200
-  scheme: https
+  scheme: http
   username: admin
-  password: ${OPENSEARCH_PASSWORD}
 
 app:
   storage:

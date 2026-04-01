@@ -1,6 +1,7 @@
 ﻿package com.hirelog.api.relation.application.memberjobsummary
 
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
+import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.relation.domain.model.MemberJobSummary
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import io.mockk.every
@@ -70,7 +71,12 @@ class MemberJobSummaryWriteServiceTest {
         @Test
         @DisplayName("요약이 없고 SAVED 요청이면 MemberJobSummary를 생성해 저장한다")
         fun createsWhenMissingAndSaved() {
-            val summary = createSummary()
+            val summary = mockk<JobSummary>()
+            every { summary.id } returns 100L
+            every { summary.brandName } returns "Toss"
+            every { summary.positionName } returns "Backend"
+            every { summary.brandPositionName } returns "Backend Engineer"
+            every { summary.positionCategoryName } returns "Engineering"
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
             every { jobSummaryCommand.findById(100L) } returns summary
 
@@ -86,21 +92,14 @@ class MemberJobSummaryWriteServiceTest {
         }
 
         @Test
-        @DisplayName("요약이 없고 APPLY 요청이면 MemberJobSummary를 생성해 APPLY로 저장한다")
-        fun createsWhenMissingAndApply() {
-            val summary = createSummary()
+        @DisplayName("요약이 없고 APPLY 요청이면 예외를 던진다")
+        fun throwsWhenMissingAndApply() {
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
-            every { jobSummaryCommand.findById(100L) } returns summary
 
-            service.changeSaveType(1L, 100L, MemberJobSummarySaveType.APPLY)
-
-            verify {
-                command.save(match {
-                    it.memberId == 1L &&
-                        it.jobSummaryId == 100L &&
-                        it.saveType == MemberJobSummarySaveType.APPLY
-                })
-            }
+            assertThatThrownBy {
+                service.changeSaveType(1L, 100L, MemberJobSummarySaveType.APPLY)
+            }.isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("APPLY is set only when preparation records are written")
         }
 
         @Test

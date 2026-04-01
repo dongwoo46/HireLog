@@ -8,10 +8,15 @@ import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.domain.type.CareerType
 import com.hirelog.api.job.domain.type.JobPlatformType
-import io.mockk.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockMultipartFile
 
 @DisplayName("JdIntakeService 테스트")
@@ -50,8 +55,7 @@ class JdIntakeServiceTest {
                 memberId = 1L,
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
-                text = "JD 내용입니다.",
-                platform = JobPlatformType.OTHER,
+                text = "JD 내용입니다."
             )
 
             assertThat(requestId).isNotBlank()
@@ -63,7 +67,7 @@ class JdIntakeServiceTest {
         @DisplayName("brandName이 빈 값이면 예외를 던진다")
         fun shouldThrowWhenBrandNameBlank() {
             assertThatThrownBy {
-                service.requestText(1L, "", "Backend Engineer", "JD 내용입니다.", JobPlatformType.OTHER)
+                service.requestText(1L, "", "Backend Engineer", "JD 내용입니다.")
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("brandName")
         }
@@ -72,7 +76,7 @@ class JdIntakeServiceTest {
         @DisplayName("brandPositionName이 빈 값이면 예외를 던진다")
         fun shouldThrowWhenPositionNameBlank() {
             assertThatThrownBy {
-                service.requestText(1L, "Toss", "", "JD 내용입니다.", JobPlatformType.OTHER)
+                service.requestText(1L, "Toss", "", "JD 내용입니다.")
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("positionName")
         }
@@ -81,7 +85,7 @@ class JdIntakeServiceTest {
         @DisplayName("text가 빈 값이면 예외를 던진다")
         fun shouldThrowWhenTextBlank() {
             assertThatThrownBy {
-                service.requestText(1L, "Toss", "Backend Engineer", "", JobPlatformType.OTHER)
+                service.requestText(1L, "Toss", "Backend Engineer", "")
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("text")
         }
@@ -103,8 +107,7 @@ class JdIntakeServiceTest {
                 memberId = 1L,
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
-                imageFiles = listOf(imageFile),
-                platform = JobPlatformType.OTHER,
+                imageFiles = listOf(imageFile)
             )
 
             assertThat(requestId).isNotBlank()
@@ -117,7 +120,7 @@ class JdIntakeServiceTest {
         @DisplayName("이미지 목록이 비어있으면 예외를 던진다")
         fun shouldThrowWhenImageFilesEmpty() {
             assertThatThrownBy {
-                service.requestOcr(1L, "Toss", "Backend Engineer", emptyList(), JobPlatformType.OTHER)
+                service.requestOcr(1L, "Toss", "Backend Engineer", emptyList())
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("imageFiles")
         }
@@ -128,7 +131,7 @@ class JdIntakeServiceTest {
             val imageFile = MockMultipartFile("file", "test.png", "image/png", byteArrayOf(1, 2, 3))
 
             assertThatThrownBy {
-                service.requestOcr(1L, "", "Backend Engineer", listOf(imageFile), JobPlatformType.OTHER)
+                service.requestOcr(1L, "", "Backend Engineer", listOf(imageFile))
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("brandName")
         }
@@ -167,7 +170,7 @@ class JdIntakeServiceTest {
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
                 url = "https://www.toss.im/careers/123",
-                platform = JobPlatformType.OTHER,
+                platform = JobPlatformType.OTHER
             )
 
             assertThat(result).isInstanceOf(UrlIntakeResult.NewRequest::class.java)
@@ -177,7 +180,7 @@ class JdIntakeServiceTest {
         }
 
         @Test
-        @DisplayName("동일 URL의 JobSummary가 이미 존재하면 Duplicate를 반환하고 Outbox는 저장하지 않는다")
+        @DisplayName("동일 URL의 JobSummary가 이미 있으면 Duplicate를 반환하고 Outbox를 저장하지 않는다")
         fun shouldReturnDuplicateWhenUrlAlreadyExists() {
             every { jobSummaryQuery.findBySourceUrl("https://www.toss.im/careers/123") } returns existingView()
 
@@ -186,7 +189,7 @@ class JdIntakeServiceTest {
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
                 url = "https://www.toss.im/careers/123",
-                platform = JobPlatformType.OTHER,
+                platform = JobPlatformType.OTHER
             )
 
             assertThat(result).isInstanceOf(UrlIntakeResult.Duplicate::class.java)

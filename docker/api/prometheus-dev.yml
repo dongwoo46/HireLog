@@ -5,19 +5,19 @@ scrape_configs:
   - job_name: 'spring'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['api:8080']
 
   - job_name: 'kafka'
     static_configs:
-      - targets: ['host.docker.internal:9308']
+      - targets: ['kafka-exporter:9308']
 
   - job_name: 'postgres'
     static_configs:
-      - targets: ['host.docker.internal:9187']
+      - targets: ['postgres-exporter:9187']
 
   - job_name: 'opensearch'
     static_configs:
-      - targets: ['host.docker.internal:9114']
+      - targets: ['opensearch-exporter:9114']
 
   - job_name: 'redis'
     static_configs:
@@ -25,21 +25,12 @@ scrape_configs:
 
   - job_name: 'debezium'
     static_configs:
-      - targets: ['host.docker.internal:9404']
+      - targets: ['debezium:9404']
 
   - job_name: 'kafka-jmx'
     static_configs:
-      - targets: ['host.docker.internal:9405']
+      - targets: ['kafka:9405']
 
   - job_name: 'node-exporter'
     static_configs:
-      # server1: hirelog-infra (10.0.1.6) — node-exporter는 network_mode: host라 직접 IP:9100
-      - targets: ['10.0.1.6:9100']
-        labels:
-          server: 'server1'
-          instance_name: 'hirelog-infra'
-      # server2: hirelog-api (10.0.0.116) — 해당 서버에도 node-exporter 실행 필요 (아래 참고)
-      - targets: ['10.0.0.116:9100']
-        labels:
-          server: 'server2'
-          instance_name: 'hirelog-api'
+      - targets: ['node-exporter:9100']
