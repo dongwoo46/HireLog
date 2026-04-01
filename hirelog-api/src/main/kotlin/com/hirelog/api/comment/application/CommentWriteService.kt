@@ -14,7 +14,7 @@ class CommentWriteService(
     @Transactional
     fun write(
         boardId: Long,
-        memberId: Long,
+        memberId: Long?,
         content: String,
         anonymous: Boolean
     ): Comment {
@@ -25,7 +25,7 @@ class CommentWriteService(
             anonymous = anonymous
         )
         val saved = command.save(comment)
-        log.info("[COMMENT_CREATED] id={}, boardId={}, memberId={}", saved.id, boardId, memberId)
+        log.info("[COMMENT_CREATED] id={}, boardId={}, memberId={}", saved.id, boardId, memberId ?: -1L)
         return saved
     }
 

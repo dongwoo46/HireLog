@@ -14,7 +14,7 @@ class BoardWriteService(
 
     @Transactional
     fun write(
-        memberId: Long,
+        memberId: Long?,
         boardType: BoardType,
         title: String,
         content: String,
@@ -28,7 +28,7 @@ class BoardWriteService(
             anonymous = anonymous
         )
         val saved = command.save(board)
-        log.info("[BOARD_CREATED] id={}, memberId={}", saved.id, memberId)
+        log.info("[BOARD_CREATED] id={}, memberId={}", saved.id, memberId ?: -1L)
         return saved
     }
 

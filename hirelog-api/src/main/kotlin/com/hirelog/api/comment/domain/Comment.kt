@@ -20,8 +20,8 @@ class Comment protected constructor(
     @Column(name = "board_id", nullable = false, updatable = false)
     val boardId: Long,
 
-    @Column(name = "member_id", nullable = false, updatable = false)
-    val memberId: Long,
+    @Column(name = "member_id", updatable = false)
+    val memberId: Long?,
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     var content: String,
@@ -45,12 +45,12 @@ class Comment protected constructor(
         this.deleted = true
     }
 
-    fun isWrittenBy(memberId: Long) = this.memberId == memberId
+    fun isWrittenBy(memberId: Long) = this.memberId != null && this.memberId == memberId
 
     companion object {
         fun create(
             boardId: Long,
-            memberId: Long,
+            memberId: Long?,
             content: String,
             anonymous: Boolean
         ): Comment {

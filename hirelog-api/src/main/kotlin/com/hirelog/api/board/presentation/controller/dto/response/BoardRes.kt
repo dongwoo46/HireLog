@@ -22,7 +22,7 @@ data class BoardRes(
             boardType = view.boardType,
             title = view.title,
             content = view.content,
-            authorUsername = if (view.anonymous) null else view.authorUsername,
+            authorUsername = if (view.anonymous) null else (view.authorUsername ?: "GUEST"),
             anonymous = view.anonymous,
             likeCount = view.likeCount,
             commentCount = view.commentCount,

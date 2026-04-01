@@ -17,8 +17,8 @@ class Board protected constructor(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0L,
 
-    @Column(name = "member_id", nullable = false, updatable = false)
-    val memberId: Long,
+    @Column(name = "member_id", updatable = false)
+    val memberId: Long?,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "board_type", nullable = false, length = 30, updatable = false)
@@ -51,11 +51,11 @@ class Board protected constructor(
         this.deleted = true
     }
 
-    fun isWrittenBy(memberId: Long) = this.memberId == memberId
+    fun isWrittenBy(memberId: Long) = this.memberId != null && this.memberId == memberId
 
     companion object {
         fun create(
-            memberId: Long,
+            memberId: Long?,
             boardType: BoardType,
             title: String,
             content: String,

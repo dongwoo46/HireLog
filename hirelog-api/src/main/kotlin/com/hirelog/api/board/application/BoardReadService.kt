@@ -2,6 +2,7 @@ package com.hirelog.api.board.application
 
 import com.hirelog.api.board.application.port.BoardQuery
 import com.hirelog.api.board.application.view.BoardView
+import com.hirelog.api.board.domain.BoardSortType
 import com.hirelog.api.board.domain.BoardType
 import com.hirelog.api.common.application.port.PagedResult
 import org.springframework.stereotype.Service
@@ -16,6 +17,8 @@ class BoardReadService(
     fun findAll(
         boardType: BoardType?,
         memberId: Long?,
+        keyword: String?,
+        sortBy: BoardSortType,
         includeDeleted: Boolean,
         page: Int,
         size: Int
@@ -23,6 +26,8 @@ class BoardReadService(
         return query.findAll(
             boardType = boardType,
             memberId = memberId,
+            keyword = keyword,
+            sortBy = sortBy,
             includeDeleted = includeDeleted,
             page = page,
             size = size

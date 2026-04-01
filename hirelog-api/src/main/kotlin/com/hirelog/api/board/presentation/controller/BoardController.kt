@@ -4,6 +4,7 @@ import com.hirelog.api.board.application.BoardLikeReadService
 import com.hirelog.api.board.application.BoardLikeWriteService
 import com.hirelog.api.board.application.BoardReadService
 import com.hirelog.api.board.application.BoardWriteService
+import com.hirelog.api.board.domain.BoardSortType
 import com.hirelog.api.board.domain.BoardType
 import com.hirelog.api.board.presentation.controller.dto.request.BoardWriteReq
 import com.hirelog.api.board.presentation.controller.dto.response.BoardRes
@@ -27,13 +28,12 @@ class BoardController(
 
     /** POST /api/boards */
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
     fun write(
-        @AuthenticationPrincipal member: AuthenticatedMember,
+        @AuthenticationPrincipal member: AuthenticatedMember?,
         @RequestBody @Valid request: BoardWriteReq
     ): ResponseEntity<Map<String, Long>> {
         val board = writeService.write(
-            memberId = member.memberId,
+            memberId = member?.memberId,
             boardType = request.boardType,
             title = request.title,
             content = request.content,
@@ -46,6 +46,8 @@ class BoardController(
     @GetMapping
     fun getList(
         @RequestParam boardType: BoardType?,
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(defaultValue = "LATEST") sortBy: BoardSortType,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
         @AuthenticationPrincipal member: AuthenticatedMember?
@@ -54,6 +56,8 @@ class BoardController(
         val result = readService.findAll(
             boardType = boardType,
             memberId = null,
+            keyword = keyword,
+            sortBy = sortBy,
             includeDeleted = includeDeleted,
             page = page,
             size = size

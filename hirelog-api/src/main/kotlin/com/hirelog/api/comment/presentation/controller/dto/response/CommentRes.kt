@@ -17,7 +17,7 @@ data class CommentRes(
         fun from(view: CommentView) = CommentRes(
             id = view.id,
             boardId = view.boardId,
-            authorUsername = if (view.anonymous) null else view.authorUsername,
+            authorUsername = if (view.anonymous) null else (view.authorUsername ?: "GUEST"),
             anonymous = view.anonymous,
             content = if (view.deleted) "(삭제된 댓글입니다)" else view.content,
             likeCount = view.likeCount,

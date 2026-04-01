@@ -26,15 +26,14 @@ class CommentController(
 
     /** POST /api/boards/{boardId}/comments */
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
     fun write(
         @PathVariable boardId: Long,
-        @AuthenticationPrincipal member: AuthenticatedMember,
+        @AuthenticationPrincipal member: AuthenticatedMember?,
         @RequestBody @Valid request: CommentWriteReq
     ): ResponseEntity<Map<String, Long>> {
         val comment = writeService.write(
             boardId = boardId,
-            memberId = member.memberId,
+            memberId = member?.memberId,
             content = request.content,
             anonymous = request.anonymous
         )

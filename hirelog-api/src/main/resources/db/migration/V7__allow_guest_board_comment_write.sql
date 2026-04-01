@@ -1,0 +1,6 @@
+ALTER TABLE board
+    ALTER COLUMN member_id DROP NOT NULL;
+
+ALTER TABLE comment
+    ALTER COLUMN member_id DROP NOT NULL;
+

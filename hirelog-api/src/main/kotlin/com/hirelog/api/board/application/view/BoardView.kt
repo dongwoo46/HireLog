@@ -5,8 +5,8 @@ import java.time.LocalDateTime
 
 data class BoardView(
     val id: Long,
-    val memberId: Long,
-    val authorUsername: String,
+    val memberId: Long?,
+    val authorUsername: String?,
     val boardType: BoardType,
     val title: String,
     val content: String,
