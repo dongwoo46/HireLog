@@ -1,5 +1,7 @@
 package com.hirelog.api.job.presentation.controller.dto.request
 
+import com.hirelog.api.common.exception.BusinessErrorCode
+import com.hirelog.api.common.exception.BusinessException
 import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.job.domain.type.ReviewSortType
 import jakarta.validation.constraints.Max
@@ -33,20 +35,29 @@ data class JobSummaryReviewSearchReq(
 ) {
     fun validate() {
         if (minDifficultyRating != null && maxDifficultyRating != null) {
-            require(minDifficultyRating <= maxDifficultyRating) {
-                "difficulty 최소값은 최대값보다 클 수 없습니다."
+            if (minDifficultyRating > maxDifficultyRating) {
+                throw BusinessException(
+                    errorCode = BusinessErrorCode.INVALID_REVIEW_FILTER,
+                    message = "난이도 최소값은 최대값보다 클 수 없습니다."
+                )
             }
         }
 
         if (minSatisfactionRating != null && maxSatisfactionRating != null) {
-            require(minSatisfactionRating <= maxSatisfactionRating) {
-                "satisfaction 최소값은 최대값보다 클 수 없습니다."
+            if (minSatisfactionRating > maxSatisfactionRating) {
+                throw BusinessException(
+                    errorCode = BusinessErrorCode.INVALID_REVIEW_FILTER,
+                    message = "만족도 최소값은 최대값보다 클 수 없습니다."
+                )
             }
         }
 
         if (createdFrom != null && createdTo != null) {
-            require(!createdFrom.isAfter(createdTo)) {
-                "createdFrom은 createdTo보다 이후일 수 없습니다."
+            if (createdFrom.isAfter(createdTo)) {
+                throw BusinessException(
+                    errorCode = BusinessErrorCode.INVALID_REVIEW_FILTER,
+                    message = "생성 시작일은 종료일보다 이후일 수 없습니다."
+                )
             }
         }
     }

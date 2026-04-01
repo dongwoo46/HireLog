@@ -25,9 +25,11 @@ import {
   TbMountain,
   TbCpu,
   TbAlertCircle,
+  TbFlag3,
 } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { jdSummaryService } from '../services/jdSummaryService';
+import { reportService } from '../services/reportService';
 import { useAuthStore } from '../store/authStore';
 import {
   HIRING_STAGE_LABELS,
@@ -401,6 +403,31 @@ const JobSummaryDetailPage = () => {
     }
   };
 
+  const handleReportReview = async (reviewId: number) => {
+    if (!isAuthenticated) {
+      toast.info('신고는 로그인 후 사용할 수 있습니다.');
+      return;
+    }
+
+    const detail = window.prompt('신고 사유를 입력해 주세요. (선택)');
+    if (detail === null) return;
+
+    try {
+      await reportService.createReport({
+        targetType: 'JOB_SUMMARY_REVIEW',
+        targetId: reviewId,
+        reason: 'OTHER',
+        detail: detail.trim() || undefined,
+      });
+      toast.success('리뷰를 신고했습니다.');
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        '리뷰 신고에 실패했습니다.';
+      toast.error(message);
+    }
+  };
+
   const deleteReviewAsAdmin = async (reviewId: number) => {
     const ok = window.confirm('리뷰를 삭제할까요?');
     if (!ok) return;
@@ -492,6 +519,7 @@ const JobSummaryDetailPage = () => {
             likedByMeMap={likedByMeMap}
             reviewLikePendingId={reviewLikePendingId}
             onToggleReviewLike={handleToggleReviewLike}
+            onReportReview={handleReportReview}
             editingReviewId={editingReviewId}
             adminReviewForm={adminReviewForm}
             adminReviewSubmitting={adminReviewSubmitting}
@@ -1189,6 +1217,7 @@ const ReviewSection = ({
   likedByMeMap,
   reviewLikePendingId,
   onToggleReviewLike,
+  onReportReview,
   editingReviewId,
   adminReviewForm,
   adminReviewSubmitting,
@@ -1218,6 +1247,7 @@ const ReviewSection = ({
   likedByMeMap: Record<number, boolean>;
   reviewLikePendingId: number | null;
   onToggleReviewLike: (reviewId: number) => void;
+  onReportReview: (reviewId: number) => void;
   editingReviewId: number | null;
   adminReviewForm: ReviewWriteReq;
   adminReviewSubmitting: boolean;
@@ -1543,7 +1573,7 @@ const ReviewSection = ({
                     </div>
                   )}
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => onToggleReviewLike(r.id)}
@@ -1555,6 +1585,15 @@ const ReviewSection = ({
                     } disabled:cursor-not-allowed disabled:opacity-50`}
                   >
                     {likedByMeMap[r.id] ? '좋아요 취소' : '좋아요'} ({r.likeCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onReportReview(r.id)}
+                    disabled={!isAuthenticated}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <TbFlag3 size={14} />
+                    신고
                   </button>
                 </div>
                 {isAdmin && !r.deleted && (
@@ -1722,4 +1761,3 @@ const TabButton = ({
 );
 
 export default JobSummaryDetailPage;
-
