@@ -60,11 +60,12 @@ class JdPreprocessFailConsumer(
 
             // === 1. 멱등성 검사 ===
             val processedEventId = ProcessedEventId.create(event.eventId)
-            val alreadyProcessed = processedEventService.isAlreadyProcessedOrMark(
+            val alreadyProcessed = processedEventService.isAlreadyProcessed(
                 eventId = processedEventId,
                 consumerGroup = CONSUMER_GROUP
             )
 
+            // 이미 처리한 프로세스 처리완료 ack 처리
             if (alreadyProcessed) {
                 log.debug("[JD_PREPROCESS_FAIL_ALREADY_PROCESSED] eventId={}", event.eventId)
                 acknowledgment.acknowledge()
@@ -82,7 +83,19 @@ class JdPreprocessFailConsumer(
                 throw e
             }
 
-            // === 3. offset 커밋 ===
+            // === 3. 성공 처리 후 멱등 마킹 ===
+            val marked = processedEventService.markProcessed(
+                eventId = processedEventId,
+                consumerGroup = CONSUMER_GROUP
+            )
+            if (!marked) {
+                log.warn(
+                    "[JD_PREPROCESS_FAIL_MARK_PROCESSED_DUPLICATE] eventId={}, requestId={}",
+                    event.eventId, event.requestId
+                )
+            }
+
+            // === 4. offset 커밋 ===
             acknowledgment.acknowledge()
 
             log.info(

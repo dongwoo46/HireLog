@@ -59,3 +59,21 @@ export interface AdminJobSummaryDirectCreateReq {
     jdText: string;
     sourceUrl?: string;
 }
+
+export type ReportStatus = 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'REJECTED';
+export type ReportTargetType = 'JOB_SUMMARY' | 'JOB_SUMMARY_REVIEW' | 'MEMBER' | 'BOARD' | 'COMMENT';
+export type ReportProcessType = 'REVIEW' | 'RESOLVE' | 'RESOLVE_AND_DELETE_TARGET' | 'REJECT';
+
+export interface AdminReportView {
+    id: number;
+    reporterId: number;
+    reporterUsername: string;
+    targetType: ReportTargetType;
+    targetId: number;
+    targetLabel?: string | null;
+    reason: string;
+    detail?: string | null;
+    status: ReportStatus;
+    reviewedAt?: string | null;
+    createdAt: string;
+}

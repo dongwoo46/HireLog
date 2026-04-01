@@ -79,7 +79,7 @@ class JobSummaryLifecycleListener(
     fun onFailed(event: JobSummaryRequestEvent.Failed) {
         MDC.put("requestId", event.requestId)
         try {
-            log.warn(
+            log.error(
                 "[JOB_SUMMARY_LIFECYCLE_FAILED] processingId={}, errorCode={}, retryable={}",
                 event.processingId, event.errorCode, event.retryable
             )

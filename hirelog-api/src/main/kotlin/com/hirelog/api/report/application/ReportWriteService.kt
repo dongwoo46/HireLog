@@ -20,6 +20,13 @@ class ReportWriteService(
     private val jobSummaryWriteService: JobSummaryWriteService
 ) {
 
+    enum class AdminProcessType {
+        REVIEW,
+        RESOLVE,
+        RESOLVE_AND_DELETE_TARGET,
+        REJECT
+    }
+
     @Transactional
     fun report(
         reporterId: Long,
@@ -99,6 +106,39 @@ class ReportWriteService(
     }
 
     @Transactional
+    fun processByAdmin(reportId: Long, adminMemberId: Long, processType: AdminProcessType) {
+        when (processType) {
+            AdminProcessType.REVIEW -> review(reportId = reportId, adminMemberId = adminMemberId)
+            AdminProcessType.RESOLVE -> {
+                val report = command.findById(reportId)
+                    ?: throw IllegalArgumentException("신고를 찾을 수 없습니다: $reportId")
+                if (report.status == ReportStatus.PENDING) {
+                    report.review(adminMemberId)
+                }
+                if (report.status == ReportStatus.REVIEWED) {
+                    report.resolve(adminMemberId)
+                }
+                command.save(report)
+                log.info("[REPORT_PROCESSED_RESOLVE] id={}, adminMemberId={}", reportId, adminMemberId)
+            }
+            AdminProcessType.RESOLVE_AND_DELETE_TARGET ->
+                resolveAndDeleteTarget(reportId = reportId, adminMemberId = adminMemberId)
+            AdminProcessType.REJECT -> {
+                val report = command.findById(reportId)
+                    ?: throw IllegalArgumentException("신고를 찾을 수 없습니다: $reportId")
+                if (report.status == ReportStatus.PENDING) {
+                    report.review(adminMemberId)
+                }
+                if (report.status == ReportStatus.REVIEWED) {
+                    report.reject(adminMemberId)
+                }
+                command.save(report)
+                log.info("[REPORT_PROCESSED_REJECT] id={}, adminMemberId={}", reportId, adminMemberId)
+            }
+        }
+    }
+
+    @Transactional
     fun resolveAndDeleteTarget(reportId: Long, adminMemberId: Long) {
         val report = command.findById(reportId)
             ?: throw IllegalArgumentException("신고를 찾을 수 없습니다: $reportId")
@@ -130,7 +170,9 @@ class ReportWriteService(
                     guestPassword = null
                 )
             }
-            else -> throw IllegalArgumentException("해당 신고 대상은 삭제 처리 API를 지원하지 않습니다: ${report.targetType}")
+            else -> throw IllegalArgumentException(
+                "해당 신고 대상은 삭제 처리 API를 지원하지 않습니다: ${report.targetType}"
+            )
         }
 
         if (report.status != ReportStatus.RESOLVED) {
@@ -160,4 +202,3 @@ class ReportWriteService(
         require(!isDuplicate) { "이미 신고된 대상입니다" }
     }
 }
-

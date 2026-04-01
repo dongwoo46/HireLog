@@ -2,10 +2,14 @@
 import type {
   AdminJobSummaryDirectCreateReq,
   AdminPagedResult,
+  AdminReportView,
   AdminReviewView,
   BrandListView,
   CompanyView,
   MemberSummaryView,
+  ReportProcessType,
+  ReportStatus,
+  ReportTargetType,
 } from '../types/admin';
 import type { HiringStage, ReviewSortType } from '../types/jobSummary';
 
@@ -134,5 +138,28 @@ export const adminService = {
       },
     });
     return response.data;
+  },
+
+  getAllReports: async (
+    page = 0,
+    size = 20,
+    params?: {
+      status?: ReportStatus;
+      targetType?: ReportTargetType;
+    },
+  ): Promise<AdminPagedResult<AdminReportView>> => {
+    const response = await apiClient.get('/admin/reports', {
+      params: {
+        page,
+        size,
+        status: params?.status,
+        targetType: params?.targetType,
+      },
+    });
+    return response.data;
+  },
+
+  processReport: async (reportId: number, processType: ReportProcessType): Promise<void> => {
+    await apiClient.patch(`/admin/reports/${reportId}/process`, { processType });
   },
 };
