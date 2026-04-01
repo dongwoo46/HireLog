@@ -6,15 +6,24 @@ import { HIRING_STAGE_LABELS, type HiringStage, type ReviewSortType } from '../.
 import type { AdminPagedResult, AdminReviewView } from '../../types/admin';
 
 type ReviewFilter = {
-  jobSummaryId?: number;
-  memberName?: string;
   sortBy: ReviewSortType;
   includeDeleted: boolean;
 };
 
+const SORT_LABELS: Record<ReviewSortType, string> = {
+  LATEST: '최신순',
+  LIKES: '좋아요순',
+  RATING: '종합 평점순',
+  DIFFICULTY: '난이도순',
+  SATISFACTION: '만족도순',
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const maybeError = error as { response?: { data?: { message?: string } }; message?: string };
+  return maybeError?.response?.data?.message || maybeError?.message || fallback;
+};
+
 export default function AdminReviewTab() {
-  const [jobSummaryIdInput, setJobSummaryIdInput] = useState('');
-  const [memberNameInput, setMemberNameInput] = useState('');
   const [filters, setFilters] = useState<ReviewFilter>({
     sortBy: 'LATEST',
     includeDeleted: false,
@@ -29,8 +38,8 @@ export default function AdminReviewTab() {
       setLoading(true);
       const data = await adminService.getAllReviews(targetPage, size, targetFilters);
       setResult(data);
-    } catch {
-      toast.error('리뷰 조회에 실패했습니다.');
+    } catch (error) {
+      toast.error(getErrorMessage(error, '리뷰 조회에 실패했습니다.'));
     } finally {
       setLoading(false);
     }
@@ -42,15 +51,8 @@ export default function AdminReviewTab() {
   }, []);
 
   const handleSearch = async () => {
-    const nextFilters: ReviewFilter = {
-      sortBy: filters.sortBy,
-      includeDeleted: filters.includeDeleted,
-      jobSummaryId: jobSummaryIdInput.trim() ? Number(jobSummaryIdInput) : undefined,
-      memberName: memberNameInput.trim() || undefined,
-    };
-    setFilters(nextFilters);
     setPage(0);
-    await fetchReviews(0, nextFilters);
+    await fetchReviews(0, filters);
   };
 
   const handleDelete = async (id: number) => {
@@ -59,8 +61,8 @@ export default function AdminReviewTab() {
       await adminService.deleteReview(id);
       toast.success('리뷰를 삭제했습니다.');
       await fetchReviews(page, filters);
-    } catch {
-      toast.error('리뷰 삭제에 실패했습니다.');
+    } catch (error) {
+      toast.error(getErrorMessage(error, '리뷰 삭제에 실패했습니다.'));
     }
   };
 
@@ -69,8 +71,8 @@ export default function AdminReviewTab() {
       await adminService.restoreReview(id);
       toast.success('리뷰를 복구했습니다.');
       await fetchReviews(page, filters);
-    } catch {
-      toast.error('리뷰 복구에 실패했습니다.');
+    } catch (error) {
+      toast.error(getErrorMessage(error, '리뷰 복구에 실패했습니다.'));
     }
   };
 
@@ -81,31 +83,17 @@ export default function AdminReviewTab() {
     <div className="space-y-6">
       <div className="rounded-2xl border border-gray-100 bg-white p-5">
         <h2 className="mb-3 text-lg font-bold text-gray-900">리뷰 관리</h2>
-        <div className="grid gap-2 md:grid-cols-4">
-          <input
-            type="number"
-            value={jobSummaryIdInput}
-            onChange={(e) => setJobSummaryIdInput(e.target.value)}
-            placeholder="JobSummary ID"
-            className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            value={memberNameInput}
-            onChange={(e) => setMemberNameInput(e.target.value)}
-            placeholder="작성자명"
-            className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-          />
+        <div className="grid gap-2 md:grid-cols-3">
           <select
             value={filters.sortBy}
             onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as ReviewSortType }))}
             className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
           >
-            <option value="LATEST">LATEST</option>
-            <option value="LIKES">LIKES</option>
-            <option value="RATING">RATING</option>
-            <option value="DIFFICULTY">DIFFICULTY</option>
-            <option value="SATISFACTION">SATISFACTION</option>
+            {(Object.keys(SORT_LABELS) as ReviewSortType[]).map((sortKey) => (
+              <option key={sortKey} value={sortKey}>
+                {SORT_LABELS[sortKey]}
+              </option>
+            ))}
           </select>
           <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm">
             <input
@@ -115,11 +103,9 @@ export default function AdminReviewTab() {
             />
             삭제 포함
           </label>
-        </div>
-        <div className="mt-3">
           <button
             onClick={handleSearch}
-            className="flex items-center gap-2 rounded-xl bg-[#3FB6B2] px-4 py-2 text-sm font-semibold text-white"
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#3FB6B2] px-4 py-2 text-sm font-semibold text-white"
           >
             <TbSearch size={16} /> 조회
           </button>
@@ -155,9 +141,17 @@ export default function AdminReviewTab() {
               </div>
 
               <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
-                <div><strong>장점:</strong> {review.prosComment}</div>
-                <div><strong>단점:</strong> {review.consComment}</div>
-                {review.tip && <div><strong>팁:</strong> {review.tip}</div>}
+                <div>
+                  <strong>장점:</strong> {review.prosComment}
+                </div>
+                <div>
+                  <strong>단점:</strong> {review.consComment}
+                </div>
+                {review.tip && (
+                  <div>
+                    <strong>팁:</strong> {review.tip}
+                  </div>
+                )}
               </div>
 
               <div className="mt-3 flex justify-end gap-2">
