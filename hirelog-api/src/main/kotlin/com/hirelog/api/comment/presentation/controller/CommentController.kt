@@ -35,7 +35,8 @@ class CommentController(
             boardId = boardId,
             memberId = member?.memberId,
             content = request.content,
-            anonymous = request.anonymous
+            anonymous = request.anonymous,
+            guestPassword = request.guestPassword
         )
         return ResponseEntity.status(201).body(mapOf("id" to comment.id))
     }
@@ -60,32 +61,37 @@ class CommentController(
 
     /** PATCH /api/boards/{boardId}/comments/{id} */
     @PatchMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
     fun update(
         @PathVariable boardId: Long,
         @PathVariable id: Long,
-        @AuthenticationPrincipal member: AuthenticatedMember,
+        @AuthenticationPrincipal member: AuthenticatedMember?,
         @RequestBody @Valid request: CommentWriteReq
     ): ResponseEntity<Void> {
         writeService.update(
             commentId = id,
-            requesterId = member.memberId,
-            isAdmin = member.isAdmin(),
+            requesterId = member?.memberId,
+            isAdmin = member?.isAdmin() == true,
             content = request.content,
-            anonymous = request.anonymous
+            anonymous = request.anonymous,
+            guestPassword = request.guestPassword
         )
         return ResponseEntity.noContent().build()
     }
 
     /** DELETE /api/boards/{boardId}/comments/{id} */
     @DeleteMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
     fun delete(
         @PathVariable boardId: Long,
         @PathVariable id: Long,
-        @AuthenticationPrincipal member: AuthenticatedMember
+        @AuthenticationPrincipal member: AuthenticatedMember?,
+        @RequestParam(required = false) guestPassword: String?
     ): ResponseEntity<Void> {
-        writeService.delete(commentId = id, requesterId = member.memberId, isAdmin = member.isAdmin())
+        writeService.delete(
+            commentId = id,
+            requesterId = member?.memberId,
+            isAdmin = member?.isAdmin() == true,
+            guestPassword = guestPassword
+        )
         return ResponseEntity.noContent().build()
     }
 

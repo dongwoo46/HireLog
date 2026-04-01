@@ -20,6 +20,7 @@ export interface BoardWriteReq {
   title: string;
   content: string;
   anonymous: boolean;
+  guestPassword?: string;
 }
 
 export interface BoardLikeRes {
@@ -41,6 +42,7 @@ export interface CommentItem {
 export interface CommentWriteReq {
   content: string;
   anonymous: boolean;
+  guestPassword?: string;
 }
 
 export type BoardPagedResult = PagedResult<BoardItem>;

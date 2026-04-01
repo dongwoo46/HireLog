@@ -13,6 +13,8 @@ import type {
 export const boardService = {
   getBoards: async (params?: {
     boardType?: BoardType;
+    keyword?: string;
+    sortBy?: 'LATEST' | 'LIKES';
     page?: number;
     size?: number;
   }): Promise<BoardPagedResult> => {
@@ -34,8 +36,10 @@ export const boardService = {
     await apiClient.patch(`/boards/${boardId}`, payload);
   },
 
-  deleteBoard: async (boardId: number): Promise<void> => {
-    await apiClient.delete(`/boards/${boardId}`);
+  deleteBoard: async (boardId: number, guestPassword?: string): Promise<void> => {
+    await apiClient.delete(`/boards/${boardId}`, {
+      params: guestPassword ? { guestPassword } : undefined,
+    });
   },
 
   getBoardLike: async (boardId: number): Promise<BoardLikeRes> => {
@@ -67,8 +71,10 @@ export const boardService = {
     await apiClient.patch(`/boards/${boardId}/comments/${commentId}`, payload);
   },
 
-  deleteComment: async (boardId: number, commentId: number): Promise<void> => {
-    await apiClient.delete(`/boards/${boardId}/comments/${commentId}`);
+  deleteComment: async (boardId: number, commentId: number, guestPassword?: string): Promise<void> => {
+    await apiClient.delete(`/boards/${boardId}/comments/${commentId}`, {
+      params: guestPassword ? { guestPassword } : undefined,
+    });
   },
 
   likeComment: async (boardId: number, commentId: number): Promise<BoardLikeRes> => {

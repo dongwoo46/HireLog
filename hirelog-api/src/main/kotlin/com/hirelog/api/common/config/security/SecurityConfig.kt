@@ -95,6 +95,16 @@ class SecurityConfig(
                         "/api/boards",
                         "/api/boards/*/comments"
                     ).permitAll()
+                    .requestMatchers(
+                        HttpMethod.PATCH,
+                        "/api/boards/*",
+                        "/api/boards/*/comments/*"
+                    ).permitAll()
+                    .requestMatchers(
+                        HttpMethod.DELETE,
+                        "/api/boards/*",
+                        "/api/boards/*/comments/*"
+                    ).permitAll()
 
                     // 회원가입 / 인증 관련 API
                     .requestMatchers(

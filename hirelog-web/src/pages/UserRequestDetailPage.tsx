@@ -26,7 +26,7 @@ const UserRequestDetailPage = () => {
       const data = await userRequestService.getDetail(parseInt(id));
       setRequest(data);
     } catch (error) {
-      toast.error('요청 내용을 불러오지 못했습니다.');
+      toast.error('문의 내용을 불러오지 못했습니다.');
     } finally {
       setIsLoading(false);
     }

@@ -37,7 +37,8 @@ class BoardController(
             boardType = request.boardType,
             title = request.title,
             content = request.content,
-            anonymous = request.anonymous
+            anonymous = request.anonymous,
+            guestPassword = request.guestPassword
         )
         return ResponseEntity.status(201).body(mapOf("id" to board.id))
     }
@@ -52,12 +53,13 @@ class BoardController(
         @RequestParam(defaultValue = "20") size: Int,
         @AuthenticationPrincipal member: AuthenticatedMember?
     ): ResponseEntity<PagedResult<BoardRes>> {
-        val includeDeleted = member?.isAdmin() == true
+        val includeDeleted = false
         val result = readService.findAll(
             boardType = boardType,
             memberId = null,
             keyword = keyword,
             sortBy = sortBy,
+            deleted = false,
             includeDeleted = includeDeleted,
             page = page,
             size = size
@@ -77,31 +79,36 @@ class BoardController(
 
     /** PATCH /api/boards/{id} */
     @PatchMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
     fun update(
         @PathVariable id: Long,
-        @AuthenticationPrincipal member: AuthenticatedMember,
+        @AuthenticationPrincipal member: AuthenticatedMember?,
         @RequestBody @Valid request: BoardWriteReq
     ): ResponseEntity<Void> {
         writeService.update(
             boardId = id,
-            requesterId = member.memberId,
-            isAdmin = member.isAdmin(),
+            requesterId = member?.memberId,
+            isAdmin = member?.isAdmin() == true,
             title = request.title,
             content = request.content,
-            anonymous = request.anonymous
+            anonymous = request.anonymous,
+            guestPassword = request.guestPassword
         )
         return ResponseEntity.noContent().build()
     }
 
     /** DELETE /api/boards/{id} */
     @DeleteMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
     fun delete(
         @PathVariable id: Long,
-        @AuthenticationPrincipal member: AuthenticatedMember
+        @AuthenticationPrincipal member: AuthenticatedMember?,
+        @RequestParam(required = false) guestPassword: String?
     ): ResponseEntity<Void> {
-        writeService.delete(boardId = id, requesterId = member.memberId, isAdmin = member.isAdmin())
+        writeService.delete(
+            boardId = id,
+            requesterId = member?.memberId,
+            isAdmin = member?.isAdmin() == true,
+            guestPassword = guestPassword
+        )
         return ResponseEntity.noContent().build()
     }
 

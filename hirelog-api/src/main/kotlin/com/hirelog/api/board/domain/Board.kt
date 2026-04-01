@@ -33,6 +33,9 @@ class Board protected constructor(
     @Column(name = "anonymous", nullable = false)
     var anonymous: Boolean,
 
+    @Column(name = "guest_password_hash", length = 100)
+    var guestPasswordHash: String? = null,
+
     @Column(name = "deleted", nullable = false)
     var deleted: Boolean = false
 
@@ -53,23 +56,30 @@ class Board protected constructor(
 
     fun isWrittenBy(memberId: Long) = this.memberId != null && this.memberId == memberId
 
+    fun isGuestPost() = this.memberId == null
+
     companion object {
         fun create(
             memberId: Long?,
             boardType: BoardType,
             title: String,
             content: String,
-            anonymous: Boolean
+            anonymous: Boolean,
+            guestPasswordHash: String?
         ): Board {
             require(title.isNotBlank()) { "제목은 비어있을 수 없습니다" }
             require(title.length <= 300) { "제목은 300자를 초과할 수 없습니다" }
             require(content.isNotBlank()) { "내용은 비어있을 수 없습니다" }
+            if (memberId == null) {
+                require(!guestPasswordHash.isNullOrBlank()) { "비로그인 작성은 비밀번호가 필요합니다." }
+            }
             return Board(
                 memberId = memberId,
                 boardType = boardType,
                 title = title,
                 content = content,
-                anonymous = anonymous
+                anonymous = anonymous,
+                guestPasswordHash = guestPasswordHash
             )
         }
     }

@@ -30,6 +30,7 @@ class BoardJpaQueryAdapter(
         memberId: Long?,
         keyword: String?,
         sortBy: BoardSortType,
+        deleted: Boolean?,
         includeDeleted: Boolean,
         page: Int,
         size: Int
@@ -39,6 +40,7 @@ class BoardJpaQueryAdapter(
 
         val condition = BooleanBuilder()
         if (!includeDeleted) condition.and(board.deleted.isFalse)
+        deleted?.let { condition.and(board.deleted.eq(it)) }
         boardType?.let { condition.and(board.boardType.eq(it)) }
         memberId?.let { condition.and(board.memberId.eq(it)) }
         keyword?.trim()?.takeIf { it.isNotEmpty() }?.let {

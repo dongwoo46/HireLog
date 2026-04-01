@@ -65,6 +65,7 @@ const reviewDefaultForm: ReviewWriteReq = {
   consComment: '',
   tip: '',
 };
+const REVIEW_MIN_TEXT_LENGTH = 10;
 
 const JobSummaryDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -281,6 +282,13 @@ const JobSummaryDetailPage = () => {
       toast.warn('리뷰 내용을 입력해 주세요.');
       return;
     }
+    if (
+      reviewForm.prosComment.trim().length < REVIEW_MIN_TEXT_LENGTH ||
+      reviewForm.consComment.trim().length < REVIEW_MIN_TEXT_LENGTH
+    ) {
+      toast.warn('장점/단점은 각각 10자 이상 입력해 주세요.');
+      return;
+    }
 
     setReviewSubmitting(true);
     try {
@@ -331,6 +339,13 @@ const JobSummaryDetailPage = () => {
     if (!editingReviewId) return;
     if (!adminReviewForm.prosComment.trim() || !adminReviewForm.consComment.trim()) {
       toast.warn('리뷰 내용을 입력해 주세요.');
+      return;
+    }
+    if (
+      adminReviewForm.prosComment.trim().length < REVIEW_MIN_TEXT_LENGTH ||
+      adminReviewForm.consComment.trim().length < REVIEW_MIN_TEXT_LENGTH
+    ) {
+      toast.warn('장점/단점은 각각 10자 이상 입력해 주세요.');
       return;
     }
 
@@ -1345,17 +1360,26 @@ const ReviewSection = ({
         </div>
 
         <div className="mt-4 space-y-3">
+          <p className="mb-1 text-xs font-semibold text-emerald-700">장점</p>
           <textarea
             value={form.prosComment}
             onChange={(e) => onChange({ ...form, prosComment: e.target.value })}
             className="min-h-[130px] w-full rounded-xl border border-gray-200 p-4 text-sm"
             placeholder="면접/전형 경험을 공유해 주세요. (최소 10자)"
           />
+          <p className="mb-1 text-xs font-semibold text-rose-700">단점</p>
           <textarea
             value={form.consComment}
             onChange={(e) => onChange({ ...form, consComment: e.target.value })}
             className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-            placeholder="도움이 된 팁이 있다면 작성해 주세요. (선택)"
+            placeholder="아쉬웠던 점이나 단점을 작성해 주세요. (최소 10자)"
+          />
+          <p className="mb-1 text-xs font-semibold text-sky-700">팁</p>
+          <textarea
+            value={form.tip || ''}
+            onChange={(e) => onChange({ ...form, tip: e.target.value })}
+            className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
+            placeholder="면접 준비 팁을 입력해 주세요. (선택)"
           />
         </div>
 
@@ -1461,17 +1485,26 @@ const ReviewSection = ({
                   />
                 </div>
 
+                <p className="mb-1 text-xs font-semibold text-emerald-700">장점</p>
                 <textarea
                   value={adminReviewForm.prosComment}
                   onChange={(e) => onAdminFormChange({ ...adminReviewForm, prosComment: e.target.value })}
                   className="min-h-[120px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-                  placeholder="리뷰 내용을 입력해 주세요."
+                  placeholder="면접/전형에서 좋았던 점을 작성해 주세요. (최소 10자)"
                 />
+                <p className="mb-1 text-xs font-semibold text-rose-700">단점</p>
                 <textarea
                   value={adminReviewForm.consComment}
                   onChange={(e) => onAdminFormChange({ ...adminReviewForm, consComment: e.target.value })}
                   className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
-                  placeholder="면접 팁 (선택)"
+                  placeholder="아쉬웠던 점이나 단점을 작성해 주세요. (최소 10자)"
+                />
+                <p className="mb-1 text-xs font-semibold text-sky-700">팁</p>
+                <textarea
+                  value={adminReviewForm.tip || ''}
+                  onChange={(e) => onAdminFormChange({ ...adminReviewForm, tip: e.target.value })}
+                  className="min-h-[90px] w-full rounded-xl border border-gray-200 p-4 text-sm"
+                  placeholder="면접 준비 팁을 입력해 주세요. (선택)"
                 />
 
                 <div className="flex items-center gap-2">

@@ -19,6 +19,7 @@ class BoardReadService(
         memberId: Long?,
         keyword: String?,
         sortBy: BoardSortType,
+        deleted: Boolean?,
         includeDeleted: Boolean,
         page: Int,
         size: Int
@@ -28,6 +29,7 @@ class BoardReadService(
             memberId = memberId,
             keyword = keyword,
             sortBy = sortBy,
+            deleted = deleted,
             includeDeleted = includeDeleted,
             page = page,
             size = size

@@ -115,7 +115,9 @@ class JobSummaryReview protected constructor(
         }
 
         private fun validateLongComment(text: String) {
-            require(text.length <= 2000) { "리뷰 텍스트는 2000자를 초과할 수 없습니다." }
+            val normalized = text.trim()
+            require(normalized.length >= 10) { "리뷰 내용은 10자 이상이어야 합니다." }
+            require(normalized.length <= 2000) { "리뷰 텍스트는 2000자를 초과할 수 없습니다." }
         }
 
         private fun validateTip(text: String?) {

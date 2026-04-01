@@ -72,6 +72,10 @@ export const router = createBrowserRouter([
         path: 'jd/:id',
         element: <JobSummaryDetailPage />,
       },
+      {
+        path: 'boards',
+        element: <BoardPage />,
+      },
 
       // Protected Routes
       {
@@ -105,10 +109,7 @@ export const router = createBrowserRouter([
             path: 'history',
             element: <JdListPage />,
           },
-          {
-            path: 'boards',
-            element: <BoardPage />,
-          },
+
           {
             path: 'admin',
             element: <AdminPage />,

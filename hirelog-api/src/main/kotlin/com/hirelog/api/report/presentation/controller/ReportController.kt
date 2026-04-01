@@ -91,6 +91,20 @@ class ReportController(
     }
 
     /**
+     * 신고 처리 + 대상 삭제 (관리자)
+     * PATCH /api/reports/{id}/resolve-delete
+     */
+    @PatchMapping("/{id}/resolve-delete")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun resolveAndDeleteTarget(
+        @PathVariable id: Long,
+        @AuthenticationPrincipal member: AuthenticatedMember
+    ): ResponseEntity<Void> {
+        writeService.resolveAndDeleteTarget(reportId = id, adminMemberId = member.memberId)
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
      * 신고 반려 (관리자) REVIEWED → REJECTED
      * PATCH /api/reports/{id}/reject
      */

@@ -20,7 +20,7 @@ export default function AdminUserRequestTab() {
             setTotalPages(result.totalPages);
         } catch (error) {
             console.error('Failed to fetch requests', error);
-            toast.error('요청 목록을 불러오는데 실패했습니다.');
+            toast.error('문의 목록을 불러오는데 실패했습니다.');
         } finally {
             setIsLoading(false);
         }
@@ -43,7 +43,7 @@ export default function AdminUserRequestTab() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">사용자 요청 관리</h2>
+                <h2 className="text-xl font-bold text-gray-900">사용자 문의 관리</h2>
                 <select
                     value={filterStatus}
                     onChange={(e) => {
@@ -135,7 +135,7 @@ export default function AdminUserRequestTab() {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={5} className="py-12 text-center text-gray-500">요청이 없습니다.</td>
+                                <td colSpan={5} className="py-12 text-center text-gray-500">문의 내역이 없습니다.</td>
                             </tr>
                         )}
                     </tbody>

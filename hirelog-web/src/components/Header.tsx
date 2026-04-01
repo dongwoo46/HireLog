@@ -17,8 +17,8 @@ export function Header() {
   const navLinks = useMemo(
     () => [
       { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
-      { label: '게시판', path: '/boards', icon: <TbMessageCircle size={20} />, authOnly: true },
-      { label: '요청 내역', path: '/requests', icon: <TbUserCircle size={20} />, authOnly: true },
+      { label: '게시판', path: '/boards', icon: <TbMessageCircle size={20} /> },
+      { label: '문의사항', path: '/requests', icon: <TbUserCircle size={20} />, authOnly: true },
     ],
     [],
   );

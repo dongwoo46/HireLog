@@ -29,6 +29,9 @@ class Comment protected constructor(
     @Column(name = "anonymous", nullable = false)
     var anonymous: Boolean,
 
+    @Column(name = "guest_password_hash", length = 100)
+    var guestPasswordHash: String? = null,
+
     @Column(name = "deleted", nullable = false)
     var deleted: Boolean = false
 
@@ -47,20 +50,27 @@ class Comment protected constructor(
 
     fun isWrittenBy(memberId: Long) = this.memberId != null && this.memberId == memberId
 
+    fun isGuestComment() = this.memberId == null
+
     companion object {
         fun create(
             boardId: Long,
             memberId: Long?,
             content: String,
-            anonymous: Boolean
+            anonymous: Boolean,
+            guestPasswordHash: String?
         ): Comment {
             require(content.isNotBlank()) { "내용은 비어있을 수 없습니다" }
             require(content.length <= 1000) { "댓글은 1000자를 초과할 수 없습니다" }
+            if (memberId == null) {
+                require(!guestPasswordHash.isNullOrBlank()) { "비로그인 작성은 비밀번호가 필요합니다." }
+            }
             return Comment(
                 boardId = boardId,
                 memberId = memberId,
                 content = content,
-                anonymous = anonymous
+                anonymous = anonymous,
+                guestPasswordHash = guestPasswordHash
             )
         }
     }

@@ -11,6 +11,7 @@ interface BoardQuery {
         memberId: Long?,
         keyword: String?,
         sortBy: BoardSortType,
+        deleted: Boolean?,
         includeDeleted: Boolean,
         page: Int,
         size: Int
