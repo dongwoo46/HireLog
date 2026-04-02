@@ -3,6 +3,7 @@ package com.hirelog.api.member.presentation.dto
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 
 /**
@@ -60,7 +61,10 @@ data class VerifyCodeResponse(
 )
 
 /**
- * 신규 회원가입 완료 요청
+ * 회원가입 완료 요청
+ *
+ * - 소셜 회원가입: password 미사용(null)
+ * - 일반 회원가입: password 필수
  */
 data class SignupCompleteRequest(
     @field:NotBlank(message = "이메일은 필수입니다.")
@@ -71,6 +75,13 @@ data class SignupCompleteRequest(
     @field:Size(min = 2, max = 50, message = "닉네임은 2자 이상 50자 이하로 입력해주세요.")
     val username: String,
 
+    @field:Size(min = 8, max = 72, message = "비밀번호는 8자 이상 72자 이하로 입력해주세요.")
+    @field:Pattern(
+        regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,72}$",
+        message = "비밀번호는 8자 이상이며 영문과 숫자를 모두 포함해야 합니다."
+    )
+    val password: String? = null,
+
     val currentPositionId: Long? = null,
 
     @field:Min(value = 0, message = "경력 연차는 음수일 수 없습니다.")
@@ -79,4 +90,3 @@ data class SignupCompleteRequest(
     @field:Size(max = 1000, message = "자기소개는 1000자 이내로 입력해주세요.")
     val summary: String? = null,
 )
-

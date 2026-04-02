@@ -9,6 +9,7 @@ import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
+import com.hirelog.api.notification.application.NotificationWriteService
 import com.hirelog.api.position.application.port.PositionCommand
 import com.hirelog.api.relation.application.brandposition.BrandPositionWriteService
 import io.mockk.*
@@ -28,6 +29,7 @@ class StuckProcessingRecoverySchedulerTest {
     private lateinit var positionCommand: PositionCommand
     private lateinit var objectMapper: ObjectMapper
     private lateinit var jobSummaryRequestWriteService: JobSummaryRequestWriteService
+    private lateinit var notificationWriteService: NotificationWriteService
     private lateinit var sseEmitterManager: SseEmitterManager
 
     @BeforeEach
@@ -40,12 +42,13 @@ class StuckProcessingRecoverySchedulerTest {
         positionCommand = mockk(relaxed = true)
         objectMapper = mockk(relaxed = true)
         jobSummaryRequestWriteService = mockk(relaxed = true)
+        notificationWriteService = mockk(relaxed = true)
         sseEmitterManager = mockk(relaxed = true)
 
         scheduler = StuckProcessingRecoveryScheduler(
             processingQuery, processingCommand, summaryWriteService,
             brandWriteService, brandPositionWriteService, positionCommand,
-            objectMapper, jobSummaryRequestWriteService, sseEmitterManager
+            objectMapper, jobSummaryRequestWriteService, notificationWriteService, sseEmitterManager
         )
     }
 

@@ -99,4 +99,18 @@ class JobSummaryRequest protected constructor(
 
         this.status = JobSummaryRequestStatus.FAILED
     }
+
+    /**
+     * 요청 중복 처리
+     *
+     * 규칙:
+     * - PENDING 상태에서만 가능
+     */
+    fun markDuplicate() {
+        require(status == JobSummaryRequestStatus.PENDING) {
+            "Invalid state transition: $status -> DUPLICATE"
+        }
+
+        this.status = JobSummaryRequestStatus.DUPLICATE
+    }
 }

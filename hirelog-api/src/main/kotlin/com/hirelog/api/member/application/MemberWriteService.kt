@@ -6,8 +6,8 @@ import com.hirelog.api.common.exception.EntityNotFoundException
 import com.hirelog.api.member.application.port.MemberCommand
 import com.hirelog.api.member.application.port.MemberQuery
 import com.hirelog.api.member.domain.Member
-import com.hirelog.api.member.domain.MemberRole
 import org.springframework.stereotype.Service
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.transaction.annotation.Transactional
 
 /**
@@ -23,7 +23,8 @@ class MemberWriteService(
     private val memberCommand: MemberCommand,
     private val memberQuery: MemberQuery,
     private val adminProperties: AdminProperties,
-    private val usernameValidationPolicyResolver: UsernameValidationPolicyResolver
+    private val usernameValidationPolicyResolver: UsernameValidationPolicyResolver,
+    private val passwordEncoder: PasswordEncoder,
 ) {
 
     /**
@@ -87,6 +88,58 @@ class MemberWriteService(
         }
 
         return memberCommand.save(member)
+    }
+
+    @Transactional
+    fun signupWithEmail(
+        email: String,
+        username: String,
+        password: String,
+        currentPositionId: Long? = null,
+        careerYears: Int? = null,
+        summary: String? = null,
+    ): Member {
+        if (memberQuery.existsByEmail(email)) {
+            throw IllegalArgumentException("이미 사용 중인 email 입니다.")
+        }
+
+        if (memberQuery.existsActiveByUsername(username)) {
+            throw IllegalArgumentException("이미 사용 중인 username 입니다.")
+        }
+
+        val policy = usernameValidationPolicyResolver.resolve(email)
+        policy.validate(username)
+
+        val encodedPassword = passwordEncoder.encode(password)
+        val member = Member.createByEmail(
+            email = email,
+            username = username,
+            password = encodedPassword,
+            currentPositionId = currentPositionId,
+            careerYears = careerYears,
+            summary = summary,
+        )
+
+        if (adminProperties.isAdmin(email)) {
+            member.grantAdmin()
+        }
+
+        return memberCommand.save(member)
+    }
+
+    @Transactional
+    fun changePasswordByEmail(
+        email: String,
+        newPassword: String
+    ) {
+        val member = memberCommand.findByEmail(email)
+            ?: throw EntityNotFoundException(
+                entityName = "Member",
+                identifier = email
+            )
+
+        val encodedPassword = passwordEncoder.encode(newPassword)
+        member.changePassword(encodedPassword)
     }
 
     /**

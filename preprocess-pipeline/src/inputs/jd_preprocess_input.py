@@ -3,7 +3,6 @@
 
 from dataclasses import dataclass
 from typing import Optional
-from domain.job_platform import JobPlatform
 
 
 @dataclass
@@ -27,5 +26,3 @@ class JdPreprocessInput:
     text: Optional[str] = None
     images: Optional[list] = None
     url: Optional[str] = None
-
-    platform: JobPlatform = JobPlatform.OTHER

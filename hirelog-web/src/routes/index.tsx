@@ -3,6 +3,7 @@ import { RootLayout } from '../layouts/RootLayout';
 import MainPage from '../pages/MainPage';
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
+import PasswordResetPage from '../pages/PasswordResetPage';
 import RecoveryPage from '../pages/RecoveryPage';
 import ServiceIntroPage from '../pages/ServiceIntroPage';
 import JobSummaryListPage from '../pages/JobSummaryListPage';
@@ -58,6 +59,10 @@ export const router = createBrowserRouter([
       {
         path: 'signup',
         element: <SignupPage />,
+      },
+      {
+        path: 'password-reset',
+        element: <PasswordResetPage />,
       },
       {
         path: 'recovery',

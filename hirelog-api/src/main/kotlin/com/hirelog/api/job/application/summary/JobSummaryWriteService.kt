@@ -20,6 +20,7 @@ import com.hirelog.api.job.domain.model.JobSnapshot
 import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.job.domain.model.JobSummaryInsight
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -98,7 +99,19 @@ class JobSummaryWriteService(
                 positionCategoryId, positionCategoryName,
                 llmResult, sourceUrl
             )
-            val savedSummary = summaryCommand.save(summary)
+            val savedSummary = try {
+                summaryCommand.save(summary)
+            } catch (e: DataIntegrityViolationException) {
+                if (isDuplicateSnapshotSummaryConstraint(e)) {
+                    log.warn(
+                        "[JOB_SUMMARY_ALREADY_EXISTS] processingId={}, snapshotId={}",
+                        processingId, snapshotId
+                    )
+                    throw SnapshotAlreadySummarizedException(snapshotId)
+                } else {
+                    throw e
+                }
+            }
 
             // 2. Outbox 이벤트 저장 (동일 트랜잭션)
             saveOutboxEvent(savedSummary)
@@ -306,5 +319,10 @@ class JobSummaryWriteService(
             "[JOB_SUMMARY_OUTBOX_APPENDED] summaryId={}, eventType={}",
             summary.id, EventType.CREATED
         )
+    }
+
+    private fun isDuplicateSnapshotSummaryConstraint(e: DataIntegrityViolationException): Boolean {
+        val message = e.mostSpecificCause.message ?: e.message ?: return false
+        return message.contains("uk_job_summary_snapshot_id", ignoreCase = true)
     }
 }

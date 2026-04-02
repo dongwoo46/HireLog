@@ -134,7 +134,6 @@ class JobSummaryController(
             brandName = request.brandName,
             brandPositionName = request.brandPositionName,
             url = request.url,
-            platform = request.platform,
         )) {
             is UrlIntakeResult.Duplicate -> ResponseEntity.ok(JobSummaryUrlRes.duplicateOf(result.existing))
             is UrlIntakeResult.NewRequest -> ResponseEntity.ok(JobSummaryUrlRes.newRequest(result.requestId))

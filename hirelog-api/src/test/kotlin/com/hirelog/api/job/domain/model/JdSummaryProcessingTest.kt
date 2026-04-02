@@ -10,7 +10,11 @@ import java.util.UUID
 class JdSummaryProcessingTest {
 
     private fun newProcessing(): JdSummaryProcessing =
-        JdSummaryProcessing.create(UUID.randomUUID())
+        JdSummaryProcessing.create(
+            id = UUID.randomUUID(),
+            brandName = "Toss",
+            positionName = "Backend Engineer"
+        )
 
     @Nested
     @DisplayName("create 팩토리는")

@@ -53,6 +53,9 @@ class Member protected constructor(
     @Column(name = "summary", length = 1000)
     var summary: String? = null,
 
+    @Column(name = "password", length = 255)
+    var password: String? = null,
+
     ) : VersionedEntity() {
 
     /**
@@ -94,6 +97,29 @@ class Member protected constructor(
      * ========================= */
 
     companion object {
+
+        fun createByEmail(
+            email: String,
+            username: String,
+            password: String,
+            currentPositionId: Long? = null,
+            careerYears: Int? = null,
+            summary: String? = null,
+        ): Member {
+            require(email.isNotBlank())
+            require(password.isNotBlank())
+            require(careerYears == null || careerYears >= 0)
+            require(summary == null || summary.length <= 1000)
+
+            return Member(
+                email = email,
+                username = username,
+                currentPositionId = currentPositionId,
+                careerYears = careerYears,
+                summary = summary,
+                password = password,
+            )
+        }
 
         fun createByOAuth(
             email: String,
@@ -153,6 +179,12 @@ class Member protected constructor(
         this.currentPositionId = currentPositionId
         this.careerYears = careerYears
         this.summary = summary
+    }
+
+    fun changePassword(newPassword: String) {
+        require(status == MemberStatus.ACTIVE)
+        require(newPassword.isNotBlank())
+        password = newPassword
     }
 
     /* =========================

@@ -1,6 +1,5 @@
 package com.hirelog.api.notification.application
 
-import com.hirelog.api.common.logging.log
 import com.hirelog.api.notification.application.port.NotificationCommand
 import com.hirelog.api.notification.domain.model.Notification
 import com.hirelog.api.notification.domain.type.NotificationReferenceType
@@ -34,14 +33,7 @@ class NotificationWriteService(
             metadata = metadata
         )
 
-        val saved = notificationCommand.save(notification)
-
-        log.info(
-            "[NOTIFICATION_CREATED] type={}, memberId={}, refType={}, refId={}",
-            type, memberId, referenceType, referenceId
-        )
-
-        return saved
+        return notificationCommand.save(notification)
     }
 
     @Transactional
@@ -51,7 +43,5 @@ class NotificationWriteService(
         if (notifications.isEmpty()) return
 
         notifications.forEach { it.markAsRead() }
-
-        log.debug("[NOTIFICATION_READ] memberId={}, ids={}", memberId, notifications.map { it.id })
     }
 }

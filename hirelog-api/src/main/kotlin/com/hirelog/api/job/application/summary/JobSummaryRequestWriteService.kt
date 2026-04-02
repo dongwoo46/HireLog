@@ -144,8 +144,36 @@ class JobSummaryRequestWriteService(
         request.markFailed()
         jobSummaryRequestCommand.save(request)
 
-        log.error(
+        log.warn(
             "[JOB_SUMMARY_REQUEST_FAILED] requestId={}, memberId={}",
+            requestId, request.memberId
+        )
+
+        return request.memberId
+    }
+
+    /**
+     * 요청 중복 처리
+     *
+     * @return 중복 처리된 요청의 memberId (PENDING 요청이 없으면 null)
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun duplicateRequest(requestId: String): Long? {
+        val request = jobSummaryRequestCommand.findByRequestIdAndStatus(
+            requestId = requestId,
+            status = JobSummaryRequestStatus.PENDING
+        )
+
+        if (request == null) {
+            log.debug("[JOB_SUMMARY_REQUEST_NO_PENDING] requestId={}", requestId)
+            return null
+        }
+
+        request.markDuplicate()
+        jobSummaryRequestCommand.save(request)
+
+        log.info(
+            "[JOB_SUMMARY_REQUEST_DUPLICATE] requestId={}, memberId={}",
             requestId, request.memberId
         )
 

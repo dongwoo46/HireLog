@@ -33,21 +33,23 @@ class SseEmitterManager {
 
         emitter.onCompletion {
             list.remove(emitter)
-            log.debug("[SSE_DISCONNECTED] memberId={}, reason=completion", memberId)
         }
         emitter.onTimeout {
             list.remove(emitter)
-            log.debug("[SSE_DISCONNECTED] memberId={}, reason=timeout", memberId)
         }
         emitter.onError {
             list.remove(emitter)
-            log.debug("[SSE_DISCONNECTED] memberId={}, reason=error", memberId)
         }
 
         // 연결 확인용 초기 이벤트 (프록시 503 방지)
-        emitter.send(SseEmitter.event().name("connect").data("connected"))
+        try {
+            emitter.send(SseEmitter.event().name("connect").data("connected"))
+        } catch (e: Exception) {
+            list.remove(emitter)
+            emitter.complete()
+            log.debug("[SSE_CONNECT_SEND_FAILED] memberId={}", memberId)
+        }
 
-        log.info("[SSE_CONNECTED] memberId={}", memberId)
         return emitter
     }
 

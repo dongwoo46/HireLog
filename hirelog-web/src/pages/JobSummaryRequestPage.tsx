@@ -212,15 +212,8 @@ import { jdSummaryService } from '../services/jdSummaryService';
 import { TbChevronLeft, TbFileText, TbCamera, TbLink, TbCloudUpload } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import React, { useState } from 'react';
-import { type JobPlatformType, JOB_PLATFORM_LABELS } from '../types/jobSummary';
 
 type RequestTab = 'text' | 'ocr' | 'url';
-
-const PLATFORM_OPTIONS: [JobPlatformType, string][] = [
-  ['WANTED', JOB_PLATFORM_LABELS['WANTED']],
-  ['OTHER', JOB_PLATFORM_LABELS['OTHER']],
-  ['REMEMBER', JOB_PLATFORM_LABELS['REMEMBER']],
-];
 
 const JobSummaryRequestPage = () => {
   const navigate = useNavigate();
@@ -229,7 +222,6 @@ const JobSummaryRequestPage = () => {
 
   const [brandName, setBrandName] = useState('');
   const [brandPositionName, setBrandPositionName] = useState('');
-  const [platform, setPlatform] = useState<JobPlatformType>('WANTED');
   const [jdText, setJdText] = useState('');
   const [url, setUrl] = useState('');
   const [images, setImages] = useState<File[]>([]);
@@ -251,7 +243,7 @@ const JobSummaryRequestPage = () => {
         await jdSummaryService.requestOcr({ brandName, brandPositionName, images });
       } else if (activeTab === 'url') {
         if (!url) throw new Error('URL을 입력해주세요.');
-        const res = await jdSummaryService.requestUrl({ brandName, brandPositionName, url, platform });
+        const res = await jdSummaryService.requestUrl({ brandName, brandPositionName, url });
         if (res.isDuplicate && res.jobSummaryId) {
           navigate(`/jd/${res.jobSummaryId}`);
           return;
@@ -334,18 +326,6 @@ const JobSummaryRequestPage = () => {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 ml-1">채용 플랫폼</label>
-                  <select
-                    value={platform}
-                    onChange={(e) => setPlatform(e.target.value as JobPlatformType)}
-                    className="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:border-[#4CDFD5] focus:ring-4 focus:ring-[#4CDFD5]/20 outline-none bg-white"
-                  >
-                    {PLATFORM_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
             )}
 

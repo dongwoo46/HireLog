@@ -5,6 +5,7 @@ enum class NotificationType {
     // JobSummary
     JOB_SUMMARY_COMPLETED,
     JOB_SUMMARY_FAILED,
+    JOB_SUMMARY_DUPLICATE,
 
     // UserRequest
     USER_REQUEST_REPLIED

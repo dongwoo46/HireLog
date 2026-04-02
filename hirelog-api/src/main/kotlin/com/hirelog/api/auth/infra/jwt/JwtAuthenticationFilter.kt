@@ -1,7 +1,6 @@
 package com.hirelog.api.auth.infra.jwt
 
 import com.hirelog.api.common.config.security.AuthenticatedMember
-import com.hirelog.api.common.logging.log
 import com.hirelog.api.member.domain.MemberRole
 import io.jsonwebtoken.Claims
 import jakarta.servlet.FilterChain
@@ -23,35 +22,20 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-
-        val uri = request.requestURI
-        val method = request.method
-
         // 1. Access Token 추출
         val token = extractAccessToken(request)
 
-        log.debug("[JWT_FILTER] {} {} | token={}", method, uri,
-            if (token != null) "present(${token.take(20)}...)" else "MISSING"
-        )
-
         if (token != null) {
-            // 2. 토큰 검증 및 Claims 파싱 (1회)
+            // 2. 토큰 검증 및 Claims 파싱
             val claims = jwtUtils.parseClaimsSafely(token)
 
             if (claims != null) {
                 // 3. 인증 객체 생성
                 val authentication = createAuthentication(claims)
 
-                // 4. SecurityContext에 등록
+                // 4. SecurityContext 등록
                 SecurityContextHolder.getContext().authentication = authentication
-                log.debug("[JWT_FILTER] {} {} | authenticated memberId={}", method, uri, claims.subject)
-            } else {
-                log.debug("[JWT_FILTER] {} {} | token parse FAILED", method, uri)
             }
-        } else {
-            log.debug("[JWT_FILTER] {} {} | cookies={}", method, uri,
-                request.cookies?.map { it.name } ?: "null"
-            )
         }
 
         filterChain.doFilter(request, response)
@@ -66,24 +50,13 @@ class JwtAuthenticationFilter(
             ?.value
 
     /**
-     * Claims → Authentication 변환
+     * Claims -> Authentication 변환
      */
     private fun createAuthentication(claims: Claims): UsernamePasswordAuthenticationToken {
         val memberId = claims.subject.toLong()
         val roleString = claims["role"] as String
 
-        log.info(
-            "[JWT] createAuthentication memberId={}, roleString={}",
-            memberId,
-            roleString
-        )
-
         val authority = SimpleGrantedAuthority("ROLE_$roleString")
-
-        log.info(
-            "[JWT] granted authorities={}",
-            listOf(authority).map { it.authority }
-        )
 
         val principal = AuthenticatedMember(
             memberId = memberId,
@@ -96,8 +69,6 @@ class JwtAuthenticationFilter(
             listOf(authority)
         )
     }
-
-
 
     /**
      * JWT 필터 제외 경로
@@ -117,4 +88,9 @@ class JwtAuthenticationFilter(
                 path.startsWith("/api/health") ||
                 path.startsWith("/actuator")
     }
+
+    /**
+     * SSE 등 비동기 재디스패치에서도 JWT 인증을 유지한다.
+     */
+    override fun shouldNotFilterAsyncDispatch(): Boolean = false
 }

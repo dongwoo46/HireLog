@@ -51,6 +51,26 @@ export function Header() {
   }, [isAuthenticated, loadNotifications]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const eventSource = new EventSource('/api/sse/subscribe', { withCredentials: true });
+    const refreshNotifications = () => {
+      void loadNotifications();
+    };
+
+    eventSource.addEventListener('JOB_SUMMARY_COMPLETED', refreshNotifications as EventListener);
+    eventSource.addEventListener('JOB_SUMMARY_FAILED', refreshNotifications as EventListener);
+    eventSource.addEventListener('JOB_SUMMARY_DUPLICATE', refreshNotifications as EventListener);
+
+    return () => {
+      eventSource.removeEventListener('JOB_SUMMARY_COMPLETED', refreshNotifications as EventListener);
+      eventSource.removeEventListener('JOB_SUMMARY_FAILED', refreshNotifications as EventListener);
+      eventSource.removeEventListener('JOB_SUMMARY_DUPLICATE', refreshNotifications as EventListener);
+      eventSource.close();
+    };
+  }, [isAuthenticated, loadNotifications]);
+
+  useEffect(() => {
     setIsMobileOpen(false);
     setIsNotificationOpen(false);
   }, [location.pathname]);
@@ -118,7 +138,15 @@ export function Header() {
             <>
               <div className="relative">
                 <button
-                  onClick={() => setIsNotificationOpen((prev) => !prev)}
+                  onClick={() => {
+                    setIsNotificationOpen((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        loadNotifications();
+                      }
+                      return next;
+                    });
+                  }}
                   className="relative rounded-xl p-2 text-gray-500 transition hover:bg-gray-50"
                 >
                   <TbBell size={22} />

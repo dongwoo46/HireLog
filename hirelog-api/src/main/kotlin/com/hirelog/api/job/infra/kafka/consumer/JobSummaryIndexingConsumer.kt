@@ -38,7 +38,7 @@ class JobSummaryIndexingConsumer(
 
     companion object {
         private const val CONSUMER_GROUP = "job-summary-indexing-consumer"
-        private const val EVENT_TYPE_HEADER = "eventType"
+        private val EVENT_TYPE_HEADERS = listOf("eventType", "event_type", "type")
     }
 
     @KafkaListener(
@@ -52,7 +52,7 @@ class JobSummaryIndexingConsumer(
     ) {
         val aggregateId = record.key()
         val payload = record.value()
-        val eventType = extractEventType(record)
+        val eventType = extractEventType(record, payload)
 
         MDC.put("aggregateId", aggregateId)
         MDC.put("eventType", eventType)
@@ -127,15 +127,35 @@ class JobSummaryIndexingConsumer(
      * Debezium Outbox Event Router가 eventType 컬럼을 header로 전달
      * header가 없으면 CREATED로 간주 (하위 호환성)
      */
-    private fun extractEventType(record: ConsumerRecord<String, String>): String {
-        val header = record.headers().lastHeader(EVENT_TYPE_HEADER)
-        if (header == null) {
-            log.error(
-                "[JOB_SUMMARY_INDEXING_HEADER_MISSING] aggregateId={}, header={} not found, defaulting to CREATED",
-                record.key(), EVENT_TYPE_HEADER
-            )
+    private fun extractEventType(record: ConsumerRecord<String, String>, payload: String): String {
+        for (headerName in EVENT_TYPE_HEADERS) {
+            val header = record.headers().lastHeader(headerName) ?: continue
+            val value = header.value()?.toString(StandardCharsets.UTF_8)
+            if (!value.isNullOrBlank()) {
+                return value
+            }
         }
-        return header?.value()?.toString(StandardCharsets.UTF_8) ?: EventType.CREATED
+
+        val inferred = inferEventTypeFromPayload(payload)
+        log.warn(
+            "[JOB_SUMMARY_INDEXING_HEADER_MISSING] aggregateId={}, triedHeaders={}, inferredFromPayload={}",
+            record.key(), EVENT_TYPE_HEADERS, inferred
+        )
+        return inferred
+    }
+
+    private fun inferEventTypeFromPayload(payload: String): String {
+        return try {
+            val unwrapped = unwrapDoubleSerializedJson(payload)
+            val tree = objectMapper.readTree(unwrapped)
+            if (tree.size() == 1 && tree.has("id")) {
+                EventType.DELETED
+            } else {
+                EventType.CREATED
+            }
+        } catch (_: Exception) {
+            EventType.CREATED
+        }
     }
 
     /**

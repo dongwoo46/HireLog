@@ -12,12 +12,14 @@ import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import com.hirelog.api.common.domain.LlmProvider
 import io.mockk.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
+import org.springframework.context.ApplicationEventPublisher
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -33,6 +35,7 @@ class JdSummaryGenerationFacadeTest {
     private lateinit var processingWriteService: JdSummaryProcessingWriteService
     private lateinit var processingQuery: JdSummaryProcessingQuery
     private lateinit var objectMapper: ObjectMapper
+    private lateinit var eventPublisher: ApplicationEventPublisher
 
     // 동기 실행 Executor (테스트에서 비동기 제어용)
     private val syncExecutor = Executor { it.run() }
@@ -82,16 +85,18 @@ class JdSummaryGenerationFacadeTest {
         processingWriteService = mockk(relaxed = true)
         processingQuery = mockk()
         objectMapper = mockk()
+        eventPublisher = mockk(relaxed = true)
 
         val processing = mockk<JdSummaryProcessing>(relaxed = true)
         every { processing.id } returns processingId
+        every { processing.status } returns JdSummaryProcessingStatus.RECEIVED
 
         every { processingQuery.findById(processingId) } returns processing
         every { objectMapper.writeValueAsString(any()) } returns "{}"
 
         facade = JdSummaryGenerationFacade(
             preLlm, llmInvoker, postLlm, errorHandler,
-            processingWriteService, processingQuery, objectMapper, syncExecutor
+            processingWriteService, processingQuery, objectMapper, eventPublisher, syncExecutor
         )
     }
 

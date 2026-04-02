@@ -4,6 +4,7 @@ import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
+import com.hirelog.api.job.application.summary.SnapshotAlreadySummarizedException
 import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -49,6 +50,29 @@ class PipelineErrorHandler(
 
     fun handlePostLlm(processingId: UUID, ex: Throwable, requestId: String) {
         val cause = if (ex is CompletionException) ex.cause ?: ex else ex
+
+        if (cause is SnapshotAlreadySummarizedException) {
+            log.error(
+                "[PIPELINE_POST_LLM_DUPLICATE] processingId={}, reason={}",
+                processingId, cause.message
+            )
+
+            val processing = processingWriteService.markDuplicate(
+                processingId = processingId,
+                reason = "SNAPSHOT_SUMMARY_DUPLICATE"
+            )
+
+            eventPublisher.publishEvent(
+                JobSummaryRequestEvent.Duplicate(
+                    requestId = requestId,
+                    processingId = processingId.toString(),
+                    reason = "SNAPSHOT_SUMMARY_DUPLICATE",
+                    brandName = processing.commandBrandName,
+                    positionName = processing.commandPositionName
+                )
+            )
+            return
+        }
 
         log.error(
             "[PIPELINE_POST_LLM_FAILED] processingId={}, error={}",

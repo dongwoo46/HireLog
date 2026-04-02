@@ -81,11 +81,12 @@ class JdSummaryProcessingWriteService(
     fun markDuplicate(
         processingId: UUID,
         reason: String
-    ) {
+    ): JdSummaryProcessing {
         val processing = getRequired(processingId)
         processing.markDuplicate(reason)
         command.update(processing)
         log.debug("[PROCESSING_DUPLICATE] processingId={}, reason={}", processingId, reason)
+        return processing
     }
 
     /**
@@ -125,7 +126,7 @@ class JdSummaryProcessingWriteService(
             errorMessage = errorMessage
         )
         command.update(processing)
-        log.error("[PROCESSING_FAILED] processingId={}, errorCode={}", processingId, errorCode)
+        log.warn("[PROCESSING_FAILED] processingId={}, errorCode={}", processingId, errorCode)
         return processing
     }
 
@@ -145,7 +146,7 @@ class JdSummaryProcessingWriteService(
         val processing = getRequired(processingId)
         processing.markPostLlmFailed(errorCode, errorMessage)
         command.update(processing)
-        log.error("[PROCESSING_POST_LLM_FAILED] processingId={}, errorCode={}", processingId, errorCode)
+        log.warn("[PROCESSING_POST_LLM_FAILED] processingId={}, errorCode={}", processingId, errorCode)
         return processing
     }
 

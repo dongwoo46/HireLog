@@ -12,6 +12,7 @@ import io.mockk.*
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.*
+import org.springframework.security.crypto.password.PasswordEncoder
 
 @DisplayName("MemberWriteService 테스트")
 class MemberWriteServiceTest {
@@ -21,6 +22,7 @@ class MemberWriteServiceTest {
     private lateinit var memberQuery: MemberQuery
     private lateinit var adminProperties: AdminProperties
     private lateinit var policyResolver: UsernameValidationPolicyResolver
+    private lateinit var passwordEncoder: PasswordEncoder
 
     private val oAuthUser = OAuthUser(
         provider = OAuth2Provider.GOOGLE,
@@ -34,7 +36,8 @@ class MemberWriteServiceTest {
         memberQuery = mockk()
         adminProperties = mockk()
         policyResolver = mockk()
-        service = MemberWriteService(memberCommand, memberQuery, adminProperties, policyResolver)
+        passwordEncoder = mockk()
+        service = MemberWriteService(memberCommand, memberQuery, adminProperties, policyResolver, passwordEncoder)
     }
 
     @Nested

@@ -4,7 +4,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from domain.job_source import JobSource
-from domain.job_platform import JobPlatform
 from inputs.kafka_jd_preprocess_input import KafkaJdPreprocessInput
 
 logger = logging.getLogger(__name__)
@@ -56,7 +55,10 @@ def parse_kafka_jd_preprocess_message(message: Dict[str, Any]) -> KafkaJdPreproc
             raise MessageParseError(f"Missing required fields: {', '.join(missing)}")
 
         # source enum 변환
-        source_str = message["source"].upper()
+        source_raw = message.get("source")
+        if not isinstance(source_raw, str) or not source_raw.strip():
+            raise MessageParseError("'source' must be a non-empty string")
+        source_str = source_raw.strip().upper()
         try:
             source = JobSource[source_str]
         except KeyError:
@@ -93,8 +95,6 @@ def parse_kafka_jd_preprocess_message(message: Dict[str, Any]) -> KafkaJdPreproc
             if not url:
                 raise MessageParseError("'url' or 'sourceUrl' is required when source=URL")
 
-        platform = JobPlatform.from_string(message.get("platform", "OTHER"))
-
         return KafkaJdPreprocessInput(
             request_id=message["requestId"],
             brand_name=message["brandName"],
@@ -103,7 +103,6 @@ def parse_kafka_jd_preprocess_message(message: Dict[str, Any]) -> KafkaJdPreproc
             text=text,
             images=images,
             url=url,
-            platform=platform,
             event_id=message.get("eventId"),
             occurred_at=message.get("occurredAt"),
             version=message.get("version", "1.0"),

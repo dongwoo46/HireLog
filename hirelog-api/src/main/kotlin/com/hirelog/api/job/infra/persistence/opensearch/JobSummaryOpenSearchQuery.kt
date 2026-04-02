@@ -79,8 +79,6 @@ class JobSummaryOpenSearchQuery(
 
         val searchRequest = buildSearchRequest(query, cursor)
 
-        log.debug("[OPENSEARCH_SEARCH] sortBy={}, hasCursor={}", query.sortBy, cursor != null)
-
         val response = openSearchClient.search(searchRequest, Map::class.java)
         val hits = response.hits().hits()
 
@@ -95,11 +93,6 @@ class JobSummaryOpenSearchQuery(
         val nextCursor = if (hasNext && pageHits.isNotEmpty()) {
             generateNextCursor(pageHits.last().sort(), query.sortBy)
         } else null
-
-        log.info(
-            "[OPENSEARCH_SEARCH_RESULT] hasNext={}, returned={}",
-            hasNext, items.size
-        )
 
         return JobSummarySearchResult(
             items = items,
