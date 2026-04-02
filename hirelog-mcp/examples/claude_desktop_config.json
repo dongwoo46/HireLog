@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "hirelog": {
+      "command": "node",
+      "args": [
+        "C:/Users/dw/Desktop/HireLog/hirelog-mcp/dist/index.js"
+      ],
+      "env": {
+        "HIRELOG_API_BASE_URL": "https://hirelog.kro.kr"
+      }
+    }
+  }
+}

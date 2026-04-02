@@ -1,0 +1,121 @@
+name: Deploy MCP
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths:
+      - 'hirelog-mcp/**'
+      - '.github/workflows/deploy-mcp.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'develop')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: hirelog-mcp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: hirelog-mcp
+
+      - name: Build
+        run: npm run build
+        working-directory: hirelog-mcp
+
+      - name: Set release name
+        id: vars
+        run: echo "release=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Prepare target directory on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            sudo mkdir -p /home/hirelog-mcp/releases /home/hirelog-mcp/shared
+            sudo chown -R $(whoami):$(whoami) /home/hirelog-mcp
+
+      - name: Upload release files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: >-
+            hirelog-mcp/dist/,
+            hirelog-mcp/package.json,
+            hirelog-mcp/package-lock.json
+          target: /home/hirelog-mcp/releases/${{ steps.vars.outputs.release }}
+          strip_components: 1
+
+      - name: Write MCP env file
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          MCP_ENV_PROD: ${{ secrets.MCP_ENV_PROD }}
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: MCP_ENV_PROD
+          script: |
+            set -e
+            printf '%s\n' "$MCP_ENV_PROD" > /home/hirelog-mcp/shared/.env
+            echo "MCP .env written"
+
+      - name: Install prod deps and restart service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_API_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            RELEASE=${{ steps.vars.outputs.release }}
+            APP_ROOT=/home/hirelog-mcp
+            RELEASE_DIR=$APP_ROOT/releases/$RELEASE
+            SERVICE_NAME=hirelog-mcp
+
+            ln -sfn $APP_ROOT/shared/.env $RELEASE_DIR/.env
+
+            cd $RELEASE_DIR
+            npm ci --omit=dev --no-audit --no-fund
+
+            ln -sfn $RELEASE_DIR $APP_ROOT/current
+
+            NODE_BIN=$(command -v node)
+            sudo tee /etc/systemd/system/${SERVICE_NAME}.service >/dev/null <<EOF
+            [Unit]
+            Description=HireLog MCP HTTP Server
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=$(whoami)
+            WorkingDirectory=/home/hirelog-mcp/current
+            EnvironmentFile=/home/hirelog-mcp/current/.env
+            ExecStart=${NODE_BIN} /home/hirelog-mcp/current/dist/http.js
+            Restart=always
+            RestartSec=3
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable ${SERVICE_NAME}
+            sudo systemctl restart ${SERVICE_NAME}
+            sudo systemctl --no-pager --full status ${SERVICE_NAME} | head -n 25
