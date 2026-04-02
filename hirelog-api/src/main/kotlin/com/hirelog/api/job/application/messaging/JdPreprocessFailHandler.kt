@@ -49,9 +49,9 @@ class JdPreprocessFailHandler(
             )
         )
 
-        log.info(
-            "[JD_PREPROCESS_FAIL_HANDLED] requestId={}, errorCode={}, errorCategory={}",
-            event.requestId, event.errorCode, event.errorCategory
+        log.error(
+            "[JD_PREPROCESS_FAIL_HANDLED] requestId={}, errorCode={}, errorMessage={}, errorCategory={}",
+            event.requestId, event.errorCode, event.errorMessage, event.errorCategory
         )
     }
 }

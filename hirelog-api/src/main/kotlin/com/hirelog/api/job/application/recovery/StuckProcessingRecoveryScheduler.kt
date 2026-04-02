@@ -230,8 +230,8 @@ class StuckProcessingRecoveryScheduler(
         }
 
         log.error(
-            "[STUCK_PROCESSING_MARKED_FAILED] processingId={}",
-            processing.id
+            "[STUCK_PROCESSING_MARKED_FAILED] processingId={}, brandName={}, positionName={}, errorMessage={}",
+            processing.id, processing.commandBrandName, processing.commandPositionName, exception.message
         )
     }
 }

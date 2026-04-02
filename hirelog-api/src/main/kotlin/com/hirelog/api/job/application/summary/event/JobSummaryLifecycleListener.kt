@@ -80,8 +80,8 @@ class JobSummaryLifecycleListener(
         MDC.put("requestId", event.requestId)
         try {
             log.error(
-                "[JOB_SUMMARY_LIFECYCLE_FAILED] processingId={}, errorCode={}, retryable={}",
-                event.processingId, event.errorCode, event.retryable
+                "[JOB_SUMMARY_LIFECYCLE_FAILED] processingId={}, errorCode={}, retryable={}, brandName={}, positionName={}",
+                event.processingId, event.errorCode, event.retryable, event.brandName, event.positionName
             )
 
             val memberId = failRequest(event) ?: return

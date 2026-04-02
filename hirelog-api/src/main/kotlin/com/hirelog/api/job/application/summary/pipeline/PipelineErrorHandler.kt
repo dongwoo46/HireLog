@@ -2,6 +2,7 @@ package com.hirelog.api.job.application.summary.pipeline
 
 import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
+import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
 import org.springframework.context.ApplicationEventPublisher
@@ -26,6 +27,11 @@ class PipelineErrorHandler(
             else -> "FAILED_AT_$phase"
         }
 
+        log.error(
+            "[PIPELINE_FAILED] processingId={}, phase={}, errorCode={}, error={}",
+            processingId, phase, errorCode, cause.message, cause
+        )
+
         val processing = processingWriteService.markFailed(
             processingId,
             errorCode,
@@ -43,6 +49,11 @@ class PipelineErrorHandler(
 
     fun handlePostLlm(processingId: UUID, ex: Throwable, requestId: String) {
         val cause = if (ex is CompletionException) ex.cause ?: ex else ex
+
+        log.error(
+            "[PIPELINE_POST_LLM_FAILED] processingId={}, error={}",
+            processingId, cause.message, cause
+        )
 
         val processing = processingWriteService.markPostLlmFailed(
             processingId,
