@@ -15,11 +15,13 @@ class ProcessedEventServiceTest {
 
     private lateinit var processedEventService: ProcessedEventService
     private lateinit var processedEventCommand: ProcessedEventCommand
+    private lateinit var processedEventQuery: ProcessedEventQuery
 
     @BeforeEach
     fun setUp() {
         processedEventCommand = mockk()
-        processedEventService = ProcessedEventService(processedEventCommand)
+        processedEventQuery = mockk()
+        processedEventService = ProcessedEventService(processedEventCommand, processedEventQuery)
     }
 
     @Nested

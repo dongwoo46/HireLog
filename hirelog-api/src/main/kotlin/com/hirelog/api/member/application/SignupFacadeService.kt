@@ -1,7 +1,6 @@
 package com.hirelog.api.member.application
 
 import com.hirelog.api.auth.application.TokenService
-import com.hirelog.api.common.logging.log
 import com.hirelog.api.member.application.dto.SignupResult
 import com.hirelog.api.member.application.port.MemberQuery
 import com.hirelog.api.member.presentation.dto.*
@@ -229,6 +228,76 @@ class SignupFacadeService(
         )
     }
 
+    /**
+     * 일반 회원가입용 이메일 중복 체크 + 인증코드 발송
+     */
+    @Transactional(readOnly = true)
+    fun checkGeneralEmailAvailability(email: String): CheckEmailResponse {
+        val normalizedEmail = email.trim().lowercase()
+        val exists = memberQuery.existsByEmail(normalizedEmail)
+
+        if (!exists) {
+            emailVerificationService.generateAndSave(generalSignupVerificationKey(normalizedEmail), normalizedEmail)
+        }
+
+        return CheckEmailResponse(exists = exists)
+    }
+
+    /**
+     * 일반 회원가입용 인증코드 발송 (재전송)
+     */
+    fun sendGeneralVerificationCode(email: String) {
+        val normalizedEmail = email.trim().lowercase()
+        if (memberQuery.existsByEmail(normalizedEmail)) {
+            throw IllegalArgumentException("이미 사용 중인 이메일입니다.")
+        }
+
+        emailVerificationService.generateAndSave(generalSignupVerificationKey(normalizedEmail), normalizedEmail)
+    }
+
+    /**
+     * 일반 회원가입용 인증코드 검증
+     */
+    fun verifyGeneralCode(email: String, code: String) {
+        val normalizedEmail = email.trim().lowercase()
+        emailVerificationService.verifyOrThrow(
+            token = generalSignupVerificationKey(normalizedEmail),
+            email = normalizedEmail,
+            code = code
+        )
+    }
+
+    /**
+     * 일반 회원가입 완료 (이메일/비밀번호)
+     */
+    @Transactional
+    fun completeGeneralSignup(request: SignupCompleteRequest): SignupResult {
+        val normalizedEmail = request.email.trim().lowercase()
+        val verificationKey = generalSignupVerificationKey(normalizedEmail)
+
+        validateEmailVerified(verificationKey, normalizedEmail)
+
+        val password = request.password
+            ?: throw IllegalArgumentException("일반 회원가입에는 비밀번호가 필요합니다.")
+
+        val member = memberWriteService.signupWithEmail(
+            email = normalizedEmail,
+            username = request.username,
+            password = password,
+            currentPositionId = request.currentPositionId,
+            careerYears = request.careerYears,
+            summary = request.summary
+        )
+
+        val tokens = tokenService.generateAuthTokens(member.id)
+        emailVerificationService.clearVerified(verificationKey)
+
+        return SignupResult(
+            memberId = member.id,
+            accessToken = tokens.accessToken,
+            refreshToken = tokens.refreshToken
+        )
+    }
 
 
     /* ========================= Private ========================= */
@@ -238,4 +307,6 @@ class SignupFacadeService(
             throw IllegalArgumentException("이메일 인증이 완료되지 않았습니다.")
         }
     }
+
+    private fun generalSignupVerificationKey(email: String): String = "GENERAL_SIGNUP:$email"
 }

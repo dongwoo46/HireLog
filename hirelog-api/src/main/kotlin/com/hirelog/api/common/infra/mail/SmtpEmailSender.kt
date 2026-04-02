@@ -22,7 +22,6 @@ class SmtpEmailSender(
             helper.setText(body, true)
 
             mailSender.send(message)
-            log.info("[EMAIL_SENT] to={}, subject={}", to, subject)
         } catch (e: Exception) {
             log.error("[EMAIL_SEND_FAILED] to={}, subject={}, error={}", to, subject, e.message)
         }

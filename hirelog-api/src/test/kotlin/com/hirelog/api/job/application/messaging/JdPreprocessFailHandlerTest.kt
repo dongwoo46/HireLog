@@ -1,18 +1,23 @@
 package com.hirelog.api.job.application.messaging
 
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
-import com.hirelog.api.job.application.summary.port.JobSummaryRequestCommand
-import com.hirelog.api.job.domain.model.JobSummaryRequest
-import com.hirelog.api.job.domain.type.JobSummaryRequestStatus
-import io.mockk.*
-import org.junit.jupiter.api.*
+import com.hirelog.api.job.domain.model.JdSummaryProcessing
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.springframework.context.ApplicationEventPublisher
+import java.util.UUID
 
 @DisplayName("JdPreprocessFailHandler 테스트")
 class JdPreprocessFailHandlerTest {
 
     private lateinit var handler: JdPreprocessFailHandler
     private lateinit var processingWriteService: JdSummaryProcessingWriteService
-    private lateinit var jobSummaryRequestCommand: JobSummaryRequestCommand
+    private lateinit var eventPublisher: ApplicationEventPublisher
 
     private val requestId = "550e8400-e29b-41d4-a716-446655440000"
 
@@ -35,8 +40,8 @@ class JdPreprocessFailHandlerTest {
     @BeforeEach
     fun setUp() {
         processingWriteService = mockk(relaxed = true)
-        jobSummaryRequestCommand = mockk()
-        handler = JdPreprocessFailHandler(processingWriteService, jobSummaryRequestCommand)
+        eventPublisher = mockk(relaxed = true)
+        handler = JdPreprocessFailHandler(processingWriteService, eventPublisher)
     }
 
     @Nested
@@ -44,45 +49,31 @@ class JdPreprocessFailHandlerTest {
     inner class HandleTest {
 
         @Test
-        @DisplayName("Processing을 FAILED로 전이하고 PENDING Request도 FAILED로 전이한다")
-        fun shouldFailBothProcessingAndRequest() {
-            val request = mockk<JobSummaryRequest>(relaxed = true)
-
+        @DisplayName("Processing을 FAILED로 전이하고 실패 이벤트를 발행한다")
+        fun shouldFailProcessingAndPublishEvent() {
+            val processing = JdSummaryProcessing.create(
+                id = UUID.fromString(requestId),
+                brandName = "Toss",
+                positionName = "Backend Engineer"
+            )
             every {
-                jobSummaryRequestCommand.findByRequestIdAndStatus(requestId, JobSummaryRequestStatus.PENDING)
-            } returns request
-            every { jobSummaryRequestCommand.save(request) } returns request
+                processingWriteService.markFailed(
+                    any(),
+                    any(),
+                    any()
+                )
+            } returns processing
 
             handler.handle(failEvent)
 
             verify {
                 processingWriteService.markFailed(
                     any(),
-                    eq("OCR_FAILED"),
-                    eq("OCR processing error")
+                    "OCR_FAILED",
+                    "OCR processing error"
                 )
             }
-            verify { request.markFailed() }
-            verify { jobSummaryRequestCommand.save(request) }
-        }
-
-        @Test
-        @DisplayName("PENDING Request가 없으면 Processing만 FAILED로 전이한다")
-        fun shouldOnlyFailProcessingWhenRequestNotFound() {
-            every {
-                jobSummaryRequestCommand.findByRequestIdAndStatus(requestId, JobSummaryRequestStatus.PENDING)
-            } returns null
-
-            handler.handle(failEvent)
-
-            verify {
-                processingWriteService.markFailed(
-                    any(),
-                    eq("OCR_FAILED"),
-                    eq("OCR processing error")
-                )
-            }
-            verify(exactly = 0) { jobSummaryRequestCommand.save(any()) }
+            verify { eventPublisher.publishEvent(any()) }
         }
     }
 }

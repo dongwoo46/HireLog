@@ -46,8 +46,6 @@ class EmailVerificationService(
             body = buildVerificationEmailBody(code)
         )
 
-        log.info("[EMAIL_CODE_SENT] email={}", email)
-
         return code
     }
 

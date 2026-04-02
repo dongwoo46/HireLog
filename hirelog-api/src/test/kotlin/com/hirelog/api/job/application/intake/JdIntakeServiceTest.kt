@@ -3,6 +3,7 @@ package com.hirelog.api.job.application.intake
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.application.outbox.OutboxEventWriteService
 import com.hirelog.api.common.infra.storage.FileStorageService
+import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryView
@@ -25,6 +26,7 @@ class JdIntakeServiceTest {
     private lateinit var service: JdIntakeService
     private lateinit var fileStorageService: FileStorageService
     private lateinit var jobSummaryRequestWriteService: JobSummaryRequestWriteService
+    private lateinit var processingWriteService: JdSummaryProcessingWriteService
     private lateinit var outboxEventWriteService: OutboxEventWriteService
     private lateinit var jobSummaryQuery: JobSummaryQuery
     private val objectMapper = ObjectMapper()
@@ -33,11 +35,13 @@ class JdIntakeServiceTest {
     fun setUp() {
         fileStorageService = mockk()
         jobSummaryRequestWriteService = mockk(relaxed = true)
+        processingWriteService = mockk(relaxed = true)
         outboxEventWriteService = mockk(relaxed = true)
         jobSummaryQuery = mockk()
         service = JdIntakeService(
             fileStorageService,
             jobSummaryRequestWriteService,
+            processingWriteService,
             outboxEventWriteService,
             jobSummaryQuery,
             objectMapper
