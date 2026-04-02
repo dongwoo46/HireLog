@@ -1,6 +1,7 @@
 package com.hirelog.api.job.application.messaging
 
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
+import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import io.mockk.every
 import io.mockk.mockk
@@ -73,7 +74,7 @@ class JdPreprocessFailHandlerTest {
                     "OCR processing error"
                 )
             }
-            verify { eventPublisher.publishEvent(any()) }
+            verify { eventPublisher.publishEvent(any<JobSummaryRequestEvent.Failed>()) }
         }
     }
 }

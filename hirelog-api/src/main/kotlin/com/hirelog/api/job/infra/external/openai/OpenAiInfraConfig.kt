@@ -7,6 +7,8 @@ import com.hirelog.api.job.infra.external.common.LlmResponseParser
 import com.hirelog.api.job.infra.external.common.JobSummaryLlmResultAssembler
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+import io.github.resilience4j.ratelimiter.RateLimiter
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
@@ -35,6 +37,13 @@ class OpenAiInfraConfig(
     }
 
     @Bean
+    fun openAiRateLimiter(
+        rateLimiterRegistry: RateLimiterRegistry
+    ): RateLimiter {
+        return rateLimiterRegistry.rateLimiter("openai")
+    }
+
+    @Bean
     fun openAiClient(
         @Qualifier("openAiWebClient") webClient: WebClient
     ): OpenAiClient =
@@ -49,6 +58,7 @@ class OpenAiInfraConfig(
         responseParser: LlmResponseParser,
         assembler: JobSummaryLlmResultAssembler,
         openAiCircuitBreaker: CircuitBreaker,
+        openAiRateLimiter: RateLimiter,
         meterRegistry: MeterRegistry
     ): JobSummaryLlm {
         log.info("[OpenAi_LLM_CONFIG] OpenAiJobSummaryLlm initialized")
@@ -58,6 +68,7 @@ class OpenAiInfraConfig(
             responseParser = responseParser,
             assembler = assembler,
             circuitBreaker = openAiCircuitBreaker,
+            rateLimiter = openAiRateLimiter,
             meterRegistry = meterRegistry
         )
     }

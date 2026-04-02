@@ -2,6 +2,7 @@ package com.hirelog.api.common.exception
 
 import com.hirelog.api.common.logging.log
 import jakarta.servlet.http.HttpServletRequest
+import io.github.resilience4j.ratelimiter.RequestNotPermitted
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -17,6 +18,31 @@ import java.time.Instant
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(RequestNotPermitted::class)
+    fun handleRequestNotPermitted(
+        ex: RequestNotPermitted,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        val status = HttpStatus.TOO_MANY_REQUESTS
+
+        log.warn(
+            "[RATE_LIMIT_EXCEEDED] path={}, method={}, message={}",
+            request.requestURI,
+            request.method,
+            ex.message
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = "TOO_MANY_REQUESTS",
+                message = "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+                path = request.requestURI
+            )
+        )
+    }
 
     @ExceptionHandler(AsyncRequestTimeoutException::class)
     fun handleAsyncRequestTimeout(

@@ -149,13 +149,14 @@ class JdSummaryProcessingWriteServiceTest {
         }
 
         @Test
-        @DisplayName("Processing이 없으면 IllegalStateException을 던진다")
-        fun shouldThrowWhenNotFound() {
+        @DisplayName("Processing이 없으면 null을 반환한다")
+        fun shouldReturnNullWhenNotFound() {
             every { query.findById(processingId) } returns null
 
-            assertThatThrownBy {
-                service.markFailed(processingId, "ERROR", "msg")
-            }.isInstanceOf(IllegalStateException::class.java)
+            val result = service.markFailed(processingId, "ERROR", "msg")
+
+            assertThat(result).isNull()
+            verify(exactly = 0) { command.update(any()) }
         }
     }
 }
