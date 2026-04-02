@@ -79,6 +79,7 @@ class StuckProcessingRecoverySchedulerTest {
             val processingId = UUID.randomUUID()
             val processing = mockk<JdSummaryProcessing>(relaxed = true)
             every { processing.id } returns processingId
+            every { processing.status } returns JdSummaryProcessingStatus.SUMMARIZING
 
             every { jobSummaryRequestWriteService.failRequest(processingId.toString()) } returns null
 
@@ -94,6 +95,7 @@ class StuckProcessingRecoverySchedulerTest {
             val processingId = UUID.randomUUID()
             val processing = mockk<JdSummaryProcessing>(relaxed = true)
             every { processing.id } returns processingId
+            every { processing.status } returns JdSummaryProcessingStatus.SUMMARIZING
 
             every {
                 jobSummaryRequestWriteService.failRequest(processingId.toString())
@@ -120,6 +122,7 @@ class StuckProcessingRecoverySchedulerTest {
             val processingId = UUID.randomUUID()
             val processing = mockk<JdSummaryProcessing>(relaxed = true)
             every { processing.id } returns processingId
+            every { processing.status } returns JdSummaryProcessingStatus.SUMMARIZING
 
             every { jobSummaryRequestWriteService.failRequest(processingId.toString()) } returns null
 

@@ -12,6 +12,7 @@ import com.hirelog.api.job.intake.similarity.CanonicalTextNormalizer
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.ratelimiter.RateLimiter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import io.micrometer.core.instrument.Counter
@@ -33,6 +34,7 @@ class GeminiJobSummaryLlm(
     private val responseParser: LlmResponseParser,
     private val assembler: JobSummaryLlmResultAssembler,
     private val circuitBreaker: CircuitBreaker,
+    private val rateLimiter: RateLimiter,
     meterRegistry: MeterRegistry
 ) : JobSummaryLlm {
 
@@ -69,8 +71,11 @@ class GeminiJobSummaryLlm(
             jdText
         )
 
-        val decoratedSupplier = circuitBreaker.decorateCompletionStage {
+        val rateLimitedSupplier = RateLimiter.decorateCompletionStage(rateLimiter) {
             geminiClient.generateContentAsync(prompt)
+        }
+        val decoratedSupplier = circuitBreaker.decorateCompletionStage {
+            rateLimitedSupplier.get()
         }
 
         return decoratedSupplier.get()

@@ -13,6 +13,7 @@ import com.hirelog.api.job.infra.external.common.JobSummaryLlmResultAssembler
 import com.hirelog.api.job.intake.similarity.CanonicalTextNormalizer
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiPromptBuilder
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.ratelimiter.RateLimiter
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 
@@ -34,6 +35,7 @@ class OpenAiJobSummaryLlm(
     private val responseParser: LlmResponseParser,
     private val assembler: JobSummaryLlmResultAssembler,
     private val circuitBreaker: CircuitBreaker,
+    private val rateLimiter: RateLimiter,
     meterRegistry: MeterRegistry
 ) : JobSummaryLlm {
 
@@ -70,8 +72,11 @@ class OpenAiJobSummaryLlm(
             jdText = jdText
         )
 
-        val decoratedSupplier = circuitBreaker.decorateCompletionStage {
+        val rateLimitedSupplier = RateLimiter.decorateCompletionStage(rateLimiter) {
             openAiClient.generateContentAsync(prompt)
+        }
+        val decoratedSupplier = circuitBreaker.decorateCompletionStage {
+            rateLimitedSupplier.get()
         }
 
         return decoratedSupplier.get()

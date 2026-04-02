@@ -147,11 +147,11 @@ resilience4j:
   ratelimiter:
     instances:
       gemini:
-        limitForPeriod: 5
+        limitForPeriod: 30
         limitRefreshPeriod: 1m
         timeoutDuration: 0s   # ← 즉시 실패
       openai:
-        limitForPeriod: 3
+        limitForPeriod: 5
         limitRefreshPeriod: 1m
         timeoutDuration: 0s   # 즉시 실패
 

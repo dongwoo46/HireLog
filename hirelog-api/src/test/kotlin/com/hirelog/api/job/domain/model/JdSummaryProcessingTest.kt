@@ -46,14 +46,16 @@ class JdSummaryProcessingTest {
         }
 
         @Test
-        @DisplayName("RECEIVED 이외 상태에서 호출하면 예외를 던진다")
+        @DisplayName("RECEIVED/SUMMARIZING 이외 상태에서 호출하면 예외를 던진다")
         fun shouldThrowWhenNotReceived() {
             val processing = newProcessing()
             processing.markSummarizing(1L)
+            processing.saveLlmResult("{}", "Toss", "Backend Engineer")
+            processing.markCompleted(1L)
 
             assertThatThrownBy { processing.markDuplicate("HASH") }
                 .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("SUMMARIZING")
+                .hasMessageContaining("COMPLETED")
         }
     }
 

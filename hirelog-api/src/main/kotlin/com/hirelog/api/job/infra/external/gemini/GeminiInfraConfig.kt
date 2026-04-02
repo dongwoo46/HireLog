@@ -10,6 +10,8 @@ import com.hirelog.api.job.infrastructure.external.gemini.GeminiClient
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiJobSummaryLlm
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+import io.github.resilience4j.ratelimiter.RateLimiter
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
@@ -45,6 +47,13 @@ class GeminiInfraConfig(
         circuitBreakerRegistry: CircuitBreakerRegistry
     ): CircuitBreaker {
         return circuitBreakerRegistry.circuitBreaker("gemini")
+    }
+
+    @Bean
+    fun geminiRateLimiter(
+        rateLimiterRegistry: RateLimiterRegistry
+    ): RateLimiter {
+        return rateLimiterRegistry.rateLimiter("gemini")
     }
 
     /**
@@ -84,6 +93,7 @@ class GeminiInfraConfig(
         responseParser: LlmResponseParser,
         assembler: JobSummaryLlmResultAssembler,
         geminiCircuitBreaker: CircuitBreaker,
+        geminiRateLimiter: RateLimiter,
         meterRegistry: MeterRegistry
     ): JobSummaryLlm  {
         log.info("[Gemini_LLM_CONFIG] GeminiJobSummaryLlm initialized")
@@ -92,6 +102,7 @@ class GeminiInfraConfig(
             responseParser = responseParser,
             assembler = assembler,
             circuitBreaker = geminiCircuitBreaker,
+            rateLimiter = geminiRateLimiter,
             meterRegistry = meterRegistry
         )
 
