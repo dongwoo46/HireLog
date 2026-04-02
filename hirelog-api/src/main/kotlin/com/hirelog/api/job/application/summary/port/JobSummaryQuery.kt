@@ -1,25 +1,24 @@
-package com.hirelog.api.job.application.summary.port
+﻿package com.hirelog.api.job.application.summary.port
 
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
+import com.hirelog.api.job.application.summary.view.JobSummaryAdminView
 import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 
 /**
- * JobSummary 조회 포트
+ * JobSummary 議고쉶 ?ы듃
  *
- * 책임:
- * - JobSummary 조회 유스케이스 정의
- * - 저장소 구현(JPA / OpenSearch)을 추상화
- */
+ * 梨낆엫:
+ * - JobSummary 議고쉶 ?좎뒪耳?댁뒪 ?뺤쓽
+ * - ??μ냼 援ы쁽(JPA / OpenSearch)??異붿긽?? */
 interface JobSummaryQuery {
 
     /**
-     * JobSummary 검색
-     *
-     * @param condition 조회 조건 (유스케이스 모델)
-     * @param pageable 페이징 정보
+     * JobSummary 寃??     *
+     * @param condition 議고쉶 議곌굔 (?좎뒪耳?댁뒪 紐⑤뜽)
+     * @param pageable ?섏씠吏??뺣낫
      */
     fun search(
         condition: JobSummarySearchCondition,
@@ -27,53 +26,64 @@ interface JobSummaryQuery {
     ): Page<JobSummaryView>
 
     /**
-     * JobSummary 상세 조회 (리뷰 + 사용자 저장 상태 포함)
+     * JobSummary ?곸꽭 議고쉶 (由щ럭 + ?ъ슜??????곹깭 ?ы븿)
      *
      * @param jobSummaryId JobSummary ID
-     * @param memberId 현재 로그인 사용자 ID
-     * @return 상세 View (없으면 null)
+     * @param memberId ?꾩옱 濡쒓렇???ъ슜??ID
+     * @return ?곸꽭 View (?놁쑝硫?null)
      */
     fun findDetailById(jobSummaryId: Long, memberId: Long?): JobSummaryDetailView?
 
     /**
-     * URL 기반 중복 체크
+     * URL 湲곕컲 以묐났 泥댄겕
      *
-     * @param sourceUrl 원본 JD URL
-     * @return 해당 URL로 생성된 JobSummary 존재 여부
+     * @param sourceUrl ?먮낯 JD URL
+     * @return ?대떦 URL濡??앹꽦??JobSummary 議댁옱 ?щ?
      */
     fun existsBySourceUrl(sourceUrl: String): Boolean
 
     /**
-     * URL 기반 JobSummary 조회
+     * URL 湲곕컲 JobSummary 議고쉶
      *
-     * 용도:
-     * - 중복 시 기존 JobSummary 반환
+     * ?⑸룄:
+     * - 以묐났 ??湲곗〈 JobSummary 諛섑솚
      *
-     * @param sourceUrl 원본 JD URL
-     * @return JobSummary View (없으면 null)
+     * @param sourceUrl ?먮낯 JD URL
+     * @return JobSummary View (?놁쑝硫?null)
      */
     fun findBySourceUrl(sourceUrl: String): JobSummaryView?
 
     /**
-     * Snapshot 기반 JobSummary 존재 여부 확인
+     * Snapshot 湲곕컲 JobSummary 議댁옱 ?щ? ?뺤씤
      *
-     * 용도:
-     * - 중복 체크 시 Snapshot만 있고 Summary 생성 실패한 경우 구분
-     * - Snapshot 있음 + Summary 없음 = 재처리 허용
+     * ?⑸룄:
+     * - 以묐났 泥댄겕 ??Snapshot留??덇퀬 Summary ?앹꽦 ?ㅽ뙣??寃쎌슦 援щ텇
+     * - Snapshot ?덉쓬 + Summary ?놁쓬 = ?ъ쿂由??덉슜
      *
      * @param jobSnapshotId JobSnapshot ID
-     * @return 해당 Snapshot으로 생성된 JobSummary 존재 여부
+     * @return ?대떦 Snapshot?쇰줈 ?앹꽦??JobSummary 議댁옱 ?щ?
      */
     fun existsByJobSnapshotId(jobSnapshotId: Long): Boolean
 
     /**
-     * Snapshot 기반 JobSummary ID 조회
+     * Snapshot 湲곕컲 JobSummary ID 議고쉶
      *
-     * 용도:
-     * - 중복 판정 시 기존 JobSummary ID 반환
+     * ?⑸룄:
+     * - 以묐났 ?먯젙 ??湲곗〈 JobSummary ID 諛섑솚
      *
      * @param jobSnapshotId JobSnapshot ID
-     * @return JobSummary ID (없으면 null)
+     * @return JobSummary ID (?놁쑝硫?null)
      */
     fun findIdByJobSnapshotId(jobSnapshotId: Long): Long?
+
+    /**
+     * Admin ?꾩슜 ?곸꽭 議고쉶 - isActive 臾닿?
+     */
+    fun findDetailByIdAdmin(jobSummaryId: Long): JobSummaryDetailView?
+
+    /**
+     * Admin ?꾩슜 紐⑸줉 議고쉶 - isActive ?꾪꽣 ?좏깮 媛??(null = ?꾩껜)
+     */
+    fun searchAdmin(isActive: Boolean?, brandName: String?, pageable: Pageable): Page<JobSummaryAdminView>
 }
+

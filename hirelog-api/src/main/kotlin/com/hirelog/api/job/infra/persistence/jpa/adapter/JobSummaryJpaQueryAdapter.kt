@@ -1,7 +1,8 @@
-package com.hirelog.api.job.infra.persistence.jpa.adapter
+﻿package com.hirelog.api.job.infra.persistence.jpa.adapter
 
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchCondition
+import com.hirelog.api.job.application.summary.view.JobSummaryAdminView
 import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.infra.persistence.jpa.mapper.summary.toSummaryView
@@ -16,14 +17,12 @@ import org.springframework.stereotype.Component
 /**
  * JobSummary JPA Query Adapter
  *
- * 책임:
- * - JobSummaryQuery Port 구현
- * - QueryDSL 기반 조회 수행
+ * 梨낆엫:
+ * - JobSummaryQuery Port 援ы쁽
+ * - QueryDSL 湲곕컲 議고쉶 ?섑뻾
  *
- * 설계 원칙:
- * - Entity는 절대 외부로 노출하지 않는다
- * - 조회 조건은 유스케이스 모델(JobSummarySearchCondition)로 받는다
- * - 조회 결과는 Read Model(View)로만 반환한다
+ * ?ㅺ퀎 ?먯튃:
+ * - Entity???덈? ?몃?濡??몄텧?섏? ?딅뒗?? * - 議고쉶 議곌굔? ?좎뒪耳?댁뒪 紐⑤뜽(JobSummarySearchCondition)濡?諛쏅뒗?? * - 議고쉶 寃곌낵??Read Model(View)濡쒕쭔 諛섑솚?쒕떎
  */
 @Component
 class JobSummaryJpaQueryAdapter(
@@ -33,18 +32,17 @@ class JobSummaryJpaQueryAdapter(
 ) : JobSummaryQuery {
 
     /**
-     * JobSummary 검색
-     *
-     * 흐름:
-     * 1. QueryDSL Repository를 통해 Entity 조회
-     * 2. Entity → View 변환 (Mapper 사용)
-     * 3. Page<View> 형태로 반환
+     * JobSummary 寃??     *
+     * ?먮쫫:
+     * 1. QueryDSL Repository瑜??듯빐 Entity 議고쉶
+     * 2. Entity ??View 蹂??(Mapper ?ъ슜)
+     * 3. Page<View> ?뺥깭濡?諛섑솚
      */
     override fun search(
         condition: JobSummarySearchCondition,
         pageable: Pageable
     ): Page<JobSummaryView> {
-        // 1️⃣ QueryDSL 기반 Entity 조회
+        // 1截뤴깵 QueryDSL 湲곕컲 Entity 議고쉶
         val projectionPage = queryDslRepository.search(
             brandId = condition.brandId,
             positionId = condition.positionId,
@@ -52,24 +50,24 @@ class JobSummaryJpaQueryAdapter(
             pageable = pageable
         )
 
-        // 2️⃣ Entity → Read Model(View) 변환 후 반환
+        // 2截뤴깵 Entity ??Read Model(View) 蹂????諛섑솚
         return PageImpl(
-            projectionPage.content.map { it.toSummaryView() }, // ✅ Projection → View
+            projectionPage.content.map { it.toSummaryView() }, // ??Projection ??View
             pageable,
             projectionPage.totalElements
         )
     }
 
     /**
-     * JobSummary 상세 조회 (사용자 저장 상태 포함)
+     * JobSummary ?곸꽭 議고쉶 (?ъ슜??????곹깭 ?ы븿)
      *
-     * 흐름:
-     * 1. QueryDSL Projection으로 JobSummary 조회
-     * 2. 현재 사용자의 MemberJobSummary 조회
-     * 3. copy()로 합산
+     * ?먮쫫:
+     * 1. QueryDSL Projection?쇰줈 JobSummary 議고쉶
+     * 2. ?꾩옱 ?ъ슜?먯쓽 MemberJobSummary 議고쉶
+     * 3. copy()濡??⑹궛
      *
-     * 설계:
-     * - Review는 별도 API(/api/job-summary/review/{jobSummaryId})로 분리
+     * ?ㅺ퀎:
+     * - Review??蹂꾨룄 API(/api/job-summary/review/{jobSummaryId})濡?遺꾨━
      */
     override fun findDetailById(jobSummaryId: Long, memberId: Long?): JobSummaryDetailView? {
         val detail = queryDslRepository.findDetailById(jobSummaryId) ?: return null
@@ -88,11 +86,10 @@ class JobSummaryJpaQueryAdapter(
     }
 
     /**
-     * URL 중복 체크 (활성화된 것만)
+     * URL 以묐났 泥댄겕 (?쒖꽦?붾맂 寃껊쭔)
      *
-     * 정책:
-     * - 비활성화된 URL은 새로 생성 가능
-     */
+     * ?뺤콉:
+     * - 鍮꾪솢?깊솕??URL? ?덈줈 ?앹꽦 媛??     */
     override fun existsBySourceUrl(sourceUrl: String): Boolean {
         return jpaRepository.existsBySourceUrlAndIsActiveTrue(sourceUrl)
     }
@@ -105,8 +102,16 @@ class JobSummaryJpaQueryAdapter(
         return jpaRepository.findByJobSnapshotIdAndIsActiveTrue(jobSnapshotId)?.id
     }
 
+    override fun findDetailByIdAdmin(jobSummaryId: Long): JobSummaryDetailView? {
+        return queryDslRepository.findDetailByIdAdmin(jobSummaryId)
+    }
+
+    override fun searchAdmin(isActive: Boolean?, brandName: String?, pageable: Pageable): Page<JobSummaryAdminView> {
+        return queryDslRepository.searchAdmin(isActive, brandName, pageable)
+    }
+
     /**
-     * URL로 조회 (활성화된 것만)
+     * URL濡?議고쉶 (?쒖꽦?붾맂 寃껊쭔)
      */
     override fun findBySourceUrl(sourceUrl: String): JobSummaryView? {
         val entity = jpaRepository.findBySourceUrlAndIsActiveTrue(sourceUrl) ?: return null
@@ -131,3 +136,4 @@ class JobSummaryJpaQueryAdapter(
         )
     }
 }
+

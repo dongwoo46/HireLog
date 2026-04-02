@@ -1,5 +1,6 @@
 package com.hirelog.api.job.infra.persistence.jpa.repository
 
+import com.hirelog.api.job.application.summary.view.JobSummaryAdminView
 import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.domain.model.QJobSummary
 import com.hirelog.api.job.infra.persistence.jpa.projection.JobSummaryProjection
@@ -163,6 +164,7 @@ class JobSummaryJpaQueryDslRepositoryImpl(
 
                     // 메타
                     q.sourceUrl,
+                    q.isActive,
                     q.createdAt
                 )
             )
@@ -172,5 +174,114 @@ class JobSummaryJpaQueryDslRepositoryImpl(
                 q.isActive.isTrue
             )
             .fetchOne()
+    }
+
+    /**
+     * Admin 전용 상세 조회 - isActive 필터 없음
+     */
+    override fun findDetailByIdAdmin(jobSummaryId: Long): JobSummaryDetailView? {
+        val q = QJobSummary.jobSummary
+
+        return queryFactory
+            .select(
+                Projections.fields(
+                    JobSummaryDetailView::class.java,
+
+                    q.id.`as`("summaryId"),
+                    q.jobSnapshotId.`as`("snapshotId"),
+
+                    q.brandId,
+                    q.brandName,
+                    q.companyId,
+                    q.companyName,
+
+                    q.positionId,
+                    q.positionName,
+                    q.brandPositionId,
+                    q.brandPositionName,
+                    q.positionCategoryId,
+                    q.positionCategoryName,
+
+                    q.careerType,
+                    q.careerYears,
+
+                    q.summaryText,
+                    q.responsibilities,
+                    q.requiredQualifications,
+                    q.preferredQualifications,
+                    q.techStack,
+                    q.recruitmentProcess,
+
+                    q.insight.idealCandidate,
+                    q.insight.mustHaveSignals,
+                    q.insight.preparationFocus,
+                    q.insight.transferableStrengthsAndGapPlan,
+                    q.insight.proofPointsAndMetrics,
+                    q.insight.storyAngles,
+                    q.insight.keyChallenges,
+                    q.insight.technicalContext,
+                    q.insight.questionsToAsk,
+                    q.insight.considerations,
+
+                    q.sourceUrl,
+                    q.isActive,
+                    q.createdAt
+                )
+            )
+            .from(q)
+            .where(q.id.eq(jobSummaryId))
+            .fetchOne()
+    }
+
+    /**
+     * Admin 전용 목록 조회 - isActive 필터 선택 가능 (null = 전체)
+     */
+    override fun searchAdmin(isActive: Boolean?, brandName: String?, pageable: Pageable): Page<JobSummaryAdminView> {
+        val q = QJobSummary.jobSummary
+
+        val conditions = mutableListOf<BooleanExpression>()
+
+        when (isActive) {
+            true -> q.isActive.isTrue
+            false -> q.isActive.isFalse
+            null -> null
+        }?.let { conditions += it }
+
+        brandName
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { conditions += q.brandName.containsIgnoreCase(it) }
+
+        val content = queryFactory
+            .select(
+                Projections.fields(
+                    JobSummaryAdminView::class.java,
+                    q.id.`as`("summaryId"),
+                    q.brandId,
+                    q.brandName,
+                    q.positionId,
+                    q.positionName,
+                    q.positionCategoryName,
+                    q.careerType,
+                    q.careerYears,
+                    q.isActive,
+                    q.sourceUrl,
+                    q.createdAt
+                )
+            )
+            .from(q)
+            .where(*conditions.toTypedArray())
+            .orderBy(q.createdAt.desc())
+            .offset(pageable.offset)
+            .limit(pageable.pageSize.toLong())
+            .fetch()
+
+        val total = queryFactory
+            .select(q.count())
+            .from(q)
+            .where(*conditions.toTypedArray())
+            .fetchOne() ?: 0L
+
+        return PageImpl(content, pageable, total)
     }
 }

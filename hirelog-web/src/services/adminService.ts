@@ -1,6 +1,7 @@
 ﻿import { apiClient } from '../utils/apiClient';
 import type {
   AdminJobSummaryDirectCreateReq,
+  AdminJobSummaryView,
   AdminPagedResult,
   AdminReportView,
   AdminReviewView,
@@ -46,6 +47,27 @@ export const adminService = {
     return response.data;
   },
 
+  getAllJobSummaries: async (
+    page = 0,
+    size = 20,
+    isActive?: boolean,
+    brandName?: string
+  ): Promise<AdminPagedResult<AdminJobSummaryView>> => {
+    const response = await apiClient.get('/admin/job-summary', {
+      params: { page, size, isActive, brandName },
+    });
+
+    const data = response.data;
+
+    return {
+      items: data.content ?? [],
+      totalElements: data.totalElements ?? 0,
+      totalPages: data.totalPages ?? 0,
+      size: data.size ?? size,
+      number: data.number ?? page,
+    };
+  },
+
   getAllBrands: async (page = 0, size = 20): Promise<AdminPagedResult<BrandListView>> => {
     const response = await apiClient.get('/brand', {
       params: { page, size },
@@ -84,7 +106,7 @@ export const adminService = {
     await apiClient.patch(`/companies/${companyId}/deactivate`);
   },
 
-  getAllUserRequests: async (page = 0, size = 20, status?: string): Promise<AdminPagedResult<any>> => {
+  getAllUserRequests: async (page = 0, size = 20, status?: string): Promise<AdminPagedResult<unknown>> => {
     const response = await apiClient.get('/user-requests/admin', {
       params: { page, size, status },
     });

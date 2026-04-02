@@ -61,6 +61,9 @@ data class JobSummaryDetailView(
     // 원본 URL
     val sourceUrl: String? = null,
 
+    // 활성화 여부 (Admin 조회 시 실제 값, 일반 조회 시 항상 true)
+    val isActive: Boolean = true,
+
     // 현재 사용자의 저장 상태
     val memberJobSummaryId: Long? = null,
     val memberSaveType: String? = null,

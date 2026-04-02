@@ -1,18 +1,24 @@
 package com.hirelog.api.job.presentation.controller
 
 import com.hirelog.api.job.application.summary.JobSummaryAdminService
+import com.hirelog.api.job.application.summary.JobSummaryReadService
+import com.hirelog.api.job.application.summary.view.JobSummaryAdminView
+import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiPromptBuilder
 import com.hirelog.api.job.presentation.controller.dto.request.GeminiPromptPreviewReq
 import com.hirelog.api.job.presentation.controller.dto.response.GeminiPromptRes
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryAdminCreateReq
 import com.hirelog.api.job.presentation.controller.dto.request.VerifyAdminReq
 import jakarta.validation.Valid
+import org.springframework.data.domain.Page
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /**
@@ -26,8 +32,37 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/admin/job-summary")
 @PreAuthorize("hasRole('ADMIN')")
 class JobSummaryAdminController(
-    private val jobSummaryAdminService: JobSummaryAdminService
+    private val jobSummaryAdminService: JobSummaryAdminService,
+    private val jobSummaryReadService: JobSummaryReadService
 ) {
+
+    /**
+     * Admin 전용 JobSummary 목록 조회
+     *
+     * - isActive=true  → 활성화된 것만
+     * - isActive=false → 비활성화된 것만
+     * - isActive 없음  → 전체 조회
+     */
+    @GetMapping
+    fun list(
+        @RequestParam isActive: Boolean? = null,
+        @RequestParam brandName: String? = null,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): ResponseEntity<Page<JobSummaryAdminView>> {
+        return ResponseEntity.ok(jobSummaryReadService.searchAdmin(isActive, brandName, page, size))
+    }
+
+    /**
+     * Admin 전용 JobSummary 상세 조회 - 비활성화된 것도 조회 가능
+     */
+    @GetMapping("/{id}")
+    fun getDetail(@PathVariable id: Long): ResponseEntity<JobSummaryDetailView> {
+        val detail = jobSummaryReadService.getDetailAdmin(id)
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(detail)
+    }
+
 
     /**
      * Admin 전용 JobSummary 직접 생성

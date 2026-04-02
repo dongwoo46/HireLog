@@ -60,6 +60,20 @@ export interface AdminJobSummaryDirectCreateReq {
     sourceUrl?: string;
 }
 
+export interface AdminJobSummaryView {
+    summaryId: number;
+    brandId: number;
+    brandName: string;
+    positionId: number;
+    positionName: string;
+    positionCategoryName: string;
+    careerType: string;
+    careerYears?: string | null;
+    isActive: boolean;
+    sourceUrl?: string | null;
+    createdAt: string;
+}
+
 export type ReportStatus = 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'REJECTED';
 export type ReportTargetType = 'JOB_SUMMARY' | 'JOB_SUMMARY_REVIEW' | 'MEMBER' | 'BOARD' | 'COMMENT';
 export type ReportProcessType = 'REVIEW' | 'RESOLVE' | 'RESOLVE_AND_DELETE_TARGET' | 'REJECT';

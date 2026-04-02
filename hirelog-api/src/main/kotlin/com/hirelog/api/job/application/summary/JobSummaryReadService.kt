@@ -3,10 +3,13 @@ package com.hirelog.api.job.application.summary
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchQuery
 import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
+import com.hirelog.api.job.application.summary.view.JobSummaryAdminView
 import com.hirelog.api.job.application.summary.view.JobSummaryDetailView
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchQuery
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 
 /**
@@ -56,5 +59,15 @@ class JobSummaryReadService(
 
     fun getDetail(jobSummaryId: Long, memberId: Long?): JobSummaryDetailView? {
         return jobSummaryQuery.findDetailById(jobSummaryId, memberId)
+    }
+
+    fun getDetailAdmin(jobSummaryId: Long): JobSummaryDetailView? {
+        return jobSummaryQuery.findDetailByIdAdmin(jobSummaryId)
+    }
+
+    fun searchAdmin(isActive: Boolean?, brandName: String?, page: Int, size: Int): Page<JobSummaryAdminView> {
+        require(page >= 0) { "page must be >= 0" }
+        require(size in 1..100) { "size must be in 1..100" }
+        return jobSummaryQuery.searchAdmin(isActive, brandName, PageRequest.of(page, size))
     }
 }
