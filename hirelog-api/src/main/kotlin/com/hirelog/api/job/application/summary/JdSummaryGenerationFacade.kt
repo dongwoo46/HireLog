@@ -2,6 +2,7 @@ package com.hirelog.api.job.application.summary
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hirelog.api.common.logging.log
+import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.pipeline.LlmInvocationService
@@ -10,6 +11,7 @@ import com.hirelog.api.job.application.summary.pipeline.PostLlmProcessor
 import com.hirelog.api.job.application.summary.pipeline.PreLlmProcessor
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
+import java.util.UUID
 import java.util.concurrent.*
 
 /**
@@ -29,6 +31,7 @@ class JdSummaryGenerationFacade(
     private val postLlm: PostLlmProcessor,
     private val errorHandler: PipelineErrorHandler,
     private val processingWriteService: JdSummaryProcessingWriteService,
+    private val processingQuery: JdSummaryProcessingQuery,
     private val objectMapper: ObjectMapper,
     @Qualifier("blockingExecutor") private val executor: Executor
 ) {
@@ -39,7 +42,8 @@ class JdSummaryGenerationFacade(
             command.requestId, command.brandName, command.positionName, command.source
         )
 
-        val processing = processingWriteService.startProcessing(command.requestId)
+        val processing = processingQuery.findById(UUID.fromString(command.requestId))
+            ?: throw IllegalStateException("JdSummaryProcessing not found for requestId=${command.requestId}")
 
         val preResult = try {
             preLlm.execute(processing.id, command) ?: run {

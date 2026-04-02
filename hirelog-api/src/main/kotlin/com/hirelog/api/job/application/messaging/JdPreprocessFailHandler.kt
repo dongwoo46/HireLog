@@ -30,7 +30,7 @@ class JdPreprocessFailHandler(
         val processingId = UUID.fromString(event.requestId)
 
         // 1. JdSummaryProcessing → FAILED
-        processingWriteService.markFailed(
+        val processing = processingWriteService.markFailed(
             processingId = processingId,
             errorCode = event.errorCode,
             errorMessage = event.errorMessage
@@ -43,7 +43,9 @@ class JdPreprocessFailHandler(
             JobSummaryRequestEvent.Failed.of(
                 processingId = event.requestId,
                 errorCode = event.errorCode,
-                requestId = event.requestId
+                requestId = event.requestId,
+                brandName = processing?.commandBrandName,
+                positionName = processing?.commandPositionName
             )
         )
 

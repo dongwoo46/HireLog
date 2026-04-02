@@ -35,7 +35,7 @@ class JdSummaryProcessingWriteServiceTest {
             val requestId = processingId.toString()
             every { command.save(any()) } returnsArgument 0
 
-            val result = service.startProcessing(requestId)
+            val result = service.startProcessing(requestId, "카카오", "백엔드 개발자")
 
             assertThat(result).isNotNull()
             assertThat(result.id).isEqualTo(processingId)

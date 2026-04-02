@@ -25,10 +25,14 @@ class JdSummaryProcessingWriteService(
     @Transactional
     fun startProcessing(
         requestId: String,
+        brandName: String,
+        positionName: String
     ): JdSummaryProcessing {
 
         val processing = JdSummaryProcessing.create(
             id = UUID.fromString(requestId),
+            brandName = brandName,
+            positionName = positionName
         )
 
         command.save(processing)
@@ -107,14 +111,14 @@ class JdSummaryProcessingWriteService(
         processingId: UUID,
         errorCode: String,
         errorMessage: String
-    ) {
+    ): JdSummaryProcessing? {
         val processing = query.findById(processingId)
         if (processing == null) {
             log.error(
                 "[PROCESSING_NOT_FOUND_ON_FAIL] processingId={}, errorCode={} — skip markFailed (orphaned fail event or race condition)",
                 processingId, errorCode
             )
-            return
+            return null
         }
         processing.markFailed(
             errorCode = errorCode,
@@ -122,6 +126,7 @@ class JdSummaryProcessingWriteService(
         )
         command.update(processing)
         log.error("[PROCESSING_FAILED] processingId={}, errorCode={}", processingId, errorCode)
+        return processing
     }
 
     /**
@@ -136,11 +141,12 @@ class JdSummaryProcessingWriteService(
         processingId: UUID,
         errorCode: String,
         errorMessage: String
-    ) {
+    ): JdSummaryProcessing {
         val processing = getRequired(processingId)
         processing.markPostLlmFailed(errorCode, errorMessage)
         command.update(processing)
         log.error("[PROCESSING_POST_LLM_FAILED] processingId={}, errorCode={}", processingId, errorCode)
+        return processing
     }
 
     /**

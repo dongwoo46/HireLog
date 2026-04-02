@@ -42,7 +42,4 @@ out/
 .env
 .env.*
 
-.claude
-.codex
-
 .gradle-cache\*

@@ -97,11 +97,14 @@ class JdSummaryProcessing protected constructor(
          *
          * 규칙:
          * - 최초 상태는 RECEIVED
+         * - 원본 요청의 brandName/positionName을 즉시 저장 (전처리 실패 시에도 알림 title에 사용)
          */
-        fun create(id: UUID): JdSummaryProcessing =
+        fun create(id: UUID, brandName: String, positionName: String): JdSummaryProcessing =
             JdSummaryProcessing(
                 id = id,
-                status = JdSummaryProcessingStatus.RECEIVED
+                status = JdSummaryProcessingStatus.RECEIVED,
+                commandBrandName = brandName,
+                commandPositionName = positionName
             )
     }
 

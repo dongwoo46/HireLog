@@ -1,6 +1,4 @@
 .copilot-chat.md
-.claude/
-.codex/
 /data/
 /redis_data/
 .env

@@ -30,7 +30,9 @@ sealed class JobSummaryRequestEvent {
         val requestId: String,
         val processingId: String,
         val errorCode: String,
-        val retryable: Boolean
+        val retryable: Boolean,
+        val brandName: String? = null,
+        val positionName: String? = null
     ) : JobSummaryRequestEvent() {
 
         companion object {
@@ -39,12 +41,20 @@ sealed class JobSummaryRequestEvent {
                 "LLM_CALL_FAILED"
             )
 
-            fun of(processingId: String, errorCode: String, requestId: String): Failed =
+            fun of(
+                processingId: String,
+                errorCode: String,
+                requestId: String,
+                brandName: String? = null,
+                positionName: String? = null
+            ): Failed =
                 Failed(
                     requestId = requestId,
                     processingId = processingId,
                     errorCode = errorCode,
-                    retryable = errorCode in RETRYABLE_ERROR_CODES
+                    retryable = errorCode in RETRYABLE_ERROR_CODES,
+                    brandName = brandName,
+                    positionName = positionName
                 )
         }
     }

@@ -1,6 +1,7 @@
 package com.hirelog.api.job.application.summary
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.pipeline.LlmInvocationService
@@ -30,6 +31,7 @@ class JdSummaryGenerationFacadeTest {
     private lateinit var postLlm: PostLlmProcessor
     private lateinit var errorHandler: PipelineErrorHandler
     private lateinit var processingWriteService: JdSummaryProcessingWriteService
+    private lateinit var processingQuery: JdSummaryProcessingQuery
     private lateinit var objectMapper: ObjectMapper
 
     // 동기 실행 Executor (테스트에서 비동기 제어용)
@@ -78,17 +80,18 @@ class JdSummaryGenerationFacadeTest {
         postLlm = mockk(relaxed = true)
         errorHandler = mockk(relaxed = true)
         processingWriteService = mockk(relaxed = true)
+        processingQuery = mockk()
         objectMapper = mockk()
 
         val processing = mockk<JdSummaryProcessing>(relaxed = true)
         every { processing.id } returns processingId
 
-        every { processingWriteService.startProcessing(any()) } returns processing
+        every { processingQuery.findById(processingId) } returns processing
         every { objectMapper.writeValueAsString(any()) } returns "{}"
 
         facade = JdSummaryGenerationFacade(
             preLlm, llmInvoker, postLlm, errorHandler,
-            processingWriteService, objectMapper, syncExecutor
+            processingWriteService, processingQuery, objectMapper, syncExecutor
         )
     }
 

@@ -59,13 +59,15 @@ class JdPreprocessFailConsumer(
             )
 
             // === 1. 멱등성 검사 ===
+            // 정책: SELECT-then-INSERT (at-least-once)
+            // - 알림 누락 방지 우선 → 재시도 허용
+            // - 멀티 인스턴스 race condition 시 중복 알림 가능성 있으나 허용
             val processedEventId = ProcessedEventId.create(event.eventId)
             val alreadyProcessed = processedEventService.isAlreadyProcessed(
                 eventId = processedEventId,
                 consumerGroup = CONSUMER_GROUP
             )
 
-            // 이미 처리한 프로세스 처리완료 ack 처리
             if (alreadyProcessed) {
                 log.debug("[JD_PREPROCESS_FAIL_ALREADY_PROCESSED] eventId={}", event.eventId)
                 acknowledgment.acknowledge()
@@ -83,7 +85,7 @@ class JdPreprocessFailConsumer(
                 throw e
             }
 
-            // === 3. 성공 처리 후 멱등 마킹 ===
+            // === 3. 성공 후 멱등 마킹 ===
             val marked = processedEventService.markProcessed(
                 eventId = processedEventId,
                 consumerGroup = CONSUMER_GROUP

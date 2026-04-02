@@ -26,28 +26,36 @@ class PipelineErrorHandler(
             else -> "FAILED_AT_$phase"
         }
 
-        processingWriteService.markFailed(
+        val processing = processingWriteService.markFailed(
             processingId,
             errorCode,
             cause.message ?: "Unknown error"
         )
 
         eventPublisher.publishEvent(
-            JobSummaryRequestEvent.Failed.of(processingId.toString(), errorCode, requestId)
+            JobSummaryRequestEvent.Failed.of(
+                processingId.toString(), errorCode, requestId,
+                brandName = processing?.commandBrandName,
+                positionName = processing?.commandPositionName
+            )
         )
     }
 
     fun handlePostLlm(processingId: UUID, ex: Throwable, requestId: String) {
         val cause = if (ex is CompletionException) ex.cause ?: ex else ex
 
-        processingWriteService.markPostLlmFailed(
+        val processing = processingWriteService.markPostLlmFailed(
             processingId,
             "POST_LLM_FAILED",
             cause.message ?: "Unknown error"
         )
 
         eventPublisher.publishEvent(
-            JobSummaryRequestEvent.Failed.of(processingId.toString(), "POST_LLM_FAILED", requestId)
+            JobSummaryRequestEvent.Failed.of(
+                processingId.toString(), "POST_LLM_FAILED", requestId,
+                brandName = processing.commandBrandName,
+                positionName = processing.commandPositionName
+            )
         )
     }
 }

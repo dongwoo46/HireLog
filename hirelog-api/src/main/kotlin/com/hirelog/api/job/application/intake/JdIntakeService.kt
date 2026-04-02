@@ -4,6 +4,7 @@ import com.hirelog.api.common.application.outbox.OutboxEventWriteService
 import com.hirelog.api.common.domain.outbox.AggregateType
 import com.hirelog.api.common.domain.outbox.OutboxEvent
 import com.hirelog.api.common.infra.storage.FileStorageService
+import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
@@ -31,6 +32,7 @@ import java.util.*
 class JdIntakeService(
     private val fileStorageService: FileStorageService,
     private val jobSummaryRequestWriteService: JobSummaryRequestWriteService,
+    private val processingWriteService: JdSummaryProcessingWriteService,
     private val outboxEventWriteService: OutboxEventWriteService,
     private val jobSummaryQuery: JobSummaryQuery,
     private val objectMapper: ObjectMapper
@@ -62,6 +64,7 @@ class JdIntakeService(
         )
 
         jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        processingWriteService.startProcessing(message.requestId, brandName, brandPositionName)
         appendOutbox(AggregateType.JD_PREPROCESS_TEXT, message)
 
         log.info(
@@ -100,6 +103,7 @@ class JdIntakeService(
         )
 
         jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        processingWriteService.startProcessing(message.requestId, brandName, brandPositionName)
         appendOutbox(AggregateType.JD_PREPROCESS_OCR, message)
 
         log.info(
@@ -148,6 +152,7 @@ class JdIntakeService(
         )
 
         jobSummaryRequestWriteService.createRequest(memberId, message.requestId)
+        processingWriteService.startProcessing(message.requestId, brandName, brandPositionName)
         appendOutbox(AggregateType.JD_PREPROCESS_URL, message)
 
         log.info(

@@ -95,7 +95,10 @@ class JobSummaryLifecycleListener(
                 notificationWriteService.create(
                     memberId = memberId,
                     type = NotificationType.JOB_SUMMARY_FAILED,
-                    title = "채용공고 분석 실패",
+                    title = if (!event.brandName.isNullOrBlank() && !event.positionName.isNullOrBlank())
+                        "${event.brandName} ${event.positionName} 분석 실패"
+                    else
+                        "채용공고 분석 실패",
                     message = "요청하신 채용공고 분석에 실패했습니다.",
                     metadata = mapOf(
                         "requestId" to event.processingId,
