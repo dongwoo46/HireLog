@@ -80,13 +80,19 @@ META_NOISE_PATTERNS = [
 
 def get_platform_module(platform: JobPlatform):
     if platform == JobPlatform.WANTED:
-        from url.platforms import wanted
+        from url.section_strategies import wanted
         return wanted
     elif platform == JobPlatform.REMEMBER:
-        from url.platforms import remember
+        from url.section_strategies import remember
         return remember
+    elif platform == JobPlatform.SARAMIN:
+        from url.section_strategies import saramin
+        return saramin
+    elif platform == JobPlatform.JOBKOREA:
+        from url.section_strategies import jobkorea
+        return jobkorea
     else:
-        from url.platforms import generic
+        from url.section_strategies import generic
         return generic
 
 

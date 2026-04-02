@@ -58,4 +58,12 @@ sealed class JobSummaryRequestEvent {
                 )
         }
     }
+
+    data class Duplicate(
+        val requestId: String,
+        val processingId: String,
+        val reason: String,
+        val brandName: String? = null,
+        val positionName: String? = null
+    ) : JobSummaryRequestEvent()
 }

@@ -88,4 +88,9 @@ class JwtAuthenticationFilter(
                 path.startsWith("/api/health") ||
                 path.startsWith("/actuator")
     }
+
+    /**
+     * SSE 등 비동기 재디스패치에서도 JWT 인증을 유지한다.
+     */
+    override fun shouldNotFilterAsyncDispatch(): Boolean = false
 }

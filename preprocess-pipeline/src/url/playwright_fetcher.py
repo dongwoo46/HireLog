@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 # Playwright 설치 여부 확인
 _PLAYWRIGHT_AVAILABLE = False
 try:
-    from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+    from playwright.sync_api import sync_playwright
     _PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     logger.warning(

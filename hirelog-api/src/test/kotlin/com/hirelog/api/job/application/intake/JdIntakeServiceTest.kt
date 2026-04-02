@@ -8,7 +8,6 @@ import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.application.summary.view.JobSummaryView
 import com.hirelog.api.job.domain.type.CareerType
-import com.hirelog.api.job.domain.type.JobPlatformType
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -174,7 +173,6 @@ class JdIntakeServiceTest {
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
                 url = "https://www.toss.im/careers/123",
-                platform = JobPlatformType.OTHER
             )
 
             assertThat(result).isInstanceOf(UrlIntakeResult.NewRequest::class.java)
@@ -193,7 +191,6 @@ class JdIntakeServiceTest {
                 brandName = "Toss",
                 brandPositionName = "Backend Engineer",
                 url = "https://www.toss.im/careers/123",
-                platform = JobPlatformType.OTHER
             )
 
             assertThat(result).isInstanceOf(UrlIntakeResult.Duplicate::class.java)
@@ -206,7 +203,7 @@ class JdIntakeServiceTest {
         @DisplayName("잘못된 URL 형식이면 예외를 던진다")
         fun shouldThrowWhenInvalidUrl() {
             assertThatThrownBy {
-                service.requestUrl(1L, "Toss", "Backend Engineer", "not-a-url", JobPlatformType.OTHER)
+                service.requestUrl(1L, "Toss", "Backend Engineer", "not-a-url")
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid URL")
         }
@@ -215,7 +212,7 @@ class JdIntakeServiceTest {
         @DisplayName("http/https가 아닌 scheme은 거부한다")
         fun shouldRejectNonHttpScheme() {
             assertThatThrownBy {
-                service.requestUrl(1L, "Toss", "Backend Engineer", "ftp://example.com/jd", JobPlatformType.OTHER)
+                service.requestUrl(1L, "Toss", "Backend Engineer", "ftp://example.com/jd")
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("Invalid URL")
         }
@@ -224,7 +221,7 @@ class JdIntakeServiceTest {
         @DisplayName("brandName이 빈 값이면 예외를 던진다")
         fun shouldThrowWhenBrandNameBlank() {
             assertThatThrownBy {
-                service.requestUrl(1L, "", "Backend Engineer", "https://example.com", JobPlatformType.OTHER)
+                service.requestUrl(1L, "", "Backend Engineer", "https://example.com")
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("brandName")
         }

@@ -1,37 +1,6 @@
 ﻿export type CareerType = 'NEW' | 'EXPERIENCED' | 'ANY';
 export type MemberJobSummarySaveType = 'SAVED' | 'APPLY' | 'UNSAVED';
 
-export type JobPlatformType =
-  | 'WANTED'
-  | 'REMEMBER'
-  | 'SARAMIN'
-  | 'JOBKOREA'
-  | 'ROCKETPUNCH'
-  | 'PROGRAMMERS'
-  | 'JUMPIT'
-  | 'RALLIT'
-  | 'CATCH'
-  | 'INCRUIT'
-  | 'GREPP'
-  | 'LINKEDIN'
-  | 'OTHER';
-
-export const JOB_PLATFORM_LABELS: Record<JobPlatformType, string> = {
-  WANTED: '원티드',
-  REMEMBER: '리멤버',
-  SARAMIN: '사람인',
-  JOBKOREA: '잡코리아',
-  ROCKETPUNCH: '로켓펀치',
-  PROGRAMMERS: '프로그래머스',
-  JUMPIT: '점핏',
-  RALLIT: '랠릿',
-  CATCH: '캐치',
-  INCRUIT: '인크루트',
-  GREPP: '그렙',
-  LINKEDIN: '링크드인',
-  OTHER: '기타',
-};
-
 export interface JobSummarySearchReq {
   keyword?: string;
   careerType?: CareerType;
@@ -115,7 +84,6 @@ export interface JobSummaryUrlReq {
   brandName: string;
   brandPositionName: string;
   url: string;
-  platform: JobPlatformType;
 }
 
 export type HiringStage =

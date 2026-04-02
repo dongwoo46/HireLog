@@ -1,148 +1,192 @@
-import logging
+﻿import logging
+import re
+
+from domain.job_platform import JobPlatform
 from inputs.jd_preprocess_input import JdPreprocessInput
-from url.fetcher import UrlFetcher
-from url.playwright_fetcher import PlaywrightFetcher
-from url.parser import UrlParser
-from url.preprocessor import preprocess_url_text, get_platform_module
 from preprocess.adapter.url_section_adapter import adapt_url_sections_to_sections
 from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
-from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
 from preprocess.post_validation.section_post_validator import validate_raw_sections
+from preprocess.worker.pipeline.canonical_section_pipeline import CanonicalSectionPipeline
+from preprocess.worker.pipeline.jobkorea_url_support import JobKoreaUrlSupport
+from url.fetcher import UrlFetcher
+from url.fetchers import PlaywrightFetcher, SaraminPlaywrightFetcher
+from url.parsers import JobKoreaUrlParser, SaraminUrlParser, UrlParser
+from url.preprocessor import get_platform_module, preprocess_url_text
 
 logger = logging.getLogger(__name__)
 
 
 class UrlPipeline:
-    """
-    URL 기반 JD 전처리 파이프라인
-
-    핵심 전략 (OCR과 동일):
-    - URL 전용 전처리로 노이즈 제거
-    - Header 기반으로 섹션 분리 (구조 확정)
-    - Core/Structural 단계 없이 바로 Canonical로 연결
-
-    책임:
-    - URL Fetching & Parsing
-    - URL 전용 전처리 (UI 노이즈 제거)
-    - Header 기반 섹션 분리
-    - CanonicalSectionPipeline 연결
-    """
-
     def __init__(self):
         self.fetcher = UrlFetcher()
         self.dynamic_fetcher = PlaywrightFetcher()
-        self.parser = UrlParser()
+        self.saramin_dynamic_fetcher = SaraminPlaywrightFetcher()
+
+        self.default_parser = UrlParser()
+        self.saramin_parser = SaraminUrlParser()
+        self.jobkorea_parser = JobKoreaUrlParser()
+
         self.metadata = MetadataPreprocessor()
         self.canonical = CanonicalSectionPipeline()
+        self.jobkorea_support = JobKoreaUrlSupport(self.canonical, self._normalize_intake_required_canonical)
 
     def process(self, input: JdPreprocessInput) -> dict:
-        """
-        URL → Fetch → Parse → 전처리 → Header 분리 → Canonical 흐름 실행
-        """
         if not input.url:
             raise ValueError("url is required for UrlPipeline")
 
-        # 1️⃣ Fetch (Hybrid Strategy)
-        try:
-            html_content = self.fetcher.fetch(input.url)
+        effective_platform = JobPlatform.from_url(input.url)
+        fetch_url = self.jobkorea_support.normalize_doc_url(input.url) if effective_platform == JobPlatform.JOBKOREA else input.url
 
-            # Check for JS Rendering Requirement
-            if self.fetcher._needs_js_rendering(html_content):
-                logger.debug("JS rendering required, switching to Playwright", extra={"url": input.url})
-                html_content = self.dynamic_fetcher.fetch(input.url)
+        # 1) Fetch
+        try:
+            html_content = self.fetcher.fetch(fetch_url)
+
+            if effective_platform == JobPlatform.SARAMIN:
+                logger.debug(
+                    "Saramin request uses dedicated Playwright fetcher",
+                    extra={"url": input.url, "static_html_length": len(html_content or "")},
+                )
+                html_content = self.saramin_dynamic_fetcher.fetch(input.url)
+            elif self.fetcher._needs_js_rendering(html_content):
+                logger.debug("JS rendering required, switching to Playwright", extra={"url": fetch_url})
+                html_content = self.dynamic_fetcher.fetch(fetch_url)
 
         except Exception as e:
             logger.warning(
                 "Static fetch failed, retrying with Playwright",
-                extra={"url": input.url, "error": str(e)},
+                extra={"url": fetch_url, "error": str(e)},
             )
-            html_content = self.dynamic_fetcher.fetch(input.url)
+            if effective_platform == JobPlatform.SARAMIN:
+                html_content = self.saramin_dynamic_fetcher.fetch(input.url)
+            else:
+                html_content = self.dynamic_fetcher.fetch(fetch_url)
 
-        # 2️⃣ Parse (HTML → 텍스트)
-        parsed_data = self.parser.parse(html_content, url=input.url)
+        # 2) Parse
+        if effective_platform == JobPlatform.SARAMIN:
+            parser = self.saramin_parser
+        elif effective_platform == JobPlatform.JOBKOREA:
+            parser = self.jobkorea_parser
+        else:
+            parser = self.default_parser
+
+        parsed_data = parser.parse(html_content, url=fetch_url)
         title = parsed_data.get("title", "")
         body_text = parsed_data.get("body", "")
+
+        ocr_images = []
+        if effective_platform == JobPlatform.JOBKOREA:
+            ocr_images = self.jobkorea_support.collect_ocr_images(input.images, html_content, fetch_url)
 
         logger.debug(
             "URL fetched and parsed",
             extra={
-                "url": input.url,
+                "url": fetch_url,
                 "title": title,
                 "fetched_length": len(html_content),
                 "parsed_length": len(body_text),
             },
         )
 
+        # JobKorea image-only docs: run OCR immediately when body text is empty.
         if not body_text:
-            logger.warning("No body text extracted from URL", extra={"url": input.url})
+            if effective_platform == JobPlatform.JOBKOREA:
+                ocr_only = self.jobkorea_support.ocr_only_result(ocr_images)
+                if ocr_only is not None:
+                    logger.info(
+                        "JobKorea OCR-only fallback used due to empty body",
+                        extra={"url": fetch_url, "image_count": len(ocr_images)},
+                    )
+                    return {
+                        "url_meta": {
+                            "url": input.url,
+                            "fetched_url": fetch_url,
+                            "title": title,
+                            "fetched_length": len(html_content),
+                            "parsed_length": 0,
+                        },
+                        "canonical_map": ocr_only,
+                        "document_meta": None,
+                    }
+
+                logger.warning(
+                    "JobKorea OCR-only fallback failed on empty body",
+                    extra={"url": fetch_url, "image_count": len(ocr_images)},
+                )
+
+            logger.warning("No body text extracted from URL", extra={"url": fetch_url})
             return {
                 "url_meta": {
                     "url": input.url,
+                    "fetched_url": fetch_url,
                     "title": title,
                     "fetched_length": len(html_content),
-                    "parsed_length": 0
+                    "parsed_length": 0,
                 },
                 "canonical_map": {},
                 "document_meta": None,
             }
 
-        # 3️⃣ URL 전용 전처리 (노이즈 제거)
-        cleaned_lines = preprocess_url_text(body_text, platform=input.platform)
-
+        # 3) Preprocess lines
+        cleaned_lines = preprocess_url_text(body_text, platform=effective_platform)
         if not cleaned_lines:
             logger.warning(
                 "No lines after URL preprocessing",
-                extra={"url": input.url, "parsed_length": len(body_text)},
+                extra={"url": fetch_url, "parsed_length": len(body_text)},
             )
             return {
                 "url_meta": {
                     "url": input.url,
+                    "fetched_url": fetch_url,
                     "title": title,
                     "fetched_length": len(html_content),
-                    "parsed_length": len(body_text)
+                    "parsed_length": len(body_text),
                 },
                 "canonical_map": {},
                 "document_meta": None,
             }
 
-        # 4️⃣ Header 기반 섹션 분리 (platform별 전략)
-        platform_mod = get_platform_module(input.platform)
+        # 4) Extract sections
+        platform_mod = get_platform_module(effective_platform)
         raw_sections = platform_mod.extract_sections(cleaned_lines)
-
-        # 4.5️⃣ 섹션 구조 후보정
         raw_sections = validate_raw_sections(raw_sections)
 
         if not raw_sections:
             logger.warning(
                 "No sections extracted from URL",
-                extra={"url": input.url, "cleaned_line_count": len(cleaned_lines)},
+                extra={"url": fetch_url, "cleaned_line_count": len(cleaned_lines)},
             )
             return {
                 "url_meta": {
                     "url": input.url,
+                    "fetched_url": fetch_url,
                     "title": title,
                     "fetched_length": len(html_content),
-                    "parsed_length": len(body_text)
+                    "parsed_length": len(body_text),
                 },
                 "canonical_map": {},
                 "document_meta": None,
             }
 
-        # 5️⃣ Section 도메인 객체로 변환
+        # 5) To domain sections
         sections = adapt_url_sections_to_sections(raw_sections)
 
-        # 6️⃣ Metadata 추출 (전처리된 라인 기준)
+        # 6) Metadata
         document_meta = self.metadata.process(cleaned_lines)
 
-        # 7️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
+        # 7) Canonical
         canonical_map = self.canonical.process(sections)
+        if effective_platform in (JobPlatform.SARAMIN, JobPlatform.JOBKOREA):
+            canonical_map = self._normalize_intake_required_canonical(canonical_map)
+        if effective_platform == JobPlatform.JOBKOREA:
+            canonical_map = self.jobkorea_support.ocr_fallback_merge(canonical_map, ocr_images)
 
-        # 8️⃣ 최종 결과
+        # 8) Done
         logger.info(
             "URL pipeline completed",
             extra={
                 "url": input.url,
-                "platform": input.platform.value if input.platform else None,
+                "fetched_url": fetch_url,
+                "platform": effective_platform.value,
                 "fetched_length": len(html_content),
                 "parsed_length": len(body_text),
                 "cleaned_lines_count": len(cleaned_lines),
@@ -154,6 +198,7 @@ class UrlPipeline:
         return {
             "url_meta": {
                 "url": input.url,
+                "fetched_url": fetch_url,
                 "title": title,
                 "fetched_length": len(html_content),
                 "parsed_length": len(body_text),
@@ -163,3 +208,83 @@ class UrlPipeline:
             "canonical_map": canonical_map,
             "document_meta": document_meta,
         }
+
+    def _normalize_intake_required_canonical(self, canonical_map: dict) -> dict:
+        if not canonical_map:
+            return canonical_map
+
+        merged = {k: list(v) for k, v in canonical_map.items() if isinstance(v, list)}
+        all_lines: list[str] = []
+        for lines in merged.values():
+            all_lines.extend([line for line in lines if isinstance(line, str)])
+
+        resp_kw = ("주요업무", "담당업무", "업무", "직무", "responsibilities", "role", "what you will do")
+        req_kw = ("자격요건", "지원자격", "필수", "requirements", "qualifications", "must", "required")
+        pref_kw = ("우대", "우대사항", "preferred", "nice to have", "plus")
+
+        weak_noise_kw = (
+            "근무조건", "복지", "혜택", "채용절차", "전형절차", "유의사항",
+            "접수기간", "제출서류", "접수방법",
+        )
+
+        resp_lines = list(merged.get("responsibilities", []))
+        req_lines = list(merged.get("requirements", []))
+        pref_lines = list(merged.get("preferred", []))
+
+        moved_from_req = []
+        for line in req_lines:
+            low = line.lower()
+            if any(k in low for k in pref_kw):
+                pref_lines.append(line)
+                moved_from_req.append(line)
+            elif any(k in low for k in resp_kw):
+                resp_lines.append(line)
+                moved_from_req.append(line)
+        if moved_from_req:
+            moved_set = set(moved_from_req)
+            req_lines = [line for line in req_lines if line not in moved_set]
+
+        if not resp_lines:
+            resp_lines.extend([line for line in all_lines if any(k in line.lower() for k in resp_kw)])
+        if not req_lines:
+            req_lines.extend([line for line in all_lines if any(k in line.lower() for k in req_kw)])
+        if not pref_lines:
+            pref_lines.extend([line for line in all_lines if any(k in line.lower() for k in pref_kw)])
+
+        fallback_pool = []
+        for key in ("others", "experience", "intro", "skills"):
+            fallback_pool.extend([line for line in merged.get(key, []) if isinstance(line, str)])
+        fallback_pool = [line for line in fallback_pool if not any(k in line for k in weak_noise_kw)]
+
+        if not resp_lines and fallback_pool:
+            resp_lines.extend(fallback_pool[:3])
+        if not req_lines and fallback_pool:
+            req_lines.extend(fallback_pool[3:6] or fallback_pool[:2])
+        if not pref_lines and fallback_pool:
+            pref_lines.extend(fallback_pool[6:8] or fallback_pool[:1])
+
+        if not resp_lines:
+            resp_lines = [line for line in all_lines if len((line or "").strip()) >= 8][:2]
+        if not req_lines:
+            req_lines = [line for line in all_lines if len((line or "").strip()) >= 8][2:4] or resp_lines[:1]
+        if not pref_lines:
+            pref_lines = [line for line in all_lines if len((line or "").strip()) >= 8][4:5] or req_lines[:1]
+
+        def clean(lines: list[str]) -> list[str]:
+            out = []
+            seen = set()
+            for line in lines:
+                s = re.sub(r"\s+", " ", (line or "")).strip()
+                if len(s) < 2:
+                    continue
+                key = s.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(s)
+            return out
+
+        merged["responsibilities"] = clean(resp_lines)
+        merged["requirements"] = clean(req_lines)
+        merged["preferred"] = clean(pref_lines)
+        return merged

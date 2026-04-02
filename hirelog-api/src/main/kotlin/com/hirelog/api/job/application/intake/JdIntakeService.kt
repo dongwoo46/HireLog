@@ -8,7 +8,6 @@ import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingW
 import com.hirelog.api.job.application.messaging.JdPreprocessRequestMessage
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
-import com.hirelog.api.job.domain.type.JobPlatformType
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.common.logging.log
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -127,7 +126,6 @@ class JdIntakeService(
         brandName: String,
         brandPositionName: String,
         url: String,
-        platform: JobPlatformType,
     ): UrlIntakeResult {
         require(brandName.isNotBlank()) { "brandName is required" }
         require(brandPositionName.isNotBlank()) { "positionName is required" }
@@ -147,7 +145,6 @@ class JdIntakeService(
             brandName = brandName,
             positionName = brandPositionName,
             source = JobSourceType.URL,
-            platform = platform,
             url = url,
         )
 

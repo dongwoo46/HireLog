@@ -29,7 +29,7 @@ data class PasswordResetReq(
     @field:NotBlank(message = "새 비밀번호는 필수입니다.")
     @field:Size(min = 8, max = 72, message = "비밀번호는 8자 이상 72자 이하로 입력해주세요.")
     @field:Pattern(
-        regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,72}$",
+        regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,72}$",
         message = "비밀번호는 8자 이상이며 영문과 숫자를 모두 포함해야 합니다."
     )
     val newPassword: String,

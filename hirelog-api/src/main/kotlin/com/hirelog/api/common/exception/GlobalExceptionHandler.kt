@@ -10,15 +10,55 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException
 import org.springframework.web.servlet.resource.NoResourceFoundException
+import java.io.IOException
 import java.time.Instant
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
+    @ExceptionHandler(AsyncRequestTimeoutException::class)
+    fun handleAsyncRequestTimeout(
+        ex: AsyncRequestTimeoutException,
+        request: HttpServletRequest
+    ): ResponseEntity<Void> {
+        // SSE 장기 연결 타임아웃은 정상 종료 시나리오이므로 본문 없이 종료한다.
+        return ResponseEntity.noContent().build()
+    }
+
     @ExceptionHandler(NoResourceFoundException::class)
     fun handleNoResource(e: NoResourceFoundException): ResponseEntity<Void> {
         return ResponseEntity.notFound().build()
+    }
+
+    @ExceptionHandler(IOException::class)
+    fun handleIoException(
+        ex: IOException,
+        request: HttpServletRequest
+    ): ResponseEntity<*> {
+        if (request.requestURI.startsWith("/api/sse/")) {
+            return ResponseEntity.noContent().build<Void>()
+        }
+
+        val status = HttpStatus.INTERNAL_SERVER_ERROR
+
+        log.error(
+            "[IO_EXCEPTION] path={}, method={}, message={}",
+            request.requestURI,
+            request.method,
+            ex.message,
+            ex
+        )
+
+        return ResponseEntity.status(status).body(
+            ErrorResponse(
+                timestamp = Instant.now(),
+                status = status.value(),
+                error = status.reasonPhrase,
+                path = request.requestURI
+            )
+        )
     }
 
     @ExceptionHandler(InvalidCursorException::class)

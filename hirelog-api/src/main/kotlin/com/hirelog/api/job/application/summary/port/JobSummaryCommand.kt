@@ -37,4 +37,12 @@ interface JobSummaryCommand {
      * @return JobSummary (없으면 null)
      */
     fun findById(id: Long): JobSummary?
+
+    /**
+     * Snapshot ID濡?활성 JobSummary 조회
+     *
+     * 용도:
+     * - post-llm 재시도/중복 처리 시 idempotent 보장
+     */
+    fun findByJobSnapshotId(jobSnapshotId: Long): JobSummary?
 }

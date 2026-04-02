@@ -117,7 +117,10 @@ class JdSummaryProcessing protected constructor(
      * - 실패 관련 필드는 초기화
      */
     fun markDuplicate(reason: String) {
-        require(status == JdSummaryProcessingStatus.RECEIVED) {
+        require(
+            status == JdSummaryProcessingStatus.RECEIVED ||
+                    status == JdSummaryProcessingStatus.SUMMARIZING
+        ) {
             "Invalid state transition: $status -> DUPLICATE"
         }
 

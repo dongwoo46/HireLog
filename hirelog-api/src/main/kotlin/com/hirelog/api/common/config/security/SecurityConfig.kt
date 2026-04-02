@@ -71,6 +71,7 @@ class SecurityConfig(
 
                     // Actuator
                     .requestMatchers("/actuator/**").permitAll()
+                    .requestMatchers("/error").permitAll()
 
                     // OAuth2 로그인 흐름
                     .requestMatchers(

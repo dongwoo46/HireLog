@@ -60,6 +60,11 @@ class StuckProcessingRecoveryScheduler(
 
     /**
      * 10분마다 Stuck Processing 복구 시도
+     *
+     * 동작:
+     * - SUMMARIZING, POST_LLM_FAILED 상태 중 오래 멈춘 건을 조회한다.
+     * - 각 건에 대해 Post-LLM 재처리를 시도한다.
+     * - 복구 실패 시 markAsFailedIfExhausted()를 호출해 상태/요청 정리를 수행한다.
      */
     @Scheduled(cron = "0 */30 * * * *")
     fun recoverStuckProcessing() {
@@ -179,16 +184,27 @@ class StuckProcessingRecoveryScheduler(
      * 복구 실패 시 FAILED 상태로 전환
      *
      * 정책:
-     * - 현재는 1회 실패 시 바로 FAILED 처리
-     * - 추후 재시도 횟수 추적 필요 시 필드 추가
+     * - markFailed()는 도메인 규칙상 RECEIVED/SUMMARIZING에서만 허용된다.
+     * - POST_LLM_FAILED 등 종결 상태는 markFailed()로 덮어쓰지 않는다.
+     * - 상태 전환 여부와 무관하게 JobSummaryRequest는 fail 처리하고 알림을 발송한다.
      */
     @Transactional
     fun markAsFailedIfExhausted(processing: JdSummaryProcessing, exception: Exception) {
-        processing.markFailed(
-            errorCode = "RECOVERY_FAILED",
-            errorMessage = "Stuck recovery failed: ${exception.message}"
-        )
-        processingCommand.update(processing)
+        if (
+            processing.status == JdSummaryProcessingStatus.RECEIVED ||
+            processing.status == JdSummaryProcessingStatus.SUMMARIZING
+        ) {
+            processing.markFailed(
+                errorCode = "RECOVERY_FAILED",
+                errorMessage = "Stuck recovery failed: ${exception.message}"
+            )
+            processingCommand.update(processing)
+        } else {
+            log.warn(
+                "[STUCK_PROCESSING_MARK_FAILED_SKIPPED] processingId={}, currentStatus={}",
+                processing.id, processing.status
+            )
+        }
 
         // JobSummaryRequest 실패 처리 + SSE 알림
         val memberId = jobSummaryRequestWriteService.failRequest(

@@ -5,11 +5,14 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
+import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
 import com.hirelog.api.job.application.summary.pipeline.LlmInvocationService
 import com.hirelog.api.job.application.summary.pipeline.PipelineErrorHandler
 import com.hirelog.api.job.application.summary.pipeline.PostLlmProcessor
 import com.hirelog.api.job.application.summary.pipeline.PreLlmProcessor
+import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import java.util.UUID
 import java.util.concurrent.*
@@ -33,6 +36,7 @@ class JdSummaryGenerationFacade(
     private val processingWriteService: JdSummaryProcessingWriteService,
     private val processingQuery: JdSummaryProcessingQuery,
     private val objectMapper: ObjectMapper,
+    private val eventPublisher: ApplicationEventPublisher,
     @Qualifier("blockingExecutor") private val executor: Executor
 ) {
 
@@ -45,9 +49,11 @@ class JdSummaryGenerationFacade(
         val processing = processingQuery.findById(UUID.fromString(command.requestId))
             ?: throw IllegalStateException("JdSummaryProcessing not found for requestId=${command.requestId}")
 
+        // 유효성 검증
         val preResult = try {
             preLlm.execute(processing.id, command) ?: run {
-                log.info("[PIPELINE_PRE_LLM_SKIPPED] requestId={}", command.requestId)
+                publishPreLlmSkippedEvent(command.requestId)
+                log.info("[PIPELINE_PRE_LLM_TERMINATED] requestId={}", command.requestId)
                 return CompletableFuture.completedFuture(null)
             }
         } catch (e: Exception) {
@@ -75,5 +81,36 @@ class JdSummaryGenerationFacade(
                 null
             }
     }
-}
 
+    private fun publishPreLlmSkippedEvent(requestId: String) {
+        val processing = processingQuery.findById(UUID.fromString(requestId)) ?: return
+
+        when (processing.status) {
+            JdSummaryProcessingStatus.FAILED -> {
+                eventPublisher.publishEvent(
+                    JobSummaryRequestEvent.Failed.of(
+                        processingId = requestId,
+                        errorCode = processing.errorCode ?: "INVALID_INPUT",
+                        requestId = requestId,
+                        brandName = processing.commandBrandName,
+                        positionName = processing.commandPositionName
+                    )
+                )
+            }
+
+            JdSummaryProcessingStatus.DUPLICATE -> {
+                eventPublisher.publishEvent(
+                    JobSummaryRequestEvent.Duplicate(
+                        requestId = requestId,
+                        processingId = requestId,
+                        reason = processing.duplicateReason ?: "DUPLICATE",
+                        brandName = processing.commandBrandName,
+                        positionName = processing.commandPositionName
+                    )
+                )
+            }
+
+            else -> Unit
+        }
+    }
+}

@@ -1,8 +1,6 @@
 package com.hirelog.api.job.presentation.controller.dto.request
 
-import com.hirelog.api.job.domain.type.JobPlatformType
 import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import org.hibernate.validator.constraints.URL
 
@@ -19,7 +17,4 @@ data class JobSummaryUrlReq(
     @field:NotBlank(message = "url은 필수입니다")
     @field:URL(message = "유효한 URL 형식이 아닙니다")
     val url: String,
-
-    @field:NotNull(message = "platform은 필수입니다")
-    val platform: JobPlatformType,
 )

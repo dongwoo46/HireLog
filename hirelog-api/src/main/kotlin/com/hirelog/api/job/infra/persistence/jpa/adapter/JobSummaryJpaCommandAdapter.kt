@@ -32,4 +32,8 @@ class JobSummaryJpaCommandAdapter(
     override fun findById(id: Long): JobSummary? {
         return repository.findById(id).orElse(null)
     }
+
+    override fun findByJobSnapshotId(jobSnapshotId: Long): JobSummary? {
+        return repository.findByJobSnapshotIdAndIsActiveTrue(jobSnapshotId)
+    }
 }
