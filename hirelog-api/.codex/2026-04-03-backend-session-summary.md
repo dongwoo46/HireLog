@@ -1,50 +1,62 @@
 # 2026-04-03 Backend Session Summary
 
-## 핵심 결론
-- `job_snapshot_id` 충돌은 **snapshot 중복 생성 문제**가 아니라, 같은 snapshot에 대한 **job_summary 저장 경합** 문제.
-- 따라서 post-llm 저장 충돌은 `FAILED`가 아니라 `DUPLICATE`로 종료하도록 처리.
+## Scope
+- General auth flow stabilization (signup/login/password reset with JWT setup alignment).
+- JD summary pipeline reliability fixes (duplicate handling, recovery flow, status transitions).
+- SSE and exception handling hardening.
+- Outbox indexing robustness for missing Kafka headers.
 
-## 이번에 반영된 변경
+## Root Cause Clarifications
+- `uk_job_summary_snapshot_id` collisions were not snapshot-creation duplicates.
+- They were concurrent/retry writes to `job_summary` for the same existing `job_snapshot_id`.
+- SSE timeout/disconnect logs included normal long-poll lifecycle noise and needed bounded handling.
 
-### 1) Post-LLM 충돌을 DUPLICATE로 전환
-- 파일: `src/main/kotlin/com/hirelog/api/job/application/summary/JobSummaryWriteService.kt`
-  - `job_summary` 저장 시 `DataIntegrityViolationException` 발생하고 같은 `snapshotId` summary가 이미 존재하면
-  - `SnapshotAlreadySummarizedException`을 발생시키도록 변경.
+## Implemented Changes
 
-- 파일: `src/main/kotlin/com/hirelog/api/job/application/summary/SnapshotAlreadySummarizedException.kt` (신규)
-  - snapshot 기반 summary 중복 상황을 명시하는 런타임 예외 추가.
+### 1) Post-LLM duplicate collision path
+- Added `SnapshotAlreadySummarizedException`.
+- In `JobSummaryWriteService`, when `job_summary` insert hits duplicate snapshot constraint, throw dedicated duplicate exception.
+- In `PipelineErrorHandler.handlePostLlm`, map that exception to duplicate path:
+  - mark processing as duplicate (`SNAPSHOT_SUMMARY_DUPLICATE`)
+  - publish `JobSummaryRequestEvent.Duplicate`
+  - avoid `POST_LLM_FAILED` for this case.
 
-- 파일: `src/main/kotlin/com/hirelog/api/job/application/summary/pipeline/PipelineErrorHandler.kt`
-  - `handlePostLlm()`에서 `SnapshotAlreadySummarizedException`을 별도 분기 처리:
-  - `markDuplicate("SNAPSHOT_SUMMARY_DUPLICATE")` 호출
-  - `JobSummaryRequestEvent.Duplicate` 발행
-  - 기존 `POST_LLM_FAILED` 경로로 가지 않도록 조정.
+### 2) Processing state transition safety
+- Allowed `SUMMARIZING -> DUPLICATE` transition in `JdSummaryProcessing`.
+- `markDuplicate()` now returns updated entity in write service for downstream event payload usage.
+- Recovery scheduler guard:
+  - do not force `POST_LLM_FAILED -> FAILED` through `markFailed()`.
+  - only apply `markFailed()` where domain transition is valid.
 
-- 파일: `src/main/kotlin/com/hirelog/api/job/application/jobsummaryprocessing/JdSummaryProcessingWriteService.kt`
-  - `markDuplicate()` 반환 타입을 `JdSummaryProcessing`으로 변경.
+### 3) Pre-LLM skip observability
+- Improved pre-LLM skip log to include status/error context:
+  - from generic skip log to terminated log with `status`, `errorCode`, `duplicateReason`.
 
-- 파일: `src/main/kotlin/com/hirelog/api/job/domain/model/JdSummaryProcessing.kt`
-  - 상태 전이 허용 범위 확장:
-  - 기존 `RECEIVED -> DUPLICATE`만 허용하던 것을
-  - `SUMMARIZING -> DUPLICATE`도 허용.
+### 4) SSE stability
+- Wrapped initial SSE connect event send in `SseEmitterManager.subscribe()` with safe cleanup on immediate disconnect.
+- Global exception handling updated:
+  - `AsyncRequestTimeoutException` -> `204`
+  - `IOException` for `/api/sse/*` -> `204`
+  - non-SSE IO exceptions keep normal error path.
 
-### 2) Pre-LLM skip 로그 개선
-- 파일: `src/main/kotlin/com/hirelog/api/job/application/summary/JdSummaryGenerationFacade.kt`
-  - 기존 로그: `[PIPELINE_PRE_LLM_SKIPPED]`
-  - 변경 로그: `[PIPELINE_PRE_LLM_TERMINATED]`
-  - `status`, `errorCode`, `duplicateReason`를 함께 기록하도록 변경.
+### 5) Log signal cleanup
+- Kept first-cause logs as primary signal.
+- Reduced downstream propagation noise by lowering some repeated error logs to warn/info.
 
-### 3) SSE 연결 초기 전송 안정화
-- 파일: `src/main/kotlin/com/hirelog/api/common/application/sse/SseEmitterManager.kt`
-  - `subscribe()` 직후 초기 connect 이벤트 전송을 try-catch로 감싸서
-  - 즉시 끊긴 연결에서 예외 전파/노이즈를 줄이도록 처리.
+### 6) Outbox indexing header robustness
+- In `JobSummaryIndexingConsumer`, event type extraction now checks multiple header names:
+  - `eventType`, `event_type`, `type`
+- If missing, infer from payload shape (`{id}` => delete) to avoid wrong behavior.
+- Updated CDC scripts to place `event_type` into Kafka header `eventType`:
+  - `transforms.outbox.table.fields.additional.placement=event_type:header:eventType`
 
-## 확인한 사실
-- `job_snapshot`는 `canonical_hash` 유니크 인덱스가 있어 완전 동일 snapshot 중복 생성은 DB 레벨에서 방지됨.
-- 이번 장애 로그(`uk_job_summary_snapshot_id`, key `(job_snapshot_id)=(3)`)는 동일 snapshot에 대한 summary insert 중복 시도.
+## Runtime Verification
+- Kafka Connect runtime config checked:
+  - connector is `RUNNING`
+  - `event_type` mapping and additional header placement applied.
+- Build verification:
+  - `./gradlew compileKotlin` passed after changes.
 
-## 현재 상태
-- `./gradlew compileKotlin` 성공 확인.
-- SSE 예외 처리 반영 완료:
-  - `AsyncRequestTimeoutException` -> 204
-  - `IOException` -> `/api/sse/*` 경로만 204, 그 외는 기존 500 처리
+## Notes
+- Some warning logs can still appear while consuming older records produced before header mapping fix.
+- Current behavior is safe due to consumer-side fallback and duplicate-safe post-llm handling.
