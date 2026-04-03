@@ -259,6 +259,17 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean; authCo
         }
       },
       {
+        name: "auth_refresh",
+        description:
+          "Refresh access token via POST /api/auth/refresh using stored refresh token (or explicit refreshToken).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            refreshToken: { type: "string" }
+          }
+        }
+      },
+      {
         name: "auth_set_tokens",
         description:
           "Set access/refresh token directly for this MCP session (useful for social login tokens).",
@@ -467,6 +478,58 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean; authCo
       }
       clearSessionAuth(authContextKey);
       return text("Logged out and cleared MCP session tokens.");
+    }
+
+    if (name === "auth_refresh") {
+      const explicitRefreshToken = String(args.refreshToken ?? "").trim();
+      const existing = getSessionAuth(authContextKey);
+      const refreshToken = explicitRefreshToken || existing?.refreshToken || "";
+      if (!refreshToken) {
+        return text("No refresh token found. Pass `refreshToken` or login first.");
+      }
+
+      const endpoint = apiUrl("/auth/refresh");
+      try {
+        // /api/auth/refresh reads refresh_token from cookie.
+        setSessionAuth(authContextKey, {
+          accessToken: existing?.accessToken ?? "",
+          refreshToken,
+          email: existing?.email,
+          updatedAt: new Date().toISOString()
+        });
+
+        const body = await fetchJson(endpoint, authContextKey, "POST", {});
+        const parsed = JSON.parse(body) as { accessToken?: unknown; refreshToken?: unknown };
+        const newAccessToken = typeof parsed.accessToken === "string" ? parsed.accessToken.trim() : "";
+        const newRefreshToken = typeof parsed.refreshToken === "string" ? parsed.refreshToken.trim() : "";
+
+        if (!newAccessToken) {
+          return text(`Refresh succeeded but no accessToken was returned.\n${body}`);
+        }
+
+        setSessionAuth(authContextKey, {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken || refreshToken,
+          email: existing?.email,
+          updatedAt: new Date().toISOString()
+        });
+
+        return text(
+          JSON.stringify(
+            {
+              ok: true,
+              message: "Token refreshed for this MCP session.",
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken || refreshToken
+            },
+            null,
+            2
+          )
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return text(`Refresh failed.\n${message}`);
+      }
     }
 
     if (name === "auth_set_tokens") {
