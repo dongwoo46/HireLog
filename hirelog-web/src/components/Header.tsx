@@ -103,7 +103,7 @@ export function Header() {
 
   return (
     <header className="fixed z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to={isAuthenticated ? '/' : '/jd'} className="flex items-center" aria-label="HireLog home">
           <img src="/hirelog_no_bg.png" alt="HireLog" className="h-12 w-auto object-contain sm:h-14" />
         </Link>
@@ -133,7 +133,7 @@ export function Header() {
           )}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {isAuthenticated ? (
             <>
               <div className="relative">
@@ -158,7 +158,7 @@ export function Header() {
                 </button>
 
                 {isNotificationOpen && (
-                  <div className="absolute right-0 mt-3 max-h-[28rem] w-96 overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl">
+                  <div className="absolute right-0 mt-3 max-h-[28rem] w-[min(24rem,calc(100vw-1rem))] overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl">
                     <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">알림</span>
                       <button
@@ -202,7 +202,7 @@ export function Header() {
                 {user?.username?.charAt(0) || 'U'}
               </button>
 
-              <button onClick={handleLogout} className="text-sm font-bold text-gray-400 hover:text-rose-500">
+              <button onClick={handleLogout} className="hidden text-sm font-bold text-gray-400 hover:text-rose-500 sm:inline-block">
                 로그아웃
               </button>
             </>
