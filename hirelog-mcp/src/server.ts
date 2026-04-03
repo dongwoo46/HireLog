@@ -114,7 +114,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    const tools = [
+    const tools: Array<Record<string, unknown>> = [
       {
         name: "ping",
         description: "Check whether hirelog-mcp is alive.",
