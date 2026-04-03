@@ -141,8 +141,10 @@ app.post(MCP_PATH, async (req: any, res: any) => {
   }
 
   const forceReadOnly = tokenConfigured && !authorized;
+  const authContextKey = getClientKey(req);
   const server = createHirelogServer({
-    publicReadOnly: forceReadOnly ? true : undefined
+    publicReadOnly: forceReadOnly ? true : undefined,
+    authContextKey
   });
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined

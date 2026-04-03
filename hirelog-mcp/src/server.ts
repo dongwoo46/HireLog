@@ -12,6 +12,16 @@ const API_BEARER_TOKEN = process.env.HIRELOG_API_BEARER_TOKEN;
 const API_COOKIE = process.env.HIRELOG_API_COOKIE;
 const MCP_PUBLIC_READONLY = (process.env.MCP_PUBLIC_READONLY ?? "false").toLowerCase() === "true";
 const WRITE_OR_PRIVATE_TOOLS = new Set(["jd_register", "jd_register_text", "my_applied_jd", "my_saved_jd"]);
+const DEFAULT_AUTH_CONTEXT_KEY = "global";
+
+type SessionAuth = {
+  accessToken: string;
+  refreshToken?: string;
+  email?: string;
+  updatedAt: string;
+};
+
+const sessionAuthByContext = new Map<string, SessionAuth>();
 
 export function isWriteOrPrivateTool(toolName: string): boolean {
   return WRITE_OR_PRIVATE_TOOLS.has(toolName);
@@ -44,17 +54,47 @@ function text(content: string) {
   };
 }
 
-async function fetchText(url: string): Promise<string> {
+function getSessionAuth(contextKey: string): SessionAuth | undefined {
+  return sessionAuthByContext.get(contextKey);
+}
+
+function setSessionAuth(contextKey: string, auth: SessionAuth) {
+  sessionAuthByContext.set(contextKey, auth);
+}
+
+function clearSessionAuth(contextKey: string) {
+  sessionAuthByContext.delete(contextKey);
+}
+
+function buildAuthHeaders(contextKey: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const sessionAuth = getSessionAuth(contextKey);
+  const cookieParts: string[] = [];
+
+  if (API_COOKIE) {
+    cookieParts.push(API_COOKIE);
+  }
+  if (sessionAuth?.accessToken) {
+    headers.Authorization = `Bearer ${sessionAuth.accessToken}`;
+    cookieParts.push(`access_token=${sessionAuth.accessToken}`);
+  } else if (API_BEARER_TOKEN) {
+    headers.Authorization = `Bearer ${API_BEARER_TOKEN}`;
+  }
+  if (sessionAuth?.refreshToken) {
+    cookieParts.push(`refresh_token=${sessionAuth.refreshToken}`);
+  }
+  if (cookieParts.length > 0) {
+    headers.Cookie = cookieParts.join("; ");
+  }
+
+  return headers;
+}
+
+async function fetchText(url: string, contextKey: string): Promise<string> {
   const headers: Record<string, string> = {
     Accept: "application/json,text/plain,*/*"
   };
-
-  if (API_BEARER_TOKEN) {
-    headers.Authorization = `Bearer ${API_BEARER_TOKEN}`;
-  }
-  if (API_COOKIE) {
-    headers.Cookie = API_COOKIE;
-  }
+  Object.assign(headers, buildAuthHeaders(contextKey));
 
   const res = await fetch(url, {
     method: "GET",
@@ -69,6 +109,7 @@ async function fetchText(url: string): Promise<string> {
 
 async function fetchJson(
   url: string,
+  contextKey: string,
   method: "GET" | "POST" = "GET",
   payload?: Record<string, unknown>
 ): Promise<string> {
@@ -80,12 +121,7 @@ async function fetchJson(
   if (payload) {
     headers["Content-Type"] = "application/json";
   }
-  if (API_BEARER_TOKEN) {
-    headers.Authorization = `Bearer ${API_BEARER_TOKEN}`;
-  }
-  if (API_COOKIE) {
-    headers.Cookie = API_COOKIE;
-  }
+  Object.assign(headers, buildAuthHeaders(contextKey));
 
   const res = await fetch(url, {
     method,
@@ -99,8 +135,9 @@ async function fetchJson(
   return body;
 }
 
-export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
+export function createHirelogServer(options?: { publicReadOnly?: boolean; authContextKey?: string }) {
   const readOnly = options?.publicReadOnly ?? MCP_PUBLIC_READONLY;
+  const authContextKey = options?.authContextKey?.trim() || DEFAULT_AUTH_CONTEXT_KEY;
   const server = new Server(
     {
       name: "hirelog-mcp",
@@ -191,6 +228,60 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
             sortBy: { type: "string" }
           }
         }
+      },
+      {
+        name: "auth_login",
+        description:
+          "Login with email/password via POST /api/auth/login and store tokens for this MCP session.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            email: { type: "string" },
+            password: { type: "string" }
+          },
+          required: ["email", "password"]
+        }
+      },
+      {
+        name: "auth_status",
+        description: "Show whether this MCP session currently has stored auth tokens.",
+        inputSchema: {
+          type: "object",
+          properties: {}
+        }
+      },
+      {
+        name: "auth_logout",
+        description: "Logout this MCP session and clear stored tokens.",
+        inputSchema: {
+          type: "object",
+          properties: {}
+        }
+      },
+      {
+        name: "auth_set_tokens",
+        description:
+          "Set access/refresh token directly for this MCP session (useful for social login tokens).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            accessToken: { type: "string" },
+            refreshToken: { type: "string" },
+            email: { type: "string" }
+          },
+          required: ["accessToken"]
+        }
+      },
+      {
+        name: "auth_oauth_url",
+        description: "Get OAuth login URL for social providers (google, kakao).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            provider: { type: "string", enum: ["google", "kakao"] }
+          },
+          required: ["provider"]
+        }
       }
     ];
 
@@ -269,7 +360,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
         ? `${RAW_API_BASE_URL.replace(/\/+$/, "").replace(/\/api$/, "")}/actuator/health`
         : `${RAW_API_BASE_URL.replace(/\/+$/, "")}/actuator/health`;
       try {
-        const body = await fetchText(url);
+        const body = await fetchText(url, authContextKey);
         return text(`Health OK\n${body}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -292,7 +383,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
       const url = apiUrl("/job-summary/search", search);
 
       try {
-        const body = await fetchText(url);
+        const body = await fetchText(url, authContextKey);
         return text(body);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -306,6 +397,125 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
           ].join("\n")
         );
       }
+    }
+
+    if (name === "auth_login") {
+      const email = String(args.email ?? "").trim();
+      const password = String(args.password ?? "");
+      if (!email || !password) {
+        return text("`email`, `password` are required.");
+      }
+
+      const endpoint = apiUrl("/auth/login");
+      try {
+        const body = await fetchJson(endpoint, authContextKey, "POST", { email, password });
+        const parsed = JSON.parse(body) as { accessToken?: unknown; refreshToken?: unknown };
+        const accessToken = typeof parsed.accessToken === "string" ? parsed.accessToken.trim() : "";
+        const refreshToken = typeof parsed.refreshToken === "string" ? parsed.refreshToken.trim() : "";
+
+        if (!accessToken) {
+          return text(`Login succeeded but no accessToken was returned.\n${body}`);
+        }
+
+        setSessionAuth(authContextKey, {
+          accessToken,
+          refreshToken: refreshToken || undefined,
+          email,
+          updatedAt: new Date().toISOString()
+        });
+
+        return text(
+          JSON.stringify(
+            {
+              ok: true,
+              message: "Logged in. This MCP session will now use the token for write/private APIs.",
+              accessToken,
+              refreshToken: refreshToken || null
+            },
+            null,
+            2
+          )
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return text(`Login failed.\n${message}`);
+      }
+    }
+
+    if (name === "auth_status") {
+      const sessionAuth = getSessionAuth(authContextKey);
+      return text(
+        JSON.stringify(
+          {
+            authenticated: Boolean(sessionAuth?.accessToken),
+            email: sessionAuth?.email ?? null,
+            hasRefreshToken: Boolean(sessionAuth?.refreshToken),
+            updatedAt: sessionAuth?.updatedAt ?? null
+          },
+          null,
+          2
+        )
+      );
+    }
+
+    if (name === "auth_logout") {
+      const endpoint = apiUrl("/auth/logout");
+      try {
+        await fetchJson(endpoint, authContextKey, "POST", {});
+      } catch {
+        // Ignore remote logout errors and always clear local session state.
+      }
+      clearSessionAuth(authContextKey);
+      return text("Logged out and cleared MCP session tokens.");
+    }
+
+    if (name === "auth_set_tokens") {
+      const accessToken = String(args.accessToken ?? "").trim();
+      const refreshToken = String(args.refreshToken ?? "").trim();
+      const email = String(args.email ?? "").trim();
+
+      if (!accessToken) {
+        return text("`accessToken` is required.");
+      }
+
+      setSessionAuth(authContextKey, {
+        accessToken,
+        refreshToken: refreshToken || undefined,
+        email: email || undefined,
+        updatedAt: new Date().toISOString()
+      });
+
+      return text(
+        JSON.stringify(
+          {
+            ok: true,
+            message: "Tokens saved. This MCP session will use them for write/private APIs.",
+            hasRefreshToken: Boolean(refreshToken)
+          },
+          null,
+          2
+        )
+      );
+    }
+
+    if (name === "auth_oauth_url") {
+      const provider = String(args.provider ?? "").trim().toLowerCase();
+      if (provider !== "google" && provider !== "kakao") {
+        return text("`provider` must be one of: google, kakao");
+      }
+      const base = RAW_API_BASE_URL.replace(/\/+$/, "").replace(/\/api$/, "");
+      const url = `${base}/oauth2/authorization/${provider}`;
+      return text(
+        JSON.stringify(
+          {
+            provider,
+            oauthUrl: url,
+            note: "Open this URL in a browser to complete social login."
+          },
+          null,
+          2
+        )
+      );
     }
 
     if (readOnly && isWriteOrPrivateTool(name)) {
@@ -328,7 +538,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
 
       const endpoint = apiUrl("/job-summary/url");
       try {
-        const body = await fetchJson(endpoint, "POST", {
+        const body = await fetchJson(endpoint, authContextKey, "POST", {
           brandName,
           brandPositionName,
           url
@@ -341,8 +551,8 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
             "JD register failed.",
             message,
             "",
-            "If auth is required, set:",
-            "HIRELOG_API_BEARER_TOKEN=<access_token>"
+            "If auth is required, run `auth_login` first or set:",
+            "HIRELOG_API_BEARER_TOKEN=<access_token> (legacy fallback)"
           ].join("\n")
         );
       }
@@ -359,7 +569,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
 
       const endpoint = apiUrl("/job-summary/text");
       try {
-        const body = await fetchJson(endpoint, "POST", {
+        const body = await fetchJson(endpoint, authContextKey, "POST", {
           brandName,
           brandPositionName,
           jdText
@@ -372,8 +582,8 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
             "JD text register failed.",
             message,
             "",
-            "If auth is required, set:",
-            "HIRELOG_API_BEARER_TOKEN=<access_token>"
+            "If auth is required, run `auth_login` first or set:",
+            "HIRELOG_API_BEARER_TOKEN=<access_token> (legacy fallback)"
           ].join("\n")
         );
       }
@@ -387,7 +597,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
 
       const endpoint = apiUrl(`/job-summary/${jobSummaryId}`);
       try {
-        const body = await fetchJson(endpoint, "GET");
+        const body = await fetchJson(endpoint, authContextKey, "GET");
         return text(body);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -431,7 +641,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
 
       const endpoint = apiUrl("/job-summary/search", query);
       try {
-        const body = await fetchJson(endpoint, "GET");
+        const body = await fetchJson(endpoint, authContextKey, "GET");
         return text(body);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -451,7 +661,7 @@ export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
 
       const endpoint = apiUrl("/member-job-summary", query);
       try {
-        const body = await fetchJson(endpoint, "GET");
+        const body = await fetchJson(endpoint, authContextKey, "GET");
         return text(body);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
