@@ -1,38 +1,51 @@
 # hirelog-mcp
 
-HireLog용 MCP 서버입니다. 로컬(`stdio`)과 원격 HTTP(`remote MCP`)를 모두 지원합니다.
+HireLog MCP 서버입니다. 로컬(`stdio`)과 원격 HTTP(`remote MCP`)를 지원합니다.
 
-## 연결 대상
+## 운영 모드 분리
 
-- Claude Desktop: 로컬 `stdio`
-- Codex: 로컬 `stdio`
-- ChatGPT Web: 원격 MCP URL(HTTPS)
-- Claude Web: 원격 MCP URL(HTTPS)
+이 서버는 환경변수로 공개/비공개 모드를 분리할 수 있습니다.
 
-## 제공 도구
+- `MCP_PUBLIC_READONLY=true`  
+  공개 읽기 전용 모드. 조회 도구만 노출됩니다.
+- `MCP_PUBLIC_READONLY=false`  
+  비공개 전체 모드. 등록/개인 목록 도구까지 포함됩니다.
+
+권장 운영:
+
+1. 공개용 MCP: `MCP_PUBLIC_READONLY=true` + 별도 도메인/엔드포인트
+2. 비공개 MCP: `MCP_PUBLIC_READONLY=false` + 토큰 필수
+
+## 혼합 모드 (권장)
+
+아래처럼 설정하면 하나의 서버에서 둘 다 가능합니다.
+
+- 토큰 없이 호출: 읽기 도구만 사용
+- 올바른 `MCP_AUTH_TOKEN`으로 호출: 읽기 + 쓰기/개인 도구 사용
+
+설정:
+
+```env
+MCP_PUBLIC_READONLY=false
+MCP_AUTH_TOKEN=your-secret-token
+```
+
+## 도구 목록
+
+공통(읽기):
 
 - `ping`
 - `hirelog_health`
 - `search_jd`
-- `jd_register` (URL 등록)
-- `jd_register_text` (텍스트 등록)
 - `jd_get_detail`
 - `jd_list`
+
+비공개 전용(쓰기/개인):
+
+- `jd_register`
+- `jd_register_text`
 - `my_applied_jd`
 - `my_saved_jd`
-
-## 로컬 실행
-
-```bash
-cd hirelog-mcp
-npm install
-npm run build
-npm run start:http
-```
-
-기본 엔드포인트:
-
-- `http://0.0.0.0:8787/mcp`
 
 ## 환경 변수
 
@@ -42,19 +55,27 @@ npm run start:http
 - `VITE_API_BASE_URL` (`HIRELOG_API_BASE_URL` 미설정 시 fallback)
 - `HIRELOG_API_BEARER_TOKEN` (선택)
 - `HIRELOG_API_COOKIE` (선택)
+- `MCP_PUBLIC_READONLY` (기본값: `false`)
 
-HTTP 모드:
+HTTP:
 
 - `PORT` (기본값: `8787`)
 - `HOST` (기본값: `0.0.0.0`)
 - `MCP_PATH` (기본값: `/mcp`)
 - `MCP_AUTH_TOKEN` (권장)
+- `MCP_READ_RATE_LIMIT_PER_MIN` (기본값: `120`)
+- `MCP_WRITE_RATE_LIMIT_PER_MIN` (기본값: `20`)
 
-`MCP_AUTH_TOKEN`을 설정했다면 클라이언트 요청 헤더:
+## 빠른 로컬 실행
 
-- `Authorization: Bearer <MCP_AUTH_TOKEN>`
+```bash
+cd hirelog-mcp
+npm install
+npm run build
+npm run start:http
+```
 
-## Linux + GitHub Actions 배포 (Docker)
+## Docker 배포 (GitHub Actions)
 
 워크플로우:
 
@@ -62,10 +83,10 @@ HTTP 모드:
 
 동작:
 
-1. `hirelog-mcp` Docker 이미지 빌드
-2. GHCR(`ghcr.io/dongwoo46/hirelog-mcp`)로 푸시
+1. Docker 이미지 빌드
+2. GHCR(`ghcr.io/dongwoo46/hirelog-mcp`) 푸시
 3. 서버에서 이미지 pull
-4. 컨테이너 `hirelog-mcp` 재기동
+4. 컨테이너 재기동
 
 필수 GitHub Secrets:
 
@@ -74,27 +95,35 @@ HTTP 모드:
 - `SERVER_SSH_KEY`
 - `MCP_ENV_PROD`
 
-`MCP_ENV_PROD` 예시:
+`MCP_ENV_PROD` 예시 (비공개 전체):
 
 ```env
 HIRELOG_API_BASE_URL=https://hirelog.kro.kr
+MCP_PUBLIC_READONLY=false
 MCP_AUTH_TOKEN=your-random-long-secret
 PORT=8787
 HOST=0.0.0.0
 MCP_PATH=/mcp
 ```
 
-서버 요구사항:
+`MCP_ENV_PROD` 예시 (공개 읽기전용):
 
-- Docker 설치
-- `docker` 명령 실행 가능한 권한
+```env
+HIRELOG_API_BASE_URL=https://hirelog.kro.kr
+MCP_PUBLIC_READONLY=true
+# 공개 서버는 토큰 없이 열 수도 있지만, 보안을 위해 토큰 권장
+MCP_AUTH_TOKEN=optional-but-recommended
+PORT=8787
+HOST=0.0.0.0
+MCP_PATH=/mcp
+```
 
-## Nginx 연동 예시
+## Nginx 연결
 
-- `https://hirelog.kro.kr/mcp` -> `http://127.0.0.1:8787/mcp` 프록시
+- `https://.../mcp` -> `http://127.0.0.1:8787/mcp` 프록시
 - `Authorization` 헤더 전달
 
-## 빠른 점검
+## 상태 확인
 
 ```bash
 curl http://127.0.0.1:8787/

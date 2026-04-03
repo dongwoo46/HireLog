@@ -10,6 +10,12 @@ const RAW_API_BASE_URL =
   "https://hirelog.kro.kr";
 const API_BEARER_TOKEN = process.env.HIRELOG_API_BEARER_TOKEN;
 const API_COOKIE = process.env.HIRELOG_API_COOKIE;
+const MCP_PUBLIC_READONLY = (process.env.MCP_PUBLIC_READONLY ?? "false").toLowerCase() === "true";
+const WRITE_OR_PRIVATE_TOOLS = new Set(["jd_register", "jd_register_text", "my_applied_jd", "my_saved_jd"]);
+
+export function isWriteOrPrivateTool(toolName: string): boolean {
+  return WRITE_OR_PRIVATE_TOOLS.has(toolName);
+}
 
 function buildApiBaseUrl(raw: string): string {
   const trimmed = raw.trim().replace(/\/+$/, "");
@@ -93,7 +99,8 @@ async function fetchJson(
   return body;
 }
 
-export function createHirelogServer() {
+export function createHirelogServer(options?: { publicReadOnly?: boolean }) {
+  const readOnly = options?.publicReadOnly ?? MCP_PUBLIC_READONLY;
   const server = new Server(
     {
       name: "hirelog-mcp",
@@ -107,46 +114,88 @@ export function createHirelogServer() {
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [
-        {
-          name: "ping",
-          description: "Check whether hirelog-mcp is alive.",
-          inputSchema: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "hirelog_health",
-          description: "Call HireLog API health endpoint (/actuator/health).",
-          inputSchema: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "search_jd",
-          description:
-            "Search JD list. Maps to GET /api/job-summary/search (keyword, size).",
-          inputSchema: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "Search keyword."
-              },
-              limit: {
-                type: "number",
-                description: "Maximum number of items to request.",
-                minimum: 1,
-                maximum: 50,
-                default: 10
-              }
+    const tools = [
+      {
+        name: "ping",
+        description: "Check whether hirelog-mcp is alive.",
+        inputSchema: {
+          type: "object",
+          properties: {}
+        }
+      },
+      {
+        name: "hirelog_health",
+        description: "Call HireLog API health endpoint (/actuator/health).",
+        inputSchema: {
+          type: "object",
+          properties: {}
+        }
+      },
+      {
+        name: "search_jd",
+        description:
+          "Search JD list. Maps to GET /api/job-summary/search (keyword, size).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "Search keyword."
             },
-            required: ["query"]
+            limit: {
+              type: "number",
+              description: "Maximum number of items to request.",
+              minimum: 1,
+              maximum: 50,
+              default: 10
+            }
+          },
+          required: ["query"]
+        }
+      },
+      {
+        name: "jd_get_detail",
+        description: "Get JD detail by jobSummaryId. Maps to GET /api/job-summary/{id}.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            jobSummaryId: { type: "number" }
+          },
+          required: ["jobSummaryId"]
+        }
+      },
+      {
+        name: "jd_list",
+        description:
+          "List JD summaries. Maps to GET /api/job-summary/search with optional filters.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            keyword: { type: "string" },
+            careerType: { type: "string" },
+            brandId: { type: "number" },
+            companyId: { type: "number" },
+            positionId: { type: "number" },
+            brandPositionId: { type: "number" },
+            positionCategoryId: { type: "number" },
+            brandName: { type: "string" },
+            positionName: { type: "string" },
+            brandPositionName: { type: "string" },
+            positionCategoryName: { type: "string" },
+            techStacks: {
+              type: "array",
+              items: { type: "string" }
+            },
+            cursor: { type: "string" },
+            size: { type: "number", minimum: 1, maximum: 100 },
+            sortBy: { type: "string" }
           }
-        },
+        }
+      }
+    ];
+
+    if (!readOnly) {
+      tools.push(
         {
           name: "jd_register",
           description:
@@ -176,45 +225,6 @@ export function createHirelogServer() {
           }
         },
         {
-          name: "jd_get_detail",
-          description: "Get JD detail by jobSummaryId. Maps to GET /api/job-summary/{id}.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              jobSummaryId: { type: "number" }
-            },
-            required: ["jobSummaryId"]
-          }
-        },
-        {
-          name: "jd_list",
-          description:
-            "List JD summaries. Maps to GET /api/job-summary/search with optional filters.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              keyword: { type: "string" },
-              careerType: { type: "string" },
-              brandId: { type: "number" },
-              companyId: { type: "number" },
-              positionId: { type: "number" },
-              brandPositionId: { type: "number" },
-              positionCategoryId: { type: "number" },
-              brandName: { type: "string" },
-              positionName: { type: "string" },
-              brandPositionName: { type: "string" },
-              positionCategoryName: { type: "string" },
-              techStacks: {
-                type: "array",
-                items: { type: "string" }
-              },
-              cursor: { type: "string" },
-              size: { type: "number", minimum: 1, maximum: 100 },
-              sortBy: { type: "string" }
-            }
-          }
-        },
-        {
           name: "my_applied_jd",
           description:
             "List my applied JD items. Maps to GET /api/member-job-summary?saveType=APPLY.",
@@ -238,7 +248,11 @@ export function createHirelogServer() {
             }
           }
         }
-      ]
+      );
+    }
+
+    return {
+      tools
     };
   });
 
@@ -292,6 +306,15 @@ export function createHirelogServer() {
           ].join("\n")
         );
       }
+    }
+
+    if (readOnly && isWriteOrPrivateTool(name)) {
+      return text(
+        [
+          "This tool is disabled in public read-only mode.",
+          "Set MCP_PUBLIC_READONLY=false to enable write/private tools."
+        ].join("\n")
+      );
     }
 
     if (name === "jd_register") {
