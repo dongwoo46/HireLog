@@ -42,6 +42,7 @@ class JobSummaryLifecycleListener(
             )
 
             val memberId = completeRequest(event) ?: return
+            val positionLabel = event.brandPositionName.takeIf { it.isNotBlank() } ?: event.positionName
             val sseData = mapOf(
                 "requestId" to event.processingId,
                 "jobSummaryId" to event.jobSummaryId,
@@ -55,8 +56,8 @@ class JobSummaryLifecycleListener(
                 notificationWriteService.create(
                     memberId = memberId,
                     type = NotificationType.JOB_SUMMARY_COMPLETED,
-                    title = "${event.brandName} ${event.positionName} 분석 완료",
-                    message = "요청하신 채용공고 분석이 완료되었습니다.",
+                    title = "${event.brandName} ${positionLabel} 분석 완료",
+                    message = "요청하신 채용공고(${positionLabel}) 분석이 완료되었습니다.",
                     referenceType = NotificationReferenceType.JOB_SUMMARY,
                     referenceId = event.jobSummaryId,
                     metadata = mapOf(

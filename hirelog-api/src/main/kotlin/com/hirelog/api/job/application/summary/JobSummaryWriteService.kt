@@ -152,6 +152,41 @@ class JobSummaryWriteService(
     }
 
     /**
+     * Snapshot 기준으로 이미 존재하는 Summary를 재사용해 Processing을 완료 처리한다.
+     * 중복 삽입 충돌 이후 복구 경로에서 idempotent 완료 처리를 위해 사용한다.
+     */
+    @Transactional
+    fun completeWithExistingSummary(processingId: UUID, snapshotId: Long): JobSummary {
+        val existingSummary = summaryCommand.findByJobSnapshotId(snapshotId)
+            ?: throw IllegalStateException("JobSummary not found for snapshotId=$snapshotId")
+
+        val processing = processingQuery.findById(processingId)
+            ?: throw IllegalStateException("Processing not found. id=$processingId")
+
+        processing.markCompleted(existingSummary.id)
+        processingCommand.update(processing)
+
+        log.info(
+            "[JOB_SUMMARY_COMPLETE_WITH_EXISTING] processingId={}, snapshotId={}, summaryId={}",
+            processingId, snapshotId, existingSummary.id
+        )
+
+        eventPublisher.publishEvent(
+            JobSummaryRequestEvent.Completed(
+                requestId = MDC.get("requestId") ?: processingId.toString(),
+                processingId = processingId.toString(),
+                jobSummaryId = existingSummary.id,
+                brandName = existingSummary.brandName,
+                positionName = existingSummary.positionName,
+                brandPositionName = existingSummary.brandPositionName,
+                positionCategoryName = existingSummary.positionCategoryName
+            )
+        )
+
+        return existingSummary
+    }
+
+    /**
      * Admin 전용: Snapshot + JobSummary + Outbox 전체 생성 (단일 트랜잭션)
      *
      * 트랜잭션 정책:

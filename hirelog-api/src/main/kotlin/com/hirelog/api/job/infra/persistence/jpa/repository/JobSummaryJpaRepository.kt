@@ -25,6 +25,10 @@ interface JobSummaryJpaRepository : JpaRepository<JobSummary, Long> {
 
     fun findByJobSnapshotIdAndIsActiveTrue(jobSnapshotId: Long): JobSummary?
 
+    fun existsByJobSnapshotId(jobSnapshotId: Long): Boolean
+
+    fun findByJobSnapshotId(jobSnapshotId: Long): JobSummary?
+
     /**
      * sourceUrl로 조회 (활성화된 것만)
      */

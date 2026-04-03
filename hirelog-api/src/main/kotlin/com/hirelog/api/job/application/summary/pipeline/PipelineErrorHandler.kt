@@ -6,6 +6,8 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.SnapshotAlreadySummarizedException
 import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException
+import io.github.resilience4j.ratelimiter.RequestNotPermitted
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import java.util.*
@@ -20,17 +22,18 @@ class PipelineErrorHandler(
 
     fun handle(processingId: UUID, ex: Throwable, requestId: String, phase: String) {
         val cause = if (ex is CompletionException) ex.cause ?: ex else ex
+        val rootCause = unwrapDeep(cause)
 
         val errorCode = when (cause) {
-            is GeminiCallException -> "LLM_CALL_FAILED"
+            is GeminiCallException -> mapGeminiCallErrorCode(rootCause)
             is GeminiParseException -> "LLM_PARSE_FAILED"
             is TimeoutException -> "LLM_TIMEOUT"
             else -> "FAILED_AT_$phase"
         }
 
         log.error(
-            "[PIPELINE_FAILED] processingId={}, phase={}, errorCode={}, error={}",
-            processingId, phase, errorCode, cause.message, cause
+            "[PIPELINE_FAILED] processingId={}, phase={}, errorCode={}, errorClass={}, rootClass={}, error={}",
+            processingId, phase, errorCode, cause::class.qualifiedName, rootCause::class.qualifiedName, cause.message, cause
         )
 
         val processing = processingWriteService.markFailed(
@@ -92,5 +95,23 @@ class PipelineErrorHandler(
                 positionName = processing.commandPositionName
             )
         )
+    }
+
+    private fun mapGeminiCallErrorCode(rootCause: Throwable): String = when (rootCause) {
+        is TimeoutException -> "LLM_TIMEOUT"
+        is RequestNotPermitted -> "LLM_RATE_LIMITED"
+        is CallNotPermittedException -> "LLM_CIRCUIT_OPEN"
+        else -> "LLM_CALL_FAILED"
+    }
+
+    private fun unwrapDeep(error: Throwable): Throwable {
+        var current = error
+        while (current is CompletionException && current.cause != null) {
+            current = current.cause!!
+        }
+        while (current is GeminiCallException && current.cause != null) {
+            current = current.cause!!
+        }
+        return current
     }
 }
