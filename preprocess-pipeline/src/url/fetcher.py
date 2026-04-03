@@ -39,11 +39,17 @@ class UrlFetcher:
         try:
             response = requests.get(url, headers=self.headers, timeout=self.timeout)
             response.raise_for_status()
-            
-            # 인코딩 자동 감지
-            if response.encoding is None:
-                response.encoding = response.apparent_encoding
-                
+
+            # requests는 charset 미지정 응답에 ISO-8859-1을 기본 적용할 수 있어
+            # 한글 페이지가 깨질 수 있다. 이 경우 apparent_encoding으로 보정한다.
+            declared_encoding = (response.encoding or "").lower()
+            if (
+                not declared_encoding
+                or declared_encoding in {"iso-8859-1", "latin-1"}
+                or "8859-1" in declared_encoding
+            ):
+                response.encoding = response.apparent_encoding or "utf-8"
+
             html_content = response.text
             
             # JS 렌더링 필요 여부 판단 (단순 휴리스틱)
