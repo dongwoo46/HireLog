@@ -8,10 +8,29 @@ export interface BoardPost {
     title: string;
     content: string;
     author: string;
-    createdAt: string;
+    createdAt: any;
     views: number;
     commentCount: number;
 }
+
+export const formatBoardDate = (dateValue: any) => {
+    if (!dateValue) return '';
+    if (Array.isArray(dateValue)) {
+        const year = dateValue[0];
+        const month = dateValue[1];
+        const day = dateValue[2];
+        return `${year}년 ${month}월 ${day}일`;
+    }
+    try {
+        const d = new Date(dateValue);
+        if (!isNaN(d.getTime())) {
+            return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+        }
+        return String(dateValue).substring(0, 10);
+    } catch {
+        return String(dateValue);
+    }
+};
 
 export const MOCK_POSTS: BoardPost[] = [
     {
@@ -135,7 +154,7 @@ const BoardListPage = () => {
                                         <div className="flex items-center gap-3">
                                             <span>{post.author}</span>
                                             <span>·</span>
-                                            <span>{post.createdAt}</span>
+                                            <span>{formatBoardDate(post.createdAt)}</span>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <span className="flex items-center gap-1"><TbEye size={16} /> {post.views}</span>

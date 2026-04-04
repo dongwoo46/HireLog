@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TbChevronLeft, TbEye, TbUser, TbSend } from 'react-icons/tb';
-import { MOCK_POSTS } from './BoardListPage';
+import { MOCK_POSTS, formatBoardDate } from './BoardListPage';
 
 export interface PostComment {
     id: number;
@@ -80,7 +80,7 @@ const BoardDetailPage = () => {
                                 {post.author}
                             </div>
                             <div className="flex items-center gap-4">
-                                <span>{post.createdAt}</span>
+                                <span>{formatBoardDate(post.createdAt)}</span>
                                 <span className="flex items-center gap-1"><TbEye size={18} /> {post.views}</span>
                             </div>
                         </div>
