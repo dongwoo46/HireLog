@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { TbBell, TbList, TbMenu2, TbMessageCircle, TbReload, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
@@ -13,6 +13,19 @@ export function Header() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setIsNotificationOpen(false);
+      }
+    };
+    if (isNotificationOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isNotificationOpen]);
 
   const navLinks = useMemo(
     () => [
@@ -136,7 +149,7 @@ export function Header() {
         <div className="flex items-center gap-2 sm:gap-4">
           {isAuthenticated ? (
             <>
-              <div className="relative">
+              <div className="relative" ref={notificationRef}>
                 <button
                   onClick={() => {
                     setIsNotificationOpen((prev) => {
@@ -180,8 +193,8 @@ export function Header() {
                           key={notification.id}
                           onClick={() => handleNotificationClick(notification)}
                           className={`w-full border-b border-gray-50 px-4 py-3 text-left text-sm transition last:border-none ${notification.isRead
-                              ? 'bg-white text-gray-600 hover:bg-gray-50'
-                              : 'bg-[#4CDFD5]/5 font-semibold text-gray-800 hover:bg-[#4CDFD5]/10'
+                            ? 'bg-white text-gray-600 hover:bg-gray-50'
+                            : 'bg-[#4CDFD5]/5 font-semibold text-gray-800 hover:bg-[#4CDFD5]/10'
                             }`}
                         >
                           <p className="mb-1 line-clamp-1">{notification.title}</p>
