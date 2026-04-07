@@ -164,7 +164,17 @@ class BaseKafkaWorker(ABC):
                     "worker_name": self.worker_name,
                     "request_id": context.request_id,
                     "source": context.source,
-                    "preprocess_result": result.to_dict(),
+                    "section_count": len(result.canonical_map) if result.canonical_map else 0,
+                    "has_skills": bool(result.skills),
+                    "has_period": result.recruitment_period_type is not None,
+                },
+            )
+            logger.debug(
+                "Canonical map",
+                extra={
+                    "worker_name": self.worker_name,
+                    "request_id": context.request_id,
+                    "canonical_map": result.canonical_map,
                 },
             )
 

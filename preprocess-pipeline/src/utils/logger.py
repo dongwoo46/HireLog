@@ -68,9 +68,13 @@ def setup_logging(level: str | None = None) -> None:
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
 
+    # PaddleOCR / ppocr 등 외부 라이브러리가 자체 handler를 붙이는 경우 강제 제거
     noisy_loggers = ["urllib3", "httpx", "httpcore", "asyncio", "PIL", "paddle", "ppocr"]
     for logger_name in noisy_loggers:
-        logging.getLogger(logger_name).setLevel(logging.WARNING)
+        lg = logging.getLogger(logger_name)
+        lg.handlers.clear()
+        lg.propagate = False
+        lg.setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

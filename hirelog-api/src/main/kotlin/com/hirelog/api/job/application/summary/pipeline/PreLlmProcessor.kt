@@ -39,8 +39,8 @@ class PreLlmProcessor(
 
         if (!jdIntakePolicy.isValidJd(command)) {
             log.error(
-                "[JD_INTAKE_INVALID_INPUT] processingId={}, source={}",
-                processingId, command.source
+                "[JD_INTAKE_INVALID_INPUT] processingId={}, source={}, command={}",
+                processingId, command.source, command
             )
             processingWriteService.markFailed(
                 processingId = processingId,

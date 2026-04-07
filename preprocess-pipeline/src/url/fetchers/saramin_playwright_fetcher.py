@@ -329,6 +329,11 @@ class SaraminPlaywrightFetcher(PlaywrightFetcher):
             return False
         low = html.lower()
         markers = [
+            "job-detail-section",
+            "job-table",
+            "job-section",
+            "job-content",
+            "job-item",
             "jv_cont",
             "recruit_content",
             "모집부문",

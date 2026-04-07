@@ -44,11 +44,19 @@ logger = logging.getLogger(__name__)
 
 
 def _init_process_logging():
-    """자식 프로세스 logging 초기화 (spawn 시 부모 설정 미상속)"""
+    """자식 프로세스 logging 초기화 (spawn 시 부모 설정 미상속)
+
+    NOTE: 반드시 PaddleOCR 등 외부 라이브러리 import 이후에 호출해야 한다.
+    ppocr은 import 시 자체 handler를 root logger에 등록하는데,
+    setup_logging이 먼저 실행되면 ppocr import가 JSON handler를 덮어쓴다.
+    """
     import sys
+    try:
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
     setup_logging("DEBUG")
-    if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(line_buffering=True)
 
 
 def _create_worker(factory, worker_cls, topic, consumer_group, poll_timeout_sec,
@@ -106,11 +114,35 @@ def _run_ocr_process(
     os.environ["OPENBLAS_NUM_THREADS"] = "1"
     os.environ["MKL_NUM_THREADS"] = "1"
 
+    # 1차: startup 로그를 보이게 하기 위해 import 전에 logging 먼저 설정
     _init_process_logging()
     proc_logger = logging.getLogger(f"process.ocr.{client_id}")
+    proc_logger.info("Loading OCR engine (PaddleOCR model init)", extra={"proc":"ocr"})
 
     from infra.kafka.kafka_client_factory import KafkaClientFactory
     from worker.ocr_kafka_worker import OcrKafkaWorker
+
+    # 2차: ppocr이 import/init 시 root logger를 건드릴 수 있으므로 재적용
+    setup_logging("DEBUG")
+    logging.disable(logging.NOTSET)
+
+    # PaddleOCR은 첫 .ocr() 호출 시 모델 weight를 lazy load하면서
+    # logging.disable() 등을 내부에서 호출한다.
+    # worker.run() 전에 빈 이미지로 워밍업을 강제하여 모델 로드를 완료시키고,
+    # 그 이후 logging을 재적용하면 worker 실행 중 로그가 보존된다.
+    proc_logger.info("Warming up PaddleOCR model", extra={"proc":"ocr"})
+    try:
+        import numpy as np
+        from ocr.engine import _ocr as _paddle_ocr
+        _dummy = np.zeros((64, 64, 3), dtype=np.uint8)
+        _paddle_ocr.ocr(_dummy)
+    except Exception:
+        pass
+
+    # 3차: 모델 로드 완료 후 logging 최종 재적용
+    setup_logging("DEBUG")
+    logging.disable(logging.NOTSET)
+    proc_logger.info("OCR engine ready", extra={"proc":"ocr"})
 
     try:
         factory = KafkaClientFactory(connection_config)
@@ -122,15 +154,15 @@ def _run_ocr_process(
         worker.run()
 
     except KeyboardInterrupt:
-        proc_logger.info("Process interrupted", extra={"process": "ocr"})
+        proc_logger.info("Process interrupted", extra={"proc":"ocr"})
     except Exception as e:
-        proc_logger.error("Process crashed", exc_info=True, extra={"process": "ocr", "error": str(e)})
+        proc_logger.error("Process crashed", exc_info=True, extra={"proc":"ocr", "error": str(e)})
     finally:
         try:
             producer.close()
         except Exception:
             pass
-        proc_logger.info("Process exiting", extra={"process": "ocr"})
+        proc_logger.info("Process exiting", extra={"proc":"ocr"})
 
 
 def _run_text_url_process(
@@ -191,12 +223,12 @@ def _run_text_url_process(
         url_thread.join(timeout=worker_config.shutdown_timeout_sec)
 
     except KeyboardInterrupt:
-        proc_logger.info("Process interrupted", extra={"process": "text_url"})
+        proc_logger.info("Process interrupted", extra={"proc":"text_url"})
     except Exception as e:
         proc_logger.error(
             "Process crashed",
             exc_info=True,
-            extra={"process": "text_url", "error": str(e)},
+            extra={"proc":"text_url", "error": str(e)},
         )
     finally:
         for p in [text_producer, url_producer]:
@@ -204,7 +236,7 @@ def _run_text_url_process(
                 p.close()
             except Exception:
                 pass
-        proc_logger.info("Process exiting", extra={"process": "text_url"})
+        proc_logger.info("Process exiting", extra={"proc":"text_url"})
 
 
 def main():
