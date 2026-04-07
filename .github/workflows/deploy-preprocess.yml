@@ -5,7 +5,7 @@ on:
     types: [closed]
     branches: [main]
     paths:
-      - 'preprocess-pipeline/**'
+      - "preprocess-pipeline/**"
   workflow_dispatch:
 
 env:
@@ -70,7 +70,7 @@ jobs:
             docker/api/loki-config.yml,
             docker/api/promtail-config.yml,
             docker/api/grafana/
-          target: '/home/hirelog/'
+          target: "/home/hirelog/"
           strip_components: 2
 
       - name: Deploy Preprocess
@@ -88,6 +88,27 @@ jobs:
             COMPOSE="docker compose --env-file $WORKDIR/.env.prod -f $WORKDIR/docker-compose.prod.yml"
 
             echo "▶ Image: $PREPROCESS_IMAGE"
+
+            DOCKER_DIR="/var/lib/docker"
+
+            DISK_USAGE=$(df $DOCKER_DIR | tail -1 | awk '{print $5}' | sed 's/%//')
+
+            echo "▶ Docker disk usage: ${DISK_USAGE}%"
+
+            if [ "$DISK_USAGE" -gt 80 ]; then
+              echo "⚠️ Disk usage > 80%, running docker cleanup..."
+
+              # 안전한 순서
+              docker image prune -af
+              docker builder prune -af
+
+              # 필요할 때만 system prune
+              docker system prune -f
+
+              echo "✅ Docker cleanup completed"
+            else
+              echo "✅ Disk usage OK, skip cleanup"
+            fi
 
             docker image prune -af
             docker builder prune -af
