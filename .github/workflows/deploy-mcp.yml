@@ -9,40 +9,62 @@ on:
       - '.github/workflows/deploy-mcp.yml'
   workflow_dispatch:
 
+env:
+  IMAGE: ghcr.io/dongwoo46/hirelog-mcp
+
 jobs:
-  deploy:
+  build:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
        github.event.pull_request.head.ref == 'develop')
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: hirelog-mcp/package-lock.json
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: npm ci
-        working-directory: hirelog-mcp
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: hirelog-mcp
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:cache,mode=max
 
-      - name: Build
-        run: npm run build
-        working-directory: hirelog-mcp
-
-      - name: Prepare production dependencies bundle
-        run: npm prune --omit=dev
-        working-directory: hirelog-mcp
-
-      - name: Set release name
-        id: vars
-        run: echo "release=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
-
-      - name: Prepare target directory on server
+  deploy:
+    needs: build
+    if: >-
+      always() &&
+      needs.build.result != 'failure' &&
+      needs.build.result != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure target directory
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_API_HOST }}
@@ -50,22 +72,8 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-            sudo mkdir -p /home/hirelog-mcp/releases /home/hirelog-mcp/shared
+            sudo mkdir -p /home/hirelog-mcp
             sudo chown -R $(whoami):$(whoami) /home/hirelog-mcp
-
-      - name: Upload release files
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_API_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: >-
-            hirelog-mcp/dist/,
-            hirelog-mcp/node_modules/,
-            hirelog-mcp/package.json,
-            hirelog-mcp/package-lock.json
-          target: /home/hirelog-mcp/releases/${{ steps.vars.outputs.release }}
-          strip_components: 1
 
       - name: Write MCP env file
         uses: appleboy/ssh-action@v1.0.3
@@ -78,10 +86,10 @@ jobs:
           envs: MCP_ENV_PROD
           script: |
             set -e
-            printf '%s\n' "$MCP_ENV_PROD" > /home/hirelog-mcp/shared/.env
+            printf '%s\n' "$MCP_ENV_PROD" > /home/hirelog-mcp/.env
             echo "MCP .env written"
 
-      - name: Install prod deps and restart service
+      - name: Pull image and restart container
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_API_HOST }}
@@ -89,36 +97,22 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-            RELEASE=${{ steps.vars.outputs.release }}
-            APP_ROOT=/home/hirelog-mcp
-            RELEASE_DIR=$APP_ROOT/releases/$RELEASE
-            SERVICE_NAME=hirelog-mcp
+            IMAGE=${{ env.IMAGE }}
+            TAG=${{ needs.build.outputs.image_tag }}
+            APP_ENV=/home/hirelog-mcp/.env
+            CONTAINER=hirelog-mcp
 
-            ln -sfn $APP_ROOT/shared/.env $RELEASE_DIR/.env
+            echo "Deploying ${IMAGE}:${TAG}"
+            docker pull ${IMAGE}:${TAG}
 
-            ln -sfn $RELEASE_DIR $APP_ROOT/current
+            docker rm -f ${CONTAINER} 2>/dev/null || true
 
-            NODE_BIN=$(command -v node)
-            if [ -z "$NODE_BIN" ]; then echo "node not found on server"; exit 1; fi
-            sudo tee /etc/systemd/system/${SERVICE_NAME}.service >/dev/null <<EOF
-            [Unit]
-            Description=HireLog MCP HTTP Server
-            After=network.target
+            docker run -d \
+              --name ${CONTAINER} \
+              --restart unless-stopped \
+              --env-file ${APP_ENV} \
+              -p 127.0.0.1:8787:8787 \
+              ${IMAGE}:${TAG}
 
-            [Service]
-            Type=simple
-            User=$(whoami)
-            WorkingDirectory=/home/hirelog-mcp/current
-            EnvironmentFile=/home/hirelog-mcp/current/.env
-            ExecStart=${NODE_BIN} /home/hirelog-mcp/current/dist/http.js
-            Restart=always
-            RestartSec=3
-
-            [Install]
-            WantedBy=multi-user.target
-            EOF
-
-            sudo systemctl daemon-reload
-            sudo systemctl enable ${SERVICE_NAME}
-            sudo systemctl restart ${SERVICE_NAME}
-            sudo systemctl --no-pager --full status ${SERVICE_NAME} | head -n 25
+            docker ps --filter "name=${CONTAINER}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            docker logs --tail 50 ${CONTAINER}

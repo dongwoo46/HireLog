@@ -176,7 +176,10 @@ class JdSummaryProcessing protected constructor(
      * - 모든 에러/중복/임시 정보는 제거
      */
     fun markCompleted(summaryId: Long) {
-        require(status == JdSummaryProcessingStatus.SUMMARIZING) {
+        require(
+            status == JdSummaryProcessingStatus.SUMMARIZING ||
+                    status == JdSummaryProcessingStatus.POST_LLM_FAILED
+        ) {
             "Invalid state transition: $status -> COMPLETED"
         }
         require(summaryId > 0) { "summaryId must be positive" }

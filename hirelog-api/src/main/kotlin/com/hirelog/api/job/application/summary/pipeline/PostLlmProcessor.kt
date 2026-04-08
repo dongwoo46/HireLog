@@ -29,7 +29,7 @@ class PostLlmProcessor(
 ) {
 
     companion object {
-        private const val UNKNOWN_POSITION_NAME = "UNKNOWN"
+        private const val UNKNOWN_VALUE = "UNKNOWN"
         private const val LLM_COMPANY_CONFIDENCE_SCORE = 0.7
     }
 
@@ -47,6 +47,13 @@ class PostLlmProcessor(
         brandPositionName: String
     ): ResolvedEntities {
         try {
+            require(!isUnknownValue(llmResult.brandName)) {
+                "UNKNOWN brandName is not allowed"
+            }
+            require(!isUnknownValue(llmResult.positionName)) {
+                "UNKNOWN positionName is not allowed"
+            }
+
             val brand = brandWriteService.getOrCreate(
                 name = llmResult.brandName,
                 companyId = null,
@@ -81,6 +88,9 @@ class PostLlmProcessor(
             throw e
         }
     }
+
+    private fun isUnknownValue(value: String): Boolean =
+        value.trim().equals(UNKNOWN_VALUE, ignoreCase = true)
 
     /**
      * 파이프라인용: createWithOutbox + CompanyCandidate

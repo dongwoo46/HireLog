@@ -24,3 +24,5 @@ wordfreq==3.1.1
 symspellpy==6.9.0
 RapidFuzz==3.14.3
 setuptools==80.9.0
+grpcio==1.62.3
+grpcio-tools==1.62.3

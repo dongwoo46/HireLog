@@ -12,8 +12,8 @@ import io.github.resilience4j.ratelimiter.RateLimiterRegistry
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
 import org.springframework.web.reactive.function.client.WebClient
 
 /**
@@ -24,7 +24,7 @@ import org.springframework.web.reactive.function.client.WebClient
  * - Gemini fallback용 LLM 구현체 제공
  */
 @Configuration
-@Profile("!loadtest")
+@ConditionalOnProperty(name = ["hirelog.loadtest.fake-llm"], havingValue = "false", matchIfMissing = true)
 class OpenAiInfraConfig(
     private val aiProperties: AiProperties
 ) {

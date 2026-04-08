@@ -38,7 +38,9 @@ sealed class JobSummaryRequestEvent {
         companion object {
             private val RETRYABLE_ERROR_CODES = setOf(
                 "LLM_TIMEOUT",
-                "LLM_CALL_FAILED"
+                "LLM_CALL_FAILED",
+                "LLM_RATE_LIMITED",
+                "LLM_CIRCUIT_OPEN"
             )
 
             fun of(

@@ -1,8 +1,10 @@
 ﻿import logging
+import os
 import re
 
 from domain.job_platform import JobPlatform
 from inputs.jd_preprocess_input import JdPreprocessInput
+from ocr.grpc.ocr_client import OcrGrpcClient
 from preprocess.adapter.url_section_adapter import adapt_url_sections_to_sections
 from preprocess.metadata_preprocess.metadata_preprocessor import MetadataPreprocessor
 from preprocess.post_validation.section_post_validator import validate_raw_sections
@@ -28,7 +30,16 @@ class UrlPipeline:
 
         self.metadata = MetadataPreprocessor()
         self.canonical = CanonicalSectionPipeline()
-        self.jobkorea_support = JobKoreaUrlSupport(self.canonical, self._normalize_intake_required_canonical)
+
+        ocr_grpc_host = os.environ.get("OCR_GRPC_HOST", "localhost")
+        ocr_grpc_port = int(os.environ.get("OCR_GRPC_PORT", "50051"))
+        ocr_client = OcrGrpcClient(host=ocr_grpc_host, port=ocr_grpc_port)
+
+        self.jobkorea_support = JobKoreaUrlSupport(
+            self.canonical,
+            self._normalize_intake_required_canonical,
+            ocr_client=ocr_client,
+        )
 
     def process(self, input: JdPreprocessInput) -> dict:
         if not input.url:

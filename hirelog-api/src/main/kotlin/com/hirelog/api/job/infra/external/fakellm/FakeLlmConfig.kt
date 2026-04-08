@@ -5,15 +5,15 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.concurrent.Executor
 
 @Configuration
-@Profile("loadtest")
+@ConditionalOnProperty(name = ["hirelog.loadtest.fake-llm"], havingValue = "true")
 class FakeLlmConfig {
 
     @Bean

@@ -1,56 +1,51 @@
 # hirelog-mcp
 
-HireLog용 MCP 서버입니다. 로컬 클라이언트(`stdio`)와 웹 클라이언트(`remote HTTP`)를 모두 지원합니다.
+HireLog MCP 서버입니다. 로컬(`stdio`)과 원격 HTTP(`remote MCP`)를 지원합니다.
 
-## 연결 대상
+## 운영 모드 분리
 
-- Claude Desktop: 로컬 `stdio`
-- Codex(CLI/데스크톱 설정): 로컬 `stdio`
-- ChatGPT Web: 원격 MCP URL(공개 HTTPS)
-- Claude Web: 원격 MCP URL(공개 HTTPS)
+이 서버는 환경변수로 공개/비공개 모드를 분리할 수 있습니다.
 
-중요: ChatGPT Web/Claude Web은 로컬 `stdio` 프로세스에 직접 연결할 수 없습니다.  
-웹에서는 반드시 `start:http`로 실행한 MCP 서버를 HTTPS로 노출해 연결해야 합니다.
+- `MCP_PUBLIC_READONLY=true`  
+  공개 읽기 전용 모드. 조회 도구만 노출됩니다.
+- `MCP_PUBLIC_READONLY=false`  
+  비공개 전체 모드. 등록/개인 목록 도구까지 포함됩니다.
 
-## 제공 도구
+권장 운영:
 
-- `ping`: 서버 생존 확인
-- `hirelog_health`: `GET /actuator/health`
-- `search_jd`: 키워드 기반 JD 검색 (`GET /api/job-summary/search`)
-- `jd_register`: URL 기반 JD 등록 (`POST /api/job-summary/url`)
-- `jd_register_text`: 텍스트 기반 JD 등록 (`POST /api/job-summary/text`)
-- `jd_get_detail`: JD 상세 조회 (`GET /api/job-summary/{id}`)
-- `jd_list`: JD 목록/검색 (`GET /api/job-summary/search`)
-- `my_applied_jd`: 내가 지원한 JD 목록 (`saveType=APPLY`)
-- `my_saved_jd`: 내가 저장한 JD 목록 (`saveType=SAVED`)
+1. 공개용 MCP: `MCP_PUBLIC_READONLY=true` + 별도 도메인/엔드포인트
+2. 비공개 MCP: `MCP_PUBLIC_READONLY=false` + 토큰 필수
 
-## 설치 및 빌드
+## 혼합 모드 (권장)
 
-```bash
-cd hirelog-mcp
-npm.cmd install
-npm.cmd run build
+아래처럼 설정하면 하나의 서버에서 둘 다 가능합니다.
+
+- 토큰 없이 호출: 읽기 도구만 사용
+- 올바른 `MCP_AUTH_TOKEN`으로 호출: 읽기 + 쓰기/개인 도구 사용
+
+설정:
+
+```env
+MCP_PUBLIC_READONLY=false
+MCP_AUTH_TOKEN=your-secret-token
 ```
 
-## 실행
+## 도구 목록
 
-로컬 `stdio` 모드:
+공통(읽기):
 
-```bash
-cd hirelog-mcp
-npm.cmd run start
-```
+- `ping`
+- `hirelog_health`
+- `search_jd`
+- `jd_get_detail`
+- `jd_list`
 
-원격 HTTP 모드:
+비공개 전용(쓰기/개인):
 
-```bash
-cd hirelog-mcp
-npm.cmd run start:http
-```
-
-기본 HTTP 엔드포인트:
-
-- `http://0.0.0.0:8787/mcp`
+- `jd_register`
+- `jd_register_text`
+- `my_applied_jd`
+- `my_saved_jd`
 
 ## 환경 변수
 
@@ -58,50 +53,40 @@ npm.cmd run start:http
 
 - `HIRELOG_API_BASE_URL` (기본값: `https://hirelog.kro.kr`)
 - `VITE_API_BASE_URL` (`HIRELOG_API_BASE_URL` 미설정 시 fallback)
-- `HIRELOG_API_BEARER_TOKEN` (선택, Bearer 인증 토큰)
-- `HIRELOG_API_COOKIE` (선택, Cookie 기반 인증 필요 시 직접 전달)
+- `HIRELOG_API_BEARER_TOKEN` (선택)
+- `HIRELOG_API_COOKIE` (선택)
+- `MCP_PUBLIC_READONLY` (기본값: `false`)
 
-HTTP 모드:
+HTTP:
 
 - `PORT` (기본값: `8787`)
 - `HOST` (기본값: `0.0.0.0`)
 - `MCP_PATH` (기본값: `/mcp`)
-- `MCP_AUTH_TOKEN` (선택, 원격 운영 시 권장)
+- `MCP_AUTH_TOKEN` (권장)
+- `MCP_READ_RATE_LIMIT_PER_MIN` (기본값: `120`)
+- `MCP_WRITE_RATE_LIMIT_PER_MIN` (기본값: `20`)
 
-`MCP_AUTH_TOKEN`을 설정한 경우 요청 헤더:
+## 빠른 로컬 실행
 
-- `Authorization: Bearer <MCP_AUTH_TOKEN>`
+```bash
+cd hirelog-mcp
+npm install
+npm run build
+npm run start:http
+```
 
-## Claude Desktop 설정 (로컬 stdio)
+## Docker 배포 (GitHub Actions)
 
-1. Windows 설정 파일 열기  
-`%APPDATA%\\Claude\\claude_desktop_config.json`
-2. 예시 파일 내용 반영  
-`hirelog-mcp/examples/claude_desktop_config.json`
-3. Claude Desktop 재시작
+워크플로우:
 
-## Codex 설정 (로컬 stdio)
+- `.github/workflows/deploy-mcp.yml`
 
-1. Codex 설정 파일 열기  
-`~/.codex/config.toml` (Windows: `C:\\Users\\<you>\\.codex\\config.toml`)
-2. 예시 파일 내용 반영  
-`hirelog-mcp/examples/codex-config.toml`
-3. Codex 세션 재시작
+동작:
 
-## ChatGPT Web / Claude Web 설정 (원격 MCP)
-
-1. `npm.cmd run start:http` 실행
-2. `http://localhost:8787/mcp`를 공개 HTTPS URL로 노출
-3. 웹 설정에서 해당 HTTPS MCP URL 등록
-4. `MCP_AUTH_TOKEN` 사용 시 Bearer 인증도 함께 등록
-
-## Linux + GitHub Actions 배포
-
-이 저장소에는 MCP 배포 워크플로우가 추가되어 있습니다.
-
-- 워크플로우 파일: `.github/workflows/deploy-mcp.yml`
-- 동작: `hirelog-mcp/**`가 `develop -> main`으로 머지되면 자동 배포
-- 방식: 빌드 후 서버 업로드 + `systemd` 서비스(`hirelog-mcp`) 재시작
+1. Docker 이미지 빌드
+2. GHCR(`ghcr.io/dongwoo46/hirelog-mcp`) 푸시
+3. 서버에서 이미지 pull
+4. 컨테이너 재기동
 
 필수 GitHub Secrets:
 
@@ -110,20 +95,38 @@ HTTP 모드:
 - `SERVER_SSH_KEY`
 - `MCP_ENV_PROD`
 
-`MCP_ENV_PROD` 예시:
+`MCP_ENV_PROD` 예시 (비공개 전체):
 
 ```env
 HIRELOG_API_BASE_URL=https://hirelog.kro.kr
-MCP_AUTH_TOKEN=change-me
+MCP_PUBLIC_READONLY=false
+MCP_AUTH_TOKEN=your-random-long-secret
 PORT=8787
 HOST=0.0.0.0
 MCP_PATH=/mcp
 ```
 
-## 빠른 확인
+`MCP_ENV_PROD` 예시 (공개 읽기전용):
+
+```env
+HIRELOG_API_BASE_URL=https://hirelog.kro.kr
+MCP_PUBLIC_READONLY=true
+# 공개 서버는 토큰 없이 열 수도 있지만, 보안을 위해 토큰 권장
+MCP_AUTH_TOKEN=optional-but-recommended
+PORT=8787
+HOST=0.0.0.0
+MCP_PATH=/mcp
+```
+
+## Nginx 연결
+
+- `https://.../mcp` -> `http://127.0.0.1:8787/mcp` 프록시
+- `Authorization` 헤더 전달
+
+## 상태 확인
 
 ```bash
-curl http://localhost:8787/
+curl http://127.0.0.1:8787/
 ```
 
 정상 응답:

@@ -116,9 +116,9 @@ export const JobSummarySearch: React.FC<Props> = ({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="w-full max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-5 py-4 relative">
-          <div className="flex items-center gap-3">
+      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-4xl">
+        <div className="relative rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-md sm:px-5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
 
             <TbSearch size={20} className="text-[#4CDFD5] shrink-0" />
 
@@ -128,7 +128,7 @@ export const JobSummarySearch: React.FC<Props> = ({
               onChange={e => updateParam('keyword', e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
               placeholder="예: 네이버, 프론트엔드, React"
-              className="flex-1 outline-none bg-transparent text-gray-800 placeholder-gray-400 font-medium text-base"
+              className="min-w-0 flex-1 bg-transparent text-base font-medium text-gray-800 outline-none placeholder:text-gray-400"
             />
 
             <div className="relative group shrink-0">
@@ -147,7 +147,7 @@ export const JobSummarySearch: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="w-px h-5 bg-gray-200 shrink-0" />
+            <div className="hidden h-5 w-px shrink-0 bg-gray-200 md:block" />
 
             <div className="relative shrink-0">
               <select
@@ -163,7 +163,7 @@ export const JobSummarySearch: React.FC<Props> = ({
               <TbChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
 
-            <div className="w-px h-5 bg-gray-200 shrink-0" />
+            <div className="hidden h-5 w-px shrink-0 bg-gray-200 md:block" />
 
             <button
               type="button"
@@ -180,7 +180,7 @@ export const JobSummarySearch: React.FC<Props> = ({
               검색
             </button>
 
-            <div className="w-px h-5 bg-gray-200 shrink-0" />
+            <div className="hidden h-5 w-px shrink-0 bg-gray-200 md:block" />
 
             <a
               href="/jd/request"

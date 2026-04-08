@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package ocr;
+
+service OcrService {
+  rpc RunOcr (OcrRequest) returns (OcrResponse);
+}
+
+message OcrRequest {
+  repeated string images = 1;
+}
+
+// lines_json : JSON-serialized list of OCR line dicts
+//   [{text, confidence, height, is_visual_header, ...}, ...]
+//   numpy box는 list로 직렬화됨
+//
+// errors : 이미지별 실패 정보
+//   각 항목은 JSON {"path": "...", "error": "..."} 형태
+message OcrResponse {
+  string status     = 1;
+  float  confidence = 2;
+  string raw_text   = 3;
+  string lines_json = 4;
+  repeated string errors = 5;
+}

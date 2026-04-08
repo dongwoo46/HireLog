@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { TbBell, TbList, TbMenu2, TbMessageCircle, TbReload, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
@@ -13,6 +13,19 @@ export function Header() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setIsNotificationOpen(false);
+      }
+    };
+    if (isNotificationOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isNotificationOpen]);
 
   const navLinks = useMemo(
     () => [
@@ -103,7 +116,7 @@ export function Header() {
 
   return (
     <header className="fixed z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to={isAuthenticated ? '/' : '/jd'} className="flex items-center" aria-label="HireLog home">
           <img src="/hirelog_no_bg.png" alt="HireLog" className="h-12 w-auto object-contain sm:h-14" />
         </Link>
@@ -133,10 +146,10 @@ export function Header() {
           )}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {isAuthenticated ? (
             <>
-              <div className="relative">
+              <div className="relative" ref={notificationRef}>
                 <button
                   onClick={() => {
                     setIsNotificationOpen((prev) => {
@@ -158,7 +171,7 @@ export function Header() {
                 </button>
 
                 {isNotificationOpen && (
-                  <div className="absolute right-0 mt-3 max-h-[28rem] w-96 overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl">
+                  <div className="absolute right-0 mt-3 max-h-[28rem] w-[min(24rem,calc(100vw-1rem))] overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl">
                     <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">알림</span>
                       <button
@@ -180,8 +193,8 @@ export function Header() {
                           key={notification.id}
                           onClick={() => handleNotificationClick(notification)}
                           className={`w-full border-b border-gray-50 px-4 py-3 text-left text-sm transition last:border-none ${notification.isRead
-                              ? 'bg-white text-gray-600 hover:bg-gray-50'
-                              : 'bg-[#4CDFD5]/5 font-semibold text-gray-800 hover:bg-[#4CDFD5]/10'
+                            ? 'bg-white text-gray-600 hover:bg-gray-50'
+                            : 'bg-[#4CDFD5]/5 font-semibold text-gray-800 hover:bg-[#4CDFD5]/10'
                             }`}
                         >
                           <p className="mb-1 line-clamp-1">{notification.title}</p>
@@ -202,7 +215,7 @@ export function Header() {
                 {user?.username?.charAt(0) || 'U'}
               </button>
 
-              <button onClick={handleLogout} className="text-sm font-bold text-gray-400 hover:text-rose-500">
+              <button onClick={handleLogout} className="hidden text-sm font-bold text-gray-400 hover:text-rose-500 sm:inline-block">
                 로그아웃
               </button>
             </>

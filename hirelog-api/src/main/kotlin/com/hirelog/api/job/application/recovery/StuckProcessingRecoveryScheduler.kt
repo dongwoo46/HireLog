@@ -14,6 +14,7 @@ import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcess
 import com.hirelog.api.job.application.jdsummaryprocessing.port.JdSummaryProcessingQuery
 import com.hirelog.api.job.application.summary.JobSummaryWriteService
 import com.hirelog.api.job.application.summary.JobSummaryRequestWriteService
+import com.hirelog.api.job.application.summary.SnapshotAlreadySummarizedException
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JdSummaryProcessing
 import com.hirelog.api.job.domain.type.JdSummaryProcessingStatus
@@ -55,7 +56,7 @@ class StuckProcessingRecoveryScheduler(
         private const val STUCK_THRESHOLD_MINUTES = 30L
         private const val BATCH_SIZE = 50
         private const val MAX_RETRY_COUNT = 3
-        private const val UNKNOWN_POSITION_NAME = "UNKNOWN"
+        private const val UNKNOWN_VALUE = "UNKNOWN"
     }
 
     /**
@@ -133,6 +134,12 @@ class StuckProcessingRecoveryScheduler(
         )
 
         val llmResult = objectMapper.readValue<JobSummaryLlmResult>(llmResultJson)
+        require(!isUnknownValue(llmResult.brandName)) {
+            "UNKNOWN brandName is not allowed in recovery"
+        }
+        require(!isUnknownValue(llmResult.positionName)) {
+            "UNKNOWN positionName is not allowed in recovery"
+        }
 
         // Brand 조회/생성
         val brand = brandWriteService.getOrCreate(
@@ -144,8 +151,7 @@ class StuckProcessingRecoveryScheduler(
         // Position 조회 (LLM이 후보군에서 선택한 positionName 사용)
         val normalizedPositionName = Normalizer.normalizePosition(llmResult.positionName)
         val position = positionCommand.findByNormalizedName(normalizedPositionName)
-            ?: positionCommand.findByNormalizedName(Normalizer.normalizePosition(UNKNOWN_POSITION_NAME))
-            ?: throw IllegalStateException("UNKNOWN position not found")
+            ?: throw IllegalStateException("Position not found for '${llmResult.positionName}'")
 
         // BrandPosition 조회/생성 (원본 command의 positionName = displayName)
         val brandPosition = brandPositionWriteService.getOrCreate(
@@ -156,19 +162,30 @@ class StuckProcessingRecoveryScheduler(
         )
 
         // 단일 트랜잭션으로 Summary + Outbox + Processing 완료
-        summaryWriteService.createWithOutbox(
-            processingId = processing.id,
-            snapshotId = snapshotId,
-            brand = brand,
-            positionId = position.id,
-            positionName = position.name,
-            brandPositionId = brandPosition.id,
-            positionCategoryId = position.category.id,
-            positionCategoryName = position.category.name,
-            llmResult = llmResult,
-            brandPositionName = commandPositionName,
-            sourceUrl = null
-        )
+        try {
+            summaryWriteService.createWithOutbox(
+                processingId = processing.id,
+                snapshotId = snapshotId,
+                brand = brand,
+                positionId = position.id,
+                positionName = position.name,
+                brandPositionId = brandPosition.id,
+                positionCategoryId = position.category.id,
+                positionCategoryName = position.category.name,
+                llmResult = llmResult,
+                brandPositionName = commandPositionName,
+                sourceUrl = null
+            )
+        } catch (e: SnapshotAlreadySummarizedException) {
+            log.warn(
+                "[STUCK_PROCESSING_RECOVERY_DUPLICATE] processingId={}, snapshotId={}, reason={}",
+                processing.id, snapshotId, e.message
+            )
+            summaryWriteService.completeWithExistingSummary(
+                processingId = processing.id,
+                snapshotId = snapshotId
+            )
+        }
 
         log.info(
             "[STUCK_PROCESSING_RECOVERY_SUCCESS] processingId={}",
@@ -250,4 +267,7 @@ class StuckProcessingRecoveryScheduler(
             processing.id, processing.commandBrandName, processing.commandPositionName, exception.message
         )
     }
+
+    private fun isUnknownValue(value: String): Boolean =
+        value.trim().equals(UNKNOWN_VALUE, ignoreCase = true)
 }

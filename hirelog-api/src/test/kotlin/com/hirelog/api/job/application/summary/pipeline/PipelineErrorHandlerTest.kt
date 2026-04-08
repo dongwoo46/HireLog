@@ -4,15 +4,22 @@ import com.hirelog.api.common.exception.GeminiCallException
 import com.hirelog.api.common.exception.GeminiParseException
 import com.hirelog.api.job.application.jobsummaryprocessing.JdSummaryProcessingWriteService
 import com.hirelog.api.job.application.summary.event.JobSummaryRequestEvent
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.ratelimiter.RequestNotPermitted
+import io.github.resilience4j.ratelimiter.RateLimiter
 import io.mockk.*
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import java.util.UUID
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeoutException
 
-@DisplayName("PipelineErrorHandler 테스트")
+@DisplayName("PipelineErrorHandler test")
 class PipelineErrorHandlerTest {
 
     private lateinit var handler: PipelineErrorHandler
@@ -31,12 +38,12 @@ class PipelineErrorHandlerTest {
     }
 
     @Nested
-    @DisplayName("handle 메서드는")
+    @DisplayName("handle")
     inner class HandleTest {
 
         @Test
-        @DisplayName("GeminiCallException → errorCode=LLM_CALL_FAILED")
-        fun shouldHandleGeminiCallException() {
+        @DisplayName("GeminiCallException -> LLM_CALL_FAILED")
+        fun shouldHandleGeminiCallExceptionAsCallFailed() {
             handler.handle(processingId, GeminiCallException(RuntimeException("api error")), requestId, phase)
 
             verify {
@@ -46,7 +53,39 @@ class PipelineErrorHandlerTest {
         }
 
         @Test
-        @DisplayName("GeminiParseException → errorCode=LLM_PARSE_FAILED")
+        @DisplayName("GeminiCallException(RequestNotPermitted) -> LLM_RATE_LIMITED")
+        fun shouldHandleGeminiCallExceptionAsRateLimited() {
+            handler.handle(
+                processingId,
+                GeminiCallException(RequestNotPermitted.createRequestNotPermitted(RateLimiter.ofDefaults("test-rate"))),
+                requestId,
+                phase
+            )
+
+            verify {
+                processingWriteService.markFailed(processingId, "LLM_RATE_LIMITED", any())
+            }
+            verifyPublishedFailedEvent("LLM_RATE_LIMITED", retryable = true)
+        }
+
+        @Test
+        @DisplayName("GeminiCallException(CallNotPermittedException) -> LLM_CIRCUIT_OPEN")
+        fun shouldHandleGeminiCallExceptionAsCircuitOpen() {
+            handler.handle(
+                processingId,
+                GeminiCallException(CallNotPermittedException.createCallNotPermittedException(CircuitBreaker.ofDefaults("test-cb"))),
+                requestId,
+                phase
+            )
+
+            verify {
+                processingWriteService.markFailed(processingId, "LLM_CIRCUIT_OPEN", any())
+            }
+            verifyPublishedFailedEvent("LLM_CIRCUIT_OPEN", retryable = true)
+        }
+
+        @Test
+        @DisplayName("GeminiParseException -> LLM_PARSE_FAILED")
         fun shouldHandleGeminiParseException() {
             handler.handle(processingId, GeminiParseException(RuntimeException("parse error")), requestId, phase)
 
@@ -57,7 +96,7 @@ class PipelineErrorHandlerTest {
         }
 
         @Test
-        @DisplayName("TimeoutException → errorCode=LLM_TIMEOUT")
+        @DisplayName("TimeoutException -> LLM_TIMEOUT")
         fun shouldHandleTimeoutException() {
             handler.handle(processingId, TimeoutException("timeout"), requestId, phase)
 
@@ -68,7 +107,7 @@ class PipelineErrorHandlerTest {
         }
 
         @Test
-        @DisplayName("일반 예외 → errorCode=FAILED_AT_<phase>")
+        @DisplayName("Generic exception -> FAILED_AT_<phase>")
         fun shouldHandleGenericException() {
             handler.handle(processingId, RuntimeException("unknown"), requestId, phase)
 
@@ -79,7 +118,7 @@ class PipelineErrorHandlerTest {
         }
 
         @Test
-        @DisplayName("CompletionException 래핑된 TimeoutException → cause 기준으로 errorCode 결정")
+        @DisplayName("CompletionException(timeout) should be unwrapped")
         fun shouldUnwrapCompletionException() {
             val wrapped = CompletionException(TimeoutException("wrapped timeout"))
 

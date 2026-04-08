@@ -13,6 +13,11 @@ class SaraminUrlParser(UrlParser):
     """Saramin URL parser with structure-preserving extraction."""
 
     _ROOT_SELECTORS = [
+        ".job-detail-section",
+        ".job-table",
+        ".job-section",
+        ".job-content",
+        ".job-item",
         ".jv_cont",
         ".wrap_jv_cont",
         ".recruit_content",
