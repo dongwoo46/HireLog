@@ -20,7 +20,7 @@ import { check, sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const ACCESS_TOKEN = __ENV.ACCESS_TOKEN || '';
+const ACCESS_TOKEN = __ENV.ACCESS_TOKEN || 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzc1NjEzMjA1LCJleHAiOjE3NzU2MTY4MDV9.Lcwe0ZpCsn48fDzsIX8twqcYX2qQXjaKCSfLicZccHM';
 
 const latencyAnon = new Trend('latency_anonymous_ms');    // 비로그인
 const latencyAuth = new Trend('latency_authenticated_ms'); // 로그인
@@ -39,6 +39,7 @@ export const options = {
     'latency_authenticated_ms': ['p(99)<3000'],
     'error_rate': ['rate<0.05'],
   },
+  summaryTrendStats: ['p(50)', 'p(95)', 'p(99)'],
 };
 
 // 실제 서비스에서 발생할 법한 검색 패턴
@@ -93,7 +94,7 @@ export function handleSummary(data) {
   const diff99 = anon && auth ? (auth['p(99)'] - anon['p(99)']).toFixed(0) : 'N/A';
 
   return {
-    'results/A_search_load_summary.json': JSON.stringify(data, null, 2),
+    './results/A_search_load_summary.json': JSON.stringify(data, null, 2),
     stdout: `
 ========================================
   시나리오 A: OpenSearch 검색 부하 테스트

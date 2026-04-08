@@ -50,6 +50,9 @@ hirelog:
   worker:
     job-summary:
       enabled: true
+  loadtest:
+    skip-duplicate-check: true
+    fake-llm: true
 
 opensearch:
   host: ${OPENSEARCH_HOST:localhost}

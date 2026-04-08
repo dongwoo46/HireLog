@@ -11,6 +11,7 @@ import com.hirelog.api.job.application.summary.command.JobSummaryGenerateCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.position.application.port.PositionQuery
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -21,7 +22,9 @@ class PreLlmProcessor(
     private val jdIntakePolicy: JdIntakePolicy,
     private val summaryQuery: JobSummaryQuery,
     private val positionQuery: PositionQuery,
-    private val companyQuery: CompanyQuery
+    private val companyQuery: CompanyQuery,
+    @Value("\${hirelog.loadtest.skip-duplicate-check:false}")
+    private val skipDuplicateCheck: Boolean = false
 ) {
 
     data class PreLlmResult(
@@ -50,7 +53,7 @@ class PreLlmProcessor(
             return null
         }
 
-        if (command.source == JobSourceType.URL && command.sourceUrl != null) {
+        if (!skipDuplicateCheck && command.source == JobSourceType.URL && command.sourceUrl != null) {
             if (summaryQuery.existsBySourceUrl(command.sourceUrl)) {
                 log.info(
                     "[JD_URL_DUPLICATE] processingId={}, sourceUrl={}",
@@ -65,7 +68,11 @@ class PreLlmProcessor(
         }
 
         val hashes = jdIntakePolicy.generateIntakeHashes(command.canonicalMap)
-        val decision = jdIntakePolicy.decideDuplicate(command, hashes)
+        val decision = if (skipDuplicateCheck) {
+            DuplicateDecision.NotDuplicate
+        } else {
+            jdIntakePolicy.decideDuplicate(command, hashes)
+        }
 
         val snapshotId = when (decision) {
             is DuplicateDecision.Duplicate -> {
