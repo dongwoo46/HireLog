@@ -101,6 +101,7 @@ def _run_ocr_process(
     fail_topic: str,
     worker_config: WorkerConfig,
     client_id: str,
+    grpc_port: int = 50051,
 ) -> None:
     """
     OCR 전용 프로세스 (CPU-bound)
@@ -144,6 +145,11 @@ def _run_ocr_process(
     logging.disable(logging.NOTSET)
     proc_logger.info("OCR engine ready", extra={"proc":"ocr"})
 
+    from ocr.grpc.ocr_server import OcrGrpcServer
+
+    grpc_server = OcrGrpcServer(port=grpc_port)
+    grpc_server.start()
+
     try:
         factory = KafkaClientFactory(connection_config)
         worker, producer = _create_worker(
@@ -158,6 +164,7 @@ def _run_ocr_process(
     except Exception as e:
         proc_logger.error("Process crashed", exc_info=True, extra={"proc":"ocr", "error": str(e)})
     finally:
+        grpc_server.stop()
         try:
             producer.close()
         except Exception:
@@ -269,6 +276,12 @@ def main():
     logger.info("Instance created", extra={"instance_id": instance_id})
 
     # ==================================================
+    # OCR gRPC 포트 (URL Worker → OCR Worker IPC)
+    # ==================================================
+    import os
+    ocr_grpc_port = int(os.environ.get("OCR_GRPC_PORT", "50051"))
+
+    # ==================================================
     # Shutdown Event (프로세스 간 공유)
     # ==================================================
     shutdown_event = multiprocessing.Event()
@@ -292,6 +305,7 @@ def main():
             kafka_config.fail_topic,
             worker_config,
             f"ocr-consumer-{instance_id}",
+            ocr_grpc_port,
         ),
         name="ocr-process",
         daemon=False,

@@ -5,8 +5,7 @@ from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 
-# OCR 관련 import는 함수 호출 시점에 lazy load한다.
-# 모듈 레벨에서 import하면 text_url 프로세스가 PaddleOCR 전체를 불필요하게 로드한다.
+from ocr.grpc.ocr_client import OcrGrpcClient
 from preprocess.adapter.ocr_section_adapter import adapt_ocr_sections_to_sections
 from preprocess.post_validation.section_post_validator import validate_raw_sections
 
@@ -14,11 +13,21 @@ logger = logging.getLogger(__name__)
 
 
 class JobKoreaUrlSupport:
-    """JobKorea-specific URL helpers: URL normalize + OCR fallback orchestration."""
+    """JobKoreaURL helpers: URL normalize + OCR fallback orchestration.
 
-    def __init__(self, canonical_pipeline, normalize_required_fn: Callable[[dict], dict]):
+    OCR 실행은 ocr_client(gRPC)를 통해 OCR 프로세스에 위임한다.
+    TEXT+URL 프로세스에서 PaddleOCR을 직접 초기화하지 않는다.
+    """
+
+    def __init__(
+        self,
+        canonical_pipeline,
+        normalize_required_fn: Callable[[dict], dict],
+        ocr_client: OcrGrpcClient,
+    ):
         self.canonical = canonical_pipeline
         self.normalize_required = normalize_required_fn
+        self._ocr_client = ocr_client
 
     def normalize_doc_url(self, url: str) -> str:
         """Normalize JobKorea URL to GI_Read_Comt_Ifrm document URL when possible."""
@@ -73,20 +82,13 @@ class JobKoreaUrlSupport:
             logger.debug("JobKorea OCR-only skipped: no images")
             return None
 
-        from ocr.pipeline import process_ocr_input
         from ocr.structure.header_grouping import extract_sections_by_header
-        # ppocr이 import/첫 추론 시 logging.disable()을 호출할 수 있으므로 OCR 후 즉시 복원
-        import logging as _logging
-        from utils.logger import setup_logging as _setup_logging
+
         try:
-            ocr_result = process_ocr_input(images)
+            ocr_result = self._ocr_client.run_ocr(images)
         except Exception as e:
-            _setup_logging()
-            _logging.disable(_logging.NOTSET)
             logger.warning("JobKorea OCR-only fallback failed", extra={"error": str(e)})
             return None
-        _setup_logging()
-        _logging.disable(_logging.NOTSET)
 
         if ocr_result.get("status") == "FAIL" or not ocr_result.get("lines"):
             errors = ocr_result.get("errors") or []
@@ -120,19 +122,13 @@ class JobKoreaUrlSupport:
         if all(canonical_map.get(k) for k in required_keys):
             return canonical_map
 
-        from ocr.pipeline import process_ocr_input
         from ocr.structure.header_grouping import extract_sections_by_header
-        import logging as _logging
-        from utils.logger import setup_logging as _setup_logging
+
         try:
-            ocr_result = process_ocr_input(images)
+            ocr_result = self._ocr_client.run_ocr(images)
         except Exception as e:
-            _setup_logging()
-            _logging.disable(_logging.NOTSET)
             logger.warning("JobKorea OCR fallback execution failed", extra={"error": str(e)})
             return canonical_map
-        _setup_logging()
-        _logging.disable(_logging.NOTSET)
 
         if ocr_result.get("status") == "FAIL" or not ocr_result.get("lines"):
             errors = ocr_result.get("errors") or []

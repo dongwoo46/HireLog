@@ -58,6 +58,16 @@ RUN HOME=/app python -c \
 COPY src/ ./src/
 
 # ─────────────────────────────────────────────────────────────────
+# gRPC proto 코드 생성
+#  PYTHONPATH=/app/src 기준으로 ocr/grpc 패키지에 pb2 파일 생성
+# ─────────────────────────────────────────────────────────────────
+RUN python -m grpc_tools.protoc \
+    --proto_path=/app/src \
+    --python_out=/app/src \
+    --grpc_python_out=/app/src \
+    /app/src/ocr/grpc/ocr_service.proto
+
+# ─────────────────────────────────────────────────────────────────
 # 비루트 사용자 설정
 #  -d /app : HOME=/app → PaddleOCR 모델 경로(/app/.paddleocr)와 일치
 #  소유권 이전 후 USER 전환
@@ -82,5 +92,7 @@ ENV HOME=/app
 #   KAFKA_URL_TOPIC          - 기본: hirelog.outbox.JdPreprocessUrl
 #   KAFKA_RESULT_TOPIC       - 기본: jd.preprocess.response
 #   KAFKA_FAIL_TOPIC         - 기본: jd.preprocess.response.fail
+#   OCR_GRPC_PORT            - OCR ↔ TEXT/URL 프로세스 간 gRPC 포트 (기본: 50051)
+#   OCR_GRPC_HOST            - OCR gRPC 서버 호스트 (기본: localhost, 동일 컨테이너)
 # ─────────────────────────────────────────────────────────────────
 CMD ["python", "src/main_kafka.py"]
