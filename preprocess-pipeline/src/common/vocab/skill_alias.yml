@@ -53,6 +53,7 @@ dart:
 spring:
   - springframework
   - spring-fw
+  - spring ecosystem
 
 spring boot:
   - springboot
@@ -60,6 +61,18 @@ spring boot:
   - spring_boot
   - spingboot
   - sprinboot
+
+spring cloud:
+  - spring-cloud
+  - spring_cloud
+  - spring cloud ecosystem
+
+jpa:
+  - jpa/hibernate
+  - jakarta persistence
+
+hibernate:
+  - hibernate orm
 
 spring batch:
   - springbatch
@@ -210,6 +223,22 @@ kubernetes:
   - k8s
   - kube
   - kubernetes-engine
+
+istio:
+  - service mesh
+
+gocd:
+  - go-cd
+
+argocd:
+  - argo cd
+  - argo-cd
+
+vault:
+  - hashicorp vault
+
+podman:
+  - podman container
 
 helm:
   - helmchart
@@ -479,6 +508,15 @@ looker:
 
 metabase:
   - metabase-bi
+
+prometheus:
+  - prom
+
+thanos:
+  - thanos metrics
+
+grafana:
+  - grafana dashboards
 
 # =========================
 # Collaboration

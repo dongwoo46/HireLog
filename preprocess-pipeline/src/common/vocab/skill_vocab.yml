@@ -25,6 +25,12 @@ language:
 backend_framework:
   - spring
   - spring boot
+  - spring ecosystem
+  - spring cloud
+  - spring cloud ecosystem
+  - jpa
+  - hibernate
+  - jpa/hibernate
   - spring batch
   - spring security
   - django
@@ -76,6 +82,11 @@ infra:
   - tomcat
   - docker
   - kubernetes
+  - istio
+  - gocd
+  - argocd
+  - vault
+  - podman
   - helm
   - terraform
   - ansible
@@ -275,3 +286,8 @@ collaboration:
   - circleci
   - github actions
   - gitlab ci
+
+observability:
+  - prometheus
+  - thanos
+  - grafana

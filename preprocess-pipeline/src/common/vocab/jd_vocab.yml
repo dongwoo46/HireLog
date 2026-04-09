@@ -18,6 +18,12 @@ LANG:
 FRAMEWORK:
   - spring
   - springboot
+  - spring cloud
+  - spring ecosystem
+  - spring cloud ecosystem
+  - jpa
+  - hibernate
+  - jpa/hibernate
   - spring batch
   - spring security
   - django
@@ -40,6 +46,14 @@ INFRA:
   - zookeeper
   - docker
   - kubernetes
+  - istio
+  - gocd
+  - argocd
+  - vault
+  - podman
+  - prometheus
+  - thanos
+  - grafana
   - helm
   - terraform
   - ansible
