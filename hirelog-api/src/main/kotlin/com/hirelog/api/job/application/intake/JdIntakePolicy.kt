@@ -206,9 +206,9 @@ class JdIntakePolicy(
         if (canonicalText.length < 300) return false
 
         // 필수 섹션 최소 요건
+        // preferred는 검증하지 않음 — 필수/우대를 하나의 섹션에 혼재하는 JD도 유효한 입력
         if (command.canonicalMap["responsibilities"].isNullOrEmpty()) return false
         if (command.canonicalMap["requirements"].isNullOrEmpty()) return false
-        if (command.canonicalMap["preferred"].isNullOrEmpty()) return false
 
         return true
     }
