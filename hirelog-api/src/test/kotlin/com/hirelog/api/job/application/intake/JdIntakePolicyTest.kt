@@ -111,11 +111,11 @@ class JdIntakePolicyTest {
         }
 
         @Test
-        @DisplayName("preferred 섹션이 없으면 false를 반환한다")
-        fun shouldReturnFalseWhenMissingPreferred() {
+        @DisplayName("preferred 섹션이 없어도 true를 반환한다 (필수/우대 혼재 JD 허용)")
+        fun shouldReturnTrueWhenMissingPreferred() {
             val noPref = validCanonicalMap.toMutableMap().apply { remove("preferred") }
             val cmd = baseCommand.copy(canonicalMap = noPref)
-            assertThat(policy.isValidJd(cmd)).isFalse()
+            assertThat(policy.isValidJd(cmd)).isTrue()
         }
     }
 
