@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 data class JobSummaryReviewAdminRes(
     val id: Long,
     val jobSummaryId: Long,
-    val companyName: String?,
+    val brandName: String?,
     val brandPositionName: String?,
     val anonymous: Boolean,
     val memberId: Long?,
@@ -26,7 +26,7 @@ data class JobSummaryReviewAdminRes(
             JobSummaryReviewAdminRes(
                 id = view.reviewId,
                 jobSummaryId = view.jobSummaryId,
-                companyName = view.companyName,
+                brandName = view.brandName,
                 brandPositionName = view.brandPositionName,
                 anonymous = view.anonymous,
                 memberId = view.memberId,

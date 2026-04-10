@@ -124,7 +124,7 @@ export default function AdminReviewTab() {
             <div key={review.id} className={`rounded-2xl border bg-white p-5 ${review.deleted ? 'opacity-70' : ''}`}>
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-800">
-                  {review.companyName ? `${review.companyName} · ` : ''}
+                  {review.brandName ? `${review.brandName} · ` : ''}
                   JD #{review.jobSummaryId} {review.brandPositionName ? `· ${review.brandPositionName}` : ''}
                 </div>
                 <div className="text-xs text-gray-500">
