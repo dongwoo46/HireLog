@@ -195,6 +195,7 @@ def preprocess_url_text(text: str, platform: JobPlatform = JobPlatform.OTHER) ->
 # ============================================================
 
 def _normalize_whitespace(line: str) -> str:
+    line = re.sub(r"[\u200B-\u200D\u2060\uFEFF]", "", line)
     line = re.sub(r"[\t\r]+", " ", line)
     line = re.sub(r" {2,}", " ", line)
     return line.strip()
@@ -226,11 +227,13 @@ def _clean_special_chars(line: str) -> str:
 
 
 def _is_header_keyword(line: str, header_keywords: Set[str]) -> bool:
-    normalized = line.strip().lower().replace(" ", "")
+    normalized = re.sub(r"[\u200B-\u200D\u2060\uFEFF]", "", line or "")
+    normalized = normalized.strip().lower().replace(" ", "")
     if not normalized:
         return False
     for kw in header_keywords:
-        kw_normalized = kw.lower().replace(" ", "")
+        kw_normalized = re.sub(r"[\u200B-\u200D\u2060\uFEFF]", "", kw or "")
+        kw_normalized = kw_normalized.lower().replace(" ", "")
         if kw_normalized == normalized or kw_normalized in normalized:
             return True
     return False

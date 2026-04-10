@@ -27,6 +27,16 @@ HEADER_MAX_LENGTH = 50  # header는 보통 짧음 (여유 확보)
 HEADER_MIN_LENGTH = 2
 
 
+def _remove_zero_width(text: str) -> str:
+    return text.translate({
+        0x200B: None,  # ZERO WIDTH SPACE
+        0x200C: None,  # ZERO WIDTH NON-JOINER
+        0x200D: None,  # ZERO WIDTH JOINER
+        0x2060: None,  # WORD JOINER
+        0xFEFF: None,  # ZERO WIDTH NO-BREAK SPACE/BOM
+    })
+
+
 def extract_url_sections(lines: List[str]) -> Dict[str, List[str]]:
     """
     전처리된 URL 라인 목록에서 header 기반으로 섹션 분리
@@ -78,7 +88,7 @@ def _get_matched_header_keyword(line: str, header_keywords: set) -> str | None:
     Returns:
         매칭된 keyword 문자열 또는 None
     """
-    stripped = line.strip()
+    stripped = _remove_zero_width(line or "").strip()
     if not stripped:
         return None
 
@@ -110,7 +120,7 @@ def _get_matched_header_keyword(line: str, header_keywords: set) -> str | None:
     is_bracket_phrase = stripped.startswith("[") and stripped.endswith("]")
 
     for kw in header_keywords:
-        kw_normalized = kw.lower().replace(" ", "")
+        kw_normalized = _remove_zero_width(kw or "").lower().replace(" ", "")
         # 완전 일치 또는 포함
         if kw_normalized == normalized or kw_normalized in normalized:
             # [대괄호 구문] + 짧은 키워드 부분일치 → 오탐 방지

@@ -186,8 +186,7 @@ class UrlPipeline:
 
         # 7) Canonical
         canonical_map = self.canonical.process(sections)
-        if effective_platform in (JobPlatform.SARAMIN, JobPlatform.JOBKOREA):
-            canonical_map = self._normalize_intake_required_canonical(canonical_map)
+        canonical_map = self._normalize_intake_required_canonical(canonical_map)
         if effective_platform == JobPlatform.JOBKOREA:
             canonical_map = self.jobkorea_support.ocr_fallback_merge(canonical_map, ocr_images)
 
@@ -232,19 +231,101 @@ class UrlPipeline:
         resp_kw = ("주요업무", "담당업무", "업무", "직무", "responsibilities", "role", "what you will do")
         req_kw = ("자격요건", "지원자격", "필수", "requirements", "qualifications", "must", "required")
         pref_kw = ("우대", "우대사항", "preferred", "nice to have", "plus")
+        stop_header_kw = (
+            "혜택", "복지", "근무조건", "채용전형", "채용절차", "전형절차", "유의사항",
+            "접수기간", "제출서류", "접수방법", "근무지", "고용형태", "location",
+            "benefits", "process", "how to apply", "application guide",
+        )
 
         weak_noise_kw = (
             "근무조건", "복지", "혜택", "채용절차", "전형절차", "유의사항",
             "접수기간", "제출서류", "접수방법",
         )
 
-        resp_lines = list(merged.get("responsibilities", []))
-        req_lines = list(merged.get("requirements", []))
-        pref_lines = list(merged.get("preferred", []))
+        def normalize_text(text: str) -> str:
+            s = re.sub(r"[\u200B-\u200D\u2060\uFEFF]", "", text or "")
+            s = re.sub(r"\s+", " ", s).strip().lower()
+            return s
+
+        def normalize_compact(text: str) -> str:
+            return normalize_text(text).replace(" ", "")
+
+        def strip_bullet(text: str) -> str:
+            return re.sub(r"^[\s\-\*\u2022•]+", "", text or "").strip()
+
+        resp_markers = ("주요업무", "담당업무", "responsibilities", "whatyouwilldo", "role")
+        req_markers = ("자격요건", "지원자격", "requirements", "qualifications", "musthave", "required")
+        pref_markers = ("우대사항", "우대", "preferred", "nicetohave", "plus")
+        stop_markers = tuple(normalize_compact(k) for k in stop_header_kw)
+
+        def detect_marker(line: str) -> str | None:
+            compact = normalize_compact(strip_bullet(line)).strip("[]()<>")
+            if not compact:
+                return None
+            if len(compact) > 40:
+                return None
+
+            def _match(markers: tuple[str, ...]) -> bool:
+                return any(compact == m for m in markers)
+
+            if _match(resp_markers):
+                return "responsibilities"
+            if _match(req_markers):
+                return "requirements"
+            if _match(pref_markers):
+                return "preferred"
+            return None
+
+        def is_stop_header(line: str) -> bool:
+            compact = normalize_compact(strip_bullet(line)).strip("[]()<>")
+            if not compact or len(compact) > 40:
+                return False
+            return any(compact == m for m in stop_markers)
+
+        def trim_at_stop(lines: list[str]) -> list[str]:
+            out: list[str] = []
+            for line in lines:
+                if is_stop_header(line):
+                    break
+                out.append(line)
+            return out
+
+        resp_lines = trim_at_stop(list(merged.get("responsibilities", [])))
+        req_lines = trim_at_stop(list(merged.get("requirements", [])))
+        pref_lines = trim_at_stop(list(merged.get("preferred", [])))
+
+        # Marker-based reparsing for broken boundaries:
+        ordered_lines: list[str] = []
+        for key in (
+            "responsibilities", "requirements", "preferred",
+            "intro", "others", "experience", "skills", "process",
+            "benefits", "application_guide", "employment_type", "location",
+        ):
+            ordered_lines.extend([line for line in merged.get(key, []) if isinstance(line, str)])
+
+        reparsed = {"responsibilities": [], "requirements": [], "preferred": []}
+        current_zone: str | None = None
+        for line in ordered_lines:
+            marker = detect_marker(line)
+            if marker:
+                current_zone = marker
+                continue
+            if is_stop_header(line):
+                current_zone = None
+                continue
+            if current_zone in reparsed:
+                reparsed[current_zone].append(line)
+
+        if reparsed["responsibilities"]:
+            resp_lines = reparsed["responsibilities"]
+        if reparsed["requirements"]:
+            req_lines = reparsed["requirements"]
+        if reparsed["preferred"]:
+            pref_lines = reparsed["preferred"]
 
         moved_from_req = []
         for line in req_lines:
-            low = line.lower()
+            low = normalize_text(line)
             if any(k in low for k in pref_kw):
                 pref_lines.append(line)
                 moved_from_req.append(line)
@@ -256,11 +337,11 @@ class UrlPipeline:
             req_lines = [line for line in req_lines if line not in moved_set]
 
         if not resp_lines:
-            resp_lines.extend([line for line in all_lines if any(k in line.lower() for k in resp_kw)])
+            resp_lines.extend([line for line in all_lines if any(k in normalize_text(line) for k in resp_kw)])
         if not req_lines:
-            req_lines.extend([line for line in all_lines if any(k in line.lower() for k in req_kw)])
+            req_lines.extend([line for line in all_lines if any(k in normalize_text(line) for k in req_kw)])
         if not pref_lines:
-            pref_lines.extend([line for line in all_lines if any(k in line.lower() for k in pref_kw)])
+            pref_lines.extend([line for line in all_lines if any(k in normalize_text(line) for k in pref_kw)])
 
         fallback_pool = []
         for key in ("others", "experience", "intro", "skills"):
@@ -285,7 +366,12 @@ class UrlPipeline:
             out = []
             seen = set()
             for line in lines:
-                s = re.sub(r"\s+", " ", (line or "")).strip()
+                if detect_marker(line) is not None:
+                    continue
+                if is_stop_header(line):
+                    continue
+                s = re.sub(r"[\u200B-\u200D\u2060\uFEFF]", "", (line or ""))
+                s = re.sub(r"\s+", " ", s).strip()
                 if len(s) < 2:
                     continue
                 key = s.lower()
