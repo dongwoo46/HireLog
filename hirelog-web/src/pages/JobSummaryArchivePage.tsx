@@ -6,25 +6,29 @@ import type { HiringStage, HiringStageResult, JobSummaryView } from '../types/jo
 import { HIRING_STAGE_LABELS, HIRING_STAGE_RESULT_LABELS } from '../types/jobSummary';
 import { TbAdjustmentsHorizontal, TbBookmark, TbChevronLeft, TbSearch, TbSend } from 'react-icons/tb';
 import { Modal } from '../components/common/Modal';
-
-type TabType = 'SAVED' | 'APPLY';
+import { useMyJobsFilterStore } from '../store/myJobsFilterStore';
 
 const STAGE_OPTIONS = Object.entries(HIRING_STAGE_LABELS) as Array<[HiringStage, string]>;
 const RESULT_OPTIONS: HiringStageResult[] = ['PASSED', 'FAILED', 'PENDING'];
 
 const JobSummaryArchivePage = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>('SAVED');
+  const {
+    activeTab,
+    brandQuery,
+    searchBrandName,
+    stage,
+    result,
+    setActiveTab,
+    setBrandQuery,
+    setSearchBrandName,
+    setStage,
+    setResult,
+  } = useMyJobsFilterStore();
   const [items, setItems] = useState<JobSummaryView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [brandQuery, setBrandQuery] = useState('');
-  const [searchBrandName, setSearchBrandName] = useState('');
-  const [searchNonce, setSearchNonce] = useState(0);
-
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [stage, setStage] = useState<HiringStage | undefined>(undefined);
-  const [result, setResult] = useState<HiringStageResult | undefined>(undefined);
   const [draftStage, setDraftStage] = useState<HiringStage | undefined>(undefined);
   const [draftResult, setDraftResult] = useState<HiringStageResult | undefined>(undefined);
 
@@ -61,7 +65,7 @@ const JobSummaryArchivePage = () => {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [activeTab, searchBrandName, stage, result, searchNonce]);
+  }, [activeTab, searchBrandName, stage, result]);
 
   useEffect(() => {
     if (!isFilterOpen) return;
@@ -117,7 +121,6 @@ const JobSummaryArchivePage = () => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   setSearchBrandName(brandQuery.trim());
-                  setSearchNonce((prev) => prev + 1);
                 }
               }}
               placeholder="토스, 네이버"

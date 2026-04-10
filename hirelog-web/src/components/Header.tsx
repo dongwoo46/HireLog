@@ -213,7 +213,7 @@ export function Header() {
                 {user?.username?.charAt(0) || 'U'}
               </button>
 
-              <button onClick={handleLogout} className="text-sm font-bold text-gray-400 hover:text-rose-500">
+              <button onClick={handleLogout} className="hidden text-sm font-bold text-gray-400 hover:text-rose-500 md:inline-block">
                 로그아웃
               </button>
             </>
