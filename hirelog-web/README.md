@@ -1,73 +1,49 @@
-# React + TypeScript + Vite
+# HireLog Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+HireLog 프론트엔드(React + TypeScript + Vite) 프로젝트입니다.
 
-Currently, two official plugins are available:
+## 실행
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+기본 개발 서버: `http://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 빌드
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
 ```
+
+## 주요 화면
+
+- `/jd`: 공고 목록/검색
+- `/jd/:id`: 공고 상세
+- `/my-jobs`: 내 공고(저장한 공고 / 지원한 공고)
+- `/boards`: 게시판
+- `/login`, `/signup`: 로그인/회원가입
+
+## 최근 반영 사항
+
+- 회원가입 문구 통일: `일반 회원가입` -> `회원가입`
+- 회원가입 닉네임 중복확인 추가
+  - API: `POST /api/auth/signup/general/check-username`
+  - UI: 회원가입 폼에서 `중복확인` 후 가입 진행
+- 내 공고(`/my-jobs`) 필터 상태 유지
+  - 저장 위치: `zustand persist (localStorage)`
+  - 유지 항목: 탭, 브랜드 검색어, 지원한 공고 stage/result 필터
+- 게시판 뱃지 정리
+  - `notice` 표시: `공지사항`
+  - `pinned` 표시: 민트 컬러 핀 아이콘
+  - 목록 카드에 작성일(`YYYY-MM-DD`) 표시
+- 헤더 반응형 정리
+  - 모바일(햄버거 구간)에서는 상단 로그아웃 텍스트 숨김
+  - 모바일 메뉴 내 로그아웃 사용
+
+## 상태 저장 스토어
+
+- 인증: `src/store/authStore.ts`
+- 내 공고 필터: `src/store/myJobsFilterStore.ts`
+

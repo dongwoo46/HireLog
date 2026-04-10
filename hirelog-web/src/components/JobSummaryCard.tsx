@@ -53,13 +53,13 @@ export const JobSummaryCard: React.FC<Props> = ({ summary }) => {
   return (
     <div
       onClick={() => navigate(`/jd/${summary.id}`)}
-      className="flex h-full cursor-pointer flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+      className="flex h-full cursor-pointer flex-col justify-between rounded-xl border border-gray-100 bg-white p-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl sm:p-6"
     >
       <div>
-        <div className="mb-4 flex items-start justify-between">
-          <div className="flex flex-col gap-2">
-            <h3 className="text-lg font-bold text-gray-900">{summary.brandPositionName}</h3>
-            <span className="text-sm font-medium text-gray-500">{summary.brandName}</span>
+        <div className="mb-2 flex items-start justify-between sm:mb-4">
+          <div className="flex min-w-0 flex-col gap-1 sm:gap-2">
+            <h3 className="text-sm font-bold leading-tight text-gray-900 sm:text-lg">{summary.brandPositionName}</h3>
+            <span className="truncate text-xs font-medium text-gray-500 sm:text-sm">{summary.brandName}</span>
           </div>
 
           <button
@@ -67,33 +67,36 @@ export const JobSummaryCard: React.FC<Props> = ({ summary }) => {
             className="text-gray-300 transition-colors hover:text-[#4CDFD5]"
             title={isAuthenticated ? '저장' : '로그인 필요'}
           >
-            {isSaved ? <TbBookmarkFilled size={22} className="text-[#4CDFD5]" /> : <TbBookmark size={22} />}
+            {isSaved ? (
+              <TbBookmarkFilled className="h-4 w-4 text-[#4CDFD5] sm:h-[22px] sm:w-[22px]" />
+            ) : (
+              <TbBookmark className="h-4 w-4 sm:h-[22px] sm:w-[22px]" />
+            )}
           </button>
         </div>
 
-        <div className="mb-3 flex flex-wrap gap-2">
-          <span className="rounded-md bg-[#4CDFD5]/10 px-2 py-1 text-xs font-semibold text-[#4CDFD5]">
+        <div className="mb-2 flex flex-wrap gap-1 sm:mb-3 sm:gap-2">
+          <span className="rounded-md bg-[#4CDFD5]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#4CDFD5] sm:px-2 sm:py-1 sm:text-xs">
             {summary.careerType === 'NEW' ? '신입' : summary.careerType === 'EXPERIENCED' ? '경력' : '무관'}
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1 sm:gap-2">
           {(summary.techStackParsed || []).slice(0, 3).map((tech, idx) => (
-            <span key={idx} className="rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600">
+            <span key={idx} className="rounded-md bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-600 sm:px-2 sm:py-1 sm:text-xs">
               {tech}
             </span>
           ))}
 
           {(!summary.techStackParsed || summary.techStackParsed.length === 0) && (
-            <span className="rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-400">General</span>
+            <span className="rounded-md bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-400 sm:px-2 sm:py-1 sm:text-xs">General</span>
           )}
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-end border-t border-gray-100 pt-4 text-xs text-gray-400">
+      <div className="mt-3 flex items-center justify-end border-t border-gray-100 pt-2 text-[10px] text-gray-400 sm:mt-6 sm:pt-4 sm:text-xs">
         <span>{summary.createdAt?.slice(0, 10).replace(/-/g, '.') || '2024.01.01'}</span>
       </div>
     </div>
   );
 };
-
