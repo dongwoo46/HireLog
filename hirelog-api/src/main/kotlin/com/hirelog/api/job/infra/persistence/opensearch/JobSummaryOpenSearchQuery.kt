@@ -177,61 +177,58 @@ class JobSummaryOpenSearchQuery(
             boolQuery.minimumShouldMatch("1")
         }
 
-        val filterOrQueries = mutableListOf<Query>()
+        val filterQueries = mutableListOf<Query>()
 
         query.careerTypes
             ?.map { it.name }
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildStringTermsQuery(Fields.CAREER_TYPE, it) }
+            ?.let { filterQueries += buildStringTermsQuery(Fields.CAREER_TYPE, it) }
 
         query.brandIds
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildLongTermsQuery(Fields.BRAND_ID, it) }
+            ?.let { filterQueries += buildLongTermsQuery(Fields.BRAND_ID, it) }
 
         query.companyIds
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildLongTermsQuery(Fields.COMPANY_ID, it) }
+            ?.let { filterQueries += buildLongTermsQuery(Fields.COMPANY_ID, it) }
 
         query.positionIds
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildLongTermsQuery(Fields.POSITION_ID, it) }
+            ?.let { filterQueries += buildLongTermsQuery(Fields.POSITION_ID, it) }
 
         query.brandPositionIds
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildLongTermsQuery(Fields.BRAND_POSITION_ID, it) }
+            ?.let { filterQueries += buildLongTermsQuery(Fields.BRAND_POSITION_ID, it) }
 
         query.positionCategoryIds
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildLongTermsQuery(Fields.POSITION_CATEGORY_ID, it) }
+            ?.let { filterQueries += buildLongTermsQuery(Fields.POSITION_CATEGORY_ID, it) }
 
         query.brandNames
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildOrMatchQuery(Fields.BRAND_NAME, it) }
+            ?.let { filterQueries += buildOrMatchQuery(Fields.BRAND_NAME, it) }
 
         query.positionNames
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildOrMatchQuery(Fields.POSITION_NAME, it) }
+            ?.let { filterQueries += buildOrMatchQuery(Fields.POSITION_NAME, it) }
 
         query.brandPositionNames
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildOrMatchQuery(Fields.BRAND_POSITION_NAME, it) }
+            ?.let { filterQueries += buildOrMatchQuery(Fields.BRAND_POSITION_NAME, it) }
 
         query.positionCategoryNames
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildOrMatchQuery(Fields.POSITION_CATEGORY_NAME, it) }
+            ?.let { filterQueries += buildOrMatchQuery(Fields.POSITION_CATEGORY_NAME, it) }
 
         query.techStacks
             ?.takeIf { it.isNotEmpty() }
-            ?.let { filterOrQueries += buildStringTermsQuery(Fields.TECH_STACK_PARSED, it) }
+            ?.let { filterQueries += buildStringTermsQuery(Fields.TECH_STACK_PARSED, it) }
 
-        if (filterOrQueries.isNotEmpty()) {
-            val orFilterBuilder = BoolQuery.Builder()
-            filterOrQueries.forEach { orFilterBuilder.should(it) }
-            orFilterBuilder.minimumShouldMatch("1")
-            boolQuery.filter(Query.of { q -> q.bool(orFilterBuilder.build()) })
+        if (filterQueries.isNotEmpty()) {
+            filterQueries.forEach { boolQuery.filter(it) }
         }
 
-        return if (query.keyword.isNullOrBlank() && filterOrQueries.isEmpty()) {
+        return if (query.keyword.isNullOrBlank() && filterQueries.isEmpty()) {
             Query.of { q -> q.matchAll { it } }
         } else {
             Query.of { q -> q.bool(boolQuery.build()) }
