@@ -239,40 +239,43 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
         </FilterSection>
       </div>
 
-      <div className="mt-8 flex items-center justify-between border-t border-gray-100 pt-5">
-        <div className="flex gap-3">
+      <div className="mt-8 border-t border-gray-100 pt-5">
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3">
           <SortButton
             active={localFilters.sortBy === 'CREATED_AT_DESC'}
             onClick={() => setLocalFilters((prev) => ({ ...prev, sortBy: 'CREATED_AT_DESC' }))}
+            mobileLabel="최신순"
           >
             최신순
           </SortButton>
           <SortButton
             active={localFilters.sortBy === 'CREATED_AT_ASC'}
             onClick={() => setLocalFilters((prev) => ({ ...prev, sortBy: 'CREATED_AT_ASC' }))}
+            mobileLabel="오래된순"
           >
             오래된순
           </SortButton>
           <SortButton
             active={localFilters.sortBy === 'SAVE_COUNT_DESC'}
             onClick={() => setLocalFilters((prev) => ({ ...prev, sortBy: 'SAVE_COUNT_DESC' }))}
+            mobileLabel="북마크순"
           >
             북마크순
           </SortButton>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:flex sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={handleReset}
-            className="h-10 rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+            className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 sm:px-4"
           >
             필터 초기화
           </button>
           <button
             type="button"
             onClick={handleApply}
-            className="h-10 rounded-lg bg-[#4CDFD5] px-4 text-sm font-semibold text-white transition hover:bg-[#3CCFC5]"
+            className="h-10 rounded-lg bg-[#4CDFD5] px-3 text-sm font-semibold text-white transition hover:bg-[#3CCFC5] sm:px-4"
           >
             필터 적용
           </button>
@@ -389,19 +392,28 @@ const FilterInput = ({
 const SortButton = ({
   active,
   onClick,
+  mobileLabel,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  mobileLabel?: string;
   children: React.ReactNode;
 }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+    className={`inline-flex h-10 w-full items-center justify-center whitespace-nowrap rounded-lg px-2 text-[11px] font-semibold leading-tight transition sm:h-auto sm:w-auto sm:px-4 sm:py-2 sm:text-sm sm:leading-normal ${
       active ? 'bg-[#3FB6B2] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
     }`}
   >
-    {children}
+    {mobileLabel ? (
+      <>
+        <span className="sm:hidden">{mobileLabel}</span>
+        <span className="hidden sm:inline">{children}</span>
+      </>
+    ) : (
+      children
+    )}
   </button>
 );
