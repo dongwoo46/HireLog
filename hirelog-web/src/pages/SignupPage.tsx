@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { TbChevronLeft, TbLock, TbMail, TbShieldCheck } from 'react-icons/tb';
 import { authService } from '../services/auth';
 import { useAuthStore } from '../store/authStore';
-import { TbChevronLeft, TbMail, TbShieldCheck, TbLock } from 'react-icons/tb';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -15,11 +15,19 @@ const SignupPage = () => {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
   const [username, setUsername] = useState('');
+  const [isUsernameChecked, setIsUsernameChecked] = useState(false);
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(false);
   const [password, setPassword] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; code?: string; username?: string; password?: string; common?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    code?: string;
+    username?: string;
+    password?: string;
+    common?: string;
+  }>({});
 
   const prevEmailRef = useRef(email);
 
@@ -37,8 +45,12 @@ const SignupPage = () => {
     prevEmailRef.current = email;
   }, [email]);
 
-  const validateEmailFormat = (value: string) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  useEffect(() => {
+    setIsUsernameChecked(false);
+    setIsUsernameAvailable(false);
+  }, [username]);
+
+  const validateEmailFormat = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleRequestVerification = async () => {
     setFieldErrors({});
@@ -82,6 +94,33 @@ const SignupPage = () => {
     }
   };
 
+  const handleCheckUsername = async () => {
+    setFieldErrors({});
+    const trimmed = username.trim();
+
+    if (trimmed.length < 2) {
+      setFieldErrors({ username: '닉네임은 2자 이상 입력해주세요.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authService.checkGeneralUsername({ username: trimmed });
+      setIsUsernameChecked(true);
+      setIsUsernameAvailable(!response.exists);
+
+      if (response.exists) {
+        setFieldErrors({ username: '이미 사용 중인 닉네임입니다.' });
+      }
+    } catch {
+      setFieldErrors({ username: '닉네임 중복 확인에 실패했습니다.' });
+      setIsUsernameChecked(false);
+      setIsUsernameAvailable(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setFieldErrors({});
 
@@ -91,6 +130,10 @@ const SignupPage = () => {
     }
     if (!username.trim()) {
       setFieldErrors({ username: '닉네임을 입력해주세요.' });
+      return;
+    }
+    if (!isUsernameChecked || !isUsernameAvailable) {
+      setFieldErrors({ username: '닉네임 중복 확인을 완료해주세요.' });
       return;
     }
     if (password.length < 8) {
@@ -106,7 +149,7 @@ const SignupPage = () => {
     try {
       await authService.completeGeneral({
         email,
-        username,
+        username: username.trim(),
         password
       });
       await checkAuth();
@@ -121,7 +164,7 @@ const SignupPage = () => {
   return (
     <div className="min-h-screen bg-[#F4F6F8] flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm p-10">
-        <h1 className="text-xl font-semibold text-gray-900 mb-8 text-center">일반 회원가입</h1>
+        <h1 className="text-xl font-semibold text-gray-900 mb-8 text-center">회원가입</h1>
 
         <div className="space-y-2 mb-6">
           <label className="text-sm text-gray-500">이메일</label>
@@ -173,11 +216,24 @@ const SignupPage = () => {
           <>
             <div className="space-y-2 mt-8">
               <label className="text-sm text-gray-500">닉네임</label>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full pb-2 border-b border-gray-300 focus:border-[#4CDFD5] outline-none"
-              />
+              <div className="flex items-end gap-2">
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="flex-1 pb-2 border-b border-gray-300 focus:border-[#4CDFD5] outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleCheckUsername()}
+                  disabled={loading}
+                  className="h-9 px-3 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  중복확인
+                </button>
+              </div>
+              {isUsernameChecked && isUsernameAvailable && !fieldErrors.username && (
+                <p className="text-xs text-emerald-600">사용 가능한 닉네임입니다.</p>
+              )}
               {fieldErrors.username && <p className="text-xs text-red-500">{fieldErrors.username}</p>}
             </div>
 

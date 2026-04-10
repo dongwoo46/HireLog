@@ -1,11 +1,10 @@
 package com.hirelog.api.notification.presentation
 
-import com.hirelog.api.common.application.port.PagedResult
 import com.hirelog.api.common.config.security.AuthenticatedMember
 import com.hirelog.api.common.config.security.CurrentUser
 import com.hirelog.api.notification.application.NotificationReadService
 import com.hirelog.api.notification.application.NotificationWriteService
-import com.hirelog.api.notification.application.view.NotificationView
+import com.hirelog.api.notification.application.view.NotificationPageView
 import com.hirelog.api.notification.presentation.dto.CreateNotificationReq
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -42,7 +41,7 @@ class NotificationController(
         @RequestParam(required = false) isRead: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int
-    ): ResponseEntity<PagedResult<NotificationView>> {
+    ): ResponseEntity<NotificationPageView> {
         val result = notificationReadService.getNotifications(
             memberId = member.memberId,
             isRead = isRead,

@@ -43,16 +43,19 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update # ⭐ local 핵심
+      ddl-auto: create # ⭐ local 핵심
 
 
 hirelog:
   worker:
     job-summary:
-      enabled: true
+      # true: 백그라운드 공고 요약 워커 실행, false: 워커 비활성화
+      enabled: false
   loadtest:
-    skip-duplicate-check: true
-    fake-llm: true
+    # true: 중복 검사 생략(부하테스트용), false: 중복 검사 수행
+    skip-duplicate-check: false
+    # true: Fake LLM 빈 사용(FakeLlmConfig 활성화), false: 실제 OpenAI/Gemini 빈 사용
+    fake-llm: false
 
 opensearch:
   host: ${OPENSEARCH_HOST:localhost}
@@ -84,4 +87,3 @@ management:
         http.server.requests: true
       percentiles:
         http.server.requests: 0.95,0.99
-

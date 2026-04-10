@@ -11,6 +11,8 @@ data class BoardView(
     val title: String,
     val content: String,
     val anonymous: Boolean,
+    val notice: Boolean,
+    val pinned: Boolean,
     val likeCount: Long,
     val commentCount: Long,
     val deleted: Boolean,

@@ -1,12 +1,17 @@
 package com.hirelog.api.relation.infra.persistence.jpa.repository
 
 import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.application.memberjobsummary.view.*
 import com.hirelog.api.relation.domain.model.QCoverLetter.coverLetter
 import com.hirelog.api.relation.domain.model.QHiringStageRecord.hiringStageRecord
 import com.hirelog.api.relation.domain.model.QMemberJobSummary.memberJobSummary
+import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import com.querydsl.jpa.impl.JPAQueryFactory
+import com.querydsl.jpa.JPAExpressions
+import com.querydsl.core.types.dsl.BooleanExpression
+import com.querydsl.core.types.dsl.Expressions
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
@@ -28,9 +33,25 @@ class MemberJobSummaryJpaQueryDsl(
     fun findMySummaries(
         memberId: Long,
         saveType: MemberJobSummarySaveType?,
+        brandName: String?,
+        stage: HiringStage?,
+        stageResult: HiringStageResult?,
         page: Int,
         size: Int
     ): PagedResult<MemberJobSummaryListView> {
+        val brandNameCondition = buildBrandNameCondition(brandName)
+
+        val stageCondition =
+            if (stage != null || stageResult != null) {
+                JPAExpressions.selectOne()
+                    .from(hiringStageRecord)
+                    .where(
+                        hiringStageRecord.memberJobSummaryId.eq(memberJobSummary.id),
+                        stage?.let { hiringStageRecord.stage.eq(it) },
+                        stageResult?.let { result -> hiringStageRecord.result.eq(result) }
+                    )
+                    .exists()
+            } else null
 
         val tuples = queryFactory
             .select(
@@ -46,7 +67,9 @@ class MemberJobSummaryJpaQueryDsl(
             .from(memberJobSummary)
             .where(
                 memberJobSummary.memberId.eq(memberId),
-                saveType?.let { memberJobSummary.saveType.eq(it) }
+                saveType?.let { memberJobSummary.saveType.eq(it) },
+                brandNameCondition,
+                stageCondition
             )
             .orderBy(memberJobSummary.createdAt.desc())
             .offset((page * size).toLong())
@@ -71,7 +94,9 @@ class MemberJobSummaryJpaQueryDsl(
             .from(memberJobSummary)
             .where(
                 memberJobSummary.memberId.eq(memberId),
-                saveType?.let { memberJobSummary.saveType.eq(it) }
+                saveType?.let { memberJobSummary.saveType.eq(it) },
+                brandNameCondition,
+                stageCondition
             )
             .fetchOne() ?: 0L
 
@@ -160,6 +185,28 @@ class MemberJobSummaryJpaQueryDsl(
             }
     }
 
+    fun countSavedByJobSummaryIds(jobSummaryIds: Set<Long>): Map<Long, Long> {
+        if (jobSummaryIds.isEmpty()) return emptyMap()
+
+        return queryFactory
+            .select(
+                memberJobSummary.jobSummaryId,
+                memberJobSummary.id.count()
+            )
+            .from(memberJobSummary)
+            .where(
+                memberJobSummary.jobSummaryId.`in`(jobSummaryIds),
+                memberJobSummary.saveType.ne(MemberJobSummarySaveType.UNSAVED)
+            )
+            .groupBy(memberJobSummary.jobSummaryId)
+            .fetch()
+            .associate { tuple ->
+                val jobSummaryId = tuple[memberJobSummary.jobSummaryId]!!
+                val count = tuple[memberJobSummary.id.count()] ?: 0L
+                jobSummaryId to count
+            }
+    }
+
     fun findCoverLetters(
         memberId: Long,
         jobSummaryId: Long
@@ -196,5 +243,20 @@ class MemberJobSummaryJpaQueryDsl(
                     sortOrder = it[coverLetter.sortOrder]!!
                 )
             }
+    }
+
+    private fun buildBrandNameCondition(brandName: String?): BooleanExpression? {
+        val normalized = brandName
+            ?.trim()
+            ?.replace(" ", "")
+            ?.takeIf { it.isNotEmpty() }
+            ?: return null
+
+        val normalizedField = Expressions.stringTemplate(
+            "replace(lower({0}), ' ', '')",
+            memberJobSummary.brandName
+        )
+
+        return normalizedField.contains(normalized.lowercase())
     }
 }

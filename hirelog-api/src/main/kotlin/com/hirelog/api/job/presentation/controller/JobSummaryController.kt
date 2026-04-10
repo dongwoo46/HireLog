@@ -46,6 +46,14 @@ class JobSummaryController(
         return ResponseEntity.ok(result)
     }
 
+    @GetMapping("/tech-stacks")
+    fun searchTechStacks(
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(defaultValue = "30") size: Int
+    ): ResponseEntity<List<String>> {
+        return ResponseEntity.ok(readService.searchTechStacks(keyword, size))
+    }
+
 
     /**
      * JobSummary 상세 조회

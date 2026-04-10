@@ -34,11 +34,14 @@ class BoardController(
     ): ResponseEntity<Map<String, Long>> {
         val board = writeService.write(
             memberId = member?.memberId,
+            isAdmin = member?.isAdmin() == true,
             boardType = request.boardType,
             title = request.title,
             content = request.content,
             anonymous = request.anonymous,
-            guestPassword = request.guestPassword
+            guestPassword = request.guestPassword,
+            notice = request.notice,
+            pinned = request.pinned
         )
         return ResponseEntity.status(201).body(mapOf("id" to board.id))
     }
@@ -91,7 +94,9 @@ class BoardController(
             title = request.title,
             content = request.content,
             anonymous = request.anonymous,
-            guestPassword = request.guestPassword
+            guestPassword = request.guestPassword,
+            notice = request.notice,
+            pinned = request.pinned
         )
         return ResponseEntity.noContent().build()
     }

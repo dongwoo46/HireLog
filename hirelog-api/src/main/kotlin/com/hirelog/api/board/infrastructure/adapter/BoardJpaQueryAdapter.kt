@@ -53,8 +53,17 @@ class BoardJpaQueryAdapter(
         val likeCountExpr = boardLike.id.countDistinct()
         val commentCountExpr = comment.id.countDistinct()
         val orderSpecifiers: Array<OrderSpecifier<*>> = when (sortBy) {
-            BoardSortType.LIKES -> arrayOf(likeCountExpr.desc(), board.id.desc())
-            BoardSortType.LATEST -> arrayOf(board.id.desc())
+            BoardSortType.LIKES -> arrayOf(
+                board.pinned.desc(),
+                board.notice.desc(),
+                likeCountExpr.desc(),
+                board.id.desc()
+            )
+            BoardSortType.LATEST -> arrayOf(
+                board.pinned.desc(),
+                board.notice.desc(),
+                board.id.desc()
+            )
         }
 
         val totalElements = queryFactory
@@ -74,6 +83,8 @@ class BoardJpaQueryAdapter(
                     board.title,
                     board.content,
                     board.anonymous,
+                    board.notice,
+                    board.pinned,
                     likeCountExpr,
                     commentCountExpr,
                     board.deleted,
@@ -85,8 +96,19 @@ class BoardJpaQueryAdapter(
             .leftJoin(boardLike).on(boardLike.boardId.eq(board.id))
             .leftJoin(comment).on(comment.boardId.eq(board.id).and(comment.deleted.isFalse))
             .where(condition)
-            .groupBy(board.id, member.username, board.boardType, board.memberId,
-                board.title, board.content, board.anonymous, board.deleted, board.createdAt)
+            .groupBy(
+                board.id,
+                member.username,
+                board.boardType,
+                board.memberId,
+                board.title,
+                board.content,
+                board.anonymous,
+                board.notice,
+                board.pinned,
+                board.deleted,
+                board.createdAt
+            )
             .orderBy(*orderSpecifiers)
             .offset((page * size).toLong())
             .limit(size.toLong())
@@ -107,6 +129,8 @@ class BoardJpaQueryAdapter(
                     board.title,
                     board.content,
                     board.anonymous,
+                    board.notice,
+                    board.pinned,
                     boardLike.id.countDistinct(),
                     comment.id.countDistinct(),
                     board.deleted,
@@ -118,8 +142,19 @@ class BoardJpaQueryAdapter(
             .leftJoin(boardLike).on(boardLike.boardId.eq(board.id))
             .leftJoin(comment).on(comment.boardId.eq(board.id).and(comment.deleted.isFalse))
             .where(board.id.eq(id).and(board.deleted.isFalse))
-            .groupBy(board.id, member.username, board.boardType, board.memberId,
-                board.title, board.content, board.anonymous, board.deleted, board.createdAt)
+            .groupBy(
+                board.id,
+                member.username,
+                board.boardType,
+                board.memberId,
+                board.title,
+                board.content,
+                board.anonymous,
+                board.notice,
+                board.pinned,
+                board.deleted,
+                board.createdAt
+            )
             .fetchOne()
     }
 }

@@ -15,17 +15,17 @@ export interface NotificationItem {
   createdAt: string;
 }
 
+export interface NotificationPageResult {
+  notifications: PagedResult<NotificationItem>;
+  unreadCount: number;
+}
+
 export const notificationService = {
-  getNotifications: async (page = 0, size = 20, isRead?: boolean): Promise<PagedResult<NotificationItem>> => {
-    const response = await apiClient.get<PagedResult<NotificationItem>>('/notification', {
+  getNotifications: async (page = 0, size = 20, isRead?: boolean): Promise<NotificationPageResult> => {
+    const response = await apiClient.get<NotificationPageResult>('/notification', {
       params: { page, size, isRead },
     });
     return response.data;
-  },
-
-  getUnreadCount: async (): Promise<number> => {
-    const response = await apiClient.get<{ unreadCount: number }>('/notification/unread-count');
-    return response.data.unreadCount;
   },
 
   markAsRead: async (notificationIds: number[]): Promise<void> => {

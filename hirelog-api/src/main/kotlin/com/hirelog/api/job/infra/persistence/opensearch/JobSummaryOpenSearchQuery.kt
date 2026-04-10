@@ -9,6 +9,7 @@ import com.hirelog.api.job.application.summary.query.JobSummarySearchResult
 import com.hirelog.api.job.application.summary.query.SearchCursor
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryIndexConstants.Fields
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryIndexConstants.INDEX_NAME
+import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.FieldValue
 import org.opensearch.client.opensearch._types.SortOptions
@@ -17,7 +18,6 @@ import org.opensearch.client.opensearch._types.query_dsl.BoolQuery
 import org.opensearch.client.opensearch._types.query_dsl.MatchQuery
 import org.opensearch.client.opensearch._types.query_dsl.MultiMatchQuery
 import org.opensearch.client.opensearch._types.query_dsl.Query
-import org.opensearch.client.opensearch._types.query_dsl.TermQuery
 import org.opensearch.client.opensearch._types.query_dsl.TermsQuery
 import org.opensearch.client.opensearch._types.query_dsl.TextQueryType
 import org.opensearch.client.opensearch.core.SearchRequest
@@ -42,10 +42,12 @@ import java.time.format.DateTimeFormatter
  */
 @Component
 class JobSummaryOpenSearchQuery(
-    private val openSearchClient: OpenSearchClient
+    private val openSearchClient: OpenSearchClient,
+    private val memberJobSummaryQuery: MemberJobSummaryQuery
 ) {
 
     companion object {
+        private const val POPULAR_CANDIDATE_LIMIT = 800
         private val SEARCH_FIELDS = listOf(
             Fields.POSITION_NAME,
             "${Fields.POSITION_NAME}.${Fields.ENGLISH_SUFFIX}",
@@ -75,6 +77,10 @@ class JobSummaryOpenSearchQuery(
         // sortBy 불일치 시 InvalidCursorException
         val cursor = query.cursor?.let { encoded ->
             SearchCursor.decode(encoded).also { validateCursorCompatibility(it, query.sortBy) }
+        }
+
+        if (query.sortBy == SortBy.SAVE_COUNT_DESC) {
+            return searchBySaveCount(query, cursor as? SearchCursor.Popular)
         }
 
         val searchRequest = buildSearchRequest(query, cursor)
@@ -112,13 +118,17 @@ class JobSummaryOpenSearchQuery(
      */
     private fun validateCursorCompatibility(cursor: SearchCursor, sortBy: SortBy) {
         when {
+            cursor is SearchCursor.Popular && sortBy != SortBy.SAVE_COUNT_DESC ->
+                throw InvalidCursorException(
+                    "Cursor type 'popular' is incompatible with sortBy=$sortBy. Expected sortBy=SAVE_COUNT_DESC"
+                )
             cursor is SearchCursor.Relevance && sortBy != SortBy.RELEVANCE ->
                 throw InvalidCursorException(
                     "Cursor type 'relevance' is incompatible with sortBy=$sortBy. Expected sortBy=RELEVANCE"
                 )
-            cursor is SearchCursor.CreatedAt && sortBy == SortBy.RELEVANCE ->
+            cursor is SearchCursor.CreatedAt && sortBy !in setOf(SortBy.CREATED_AT_DESC, SortBy.CREATED_AT_ASC) ->
                 throw InvalidCursorException(
-                    "Cursor type 'createdAt' is incompatible with sortBy=RELEVANCE. Expected sortBy=CREATED_AT_DESC or CREATED_AT_ASC"
+                    "Cursor type 'createdAt' is incompatible with sortBy=$sortBy. Expected sortBy=CREATED_AT_DESC or CREATED_AT_ASC"
                 )
         }
     }
@@ -155,6 +165,7 @@ class JobSummaryOpenSearchQuery(
                 cursor.createdAtMillis.toString(),
                 cursor.id.toString()
             )
+            is SearchCursor.Popular -> emptyList()
         }
     }
 
@@ -166,118 +177,103 @@ class JobSummaryOpenSearchQuery(
             boolQuery.minimumShouldMatch("1")
         }
 
-        val filters = mutableListOf<Query>()
+        val filterOrQueries = mutableListOf<Query>()
 
-        query.careerType?.let { careerType ->
-            filters.add(Query.of { q ->
-                q.term(TermQuery.Builder()
-                    .field(Fields.CAREER_TYPE)
-                    .value(FieldValue.of(careerType.name))
-                    .build())
-            })
+        query.careerTypes
+            ?.map { it.name }
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildStringTermsQuery(Fields.CAREER_TYPE, it) }
+
+        query.brandIds
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildLongTermsQuery(Fields.BRAND_ID, it) }
+
+        query.companyIds
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildLongTermsQuery(Fields.COMPANY_ID, it) }
+
+        query.positionIds
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildLongTermsQuery(Fields.POSITION_ID, it) }
+
+        query.brandPositionIds
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildLongTermsQuery(Fields.BRAND_POSITION_ID, it) }
+
+        query.positionCategoryIds
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildLongTermsQuery(Fields.POSITION_CATEGORY_ID, it) }
+
+        query.brandNames
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildOrMatchQuery(Fields.BRAND_NAME, it) }
+
+        query.positionNames
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildOrMatchQuery(Fields.POSITION_NAME, it) }
+
+        query.brandPositionNames
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildOrMatchQuery(Fields.BRAND_POSITION_NAME, it) }
+
+        query.positionCategoryNames
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildOrMatchQuery(Fields.POSITION_CATEGORY_NAME, it) }
+
+        query.techStacks
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterOrQueries += buildStringTermsQuery(Fields.TECH_STACK_PARSED, it) }
+
+        if (filterOrQueries.isNotEmpty()) {
+            val orFilterBuilder = BoolQuery.Builder()
+            filterOrQueries.forEach { orFilterBuilder.should(it) }
+            orFilterBuilder.minimumShouldMatch("1")
+            boolQuery.filter(Query.of { q -> q.bool(orFilterBuilder.build()) })
         }
 
-        query.brandId?.let { brandId ->
-            filters.add(Query.of { q ->
-                q.term(TermQuery.Builder()
-                    .field(Fields.BRAND_ID)
-                    .value(FieldValue.of(brandId))
-                    .build())
-            })
-        }
-
-        query.companyId?.let { companyId ->
-            filters.add(Query.of { q ->
-                q.term(TermQuery.Builder()
-                    .field(Fields.COMPANY_ID)
-                    .value(FieldValue.of(companyId))
-                    .build())
-            })
-        }
-
-        query.positionId?.let { positionId ->
-            filters.add(Query.of { q ->
-                q.term(TermQuery.Builder()
-                    .field(Fields.POSITION_ID)
-                    .value(FieldValue.of(positionId))
-                    .build())
-            })
-        }
-
-        query.brandPositionId?.let { brandPositionId ->
-            filters.add(Query.of { q ->
-                q.term(TermQuery.Builder()
-                    .field(Fields.BRAND_POSITION_ID)
-                    .value(FieldValue.of(brandPositionId))
-                    .build())
-            })
-        }
-
-        query.positionCategoryId?.let { positionCategoryId ->
-            filters.add(Query.of { q ->
-                q.term(TermQuery.Builder()
-                    .field(Fields.POSITION_CATEGORY_ID)
-                    .value(FieldValue.of(positionCategoryId))
-                    .build())
-            })
-        }
-
-        query.brandName?.let { brandName ->
-            filters.add(Query.of { q ->
-                q.match(MatchQuery.Builder()
-                    .field(Fields.BRAND_NAME)
-                    .query(FieldValue.of(brandName))
-                    .build())
-            })
-        }
-
-        query.positionName?.let { positionName ->
-            filters.add(Query.of { q ->
-                q.match(MatchQuery.Builder()
-                    .field(Fields.POSITION_NAME)
-                    .query(FieldValue.of(positionName))
-                    .build())
-            })
-        }
-
-        query.brandPositionName?.let { brandPositionName ->
-            filters.add(Query.of { q ->
-                q.match(MatchQuery.Builder()
-                    .field(Fields.BRAND_POSITION_NAME)
-                    .query(FieldValue.of(brandPositionName))
-                    .build())
-            })
-        }
-
-        query.positionCategoryName?.let { positionCategoryName ->
-            filters.add(Query.of { q ->
-                q.match(MatchQuery.Builder()
-                    .field(Fields.POSITION_CATEGORY_NAME)
-                    .query(FieldValue.of(positionCategoryName))
-                    .build())
-            })
-        }
-
-        if (!query.techStacks.isNullOrEmpty()) {
-            filters.add(Query.of { q ->
-                q.terms(TermsQuery.Builder()
-                    .field(Fields.TECH_STACK_PARSED)
-                    .terms { t ->
-                        t.value(query.techStacks.map { FieldValue.of(it) })
-                    }
-                    .build())
-            })
-        }
-
-        if (filters.isNotEmpty()) {
-            boolQuery.filter(filters)
-        }
-
-        return if (query.keyword.isNullOrBlank() && filters.isEmpty()) {
+        return if (query.keyword.isNullOrBlank() && filterOrQueries.isEmpty()) {
             Query.of { q -> q.matchAll { it } }
         } else {
             Query.of { q -> q.bool(boolQuery.build()) }
         }
+    }
+
+    private fun buildStringTermsQuery(field: String, values: List<String>): Query {
+        return Query.of { q ->
+            q.terms(TermsQuery.Builder()
+                .field(field)
+                .terms { t ->
+                    t.value(values.map { FieldValue.of(it) })
+                }
+                .build())
+        }
+    }
+
+    private fun buildLongTermsQuery(field: String, values: List<Long>): Query {
+        return Query.of { q ->
+            q.terms(TermsQuery.Builder()
+                .field(field)
+                .terms { t ->
+                    t.value(values.map { FieldValue.of(it) })
+                }
+                .build())
+        }
+    }
+
+    private fun buildOrMatchQuery(field: String, values: List<String>): Query {
+        val builder = BoolQuery.Builder()
+        values.forEach { value ->
+            builder.should(
+                Query.of { q ->
+                    q.match(MatchQuery.Builder()
+                        .field(field)
+                        .query(FieldValue.of(value))
+                        .build())
+                }
+            )
+        }
+        builder.minimumShouldMatch("1")
+        return Query.of { q -> q.bool(builder.build()) }
     }
 
     private fun buildKeywordQuery(keyword: String): Query {
@@ -301,6 +297,10 @@ class JobSummaryOpenSearchQuery(
         }
 
         return when (query.sortBy) {
+            SortBy.SAVE_COUNT_DESC -> listOf(
+                SortOptions.of { s -> s.field { f -> f.field(Fields.CREATED_AT).order(SortOrder.Desc) } },
+                idTiebreaker
+            )
             SortBy.CREATED_AT_DESC -> listOf(
                 SortOptions.of { s -> s.field { f -> f.field(Fields.CREATED_AT).order(SortOrder.Desc) } },
                 idTiebreaker
@@ -328,6 +328,7 @@ class JobSummaryOpenSearchQuery(
         if (sortValues.isEmpty()) return null
 
         return when (sortBy) {
+            SortBy.SAVE_COUNT_DESC -> null
             SortBy.CREATED_AT_DESC, SortBy.CREATED_AT_ASC -> {
                 val createdAtMillis = sortValues[0].toLong()
                 val id = sortValues[1].toLong()
@@ -340,6 +341,117 @@ class JobSummaryOpenSearchQuery(
                 SearchCursor.encode(SearchCursor.Relevance(score, createdAtMillis, id))
             }
         }
+    }
+
+    fun searchTechStacks(keyword: String?, size: Int): List<String> {
+        val normalizedKeyword = keyword?.trim()?.takeIf { it.isNotEmpty() }
+        val limitedSize = size.coerceIn(1, 100)
+
+        val query = if (normalizedKeyword == null) {
+            Query.of { q -> q.matchAll { it } }
+        } else {
+            Query.of { q ->
+                q.bool { b ->
+                    b.should {
+                        it.match(
+                            MatchQuery.Builder()
+                                .field(Fields.TECH_STACK_PARSED)
+                                .query(FieldValue.of(normalizedKeyword))
+                                .build()
+                        )
+                    }
+                    b.should {
+                        it.match(
+                            MatchQuery.Builder()
+                                .field(Fields.TECH_STACK)
+                                .query(FieldValue.of(normalizedKeyword))
+                                .build()
+                        )
+                    }
+                    b.minimumShouldMatch("1")
+                }
+            }
+        }
+
+        val request = SearchRequest.Builder()
+            .index(INDEX_NAME)
+            .query(query)
+            .size(300)
+            .sort(
+                listOf(
+                    SortOptions.of { s -> s.field { f -> f.field(Fields.CREATED_AT).order(SortOrder.Desc) } },
+                    SortOptions.of { s -> s.field { f -> f.field(Fields.ID).order(SortOrder.Desc) } }
+                )
+            )
+            .build()
+
+        val response = openSearchClient.search(request, Map::class.java)
+        val stacks = response.hits().hits()
+            .mapNotNull { hit -> hit.source() as? Map<String, Any?> }
+            .flatMap { source ->
+                @Suppress("UNCHECKED_CAST")
+                (source[Fields.TECH_STACK_PARSED] as? List<String>).orEmpty()
+            }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .filter { stack ->
+                normalizedKeyword == null || stack.contains(normalizedKeyword, ignoreCase = true)
+            }
+            .distinct()
+
+        return stacks.take(limitedSize)
+    }
+
+    private fun searchBySaveCount(
+        query: JobSummarySearchQuery,
+        cursor: SearchCursor.Popular?
+    ): JobSummarySearchResult {
+        val candidateRequest = SearchRequest.Builder()
+            .index(INDEX_NAME)
+            .query(buildQuery(query))
+            .size(POPULAR_CANDIDATE_LIMIT)
+            .sort(
+                listOf(
+                    SortOptions.of { s -> s.field { f -> f.field(Fields.CREATED_AT).order(SortOrder.Desc) } },
+                    SortOptions.of { s -> s.field { f -> f.field(Fields.ID).order(SortOrder.Desc) } }
+                )
+            )
+            .build()
+
+        val response = openSearchClient.search(candidateRequest, Map::class.java)
+        val candidates = response.hits().hits()
+            .mapNotNull { hit ->
+                @Suppress("UNCHECKED_CAST")
+                mapToSearchItem(hit.source() as? Map<String, Any?>)
+            }
+
+        val saveCounts = memberJobSummaryQuery.countSavedByJobSummaryIds(candidates.map { it.id }.toSet())
+        val sorted = candidates.sortedWith(
+            compareByDescending<JobSummarySearchItem> { saveCounts[it.id] ?: 0L }
+                .thenByDescending { it.createdAt }
+                .thenByDescending { it.id }
+        )
+
+        val offset = cursor?.offset ?: 0
+        if (offset >= sorted.size) {
+            return JobSummarySearchResult(
+                items = emptyList(),
+                size = 0,
+                hasNext = false,
+                nextCursor = null
+            )
+        }
+
+        val items = sorted.drop(offset).take(query.size)
+        val nextOffset = offset + items.size
+        val hasNext = nextOffset < sorted.size
+
+        return JobSummarySearchResult(
+            items = items,
+            size = items.size,
+            hasNext = hasNext,
+            nextCursor = if (hasNext) SearchCursor.encode(SearchCursor.Popular(nextOffset)) else null
+        )
     }
 
     @Suppress("UNCHECKED_CAST")

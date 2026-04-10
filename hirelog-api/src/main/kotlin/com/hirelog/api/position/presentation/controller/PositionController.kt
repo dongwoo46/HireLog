@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/position")
-@PreAuthorize("hasRole('ADMIN')")
 class PositionController(
     private val positionWriteService: PositionWriteService,
     private val positionReadService: PositionReadService
@@ -34,6 +33,7 @@ class PositionController(
      * - normalizedName은 도메인에서 생성
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     fun create(
         @Valid @RequestBody request: PositionCreateReq,
     ): ResponseEntity<Void> {
@@ -92,6 +92,7 @@ class PositionController(
      * Position 활성화
      */
     @PatchMapping("/{positionId}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
     fun activate(
         @PathVariable positionId: Long,
     ): ResponseEntity<Void> {
@@ -104,6 +105,7 @@ class PositionController(
      * Position 비활성화
      */
     @PatchMapping("/{positionId}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     fun deactivate(
         @PathVariable positionId: Long,
     ): ResponseEntity<Void> {

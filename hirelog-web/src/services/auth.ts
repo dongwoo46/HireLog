@@ -7,9 +7,17 @@ export interface CheckEmailRequest {
   email: string;
 }
 
+export interface CheckUsernameRequest {
+  username: string;
+}
+
 export interface CheckEmailResponse {
   exists: boolean;
   username: string | null;
+}
+
+export interface CheckUsernameResponse {
+  exists: boolean;
 }
 
 export interface BindRequest {
@@ -47,6 +55,11 @@ export const authService = {
 
   checkGeneralEmail: async (data: CheckEmailRequest): Promise<CheckEmailResponse> => {
     const response = await apiClient.post<CheckEmailResponse>('/auth/signup/general/check-email', data);
+    return response.data;
+  },
+
+  checkGeneralUsername: async (data: CheckUsernameRequest): Promise<CheckUsernameResponse> => {
+    const response = await apiClient.post<CheckUsernameResponse>('/auth/signup/general/check-username', data);
     return response.data;
   },
 

@@ -23,6 +23,22 @@ data class CheckEmailResponse(
 )
 
 /**
+ * 닉네임 중복 체크 요청
+ */
+data class CheckUsernameRequest(
+    @field:NotBlank(message = "닉네임은 필수 입력 항목입니다.")
+    @field:Size(min = 2, max = 50, message = "닉네임은 2자 이상 50자 이하로 입력해주세요.")
+    val username: String,
+)
+
+/**
+ * 닉네임 중복 체크 응답
+ */
+data class CheckUsernameResponse(
+    val exists: Boolean,
+)
+
+/**
  * 기존 계정 연동 요청
  */
 data class BindRequest(

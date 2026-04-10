@@ -57,6 +57,10 @@ class JobSummaryReadService(
         return result.copy(items = enrichedItems)
     }
 
+    fun searchTechStacks(keyword: String?, size: Int): List<String> {
+        return openSearchQuery.searchTechStacks(keyword, size)
+    }
+
     fun getDetail(jobSummaryId: Long, memberId: Long?): JobSummaryDetailView? {
         return jobSummaryQuery.findDetailById(jobSummaryId, memberId)
     }

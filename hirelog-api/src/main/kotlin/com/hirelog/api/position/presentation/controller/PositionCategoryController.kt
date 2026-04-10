@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/position-category")
-@PreAuthorize("hasRole('ADMIN')")
 class PositionCategoryController(
     private val positionCategoryWriteService: PositionCategoryWriteService,
     private val positionCategoryReadService: PositionCategoryReadService
@@ -25,6 +24,7 @@ class PositionCategoryController(
      * PositionCategory 생성
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     fun create(
         @Valid @RequestBody request: PositionCategoryCreateReq
     ): ResponseEntity<PositionCategoryDetailView> {
@@ -75,6 +75,7 @@ class PositionCategoryController(
      * PositionCategory 활성화
      */
     @PatchMapping("/{categoryId}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
     fun activate(
         @PathVariable categoryId: Long
     ): ResponseEntity<Void> {
@@ -87,6 +88,7 @@ class PositionCategoryController(
      * PositionCategory 비활성화
      */
     @PatchMapping("/{categoryId}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     fun deactivate(
         @PathVariable categoryId: Long
     ): ResponseEntity<Void> {

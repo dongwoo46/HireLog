@@ -244,6 +244,16 @@ class SignupFacadeService(
     }
 
     /**
+     * 일반 회원가입용 닉네임 중복 체크
+     */
+    @Transactional(readOnly = true)
+    fun checkGeneralUsernameAvailability(username: String): CheckUsernameResponse {
+        val normalizedUsername = username.trim()
+        val exists = memberQuery.existsActiveByUsername(normalizedUsername)
+        return CheckUsernameResponse(exists = exists)
+    }
+
+    /**
      * 일반 회원가입용 인증코드 발송 (재전송)
      */
     fun sendGeneralVerificationCode(email: String) {

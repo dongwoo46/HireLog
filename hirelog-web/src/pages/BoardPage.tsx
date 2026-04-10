@@ -1,16 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { TbFlag3, TbHeart, TbHeartFilled, TbPencil, TbPlus, TbTrash, TbX, TbMessageCircle, TbSearch } from 'react-icons/tb';
+import { TbFlag3, TbHeart, TbHeartFilled, TbPencil, TbPlus, TbTrash, TbX, TbMessageCircle, TbSearch, TbPinned } from 'react-icons/tb';
 import { boardService } from '../services/boardService';
 import { reportService } from '../services/reportService';
 import { useAuthStore } from '../store/authStore';
 import type { BoardItem, BoardType, CommentItem } from '../types/board';
 import type { ReportReason, ReportTargetType } from '../types/report';
 
-type BoardForm = { boardType: BoardType; title: string; content: string; anonymous: boolean; guestPassword: string };
+type BoardForm = {
+  boardType: BoardType;
+  title: string;
+  content: string;
+  anonymous: boolean;
+  guestPassword: string;
+  notice: boolean;
+  pinned: boolean;
+};
 type CommentForm = { content: string; anonymous: boolean; guestPassword: string };
 
-const emptyBoard: BoardForm = { boardType: 'FREE', title: '', content: '', anonymous: true, guestPassword: '' };
+const emptyBoard: BoardForm = {
+  boardType: 'FREE',
+  title: '',
+  content: '',
+  anonymous: true,
+  guestPassword: '',
+  notice: false,
+  pinned: false,
+};
 const emptyComment: CommentForm = { content: '', anonymous: true, guestPassword: '' };
 const reportTargets: ReportTargetType[] = ['JOB_SUMMARY', 'JOB_SUMMARY_REVIEW', 'MEMBER', 'BOARD', 'COMMENT'];
 const reportReasons: ReportReason[] = ['SPAM', 'INAPPROPRIATE', 'FALSE_INFO', 'COPYRIGHT', 'OTHER'];
@@ -30,6 +46,7 @@ const reportReasonLabels: Record<ReportReason, string> = {
 };
 
 const errMsg = (e: any, fallback: string) => e?.response?.data?.message || e?.message || fallback;
+const formatDate = (value: string) => value.slice(0, 10);
 
 export default function BoardPage() {
   const { user } = useAuthStore();
@@ -260,6 +277,28 @@ export default function BoardPage() {
                   />
                   익명으로 작성
                 </label>
+                {isAdmin && (
+                  <div className="flex items-center gap-4">
+                    <label className="flex cursor-pointer items-center gap-2 text-base font-medium text-gray-600 select-none">
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 rounded border-gray-300 text-[#3FB6B2] focus:ring-transparent"
+                        checked={boardForm.notice}
+                        onChange={(e) => setBoardForm((p) => ({ ...p, notice: e.target.checked }))}
+                      />
+                      공지사항
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 text-base font-medium text-gray-600 select-none">
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 rounded border-gray-300 text-[#3FB6B2] focus:ring-transparent"
+                        checked={boardForm.pinned}
+                        onChange={(e) => setBoardForm((p) => ({ ...p, pinned: e.target.checked }))}
+                      />
+                      📌
+                    </label>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={() => { setIsWriting(false); setEditingBoard(false); setBoardForm(emptyBoard); }}
@@ -289,9 +328,15 @@ export default function BoardPage() {
             <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm mb-6">
               <div className="border-b border-gray-50 bg-[#3FB6B2]/[0.02] p-8">
                 <div className="mb-4 flex items-start justify-between">
-                  <h1 className="text-3xl font-black leading-tight text-gray-900 break-words pr-8">
-                    {selectedBoard.title}
-                  </h1>
+                  <div className="pr-8">
+                    <div className="mb-2 flex items-center gap-2">
+                      {selectedBoard.pinned && <TbPinned size={14} className="text-[#4CDFD5]" />}
+                      {selectedBoard.notice && <span className="rounded-md bg-[#3FB6B2]/15 px-2 py-1 text-[11px] font-bold text-[#2b8f8c]">공지사항</span>}
+                    </div>
+                    <h1 className="text-3xl font-black leading-tight text-gray-900 break-words">
+                      {selectedBoard.title}
+                    </h1>
+                  </div>
                   {!selectedBoard.deleted && (
                     <button
                       onClick={() => openReport('BOARD', selectedBoard.id)}
@@ -343,6 +388,8 @@ export default function BoardPage() {
                             content: selectedBoard.content,
                             anonymous: selectedBoard.anonymous,
                             guestPassword: '',
+                            notice: selectedBoard.notice,
+                            pinned: selectedBoard.pinned,
                           });
                         }}
                         className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-50 focus:ring-4 focus:ring-gray-100"
@@ -364,6 +411,22 @@ export default function BoardPage() {
                         className="flex items-center gap-1.5 rounded-xl border border-red-100 bg-red-50/50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 focus:ring-4 focus:ring-red-100"
                       >
                         <TbTrash size={16} /> 삭제
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button
+                        onClick={async () => {
+                          if (!selectedBoardId || !selectedBoard) return;
+                          try {
+                            await boardService.pinBoard(selectedBoardId, !selectedBoard.pinned);
+                            await Promise.all([loadBoard(selectedBoardId), loadBoards()]);
+                          } catch (e) {
+                            toast.error(errMsg(e, '상단 고정 변경 실패'));
+                          }
+                        }}
+                        className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-50 focus:ring-4 focus:ring-gray-100"
+                      >
+                        {selectedBoard.pinned ? '고정 해제' : '상단 고정'}
                       </button>
                     )}
                   </div>
@@ -570,7 +633,11 @@ export default function BoardPage() {
                 className="block w-full rounded-3xl border border-gray-100 bg-white p-6 text-left transition-all hover:border-[#3FB6B2]/30 hover:shadow-md hover:-translate-y-1"
               >
                 <div className="flex flex-col gap-2">
-                  <h3 className="line-clamp-1 text-xl font-bold text-gray-900">{b.title}</h3>
+                  <div className="flex items-center gap-2">
+                    {b.pinned && <TbPinned size={14} className="text-[#4CDFD5]" />}
+                    {b.notice && <span className="rounded-md bg-[#3FB6B2]/15 px-2 py-1 text-[11px] font-bold text-[#2b8f8c]">공지사항</span>}
+                    <h3 className="line-clamp-1 text-xl font-bold text-gray-900">{b.title}</h3>
+                  </div>
                   <p className="line-clamp-2 text-base text-gray-500 leading-relaxed mb-4">{b.content}</p>
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-50 pt-4">
@@ -579,6 +646,7 @@ export default function BoardPage() {
                         {(b.authorUsername || '익명').charAt(0).toUpperCase()}
                      </div>
                      <span className="text-sm font-bold text-gray-600">{b.authorUsername || '익명'}</span>
+                     <span className="text-xs font-medium text-gray-400">{formatDate(b.createdAt)}</span>
                   </div>
                   <div className="flex items-center gap-4 text-sm font-semibold text-gray-400">
                     <span className="flex items-center gap-1.5"><TbHeart size={18} className={b.likeCount > 0 ? "text-rose-400 stroke-rose-400" : ""} /> {b.likeCount}</span>

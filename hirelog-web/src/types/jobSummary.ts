@@ -4,6 +4,7 @@ export type MemberJobSummarySaveType = 'SAVED' | 'APPLY' | 'UNSAVED';
 export interface JobSummarySearchReq {
   keyword?: string;
   careerType?: CareerType;
+  careerTypes?: CareerType[];
 
   // ID Filters
   brandId?: number;
@@ -11,12 +12,21 @@ export interface JobSummarySearchReq {
   positionId?: number;
   brandPositionId?: number;
   positionCategoryId?: number;
+  brandIds?: number[];
+  companyIds?: number[];
+  positionIds?: number[];
+  brandPositionIds?: number[];
+  positionCategoryIds?: number[];
 
   // Name Filters
   brandName?: string;
   positionName?: string;
   brandPositionName?: string;
   positionCategoryName?: string;
+  brandNames?: string[];
+  positionNames?: string[];
+  brandPositionNames?: string[];
+  positionCategoryNames?: string[];
 
   techStacks?: string[];
   sortBy?: string; // e.g., "CREATED_AT_DESC"

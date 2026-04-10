@@ -155,6 +155,17 @@ class SignupController(
     }
 
     /**
+     * 일반 회원가입용 닉네임 중복 체크
+     */
+    @PostMapping("/general/check-username")
+    fun checkGeneralUsername(
+        @Valid @RequestBody request: CheckUsernameRequest,
+    ): ResponseEntity<CheckUsernameResponse> {
+        val response = signupFacadeService.checkGeneralUsernameAvailability(request.username)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
      * 일반 회원가입: 인증코드 재발송
      */
     @PostMapping("/general/send-code")

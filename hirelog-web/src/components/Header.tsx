@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TbBell, TbList, TbMenu2, TbMessageCircle, TbReload, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
+import { TbBell, TbBookmark, TbList, TbMenu2, TbMessageCircle, TbReload, TbSettings, TbUserCircle, TbX } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
 import { notificationService, type NotificationItem } from '../services/notificationService';
 
@@ -30,6 +30,7 @@ export function Header() {
   const navLinks = useMemo(
     () => [
       { label: 'JD 목록', path: '/jd', icon: <TbList size={20} /> },
+      { label: '내 공고', path: '/my-jobs', icon: <TbBookmark size={20} />, authOnly: true },
       { label: '게시판', path: '/boards', icon: <TbMessageCircle size={20} /> },
       { label: '문의사항', path: '/requests', icon: <TbUserCircle size={20} />, authOnly: true },
     ],
@@ -43,12 +44,9 @@ export function Header() {
   const loadNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
-      const [paged, count] = await Promise.all([
-        notificationService.getNotifications(0, 20),
-        notificationService.getUnreadCount(),
-      ]);
-      setNotifications(paged.items || []);
-      setUnreadCount(count);
+      const pageResult = await notificationService.getNotifications(0, 20);
+      setNotifications(pageResult.notifications.items || []);
+      setUnreadCount(pageResult.unreadCount || 0);
     } catch {
       // ignore
     }
@@ -215,7 +213,7 @@ export function Header() {
                 {user?.username?.charAt(0) || 'U'}
               </button>
 
-              <button onClick={handleLogout} className="hidden text-sm font-bold text-gray-400 hover:text-rose-500 sm:inline-block">
+              <button onClick={handleLogout} className="text-sm font-bold text-gray-400 hover:text-rose-500">
                 로그아웃
               </button>
             </>
@@ -293,6 +291,20 @@ export function Header() {
                 >
                   회원가입
                 </Link>
+              </div>
+            )}
+
+            {isAuthenticated && (
+              <div className="border-t border-gray-100/50 pt-2">
+                <button
+                  onClick={async () => {
+                    setIsMobileOpen(false);
+                    await handleLogout();
+                  }}
+                  className="block w-full rounded-lg border border-rose-100 px-3 py-2 text-center text-sm font-semibold text-rose-600"
+                >
+                  로그아웃
+                </button>
               </div>
             )}
           </nav>

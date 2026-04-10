@@ -1,11 +1,13 @@
 package com.hirelog.api.relation.infra.persistence.adapter
 
 import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
 import com.hirelog.api.relation.application.memberjobsummary.view.CoverLetterView
 import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.JobSummarySavedStateView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
+import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import com.hirelog.api.relation.infra.persistence.jpa.repository.MemberJobSummaryJpaQueryDsl
 import org.springframework.stereotype.Component
@@ -27,12 +29,18 @@ class MemberJobSummaryJpaQuery(
     override fun findMySummaries(
         memberId: Long,
         saveType: MemberJobSummarySaveType?,
+        brandName: String?,
+        stage: HiringStage?,
+        stageResult: HiringStageResult?,
         page: Int,
         size: Int
     ): PagedResult<MemberJobSummaryListView> {
         return querydslRepository.findMySummaries(
             memberId = memberId,
             saveType = saveType,
+            brandName = brandName,
+            stage = stage,
+            stageResult = stageResult,
             page = page,
             size = size
         )
@@ -80,5 +88,9 @@ class MemberJobSummaryJpaQuery(
             memberId = memberId,
             jobSummaryIds = jobSummaryIds
         )
+    }
+
+    override fun countSavedByJobSummaryIds(jobSummaryIds: Set<Long>): Map<Long, Long> {
+        return querydslRepository.countSavedByJobSummaryIds(jobSummaryIds)
     }
 }

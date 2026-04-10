@@ -5,6 +5,8 @@ import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSumma
 import com.hirelog.api.relation.application.memberjobsummary.view.CoverLetterView
 import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
+import com.hirelog.api.job.domain.type.HiringStage
+import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import org.springframework.stereotype.Service
 
@@ -27,12 +29,18 @@ class MemberJobSummaryReadService(
     fun getMySummaries(
         memberId: Long,
         saveType: MemberJobSummarySaveType?,
+        brandName: String?,
+        stage: HiringStage?,
+        stageResult: HiringStageResult?,
         page: Int,
         size: Int
     ): PagedResult<MemberJobSummaryListView> {
         return query.findMySummaries(
             memberId = memberId,
             saveType = saveType,
+            brandName = brandName,
+            stage = stage,
+            stageResult = stageResult,
             page = page,
             size = size
         )

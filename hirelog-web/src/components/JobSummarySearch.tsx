@@ -59,8 +59,24 @@ export const JobSummarySearch: React.FC<Props> = ({
   const stableInitial = useMemo(() => ({
     ...initialParams,
     keyword: initialParams.keyword || '',
+    brandNames: initialParams.brandNames || (initialParams.brandName ? [initialParams.brandName] : undefined),
+    positionCategoryNames:
+      initialParams.positionCategoryNames ||
+      (initialParams.positionCategoryName ? [initialParams.positionCategoryName] : undefined),
+    positionNames: initialParams.positionNames || (initialParams.positionName ? [initialParams.positionName] : undefined),
     sortBy: initialParams.sortBy || 'CREATED_AT_DESC'
-  }), [initialParams.keyword, initialParams.careerType, initialParams.sortBy]);
+  }), [
+    initialParams.keyword,
+    initialParams.careerType,
+    initialParams.sortBy,
+    JSON.stringify(initialParams.brandNames || []),
+    JSON.stringify(initialParams.positionCategoryNames || []),
+    JSON.stringify(initialParams.positionNames || []),
+    initialParams.brandName,
+    initialParams.positionCategoryName,
+    initialParams.positionName,
+    JSON.stringify(initialParams.techStacks || []),
+  ]);
 
   const [params, setParams] = useState<JobSummarySearchReq>(stableInitial);
 
@@ -82,6 +98,16 @@ export const JobSummarySearch: React.FC<Props> = ({
         const trimmed = value.trim();
         if (trimmed !== '') {
           cleaned[key] = trimmed;
+        }
+      } else if (Array.isArray(value)) {
+        const normalized = value
+          .map((item) => (typeof item === 'string' ? item.trim() : item))
+          .filter((item) => {
+            if (typeof item === 'string') return item.length > 0;
+            return item !== undefined && item !== null;
+          });
+        if (normalized.length > 0) {
+          cleaned[key] = normalized;
         }
       } else if (value !== undefined && value !== null) {
         cleaned[key] = value;
@@ -243,10 +269,11 @@ export const JobSummarySearch: React.FC<Props> = ({
         onClose={() => setIsFilterModalOpen(false)}
         filters={params}
         onApply={handleApplyFilters}
-        onReset={() => {
+      onReset={() => {
           const reset: JobSummarySearchReq = {
             keyword: params.keyword,
             careerType: params.careerType,
+            careerTypes: params.careerTypes,
             sortBy: 'CREATED_AT_DESC'
           };
           setParams(reset);

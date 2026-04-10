@@ -42,6 +42,10 @@ export const boardService = {
     });
   },
 
+  pinBoard: async (boardId: number, pinned: boolean): Promise<void> => {
+    await apiClient.patch(`/admin/boards/${boardId}/pin`, null, { params: { pinned } });
+  },
+
   getBoardLike: async (boardId: number): Promise<BoardLikeRes> => {
     const response = await apiClient.get(`/boards/${boardId}/like`);
     return response.data;

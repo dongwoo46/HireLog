@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth';
 import { useAuthStore } from '../store/authStore';
 
@@ -101,7 +101,7 @@ const LoginPage = () => {
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-500 space-x-3">
-          <Link to="/signup" className="hover:text-gray-700">일반 회원가입</Link>
+          <Link to="/signup" className="hover:text-gray-700">회원가입</Link>
           <Link to="/password-reset" className="hover:text-gray-700">비밀번호 찾기</Link>
           <Link to="/recovery" className="hover:text-gray-700">계정 복구</Link>
         </div>

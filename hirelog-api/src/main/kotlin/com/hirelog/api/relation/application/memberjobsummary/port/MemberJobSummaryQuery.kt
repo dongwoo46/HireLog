@@ -1,10 +1,12 @@
 package com.hirelog.api.relation.application.memberjobsummary.port
 
 import com.hirelog.api.common.application.port.PagedResult
+import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.application.memberjobsummary.view.CoverLetterView
 import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageView
 import com.hirelog.api.relation.application.memberjobsummary.view.JobSummarySavedStateView
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
+import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 
 /**
@@ -26,6 +28,9 @@ interface MemberJobSummaryQuery {
     fun findMySummaries(
         memberId: Long,
         saveType: MemberJobSummarySaveType?,
+        brandName: String?,
+        stage: HiringStage?,
+        stageResult: HiringStageResult?,
         page: Int,
         size: Int
     ): PagedResult<MemberJobSummaryListView>
@@ -70,4 +75,6 @@ interface MemberJobSummaryQuery {
         memberId: Long,
         jobSummaryIds: Set<Long>
     ): Map<Long, JobSummarySavedStateView>
+
+    fun countSavedByJobSummaryIds(jobSummaryIds: Set<Long>): Map<Long, Long>
 }

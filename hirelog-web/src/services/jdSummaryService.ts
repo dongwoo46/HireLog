@@ -18,7 +18,13 @@ import type {
   PagedResult,
   ReviewLikeStat,
   ReviewWriteReq,
-} from '../types/jobSummary';
+  HiringStageResult,
+  } from '../types/jobSummary';
+
+export type SearchOptionItem = {
+  id: number;
+  name: string;
+};
 
 const toJobSummaryView = (item: MemberJobSummaryListItem): JobSummaryView => ({
   id: item.jobSummaryId,
@@ -36,11 +42,14 @@ const toJobSummaryView = (item: MemberJobSummaryListItem): JobSummaryView => ({
 
 const getMemberSummaries = async (
   saveType?: MemberJobSummarySaveType,
+  brandName?: string,
+  stage?: import('../types/jobSummary').HiringStage,
+  result?: HiringStageResult,
   page = 0,
   size = 10,
 ): Promise<PagedResult<JobSummaryView>> => {
   const response = await apiClient.get<PagedResult<MemberJobSummaryListItem>>('/member-job-summary', {
-    params: { saveType, page, size },
+    params: { saveType, brandName, stage, result, page, size },
   });
 
   return {
@@ -184,15 +193,21 @@ export const jdSummaryService = {
   },
 
   getMyRegistrations: async (page = 0, size = 10): Promise<PagedResult<JobSummaryView>> => {
-    return getMemberSummaries(undefined, page, size);
+    return getMemberSummaries(undefined, undefined, undefined, undefined, page, size);
   },
 
-  getMySaves: async (page = 0, size = 10): Promise<PagedResult<JobSummaryView>> => {
-    return getMemberSummaries('SAVED', page, size);
+  getMySaves: async (page = 0, size = 10, brandName?: string): Promise<PagedResult<JobSummaryView>> => {
+    return getMemberSummaries('SAVED', brandName, undefined, undefined, page, size);
   },
 
-  getMyApplies: async (page = 0, size = 10): Promise<PagedResult<JobSummaryView>> => {
-    return getMemberSummaries('APPLY', page, size);
+  getMyApplies: async (
+    page = 0,
+    size = 10,
+    brandName?: string,
+    stage?: import('../types/jobSummary').HiringStage,
+    result?: HiringStageResult,
+  ): Promise<PagedResult<JobSummaryView>> => {
+    return getMemberSummaries('APPLY', brandName, stage, result, page, size);
   },
 
   getStages: async (jobSummaryId: number): Promise<HiringStageView[]> => {
@@ -251,24 +266,31 @@ export const jdSummaryService = {
     });
   },
 
-  searchBrands: async (name?: string): Promise<any[]> => {
+  searchBrands: async (name?: string): Promise<SearchOptionItem[]> => {
     const response = await apiClient.get('/brand', {
       params: { name, size: 50 },
     });
     return response.data.items || [];
   },
 
-  searchPositions: async (name?: string): Promise<any[]> => {
+  searchPositions: async (name?: string): Promise<SearchOptionItem[]> => {
     const response = await apiClient.get('/position', {
+      params: { name, size: 50 },
+    });
+    return (response.data.items || []).filter((item: SearchOptionItem) => item.name?.toUpperCase?.() !== 'UNKNOWN');
+  },
+
+  searchCategories: async (name?: string): Promise<SearchOptionItem[]> => {
+    const response = await apiClient.get('/position-category', {
       params: { name, size: 50 },
     });
     return response.data.items || [];
   },
 
-  searchCategories: async (name?: string): Promise<any[]> => {
-    const response = await apiClient.get('/position-category', {
-      params: { name, size: 50 },
+  searchTechStacks: async (keyword?: string): Promise<SearchOptionItem[]> => {
+    const response = await apiClient.get<string[]>('/job-summary/tech-stacks', {
+      params: { keyword, size: 50 },
     });
-    return response.data.items || [];
+    return (response.data || []).map((name, index) => ({ id: index + 1, name }));
   },
 };

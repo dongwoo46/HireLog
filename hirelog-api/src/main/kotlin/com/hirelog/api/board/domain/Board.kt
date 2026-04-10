@@ -2,13 +2,15 @@ package com.hirelog.api.board.domain
 
 import com.hirelog.api.common.infra.jpa.entity.BaseEntity
 import jakarta.persistence.*
+import java.time.LocalDateTime
 
 @Entity
 @Table(
     name = "board",
     indexes = [
         Index(name = "idx_board_member", columnList = "member_id"),
-        Index(name = "idx_board_deleted_created", columnList = "deleted, created_at")
+        Index(name = "idx_board_deleted_created", columnList = "deleted, created_at"),
+        Index(name = "idx_board_pinned_created", columnList = "pinned, created_at")
     ]
 )
 class Board protected constructor(
@@ -37,20 +39,37 @@ class Board protected constructor(
     var guestPasswordHash: String? = null,
 
     @Column(name = "deleted", nullable = false)
-    var deleted: Boolean = false
+    var deleted: Boolean = false,
+
+    @Column(name = "notice", nullable = false)
+    var notice: Boolean = false,
+
+    @Column(name = "pinned", nullable = false)
+    var pinned: Boolean = false,
+
+    @Column(name = "pinned_at")
+    var pinnedAt: LocalDateTime? = null
 
 ) : BaseEntity() {
 
-    fun update(title: String, content: String, anonymous: Boolean) {
-        require(title.isNotBlank()) { "제목은 비어있을 수 없습니다" }
-        require(content.isNotBlank()) { "내용은 비어있을 수 없습니다" }
+    fun update(title: String, content: String, anonymous: Boolean, notice: Boolean, pinned: Boolean) {
+        require(title.isNotBlank()) { "title must not be blank" }
+        require(content.isNotBlank()) { "content must not be blank" }
         this.title = title
         this.content = content
         this.anonymous = anonymous
+        this.notice = notice
+        applyPinned(pinned)
+    }
+
+    fun applyPinned(pinned: Boolean) {
+        if (this.pinned == pinned) return
+        this.pinned = pinned
+        this.pinnedAt = if (pinned) LocalDateTime.now() else null
     }
 
     fun softDelete() {
-        require(!deleted) { "이미 삭제된 게시글입니다" }
+        require(!deleted) { "board already deleted" }
         this.deleted = true
     }
 
@@ -65,13 +84,15 @@ class Board protected constructor(
             title: String,
             content: String,
             anonymous: Boolean,
-            guestPasswordHash: String?
+            guestPasswordHash: String?,
+            notice: Boolean,
+            pinned: Boolean
         ): Board {
-            require(title.isNotBlank()) { "제목은 비어있을 수 없습니다" }
-            require(title.length <= 300) { "제목은 300자를 초과할 수 없습니다" }
-            require(content.isNotBlank()) { "내용은 비어있을 수 없습니다" }
+            require(title.isNotBlank()) { "title must not be blank" }
+            require(title.length <= 300) { "title too long" }
+            require(content.isNotBlank()) { "content must not be blank" }
             if (memberId == null) {
-                require(!guestPasswordHash.isNullOrBlank()) { "비로그인 작성은 비밀번호가 필요합니다." }
+                require(!guestPasswordHash.isNullOrBlank()) { "guest password required" }
             }
             return Board(
                 memberId = memberId,
@@ -79,7 +100,10 @@ class Board protected constructor(
                 title = title,
                 content = content,
                 anonymous = anonymous,
-                guestPasswordHash = guestPasswordHash
+                guestPasswordHash = guestPasswordHash,
+                notice = notice,
+                pinned = pinned,
+                pinnedAt = if (pinned) LocalDateTime.now() else null
             )
         }
     }

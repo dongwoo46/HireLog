@@ -11,6 +11,7 @@ import com.hirelog.api.relation.application.memberjobsummary.view.HiringStageVie
 import com.hirelog.api.relation.application.memberjobsummary.view.MemberJobSummaryListView
 import com.hirelog.api.relation.application.view.*
 
+import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -140,19 +141,25 @@ class MemberJobSummaryController(
     @GetMapping
     fun getMySummaries(
         @RequestParam(required = false) saveType: MemberJobSummarySaveType?,
+        @RequestParam(required = false) brandName: String?,
+        @RequestParam(required = false) stage: HiringStage?,
+        @RequestParam(required = false) result: HiringStageResult?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
         @CurrentUser member: AuthenticatedMember
     ): ResponseEntity<PagedResult<MemberJobSummaryListView>> {
 
-        val result = readService.getMySummaries(
+        val summaries = readService.getMySummaries(
             memberId = member.memberId,
             saveType = saveType,
+            brandName = brandName,
+            stage = stage,
+            stageResult = result,
             page = page,
             size = size
         )
 
-        return ResponseEntity.ok(result)
+        return ResponseEntity.ok(summaries)
     }
 
     /**

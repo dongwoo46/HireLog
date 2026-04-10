@@ -122,6 +122,10 @@ export const router = createBrowserRouter([
             element: <JobSummaryArchivePage />,
           },
           {
+            path: 'my-jobs',
+            element: <JobSummaryArchivePage />,
+          },
+          {
             path: 'history',
             element: <JdListPage />,
           },

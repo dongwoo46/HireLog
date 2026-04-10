@@ -26,11 +26,42 @@ const JobSummaryListPage = () => {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const fetchMoreRef = useRef<() => void>(() => {});
 
+  const parseTechStacks = useCallback((): string[] | undefined => {
+    const raw = searchParams.get('techStacks');
+    if (!raw) return undefined;
+    const items = raw
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return items.length > 0 ? items : undefined;
+  }, [searchParams]);
+
+  const parseCsvParam = useCallback(
+    (key: string): string[] | undefined => {
+      const raw = searchParams.get(key);
+      if (!raw) return undefined;
+      const items = raw
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return items.length > 0 ? items : undefined;
+    },
+    [searchParams],
+  );
+
   const queryKey = useMemo(
     () =>
       JSON.stringify({
         keyword: searchParams.get('keyword') || '',
         careerType: searchParams.get('careerType') || '',
+        careerTypes: searchParams.get('careerTypes') || '',
+        brandName: searchParams.get('brandName') || '',
+        brandNames: searchParams.get('brandNames') || '',
+        positionCategoryName: searchParams.get('positionCategoryName') || '',
+        positionCategoryNames: searchParams.get('positionCategoryNames') || '',
+        positionName: searchParams.get('positionName') || '',
+        positionNames: searchParams.get('positionNames') || '',
+        techStacks: searchParams.get('techStacks') || '',
         sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
       }),
     [searchParams],
@@ -40,11 +71,19 @@ const JobSummaryListPage = () => {
     (cursor?: string | null): JobSummarySearchReq => ({
       keyword: searchParams.get('keyword') || undefined,
       careerType: (searchParams.get('careerType') as CareerType) || undefined,
+      careerTypes: parseCsvParam('careerTypes') as CareerType[] | undefined,
+      brandName: searchParams.get('brandName') || undefined,
+      brandNames: parseCsvParam('brandNames'),
+      positionCategoryName: searchParams.get('positionCategoryName') || undefined,
+      positionCategoryNames: parseCsvParam('positionCategoryNames'),
+      positionName: searchParams.get('positionName') || undefined,
+      positionNames: parseCsvParam('positionNames'),
+      techStacks: parseTechStacks(),
       sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
       size: 12,
       cursor: cursor || undefined,
     }),
-    [searchParams],
+    [searchParams, parseTechStacks, parseCsvParam],
   );
 
   // 검색 조건 변경 시 초기화 후 첫 페이지 로드
@@ -123,7 +162,7 @@ const JobSummaryListPage = () => {
         const result =
           sideFilter === 'SAVED'
             ? await jdSummaryService.getMySaves(0, 20)
-            : await jdSummaryService.getMyApplies(0, 20);
+            : await jdSummaryService.getMyApplies(0, 20, undefined);
         setSideJds(result.items || []);
       } catch (e) {
         console.error(e);
@@ -250,13 +289,26 @@ const JobSummaryListPage = () => {
             onSearch={(params) => {
               const nextParams = new URLSearchParams();
               Object.entries(params).forEach(([key, value]) => {
-                if (value) nextParams.set(key, value.toString());
+                if (!value) return;
+                if (Array.isArray(value)) {
+                  if (value.length > 0) nextParams.set(key, value.join(','));
+                  return;
+                }
+                nextParams.set(key, value.toString());
               });
               setSearchParams(nextParams);
             }}
             initialParams={{
               keyword: searchParams.get('keyword') || '',
               careerType: (searchParams.get('careerType') as CareerType) || undefined,
+              careerTypes: parseCsvParam('careerTypes') as CareerType[] | undefined,
+              brandName: searchParams.get('brandName') || undefined,
+              brandNames: parseCsvParam('brandNames'),
+              positionCategoryName: searchParams.get('positionCategoryName') || undefined,
+              positionCategoryNames: parseCsvParam('positionCategoryNames'),
+              positionName: searchParams.get('positionName') || undefined,
+              positionNames: parseCsvParam('positionNames'),
+              techStacks: parseTechStacks(),
               sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
             }}
           />

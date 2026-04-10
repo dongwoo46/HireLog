@@ -9,6 +9,8 @@ export interface BoardItem {
   content: string;
   authorUsername?: string | null;
   anonymous: boolean;
+  notice: boolean;
+  pinned: boolean;
   likeCount: number;
   commentCount: number;
   deleted: boolean;
@@ -21,6 +23,8 @@ export interface BoardWriteReq {
   content: string;
   anonymous: boolean;
   guestPassword?: string;
+  notice?: boolean;
+  pinned?: boolean;
 }
 
 export interface BoardLikeRes {
