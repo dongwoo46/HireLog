@@ -39,6 +39,7 @@ class JobSummaryReviewReadServiceTest {
     ) = JobSummaryReviewView(
         reviewId = reviewId,
         jobSummaryId = 1L,
+        companyName = "HireLog",
         brandPositionName = "Backend Engineer",
         anonymous = anonymous,
         memberId = memberId,

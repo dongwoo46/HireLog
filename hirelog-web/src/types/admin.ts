@@ -38,6 +38,7 @@ export interface AdminPagedResult<T> {
 export interface AdminReviewView {
     id: number;
     jobSummaryId: number;
+    companyName?: string | null;
     brandPositionName?: string | null;
     anonymous: boolean;
     memberId?: number;

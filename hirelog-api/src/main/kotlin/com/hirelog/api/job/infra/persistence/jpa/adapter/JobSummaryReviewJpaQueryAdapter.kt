@@ -158,6 +158,7 @@ class JobSummaryReviewJpaQueryAdapter(
                     JobSummaryReviewView::class.java,
                     review.id,
                     review.jobSummaryId,
+                    summary.companyName,
                     summary.brandPositionName,
                     review.anonymous,
                     review.memberId,
@@ -181,6 +182,7 @@ class JobSummaryReviewJpaQueryAdapter(
             .groupBy(
                 review.id,
                 review.jobSummaryId,
+                summary.companyName,
                 summary.brandPositionName,
                 review.anonymous,
                 review.memberId,

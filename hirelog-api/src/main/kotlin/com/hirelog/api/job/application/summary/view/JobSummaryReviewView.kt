@@ -9,6 +9,7 @@ import java.time.LocalDateTime
 data class JobSummaryReviewView(
     val reviewId: Long,
     val jobSummaryId: Long,
+    val companyName: String?,
     val brandPositionName: String?,
     val anonymous: Boolean,
     val memberId: Long?,
