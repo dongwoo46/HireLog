@@ -37,6 +37,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ─────────────────────────────────────────────────────────────────
+# Embedding 모델 사전 다운로드
+#  런타임 네트워크 없이 모델 로드 가능
+# ─────────────────────────────────────────────────────────────────
+ARG EMBEDDING_MODEL=jhgan/ko-sroberta-multitask
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBEDDING_MODEL}')"
+
+# ─────────────────────────────────────────────────────────────────
 # Playwright Chromium + 시스템 의존성 설치, apt 정리
 #  --with-deps: Chromium 바이너리 + libnss3 등 apt 패키지를 한 번에 처리
 #  같은 RUN 레이어에서 apt 리스트를 제거해 이미지 크기 최소화
@@ -95,4 +102,6 @@ ENV HOME=/app
 #   OCR_GRPC_PORT            - OCR ↔ TEXT/URL 프로세스 간 gRPC 포트 (기본: 50051)
 #   OCR_GRPC_HOST            - OCR gRPC 서버 호스트 (기본: localhost, 동일 컨테이너)
 # ─────────────────────────────────────────────────────────────────
+EXPOSE 8000
+
 CMD ["python", "src/main_kafka.py"]

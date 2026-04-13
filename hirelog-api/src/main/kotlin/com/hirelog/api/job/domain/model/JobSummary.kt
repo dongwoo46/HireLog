@@ -3,6 +3,8 @@ package com.hirelog.api.job.domain.model
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.common.infra.jpa.entity.VersionedEntity
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
 import jakarta.persistence.*
 
 /**
@@ -85,6 +87,24 @@ class JobSummary protected constructor(
      */
     @Column(name = "company_name", length = 200, updatable = false)
     var companyName: String? = null,
+
+    /**
+     * 회사 도메인 (LLM 추출)
+     * RAG aggregation/필터링용 keyword 필드
+     * 파싱 실패 시 OTHER
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "company_domain", nullable = false, length = 30, updatable = false)
+    val companyDomain: CompanyDomain = CompanyDomain.OTHER,
+
+    /**
+     * 회사 규모 (LLM 추출)
+     * 스타트업 단계 세분화 포함
+     * 판단 불가 시 UNKNOWN
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "company_size", nullable = false, length = 20, updatable = false)
+    val companySize: CompanySize = CompanySize.UNKNOWN,
 
     /**
      * 브랜드 기준 포지션 식별자
@@ -288,6 +308,8 @@ class JobSummary protected constructor(
             brandName: String,
             companyId: Long?,
             companyName: String?,
+            companyDomain: CompanyDomain,
+            companySize: CompanySize,
             positionId: Long,
             positionName: String,
             brandPositionId: Long,
@@ -313,6 +335,8 @@ class JobSummary protected constructor(
                 brandName = brandName,
                 companyId = companyId,
                 companyName = companyName,
+                companyDomain = companyDomain,
+                companySize = companySize,
                 positionId = positionId,
                 positionName = positionName,
                 brandPositionId = brandPositionId,

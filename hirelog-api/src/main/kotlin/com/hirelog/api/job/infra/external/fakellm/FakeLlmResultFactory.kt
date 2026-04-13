@@ -4,6 +4,8 @@ import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
 import com.hirelog.api.position.infra.persistence.jpa.repository.PositionJpaRepository
 import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
@@ -63,11 +65,16 @@ class FakeLlmResultFactory {
             else "On-call rotation"
         )
 
+        val domainValues = CompanyDomain.entries.filter { it != CompanyDomain.OTHER }
+        val sizeValues = CompanySize.entries.filter { it != CompanySize.UNKNOWN }
+
         return JobSummaryLlmResult(
             llmProvider = provider,
             brandName = "Brand-${seq % 200}",
             positionName = resolvedPosition,
             companyCandidate = "Company-${seq % 500}",
+            companyDomain = domainValues[(seq % domainValues.size).toInt()],
+            companySize = sizeValues[(seq % sizeValues.size).toInt()],
             careerType = careerType,
             careerYears = careerYears,
             summary = "Role: $resolvedPosition Batch-$seq",

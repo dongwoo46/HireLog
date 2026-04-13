@@ -56,8 +56,31 @@ object GeminiPromptBuilder {
               - companyCandidate: Keep official suffixes (e.g., "(주)카카오").
               - Use official Korean names for KR companies, English for Global.
             
+            companyDomain:
+            - Company's primary business domain
+            - Output MUST be one of these exact enum names (English):
+              FINTECH, E_COMMERCE, FOOD_DELIVERY, LOGISTICS, MOBILITY,
+              HEALTHCARE, EDTECH, GAME, MEDIA_CONTENT, SOCIAL_COMMUNITY,
+              TRAVEL_ACCOMMODATION, REAL_ESTATE, HR_RECRUITING, AD_MARKETING,
+              AI_ML, CLOUD_INFRA, SECURITY, ENTERPRISE_SW, BLOCKCHAIN_CRYPTO,
+              MANUFACTURING_IOT, PUBLIC_SECTOR, OTHER
+            - Use OTHER if domain cannot be determined
+
+            companySize:
+            - Estimated company scale based on JD context, brand recognition, job complexity
+            - Output MUST be one of these exact enum names (English):
+              SEED            (Pre-Seed/Seed, ~10명, 초기 탐색 단계)
+              EARLY_STARTUP   (Series A, 10~50명)
+              GROWTH_STARTUP  (Series B~C, 50~300명)
+              SCALE_UP        (Series C+/유니콘급, 300명+, 예: 토스·당근·컬리)
+              MID_SIZED       (중소/중견기업, 상장 중소기업 또는 전통 IT)
+              LARGE_CORP      (대기업, 예: 카카오·네이버·삼성SDS·LG CNS)
+              FOREIGN_CORP    (외국계, 예: Google Korea·Amazon·Microsoft)
+              UNKNOWN         (판단 불가)
+            - Use UNKNOWN if size cannot be determined
+
             careerType: "신입" | "경력" | "무관" | null
-            
+
             careerYears:
             - Original Korean expression (e.g., "3년 이상", "5~7년")
             - null if not stated
@@ -134,6 +157,8 @@ object GeminiPromptBuilder {
               "brandName": string,
               "positionName": string,
               "companyCandidate": string | null,
+              "companyDomain": "FINTECH"|"E_COMMERCE"|"FOOD_DELIVERY"|"LOGISTICS"|"MOBILITY"|"HEALTHCARE"|"EDTECH"|"GAME"|"MEDIA_CONTENT"|"SOCIAL_COMMUNITY"|"TRAVEL_ACCOMMODATION"|"REAL_ESTATE"|"HR_RECRUITING"|"AD_MARKETING"|"AI_ML"|"CLOUD_INFRA"|"SECURITY"|"ENTERPRISE_SW"|"BLOCKCHAIN_CRYPTO"|"MANUFACTURING_IOT"|"PUBLIC_SECTOR"|"OTHER",
+              "companySize": "SEED"|"EARLY_STARTUP"|"GROWTH_STARTUP"|"SCALE_UP"|"MID_SIZED"|"LARGE_CORP"|"FOREIGN_CORP"|"UNKNOWN",
               "careerType": "신입" | "경력" | "무관" | null,
               "careerYears": string | null,
               "summary": string | null,
@@ -155,13 +180,16 @@ object GeminiPromptBuilder {
             }
             
             All fields MUST be present in JSON.
-            If information is unavailable, set the value to null
+            companyDomain and companySize MUST always have a value (use OTHER / UNKNOWN if uncertain).
+            Other fields: if information is unavailable, set the value to null
             
             [Example]
             {
               "brandName": "토스",
               "positionName": "Backend Engineer",
               "companyCandidate": "(주)비바리퍼블리카",
+              "companyDomain": "FINTECH",
+              "companySize": "SCALE_UP",
               "careerType": "경력",
               "careerYears": "3년 이상",
               "summary": "결제 플랫폼 백엔드 API 설계 및 운영\nSpring Boot와 Kafka 기반 대규모 트랜잭션 처리\n결제 데이터 파이프라인 구축 및 모니터링",
@@ -202,4 +230,84 @@ object GeminiPromptBuilder {
             Please analyze this JD based on your system instructions and provide the JSON result.
         """.trimIndent()
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // RAG Parser 프롬프트
+    // ─────────────────────────────────────────────────────────────
+
+    fun buildRagParserSystemInstruction(): String = """
+        You are a query parser for a job-search RAG system.
+        Parse the user's natural language question into a structured JSON for backend execution.
+
+        [Intent Types]
+        - DOCUMENT_SEARCH: Find similar job postings ("이런 공고 찾아줘", "비슷한 포지션")
+        - SUMMARY: Summarize or explain job postings ("공고 내용 정리해줘")
+        - PATTERN_ANALYSIS: Analyze patterns across saved/applied jobs ("저장한 공고 공통점", "합격한 공고 특징")
+        - EXPERIENCE_ANALYSIS: Analyze user's own interview/application experience ("내 면접 경험 분석", "불합격 패턴")
+        - STATISTICS: Simple statistics about saved jobs ("몇 개 저장했어", "어떤 회사 많아")
+        - KEYWORD_SEARCH: Simple keyword search fallback
+
+        [semanticRetrieval]
+        true if: DOCUMENT_SEARCH, SUMMARY
+        false if: PATTERN_ANALYSIS, EXPERIENCE_ANALYSIS, STATISTICS, KEYWORD_SEARCH
+
+        [aggregation]
+        true if: PATTERN_ANALYSIS, STATISTICS
+
+        [baseline]
+        true if: PATTERN_ANALYSIS AND user asks "전체 대비", "평균 대비", "비교해줘"
+
+        [filters.saveType]
+        - "SAVED" if user says "저장한", "찜한"
+        - "APPLY" if user says "지원한", "지원 의사"
+        - null if not specified
+
+        [filters.stage]
+        Exact enum: DOCUMENT, CODING_TEST, INTERVIEW_1, INTERVIEW_2, INTERVIEW_FINAL, FINAL_OFFER
+        - "서류" → DOCUMENT
+        - "코딩테스트" → CODING_TEST
+        - "1차 면접" → INTERVIEW_1
+        - "2차 면접" → INTERVIEW_2
+        - "최종 면접" → INTERVIEW_FINAL
+        - "최종 합격" → FINAL_OFFER
+        - null if not specified
+
+        [filters.stageResult]
+        Exact enum: PASSED, FAILED, PENDING
+        - "합격" → PASSED
+        - "불합격" → FAILED
+        - null if not specified
+
+        [parsedText]
+        For DOCUMENT_SEARCH/SUMMARY: extract skill/role keywords as Korean text
+        For others: use the original question
+
+        [Output Format — valid JSON only]
+        {
+          "intent": "DOCUMENT_SEARCH|SUMMARY|PATTERN_ANALYSIS|EXPERIENCE_ANALYSIS|STATISTICS|KEYWORD_SEARCH",
+          "semanticRetrieval": boolean,
+          "aggregation": boolean,
+          "baseline": boolean,
+          "parsedText": string,
+          "filters": {
+            "saveType": "SAVED"|"APPLY"|null,
+            "stage": "DOCUMENT"|"CODING_TEST"|"INTERVIEW_1"|"INTERVIEW_2"|"INTERVIEW_FINAL"|"FINAL_OFFER"|null,
+            "stageResult": "PASSED"|"FAILED"|"PENDING"|null,
+            "careerType": "NEW"|"EXPERIENCED"|"BOTH"|null,
+            "companyDomain": string|null,
+            "techStacks": [string]|null,
+            "brandName": string|null,
+            "dateRangeFrom": "YYYY-MM-DD"|null,
+            "dateRangeTo": "YYYY-MM-DD"|null
+          }
+        }
+
+        All fields MUST be present. Unknown/unspecified values → null.
+    """.trimIndent()
+
+    fun buildRagParserPrompt(question: String): String = """
+        User question: "$question"
+
+        Parse this question according to your system instructions and return the JSON result.
+    """.trimIndent()
 }

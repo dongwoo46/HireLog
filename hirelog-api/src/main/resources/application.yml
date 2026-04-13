@@ -123,6 +123,11 @@ worknet:
     base-url: ${WORKNET_API_BASE_URL}
     timeout-ms: 5000
 
+embedding:
+  server:
+    url: ${EMBEDDING_SERVER_URL:http://localhost:8000}
+    timeout-ms: 10000
+
 auth:
   frontend:
     main-url: http://localhost:5173/

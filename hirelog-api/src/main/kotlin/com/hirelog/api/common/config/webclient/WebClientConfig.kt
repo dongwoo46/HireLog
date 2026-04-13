@@ -1,5 +1,6 @@
 package com.hirelog.api.common.config.webclient
 
+import com.hirelog.api.common.config.properties.EmbeddingServerProperties
 import com.hirelog.api.common.config.properties.WorknetApiProperties
 import com.hirelog.api.config.infra.webclient.WebClientFactory
 import org.springframework.context.annotation.Bean
@@ -8,7 +9,8 @@ import org.springframework.web.reactive.function.client.WebClient
 
 @Configuration
 class WebClientConfig(
-    private val worknetProps: WorknetApiProperties
+    private val worknetProps: WorknetApiProperties,
+    private val embeddingProps: EmbeddingServerProperties
 ) {
 
     /**
@@ -52,7 +54,18 @@ class WebClientConfig(
             poolName = "openai-pool",
             maxConnections = 50,
             responseTimeoutSec = 30,
-            maxInMemorySizeMb = 4, // GPT 응답 크기 고려
+            maxInMemorySizeMb = 4,
             userAgent = "HireLog-OpenAI/1.0"
+        )
+
+    @Bean("embeddingWebClient")
+    fun embeddingWebClient(): WebClient =
+        WebClientFactory.create(
+            baseUrl = embeddingProps.url,
+            poolName = "embedding-pool",
+            maxConnections = 20,
+            responseTimeoutSec = embeddingProps.timeoutMs / 1000,
+            maxInMemorySizeMb = 1,
+            userAgent = "HireLog-Embedding/1.0"
         )
 }

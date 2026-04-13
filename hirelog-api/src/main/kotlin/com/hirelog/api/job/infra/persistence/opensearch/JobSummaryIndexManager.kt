@@ -9,6 +9,8 @@ import org.opensearch.client.opensearch._types.analysis.Analyzer
 import org.opensearch.client.opensearch._types.analysis.CustomAnalyzer
 import org.opensearch.client.opensearch._types.mapping.DateProperty
 import org.opensearch.client.opensearch._types.mapping.KeywordProperty
+import org.opensearch.client.opensearch._types.mapping.KnnVectorMethod
+import org.opensearch.client.opensearch._types.mapping.KnnVectorProperty
 import org.opensearch.client.opensearch._types.mapping.LongNumberProperty
 import org.opensearch.client.opensearch._types.mapping.Property
 import org.opensearch.client.opensearch._types.mapping.TextProperty
@@ -152,12 +154,17 @@ class JobSummaryIndexManager(
             // === 기술스택 파싱 배열 (keyword) ===
             .properties(Fields.TECH_STACK_PARSED, keywordProperty())
 
-            // === 필터 필드 (keyword) ===
+            // === 필터/aggregation 필드 (keyword) ===
             .properties(Fields.CAREER_TYPE, keywordProperty())
             .properties(Fields.CAREER_YEARS, keywordProperty())
+            .properties(Fields.COMPANY_DOMAIN, keywordProperty())
+            .properties(Fields.COMPANY_SIZE, keywordProperty())
 
             // === 날짜 필드 ===
             .properties(Fields.CREATED_AT, dateProperty())
+
+            // === k-NN 벡터 필드 ===
+            .properties(Fields.EMBEDDING_VECTOR, knnVectorProperty())
 
             .build()
     }
@@ -187,6 +194,29 @@ class JobSummaryIndexManager(
      * - .english: english_analyzer (영어)
      * - .keyword: keyword (정확한 매칭/집계)
      */
+    /**
+     * k-NN 벡터 필드
+     *
+     * 모델: jhgan/ko-sroberta-multitask (768차원)
+     * spaceType: cosinesimil (normalize_embeddings=True 사용)
+     */
+    private fun knnVectorProperty(): Property {
+        return Property.of { p ->
+            p.knnVector(
+                KnnVectorProperty.Builder()
+                    .dimension(768)
+                    .method(
+                        KnnVectorMethod.Builder()
+                            .name("hnsw")
+                            .spaceType("cosinesimil")
+                            .engine("nmslib")
+                            .build()
+                    )
+                    .build()
+            )
+        }
+    }
+
     private fun searchableTextField(): Property {
         return Property.of { p ->
             p.text(TextProperty.Builder()

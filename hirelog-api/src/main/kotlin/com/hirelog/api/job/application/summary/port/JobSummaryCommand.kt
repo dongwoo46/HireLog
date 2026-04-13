@@ -45,4 +45,12 @@ interface JobSummaryCommand {
      * - post-llm 재시도/중복 처리 시 idempotent 보장
      */
     fun findByJobSnapshotId(jobSnapshotId: Long): JobSummary?
+
+    /**
+     * 전체 재인덱싱용 커서 기반 조회
+     *
+     * @param lastId 마지막으로 처리한 ID (0이면 처음부터)
+     * @param size 조회할 건수
+     */
+    fun findAllForReindex(lastId: Long, size: Int): List<JobSummary>
 }

@@ -246,6 +246,34 @@ def _run_text_url_process(
         proc_logger.info("Process exiting", extra={"proc":"text_url"})
 
 
+def _run_embedding_server() -> None:
+    """
+    임베딩 서버 프로세스
+
+    FastAPI + uvicorn (I/O-bound)
+    Spring에서 HTTP로 호출 → 벡터 반환
+    """
+    _init_process_logging()
+    proc_logger = logging.getLogger("process.embedding")
+    proc_logger.info("Starting embedding server")
+
+    import os
+    import uvicorn
+    from embedding.model import load_model
+
+    host = os.environ.get("EMBEDDING_SERVER_HOST", "0.0.0.0")
+    port = int(os.environ.get("EMBEDDING_SERVER_PORT", "8000"))
+
+    load_model()
+
+    uvicorn.run(
+        "embedding.main:app",
+        host=host,
+        port=port,
+        log_config=None,
+    )
+
+
 def main():
     """메인 진입점"""
     logger.info("Preprocess Pipeline starting")
@@ -292,7 +320,14 @@ def main():
     # Process 1: OCR (CPU-bound, 1 core)
     # Process 2: TEXT (CPU-bound, 메인 스레드)
     #            └─ URL (I/O-bound, 스레드)
+    # Process 3: Embedding Server (I/O-bound, FastAPI)
     # ==================================================
+    embedding_process = multiprocessing.Process(
+        target=_run_embedding_server,
+        name="embedding-process",
+        daemon=False,
+    )
+
     ocr_process = multiprocessing.Process(
         target=_run_ocr_process,
         args=(
@@ -344,7 +379,7 @@ def main():
     # ==================================================
     # 프로세스 시작
     # ==================================================
-    processes = [ocr_process, text_url_process]
+    processes = [ocr_process, text_url_process, embedding_process]
 
     for p in processes:
         p.start()

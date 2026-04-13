@@ -2,9 +2,12 @@ package com.hirelog.api.job.infra.persistence.opensearch
 
 import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
+import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryIndexConstants.Fields
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryIndexConstants.INDEX_NAME
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch.core.IndexRequest
+import org.opensearch.client.opensearch.core.SearchRequest
+import org.opensearch.client.opensearch._types.query_dsl.Query
 import org.springframework.stereotype.Component
 
 /**
@@ -100,6 +103,187 @@ class JobSummaryOpenSearchAdapter(
             throw e
         }
     }
+
+    /**
+     * 임베딩 벡터 누락 문서 조회
+     *
+     * embeddingVector 필드가 없는 문서를 조회하여 재임베딩 대상 반환
+     */
+    fun findMissingEmbedding(size: Int): List<EmbeddingCandidate> {
+        require(size in 1..500) { "size must be between 1 and 500" }
+
+        val request = SearchRequest.Builder()
+            .index(INDEX_NAME)
+            .query { q ->
+                q.bool { b ->
+                    b.mustNot { mn ->
+                        mn.exists { e -> e.field(Fields.EMBEDDING_VECTOR) }
+                    }
+                }
+            }
+            .source { s ->
+                s.filter { f ->
+                    f.includes(
+                        listOf(
+                            Fields.ID,
+                            Fields.RESPONSIBILITIES,
+                            Fields.REQUIRED_QUALIFICATIONS,
+                            Fields.PREFERRED_QUALIFICATIONS,
+                            Fields.IDEAL_CANDIDATE,
+                            Fields.MUST_HAVE_SIGNALS,
+                            Fields.TECHNICAL_CONTEXT
+                        )
+                    )
+                }
+            }
+            .size(size)
+            .build()
+
+        val response = openSearchClient.search(request, Map::class.java)
+
+        return response.hits().hits().mapNotNull { hit ->
+            val src = hit.source() ?: return@mapNotNull null
+            @Suppress("UNCHECKED_CAST")
+            val map = src as Map<String, Any?>
+            val id = (map[Fields.ID] as? Number)?.toLong() ?: return@mapNotNull null
+            EmbeddingCandidate(
+                id = id,
+                responsibilities = map[Fields.RESPONSIBILITIES] as? String ?: return@mapNotNull null,
+                requiredQualifications = map[Fields.REQUIRED_QUALIFICATIONS] as? String ?: return@mapNotNull null,
+                preferredQualifications = map[Fields.PREFERRED_QUALIFICATIONS] as? String,
+                idealCandidate = map[Fields.IDEAL_CANDIDATE] as? String,
+                mustHaveSignals = map[Fields.MUST_HAVE_SIGNALS] as? String,
+                technicalContext = map[Fields.TECHNICAL_CONTEXT] as? String
+            )
+        }
+    }
+
+    /**
+     * 임베딩 벡터만 부분 업데이트
+     */
+    fun updateEmbeddingVector(id: Long, vector: List<Float>) {
+        openSearchClient.update({ req ->
+            req.index(INDEX_NAME)
+                .id(id.toString())
+                .doc(mapOf(Fields.EMBEDDING_VECTOR to vector))
+        }, Map::class.java)
+
+        log.info("[OPENSEARCH_EMBEDDING_UPDATE] id={}", id)
+    }
+
+    data class EmbeddingCandidate(
+        val id: Long,
+        val responsibilities: String,
+        val requiredQualifications: String,
+        val preferredQualifications: String?,
+        val idealCandidate: String?,
+        val mustHaveSignals: String?,
+        val technicalContext: String?
+    )
+
+    /**
+     * k-NN 벡터 검색 (RAG 전용)
+     *
+     * 처리 흐름:
+     * 1. 쿼리 벡터 → k-NN 검색 (hnsw, cosinesimil)
+     * 2. 선택적 필터 (careerType, companyDomain 등) 적용
+     * 3. 반환 필드: id, score, brandName, positionName + JD/Insight 핵심 필드
+     *
+     * @param queryVector  쿼리 임베딩 벡터 (768차원)
+     * @param k            반환할 문서 수
+     * @param careerType   필터 (null이면 전체)
+     * @param companyDomain 필터 (null이면 전체)
+     */
+    fun searchByVector(
+        queryVector: List<Float>,
+        k: Int,
+        careerType: String? = null,
+        companyDomain: String? = null
+    ): List<KnnSearchResult> {
+        val filterClauses = buildList<Query> {
+            careerType?.let {
+                add(Query.of { q -> q.term { t -> t.field(Fields.CAREER_TYPE).value { v -> v.stringValue(it) } } })
+            }
+            companyDomain?.let {
+                add(Query.of { q -> q.term { t -> t.field(Fields.COMPANY_DOMAIN).value { v -> v.stringValue(it) } } })
+            }
+        }
+
+        val request = SearchRequest.Builder()
+            .index(INDEX_NAME)
+            .query { q ->
+                q.knn { knn ->
+                    knn.field(Fields.EMBEDDING_VECTOR)
+                        .vector(queryVector.toFloatArray())
+                        .k(k)
+                        .apply {
+                            if (filterClauses.isNotEmpty()) {
+                                filter(Query.of { fq -> fq.bool { b -> b.must(filterClauses) } })
+                            }
+                        }
+                }
+            }
+            .source { s ->
+                s.filter { f ->
+                    f.includes(
+                        listOf(
+                            Fields.ID, Fields.BRAND_NAME, Fields.POSITION_NAME,
+                            Fields.COMPANY_DOMAIN, Fields.COMPANY_SIZE,
+                            Fields.RESPONSIBILITIES, Fields.REQUIRED_QUALIFICATIONS,
+                            Fields.PREFERRED_QUALIFICATIONS, Fields.TECH_STACK_PARSED,
+                            Fields.IDEAL_CANDIDATE, Fields.MUST_HAVE_SIGNALS,
+                            Fields.TECHNICAL_CONTEXT, Fields.PREPARATION_FOCUS
+                        )
+                    )
+                }
+            }
+            .size(k)
+            .build()
+
+        val response = openSearchClient.search(request, Map::class.java)
+
+        return response.hits().hits().mapNotNull { hit ->
+            val src = hit.source() ?: return@mapNotNull null
+            @Suppress("UNCHECKED_CAST")
+            val map = src as Map<String, Any?>
+            val id = (map[Fields.ID] as? Number)?.toLong() ?: return@mapNotNull null
+            @Suppress("UNCHECKED_CAST")
+            val techStackParsed = (map[Fields.TECH_STACK_PARSED] as? List<String>)
+            KnnSearchResult(
+                id = id,
+                score = hit.score()?.toFloat() ?: 0f,
+                brandName = map[Fields.BRAND_NAME] as? String ?: "",
+                positionName = map[Fields.POSITION_NAME] as? String ?: "",
+                companyDomain = map[Fields.COMPANY_DOMAIN] as? String,
+                companySize = map[Fields.COMPANY_SIZE] as? String,
+                responsibilities = map[Fields.RESPONSIBILITIES] as? String ?: "",
+                requiredQualifications = map[Fields.REQUIRED_QUALIFICATIONS] as? String ?: "",
+                preferredQualifications = map[Fields.PREFERRED_QUALIFICATIONS] as? String,
+                techStackParsed = techStackParsed,
+                idealCandidate = map[Fields.IDEAL_CANDIDATE] as? String,
+                mustHaveSignals = map[Fields.MUST_HAVE_SIGNALS] as? String,
+                technicalContext = map[Fields.TECHNICAL_CONTEXT] as? String,
+                preparationFocus = map[Fields.PREPARATION_FOCUS] as? String
+            )
+        }
+    }
+
+    data class KnnSearchResult(
+        val id: Long,
+        val score: Float,
+        val brandName: String,
+        val positionName: String,
+        val companyDomain: String?,
+        val companySize: String?,
+        val responsibilities: String,
+        val requiredQualifications: String,
+        val preferredQualifications: String?,
+        val techStackParsed: List<String>?,
+        val idealCandidate: String?,
+        val mustHaveSignals: String?,
+        val technicalContext: String?,
+        val preparationFocus: String?
+    )
 
     /**
      * 벌크 인덱싱 (향후 배치 처리용)
