@@ -88,6 +88,7 @@ class JobSummaryIndexManager(
         return IndexSettings.Builder()
             .numberOfShards("1")
             .numberOfReplicas("0")
+            .knn(true)
             .analysis(buildAnalysis())
             .build()
     }

@@ -62,6 +62,9 @@ class MemberJobSummaryJpaQueryDsl(
                 memberJobSummary.brandPositionName,
                 memberJobSummary.positionCategoryName,
                 memberJobSummary.saveType,
+                memberJobSummary.careerType,
+                memberJobSummary.companyDomain,
+                memberJobSummary.companySize,
                 memberJobSummary.createdAt
             )
             .from(memberJobSummary)
@@ -85,6 +88,9 @@ class MemberJobSummaryJpaQueryDsl(
                 brandPositionName = tuple[memberJobSummary.brandPositionName]!!,
                 positionCategoryName = tuple[memberJobSummary.positionCategoryName]!!,
                 saveType = tuple[memberJobSummary.saveType]!!,
+                careerType = tuple[memberJobSummary.careerType],
+                companyDomain = tuple[memberJobSummary.companyDomain],
+                companySize = tuple[memberJobSummary.companySize],
                 createdAt = tuple[memberJobSummary.createdAt]!!
             )
         }

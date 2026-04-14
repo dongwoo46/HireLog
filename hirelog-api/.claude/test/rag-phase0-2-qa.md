@@ -292,7 +292,7 @@ OpenSearch에 직접 쿼리로 동작 확인.
 
 ```bash
 # 1) 임베딩 서버에서 벡터 추출
-curl -X POST http://localhost:8001/embed/query \
+curl -X POST http://localhost:8000/embed/query \
   -H "Content-Type: application/json" \
   -d '{"text": "Kotlin Spring Boot 백엔드 개발자"}'
 ```

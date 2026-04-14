@@ -57,6 +57,16 @@ def embed(req: EmbedRequest) -> EmbedResponse:
     return EmbedResponse(vector=vector, dim=len(vector), model=config.model_name)
 
 
+class HealthResponse(BaseModel):
+    status: str
+    model: str
+
+
+@router.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse(status="ok", model=config.model_name)
+
+
 class QueryEmbedRequest(BaseModel):
     text: str
 

@@ -4,3 +4,11 @@
 
 ALTER TABLE job_summary ADD COLUMN company_domain VARCHAR(30) NOT NULL DEFAULT 'OTHER';
 ALTER TABLE job_summary ADD COLUMN company_size   VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN';
+
+-- member_job_summary 비정규화 스냅샷 필드 추가
+-- 내 공고 목록 응답에 career_type, company_domain, company_size 포함
+
+ALTER TABLE member_job_summary
+    ADD COLUMN career_type    VARCHAR(20),
+    ADD COLUMN company_domain VARCHAR(30),
+    ADD COLUMN company_size   VARCHAR(20);
