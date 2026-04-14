@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { TbBriefcase, TbBuilding, TbCategory, TbSearch } from 'react-icons/tb';
+import { TbBriefcase, TbBuilding, TbCategory, TbSearch, TbUsers, TbWorld } from 'react-icons/tb';
 import { jdSummaryService, type SearchOptionItem } from '../services/jdSummaryService';
 import type { JobSummarySearchReq } from '../types/jobSummary';
 import { Modal } from './common/Modal';
@@ -17,6 +17,42 @@ const normalizeList = (values?: string[]) =>
     .map((value) => value.trim())
     .filter(Boolean)
     .filter((value, index, array) => array.indexOf(value) === index);
+
+const COMPANY_DOMAIN_OPTIONS = [
+  { value: 'FINTECH', label: '핀테크' },
+  { value: 'E_COMMERCE', label: '이커머스' },
+  { value: 'FOOD_DELIVERY', label: '배달/음식' },
+  { value: 'LOGISTICS', label: '물류/배송' },
+  { value: 'MOBILITY', label: '모빌리티' },
+  { value: 'HEALTHCARE', label: '헬스케어' },
+  { value: 'EDTECH', label: '에듀테크' },
+  { value: 'GAME', label: '게임' },
+  { value: 'MEDIA_CONTENT', label: '미디어/콘텐츠' },
+  { value: 'SOCIAL_COMMUNITY', label: '소셜/커뮤니티' },
+  { value: 'TRAVEL_ACCOMMODATION', label: '여행/숙박' },
+  { value: 'REAL_ESTATE', label: '부동산' },
+  { value: 'HR_RECRUITING', label: 'HR/채용' },
+  { value: 'AD_MARKETING', label: '광고/마케팅' },
+  { value: 'AI_ML', label: 'AI/ML' },
+  { value: 'CLOUD_INFRA', label: '클라우드/인프라' },
+  { value: 'SECURITY', label: '보안' },
+  { value: 'ENTERPRISE_SW', label: '엔터프라이즈 SW' },
+  { value: 'BLOCKCHAIN_CRYPTO', label: '블록체인/크립토' },
+  { value: 'MANUFACTURING_IOT', label: '제조/IoT' },
+  { value: 'PUBLIC_SECTOR', label: '공공' },
+  { value: 'OTHER', label: '기타' },
+] as const;
+
+const COMPANY_SIZE_OPTIONS = [
+  { value: 'SEED', label: '시드 스타트업' },
+  { value: 'EARLY_STARTUP', label: '초기 스타트업' },
+  { value: 'GROWTH_STARTUP', label: '성장 스타트업' },
+  { value: 'SCALE_UP', label: '스케일업' },
+  { value: 'MID_SIZED', label: '중소/중견기업' },
+  { value: 'LARGE_CORP', label: '대기업' },
+  { value: 'FOREIGN_CORP', label: '외국계' },
+  { value: 'UNKNOWN', label: '확인불가' },
+] as const;
 
 export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
   isOpen,
@@ -55,6 +91,14 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
     [localFilters.positionNames, localFilters.positionName],
   );
   const selectedTechStacks = useMemo(() => normalizeList(localFilters.techStacks), [localFilters.techStacks]);
+  const selectedCompanyDomains = useMemo(
+    () => normalizeList(localFilters.companyDomains),
+    [localFilters.companyDomains],
+  );
+  const selectedCompanySizes = useMemo(
+    () => normalizeList(localFilters.companySizes),
+    [localFilters.companySizes],
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -129,7 +173,16 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
     return () => clearTimeout(timer);
   }, [isOpen, techStackQuery]);
 
-  const toggleStringList = (key: 'brandNames' | 'positionCategoryNames' | 'positionNames' | 'techStacks', value: string) => {
+  const toggleStringList = (
+    key:
+      | 'brandNames'
+      | 'positionCategoryNames'
+      | 'positionNames'
+      | 'techStacks'
+      | 'companyDomains'
+      | 'companySizes',
+    value: string,
+  ) => {
     const target = value.trim();
     if (!target) return;
 
@@ -168,6 +221,8 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
       positionCategoryNames: selectedCategoryNames.length > 0 ? selectedCategoryNames : undefined,
       positionNames: selectedPositionNames.length > 0 ? selectedPositionNames : undefined,
       techStacks: selectedTechStacks.length > 0 ? selectedTechStacks : undefined,
+      companyDomains: selectedCompanyDomains.length > 0 ? selectedCompanyDomains : undefined,
+      companySizes: selectedCompanySizes.length > 0 ? selectedCompanySizes : undefined,
     };
 
     onApply(payload);
@@ -235,6 +290,22 @@ export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
             options={techStackOptions}
             loading={techStackLoading}
             onToggle={(name) => toggleStringList('techStacks', name)}
+          />
+        </FilterSection>
+
+        <FilterSection title="회사 도메인" icon={<TbWorld />}>
+          <StaticMultiPicker
+            options={COMPANY_DOMAIN_OPTIONS}
+            selectedValues={selectedCompanyDomains}
+            onToggle={(value) => toggleStringList('companyDomains', value)}
+          />
+        </FilterSection>
+
+        <FilterSection title="회사 규모" icon={<TbUsers />}>
+          <StaticMultiPicker
+            options={COMPANY_SIZE_OPTIONS}
+            selectedValues={selectedCompanySizes}
+            onToggle={(value) => toggleStringList('companySizes', value)}
           />
         </FilterSection>
       </div>
@@ -345,6 +416,56 @@ const SearchableMultiPicker = ({
             {value}
           </button>
         ))}
+      </div>
+    )}
+  </div>
+);
+
+const StaticMultiPicker = ({
+  options,
+  selectedValues,
+  onToggle,
+}: {
+  options: ReadonlyArray<{ value: string; label: string }>;
+  selectedValues: string[];
+  onToggle: (value: string) => void;
+}) => (
+  <div className="space-y-3">
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const selected = selectedValues.includes(option.value);
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onToggle(option.value)}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+              selected
+                ? 'border-[#3FB6B2] bg-[#3FB6B2]/10 text-[#2b8f8c]'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-[#3FB6B2]/40 hover:text-[#2b8f8c]'
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+
+    {selectedValues.length > 0 && (
+      <div className="flex flex-wrap gap-2">
+        {selectedValues.map((value) => {
+          const label = options.find((option) => option.value === value)?.label || value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onToggle(value)}
+              className="rounded-lg border border-[#3FB6B2] bg-[#3FB6B2]/10 px-3 py-1 text-xs font-semibold text-[#2b8f8c]"
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
     )}
   </div>

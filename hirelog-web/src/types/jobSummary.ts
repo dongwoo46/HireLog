@@ -29,6 +29,8 @@ export interface JobSummarySearchReq {
   positionCategoryNames?: string[];
 
   techStacks?: string[];
+  companyDomains?: string[];
+  companySizes?: string[];
   sortBy?: string; // e.g., "CREATED_AT_DESC"
   cursor?: string;
   size?: number;
@@ -39,6 +41,8 @@ export interface JobSummaryView {
   id: number;
   brandName: string;
   brandPositionName: string;
+  companyDomain?: string;
+  companySize?: string;
   positionName?: string;
   positionCategoryName?: string;
   careerType: CareerType;
@@ -185,6 +189,9 @@ export interface MemberJobSummaryListItem {
   positionName: string;
   brandPositionName: string;
   positionCategoryName: string;
+  careerType?: CareerType;
+  companyDomain?: string;
+  companySize?: string;
   saveType: MemberJobSummarySaveType;
   createdAt: string;
 }

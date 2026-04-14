@@ -7,6 +7,48 @@ import { JobSummaryCard } from '../components/JobSummaryCard';
 import { JobSummarySearch } from '../components/JobSummarySearch';
 import { useAuthStore } from '../store/authStore';
 
+const CAREER_TYPE_LABELS: Record<string, string> = {
+  NEW: '신입',
+  EXPERIENCED: '경력',
+  ANY: '무관',
+};
+
+const COMPANY_DOMAIN_LABELS: Record<string, string> = {
+  FINTECH: '핀테크',
+  E_COMMERCE: '이커머스',
+  FOOD_DELIVERY: '배달/음식',
+  LOGISTICS: '물류/배송',
+  MOBILITY: '모빌리티',
+  HEALTHCARE: '헬스케어',
+  EDTECH: '에듀테크',
+  GAME: '게임',
+  MEDIA_CONTENT: '미디어/콘텐츠',
+  SOCIAL_COMMUNITY: '소셜/커뮤니티',
+  TRAVEL_ACCOMMODATION: '여행/숙박',
+  REAL_ESTATE: '부동산',
+  HR_RECRUITING: 'HR/채용',
+  AD_MARKETING: '광고/마케팅',
+  AI_ML: 'AI/ML',
+  CLOUD_INFRA: '클라우드/인프라',
+  SECURITY: '보안',
+  ENTERPRISE_SW: '엔터프라이즈 SW',
+  BLOCKCHAIN_CRYPTO: '블록체인/크립토',
+  MANUFACTURING_IOT: '제조/IoT',
+  PUBLIC_SECTOR: '공공',
+  OTHER: '기타',
+};
+
+const COMPANY_SIZE_LABELS: Record<string, string> = {
+  SEED: '시드 스타트업',
+  EARLY_STARTUP: '초기 스타트업',
+  GROWTH_STARTUP: '성장 스타트업',
+  SCALE_UP: '스케일업',
+  MID_SIZED: '중소/중견기업',
+  LARGE_CORP: '대기업',
+  FOREIGN_CORP: '외국계',
+  UNKNOWN: '확인불가',
+};
+
 const JobSummaryListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuthStore();
@@ -62,6 +104,8 @@ const JobSummaryListPage = () => {
         positionName: searchParams.get('positionName') || '',
         positionNames: searchParams.get('positionNames') || '',
         techStacks: searchParams.get('techStacks') || '',
+        companyDomains: searchParams.get('companyDomains') || '',
+        companySizes: searchParams.get('companySizes') || '',
         sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
       }),
     [searchParams],
@@ -79,6 +123,8 @@ const JobSummaryListPage = () => {
       positionName: searchParams.get('positionName') || undefined,
       positionNames: parseCsvParam('positionNames'),
       techStacks: parseTechStacks(),
+      companyDomains: parseCsvParam('companyDomains'),
+      companySizes: parseCsvParam('companySizes'),
       sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
       size: 12,
       cursor: cursor || undefined,
@@ -260,6 +306,21 @@ const JobSummaryListPage = () => {
                   <a href={`/jd/${jd.id}`} className="block">
                     <p className="text-sm font-bold text-gray-900">{jd.brandName}</p>
                     <p className="mt-1 text-xs text-gray-500">{jd.brandPositionName}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
+                        {CAREER_TYPE_LABELS[jd.careerType] ?? jd.careerType}
+                      </span>
+                      {jd.companyDomain && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                          {COMPANY_DOMAIN_LABELS[jd.companyDomain] ?? jd.companyDomain}
+                        </span>
+                      )}
+                      {jd.companySize && (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                          {COMPANY_SIZE_LABELS[jd.companySize] ?? jd.companySize}
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-2 text-[11px] text-gray-400">
                       {jd.createdAt ? new Date(jd.createdAt).toLocaleDateString() : ''}
                     </p>
@@ -309,6 +370,8 @@ const JobSummaryListPage = () => {
               positionName: searchParams.get('positionName') || undefined,
               positionNames: parseCsvParam('positionNames'),
               techStacks: parseTechStacks(),
+              companyDomains: parseCsvParam('companyDomains'),
+              companySizes: parseCsvParam('companySizes'),
               sortBy: searchParams.get('sortBy') || 'CREATED_AT_DESC',
             }}
           />

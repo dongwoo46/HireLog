@@ -1,4 +1,4 @@
-﻿import { apiClient } from '../utils/apiClient';
+import { apiClient } from '../utils/apiClient';
 import type {
   AdminJobSummaryDirectCreateReq,
   AdminJobSummaryView,
@@ -45,6 +45,20 @@ export const adminService = {
   createJobSummaryDirectly: async (payload: AdminJobSummaryDirectCreateReq): Promise<{ summaryId: number }> => {
     const response = await apiClient.post('/admin/job-summary/direct', payload);
     return response.data;
+  },
+
+  reindexAllJobSummaries: async (batchSize = 50): Promise<number> => {
+    const response = await apiClient.post<{ successCount: number }>('/admin/job-summary/reindex-all', null, {
+      params: { batchSize },
+    });
+    return response.data.successCount;
+  },
+
+  reindexMissingEmbeddings: async (batchSize = 50): Promise<number> => {
+    const response = await apiClient.post<{ successCount: number }>('/admin/job-summary/reindex-embedding', null, {
+      params: { batchSize },
+    });
+    return response.data.successCount;
   },
 
   getAllJobSummaries: async (

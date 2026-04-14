@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import type { ElementType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -68,6 +68,44 @@ const reviewDefaultForm: ReviewWriteReq = {
   tip: '',
 };
 const REVIEW_MIN_TEXT_LENGTH = 10;
+
+const DOMAIN_LABELS: Record<string, string> = {
+  FINTECH: '핀테크',
+  E_COMMERCE: '이커머스',
+  FOOD_DELIVERY: '푸드/배달',
+  LOGISTICS: '물류/유통',
+  MOBILITY: '모빌리티',
+  HEALTHCARE: '헬스케어',
+  EDTECH: '에듀테크',
+  GAME: '게임',
+  MEDIA_CONTENT: '미디어/콘텐츠',
+  SOCIAL_COMMUNITY: '소셜/커뮤니티',
+  TRAVEL_ACCOMMODATION: '여행/숙박',
+  REAL_ESTATE: '부동산',
+  HR_RECRUITING: 'HR/채용',
+  AD_MARKETING: '광고/마케팅',
+  AI_ML: 'AI/ML',
+  CLOUD_INFRA: '클라우드/인프라',
+  SECURITY: '보안',
+  ENTERPRISE_SW: '엔터프라이즈 SW',
+  BLOCKCHAIN_CRYPTO: '블록체인/크립토',
+  MANUFACTURING_IOT: '제조/IoT',
+  PUBLIC_SECTOR: '공공',
+  OTHER: '기타',
+};
+
+const SIZE_LABELS: Record<string, string> = {
+  SEED: '시드 단계',
+  EARLY_STARTUP: '초기 스타트업',
+  GROWTH_STARTUP: '성장 스타트업',
+  SCALE_UP: '스케일업',
+  MID_SIZED: '중견/중소 기업',
+  LARGE_CORP: '대기업',
+  FOREIGN_CORP: '외국계',
+  UNKNOWN: '확인 불가',
+};
+
+const shouldShowSize = (value?: string) => value === 'LARGE_CORP' || value === 'UNKNOWN';
 
 const JobSummaryDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -482,6 +520,16 @@ const JobSummaryDetailPage = () => {
         <div className="mb-10 rounded-3xl bg-gradient-to-r from-[#3FB6B2] to-[#6EC8A7] p-8 text-white shadow-lg">
           <h1 className="mb-1 text-3xl font-black">{jd.brandName}</h1>
           <h2 className="text-lg font-semibold">{jd.brandPositionName}</h2>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-white/95">
+            <span className="rounded-full border border-white/35 bg-white/10 px-3 py-1">
+              {jd.companyDomain ? (DOMAIN_LABELS[jd.companyDomain] ?? jd.companyDomain) : '-'}
+            </span>
+            {shouldShowSize(jd.companySize) && (
+              <span className="rounded-full border border-white/35 bg-white/10 px-3 py-1">
+                {jd.companySize ? (SIZE_LABELS[jd.companySize] ?? jd.companySize) : '-'}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mb-8 flex gap-6 border-b text-sm font-bold">
