@@ -5,6 +5,8 @@ import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import com.hirelog.api.common.domain.LlmProvider
@@ -41,6 +43,8 @@ class LlmInvocationServiceTest {
         brandName = "Toss",
         positionName = "Backend Engineer",
         companyCandidate = null,
+        companyDomain = CompanyDomain.OTHER,
+        companySize = CompanySize.UNKNOWN,
         careerType = CareerType.EXPERIENCED,
         careerYears = "3년 이상",
         summary = "요약",

@@ -125,7 +125,7 @@ worknet:
 
 embedding:
   server:
-    url: ${EMBEDDING_SERVER_URL:http://localhost:8000}
+    url: ${EMBEDDING_SERVER_URL}
     timeout-ms: 10000
 
 auth:

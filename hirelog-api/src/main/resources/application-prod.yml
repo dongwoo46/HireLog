@@ -67,7 +67,7 @@ hirelog:
 # application-prod.yml
 app:
   storage:
-    base-dir: /data/hirelog/storage
+    base-dir: /tmp/hirelog/storage
 
 logging:
   level:

@@ -1,34 +1,34 @@
 import re
 
+# Meaningful chars: English, number, Korean syllables.
 _MEANING_CHAR_RE = re.compile(r"[A-Za-z0-9가-힣]")
+# Special chars (exclude whitespace and meaningful chars).
 _SPECIAL_CHAR_RE = re.compile(r"[^A-Za-z0-9가-힣\s]")
 
 
 def _is_obviously_broken(line: str) -> bool:
     """
-    형태 기준으로 '의미가 거의 없는' 라인인지 판별
+    Decide whether a line is clearly damaged/noisy.
+    Keep this conservative to avoid dropping valid JD lines.
     """
-
     stripped = line.strip()
     if not stripped:
-        return False  # 빈 줄은 구조 신호 → 제거 금지
+        return False
 
-    # 1️⃣ 매우 짧은 라인
-    if len(stripped) <= 3:
-        # 의미 문자가 거의 없으면 제거 후보
-        if not _MEANING_CHAR_RE.search(stripped):
-            return True
+    # Very short non-meaningful line.
+    if len(stripped) <= 3 and not _MEANING_CHAR_RE.search(stripped):
+        return True
 
-    # 2️⃣ 의미 문자 비율
     total_len = len(stripped)
     meaning_count = len(_MEANING_CHAR_RE.findall(stripped))
 
+    # Too few meaningful chars in longer lines.
     if total_len >= 5:
         ratio = meaning_count / total_len
         if ratio < 0.3:
             return True
 
-    # 3️⃣ 특수문자 폭주
+    # Too many special chars.
     special_count = len(_SPECIAL_CHAR_RE.findall(stripped))
     if total_len >= 5 and (special_count / total_len) > 0.6:
         return True
@@ -37,19 +37,11 @@ def _is_obviously_broken(line: str) -> bool:
 
 
 def guard_text_damage(lines: list[str]) -> list[str]:
-    """
-    Core Preprocessing - Text Damage Guard
-
-    정책:
-    - 명백히 무의미한 라인만 제거
-    - 나머지는 전부 보존
-    """
-
+    """Filter out only clearly broken lines."""
     guarded: list[str] = []
-
     for line in lines:
         if _is_obviously_broken(line):
             continue
         guarded.append(line)
-
     return guarded
+

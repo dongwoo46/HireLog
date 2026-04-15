@@ -107,6 +107,58 @@ class GeminiJobSummaryLlm(
             }
     }
 
+    override fun summarizeFromImagesAsync(
+        brandName: String,
+        positionName: String,
+        positionCandidates: List<String>,
+        existCompanies: List<String>,
+        images: List<String>
+    ): CompletableFuture<JobSummaryLlmResult> {
+
+        val sample = Timer.start()
+
+        val prompt = GeminiPromptBuilder.buildJobSummaryFromImagesPrompt(
+            brandName = brandName,
+            positionName = positionName,
+            positionCandidates = positionCandidates,
+            existCompanies = existCompanies
+        )
+
+        val rateLimitedSupplier = RateLimiter.decorateCompletionStage(rateLimiter) {
+            geminiClient.generateContentWithImagesAsync(
+                systemInstruction = GeminiPromptBuilder.buildSystemInstruction(),
+                prompt = prompt,
+                images = images
+            )
+        }
+        val decoratedSupplier = circuitBreaker.decorateCompletionStage {
+            rateLimitedSupplier.get()
+        }
+
+        return decoratedSupplier.get()
+            .toCompletableFuture()
+            .handle { rawText, callEx ->
+
+                if (callEx != null) {
+                    failCounter.increment()
+                    sample.stop(latencyTimer)
+                    throw GeminiCallException(unwrap(callEx))
+                }
+
+                try {
+                    val rawResult = responseParser.parseRawJobSummary(rawText)
+                    val result = assembler.assemble(raw = rawResult, provider = LlmProvider.GEMINI)
+                    successCounter.increment()
+                    sample.stop(latencyTimer)
+                    result
+                } catch (ex: Exception) {
+                    failCounter.increment()
+                    sample.stop(latencyTimer)
+                    throw GeminiParseException(ex)
+                }
+            }
+    }
+
     private fun unwrap(ex: Throwable): Throwable =
         if (ex is CompletionException) ex.cause ?: ex else ex
 }

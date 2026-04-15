@@ -35,6 +35,8 @@ class JobSummaryReadServiceTest {
         brandPositionName = "Backend Engineer",
         positionCategoryName = "Engineering",
         careerType = "EXPERIENCED",
+        companyDomain = null,
+        companySize = null,
         summaryText = "요약",
         techStackParsed = listOf("Kotlin"),
         createdAt = LocalDateTime.now()

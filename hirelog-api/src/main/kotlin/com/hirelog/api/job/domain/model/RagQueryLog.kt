@@ -60,7 +60,7 @@ class RagQueryLog protected constructor(
      * Executor가 수집한 컨텍스트 (RagContext JSON)
      *
      * documents    : 검색된 공고 목록 (DOCUMENT_SEARCH / SUMMARY)
-     * aggregations : 기술스택/도메인/규모 집계 (STATISTICS / PATTERN_ANALYSIS)
+     * aggregations : 기술스택/도메인/규모 집계 (STATISTICS)
      * textFeatures : LLM Feature Extractor 추출 정성 특징 (STATISTICS + cohort)
      * stageRecords : 사용자 전형 경험 기록 (EXPERIENCE_ANALYSIS)
      */

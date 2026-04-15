@@ -170,6 +170,20 @@ def detect_semantic_zone(header: str | None) -> str:
         return "others"
 
     h = header  # _matches_keywords에서 정규화 처리
+    h_norm = _normalize_for_match(h)
+
+    # Hard fallback rules for common KR headers.
+    # (Used when keyword resources are noisy or partial.)
+    if any(k in h_norm for k in ("주요업무", "담당업무", "업무내용", "직무")):
+        return "responsibilities"
+    if any(k in h_norm for k in ("자격요건", "필수요건", "지원자격", "요구사항")):
+        return "requirements"
+    if any(k in h_norm for k in ("우대사항", "우대조건", "가산점")):
+        return "preferred"
+    if any(k in h_norm for k in ("기술스택", "techstack", "stack", "skills")):
+        return "skills"
+    if any(k in h_norm for k in ("채용절차", "전형절차", "채용과정")):
+        return "process"
 
     # 1️⃣ 주요 업무 / 역할
     # JD에서 가장 핵심 영역이므로 최우선 판별

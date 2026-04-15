@@ -30,12 +30,14 @@ interface RagLlmComposer {
  * aggregations: techStack/companyDomain/companySize 집계 결과 (STATISTICS)
  * textFeatures: cohort 문서에서 LLM이 추출한 정성적 특징 (STATISTICS + cohort 조건)
  * stageRecords: HiringStageRecord 원문 (EXPERIENCE_ANALYSIS)
+ * reviewRecords: JobSummaryReview 원문 (EXPERIENCE_ANALYSIS)
  */
 data class RagContext(
     val documents: List<RagDocument> = emptyList(),
     val aggregations: List<AggregationEntry> = emptyList(),
     val textFeatures: List<TextFeature> = emptyList(),
-    val stageRecords: List<RagStageRecord> = emptyList()
+    val stageRecords: List<RagStageRecord> = emptyList(),
+    val reviewRecords: List<RagReviewRecord> = emptyList()
 )
 
 data class RagDocument(
@@ -74,4 +76,15 @@ data class RagStageRecord(
     val stage: String,
     val note: String,
     val result: String?
+)
+
+data class RagReviewRecord(
+    val brandName: String,
+    val positionName: String,
+    val hiringStage: String,
+    val difficultyRating: Int,
+    val satisfactionRating: Int,
+    val prosComment: String,
+    val consComment: String,
+    val tip: String?
 )

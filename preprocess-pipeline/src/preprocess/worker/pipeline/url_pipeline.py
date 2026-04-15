@@ -17,6 +17,10 @@ from url.preprocessor import get_platform_module, preprocess_url_text
 
 logger = logging.getLogger(__name__)
 
+_ZERO_WIDTH_CHARS = "".join(chr(cp) for cp in (0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF))
+_ZERO_WIDTH_RE = re.compile(f"[{re.escape(_ZERO_WIDTH_CHARS)}]")
+_BULLET_PREFIX_RE = re.compile(r"^[\s\-*•]+")
+
 
 class UrlPipeline:
     def __init__(self):
@@ -115,7 +119,7 @@ class UrlPipeline:
                             "fetched_length": len(html_content),
                             "parsed_length": 0,
                         },
-                        "canonical_map": ocr_only,
+                        "canonical_map": self.canonical.to_jobsummary_canonical_map(ocr_only),
                         "document_meta": None,
                     }
 
@@ -189,6 +193,7 @@ class UrlPipeline:
         canonical_map = self._normalize_intake_required_canonical(canonical_map)
         if effective_platform == JobPlatform.JOBKOREA:
             canonical_map = self.jobkorea_support.ocr_fallback_merge(canonical_map, ocr_images)
+        canonical_map = self.canonical.to_jobsummary_canonical_map(canonical_map)
 
         # 8) Done
         logger.info(
@@ -243,7 +248,7 @@ class UrlPipeline:
         )
 
         def normalize_text(text: str) -> str:
-            s = re.sub(r"[\u200B-\u200D\u2060\uFEFF]", "", text or "")
+            s = _ZERO_WIDTH_RE.sub("", text or "")
             s = re.sub(r"\s+", " ", s).strip().lower()
             return s
 
@@ -251,7 +256,7 @@ class UrlPipeline:
             return normalize_text(text).replace(" ", "")
 
         def strip_bullet(text: str) -> str:
-            return re.sub(r"^[\s\-\*\u2022•]+", "", text or "").strip()
+            return _BULLET_PREFIX_RE.sub("", text or "").strip()
 
         resp_markers = ("주요업무", "담당업무", "responsibilities", "whatyouwilldo", "role")
         req_markers = ("자격요건", "지원자격", "requirements", "qualifications", "musthave", "required")
@@ -370,7 +375,7 @@ class UrlPipeline:
                     continue
                 if is_stop_header(line):
                     continue
-                s = re.sub(r"[\u200B-\u200D\u2060\uFEFF]", "", (line or ""))
+                s = _ZERO_WIDTH_RE.sub("", (line or ""))
                 s = re.sub(r"\s+", " ", s).strip()
                 if len(s) < 2:
                     continue

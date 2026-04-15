@@ -87,6 +87,7 @@ class OcrPipeline:
 
         # 5️⃣ Canonical 후처리 (Semantic → Filter → Canonical)
         canonical_map = self.canonical.process(sections)
+        canonical_map = self.canonical.to_jobsummary_canonical_map(canonical_map)
 
         # 6️⃣ 최종 결과
         logger.info(

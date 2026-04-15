@@ -8,6 +8,8 @@ import com.hirelog.api.job.infrastructure.external.gemini.GeminiPromptBuilder
 import com.hirelog.api.job.presentation.controller.dto.request.GeminiPromptPreviewReq
 import com.hirelog.api.job.presentation.controller.dto.response.GeminiPromptRes
 import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryAdminCreateReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryAdminCreateFromUrlReq
+import com.hirelog.api.job.presentation.controller.dto.request.JobSummaryAdminCreateFromImagesReq
 import com.hirelog.api.job.presentation.controller.dto.request.VerifyAdminReq
 import jakarta.validation.Valid
 import org.springframework.data.domain.Page
@@ -83,6 +85,52 @@ class JobSummaryAdminController(
             brandName = request.brandName,
             positionName = request.positionName,
             jdText = request.jdText,
+            sourceUrl = request.sourceUrl
+        )
+
+        return ResponseEntity.ok(mapOf("summaryId" to summaryId))
+    }
+
+    /**
+     * Admin 전용 URL 기반 JobSummary 생성
+     *
+     * Python 임베딩 서버에서 URL 크롤링 → 텍스트 or 이미지 추출 → Gemini 호출
+     * - 텍스트 추출 성공 시: 텍스트 기반 요약
+     * - 이미지 기반 JD: Gemini 멀티모달 직접 처리 (OCR 없음)
+     *
+     * @return 생성된 JobSummary ID
+     */
+    @PostMapping("/direct-url")
+    fun createFromUrl(
+        @Valid @RequestBody request: JobSummaryAdminCreateFromUrlReq
+    ): ResponseEntity<Map<String, Long>> {
+
+        val summaryId = jobSummaryAdminService.createFromUrl(
+            brandName = request.brandName,
+            positionName = request.positionName,
+            url = request.url
+        )
+
+        return ResponseEntity.ok(mapOf("summaryId" to summaryId))
+    }
+
+    /**
+     * Admin 전용 이미지 직접 업로드 기반 JobSummary 생성
+     *
+     * images: "data:{mime};base64,{data}" 형식 리스트
+     * Gemini 멀티모달로 직접 처리 (OCR 없음)
+     *
+     * @return 생성된 JobSummary ID
+     */
+    @PostMapping("/direct-images")
+    fun createFromImages(
+        @Valid @RequestBody request: JobSummaryAdminCreateFromImagesReq
+    ): ResponseEntity<Map<String, Long>> {
+
+        val summaryId = jobSummaryAdminService.createDirectlyFromImages(
+            brandName = request.brandName,
+            positionName = request.positionName,
+            images = request.images,
             sourceUrl = request.sourceUrl
         )
 

@@ -1,9 +1,8 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TbChevronLeft } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { adminService } from '../services/adminService';
-import { jdSummaryService } from '../services/jdSummaryService';
 import { useAuthStore } from '../store/authStore';
 
 export default function AdminJobSummaryRequestPage() {
@@ -29,7 +28,7 @@ export default function AdminJobSummaryRequestPage() {
     return (
       <div className="min-h-screen bg-[#F8F9FA] px-6 pt-24">
         <div className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-600">
-          관리자 권한이 필요합니다.
+          愿由ъ옄 沅뚰븳???꾩슂?⑸땲??
         </div>
       </div>
     );
@@ -39,7 +38,7 @@ export default function AdminJobSummaryRequestPage() {
     e.preventDefault();
 
     if (!brandName.trim() || !positionName.trim()) {
-      toast.warn('브랜드명과 포지션명은 필수입니다.');
+      toast.warn('釉뚮옖?쒕챸怨??ъ??섎챸? ?꾩닔?낅땲??');
       return;
     }
 
@@ -47,31 +46,23 @@ export default function AdminJobSummaryRequestPage() {
     const normalizedUrl = urlInput.trim();
 
     if (!normalizedText && !normalizedUrl) {
-      toast.warn('TEXT 또는 URL 중 하나는 입력해주세요.');
+      toast.warn('TEXT ?먮뒗 URL 以??섎굹???낅젰?댁＜?몄슂.');
       return;
     }
 
     setIsLoading(true);
     try {
-      // URL이 입력되면 URL 등록 흐름을 우선 사용합니다.
+      // URL???낅젰?섎㈃ URL ?깅줉 ?먮쫫???곗꽑 ?ъ슜?⑸땲??
       if (normalizedUrl) {
-        const result = await jdSummaryService.requestUrl({
+        const result = await adminService.createJobSummaryFromUrlDirectly({
           brandName: brandName.trim(),
-          brandPositionName: positionName.trim(),
+          positionName: positionName.trim(),
           url: normalizedUrl,
         });
-
-        if (result.isDuplicate && result.jobSummaryId) {
-          toast.info('이미 등록된 JD가 있어 해당 상세 페이지로 이동합니다.');
-          navigate(`/jd/${result.jobSummaryId}`);
-          return;
-        }
-
-        toast.success('URL 기반 JD 등록 요청이 완료되었습니다.');
-        navigate('/jd');
+        toast.success('URL 기반 관리자 수동 JD 생성이 완료되었습니다.');
+        navigate(`/jd/${result.summaryId}`);
         return;
       }
-
       const result = await adminService.createJobSummaryDirectly({
         brandName: brandName.trim(),
         positionName: positionName.trim(),
@@ -79,10 +70,10 @@ export default function AdminJobSummaryRequestPage() {
         sourceUrl: textSourceUrl.trim() || undefined,
       });
 
-      toast.success('관리자 수동 JD 생성이 완료되었습니다.');
+      toast.success('愿由ъ옄 ?섎룞 JD ?앹꽦???꾨즺?섏뿀?듬땲??');
       navigate(`/jd/${result.summaryId}`);
     } catch {
-      toast.error('JD 등록 처리에 실패했습니다. 입력값을 다시 확인해주세요.');
+      toast.error('JD ?깅줉 泥섎━???ㅽ뙣?덉뒿?덈떎. ?낅젰媛믪쓣 ?ㅼ떆 ?뺤씤?댁＜?몄슂.');
     } finally {
       setIsLoading(false);
     }
@@ -96,42 +87,41 @@ export default function AdminJobSummaryRequestPage() {
           className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-700"
         >
           <TbChevronLeft size={20} />
-          뒤로가기
-        </button>
+          ?ㅻ줈媛湲?        </button>
 
         <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl">
           <div className="border-b bg-[#3FB6B2]/10 p-8 md:p-10">
-            <h1 className="mb-2 text-3xl font-black text-gray-900">관리자 전용 JD 수동 등록</h1>
-            <p className="text-sm text-gray-600">TEXT 또는 URL 중 하나를 입력해 등록할 수 있습니다.</p>
+            <h1 className="mb-2 text-3xl font-black text-gray-900">愿由ъ옄 ?꾩슜 JD ?섎룞 ?깅줉</h1>
+            <p className="text-sm text-gray-600">TEXT ?먮뒗 URL 以??섎굹瑜??낅젰???깅줉?????덉뒿?덈떎.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6 p-8 md:p-10">
             <div className="grid gap-5 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-sm font-bold text-gray-700">브랜드명</span>
+                <span className="text-sm font-bold text-gray-700">釉뚮옖?쒕챸</span>
                 <input
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                   className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:border-[#3FB6B2] focus:outline-none focus:ring-4 focus:ring-[#3FB6B2]/15"
-                  placeholder="예: 네이버"
+                  placeholder="예: Toss"
                   required
                 />
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-bold text-gray-700">포지션명</span>
+                <span className="text-sm font-bold text-gray-700">?ъ??섎챸</span>
                 <input
                   value={positionName}
                   onChange={(e) => setPositionName(e.target.value)}
                   className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:border-[#3FB6B2] focus:outline-none focus:ring-4 focus:ring-[#3FB6B2]/15"
-                  placeholder="예: Backend Engineer"
+                  placeholder="?? Backend Engineer"
                   required
                 />
               </label>
             </div>
 
             <label className="space-y-2 block">
-              <span className="text-sm font-bold text-gray-700">공고 URL</span>
+              <span className="text-sm font-bold text-gray-700">怨듦퀬 URL</span>
               <input
                 type="url"
                 value={urlInput}
@@ -139,11 +129,11 @@ export default function AdminJobSummaryRequestPage() {
                 className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:border-[#3FB6B2] focus:outline-none focus:ring-4 focus:ring-[#3FB6B2]/15"
                 placeholder="https://..."
               />
-              <p className="text-xs text-gray-500">URL이 있으면 URL 등록이 우선 처리됩니다.</p>
+              <p className="text-xs text-gray-500">URL???덉쑝硫?URL ?깅줉???곗꽑 泥섎━?⑸땲??</p>
             </label>
 
             <label className="space-y-2 block">
-              <span className="text-sm font-bold text-gray-700">원본 공고 URL (TEXT 등록 시 선택)</span>
+              <span className="text-sm font-bold text-gray-700">?먮낯 怨듦퀬 URL (TEXT ?깅줉 ???좏깮)</span>
               <input
                 type="url"
                 value={textSourceUrl}
@@ -154,12 +144,12 @@ export default function AdminJobSummaryRequestPage() {
             </label>
 
             <label className="space-y-2 block">
-              <span className="text-sm font-bold text-gray-700">JD 본문</span>
+              <span className="text-sm font-bold text-gray-700">JD 蹂몃Ц</span>
               <textarea
                 value={jdText}
                 onChange={(e) => setJdText(e.target.value)}
                 className="min-h-[320px] w-full rounded-2xl border border-gray-200 p-4 text-sm focus:border-[#3FB6B2] focus:outline-none focus:ring-4 focus:ring-[#3FB6B2]/15"
-                placeholder="채용공고 본문 텍스트를 붙여 넣어 주세요."
+                placeholder="梨꾩슜怨듦퀬 蹂몃Ц ?띿뒪?몃? 遺숈뿬 ?ｌ뼱 二쇱꽭??"
               />
             </label>
 
@@ -168,7 +158,7 @@ export default function AdminJobSummaryRequestPage() {
               disabled={isLoading}
               className="w-full rounded-2xl bg-[#3FB6B2] py-4 text-base font-bold text-white transition hover:bg-[#35A09D] disabled:opacity-60"
             >
-              {isLoading ? '처리 중...' : '등록하기'}
+              {isLoading ? '泥섎━ 以?..' : '?깅줉?섍린'}
             </button>
           </form>
         </div>
@@ -176,3 +166,4 @@ export default function AdminJobSummaryRequestPage() {
     </div>
   );
 }
+

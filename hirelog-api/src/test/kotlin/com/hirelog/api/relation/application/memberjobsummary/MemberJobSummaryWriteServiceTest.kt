@@ -2,6 +2,9 @@
 
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.domain.model.JobSummary
+import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
 import com.hirelog.api.relation.domain.model.MemberJobSummary
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
 import io.mockk.every
@@ -77,6 +80,9 @@ class MemberJobSummaryWriteServiceTest {
             every { summary.positionName } returns "Backend"
             every { summary.brandPositionName } returns "Backend Engineer"
             every { summary.positionCategoryName } returns "Engineering"
+            every { summary.careerType } returns CareerType.EXPERIENCED
+            every { summary.companyDomain } returns CompanyDomain.OTHER
+            every { summary.companySize } returns CompanySize.UNKNOWN
             every { command.findEntityByMemberIdAndJobSummaryId(1L, 100L) } returns null
             every { jobSummaryCommand.findById(100L) } returns summary
 

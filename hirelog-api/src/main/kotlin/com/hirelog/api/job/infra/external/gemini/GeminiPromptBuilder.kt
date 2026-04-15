@@ -231,6 +231,24 @@ object GeminiPromptBuilder {
         """.trimIndent()
     }
 
+    fun buildJobSummaryFromImagesPrompt(
+        brandName: String,
+        positionName: String,
+        positionCandidates: List<String>,
+        existCompanies: List<String>
+    ): String {
+        return """
+            [Input Parameters]
+            - brandName: "$brandName"
+            - positionName: "$positionName"
+            - positionCandidates: ${positionCandidates.joinToString(", ") { "\"$it\"" }}
+            - existCompanies: ${existCompanies.joinToString(", ") { "\"$it\"" }}
+
+            The attached images contain the full job description.
+            Please analyze the images based on your system instructions and provide the JSON result.
+        """.trimIndent()
+    }
+
     // ─────────────────────────────────────────────────────────────
     // RAG Parser 프롬프트
     // ─────────────────────────────────────────────────────────────
@@ -242,31 +260,28 @@ object GeminiPromptBuilder {
         [Intent Types — choose exactly one]
         - DOCUMENT_SEARCH : 공고 탐색/추천 ("이런 공고 찾아줘", "비슷한 포지션", "Kafka 쓰는 회사")
         - SUMMARY         : 공고 내용 요약/정리 ("공고 정리해줘", "이 포지션 설명해줘")
-        - PATTERN_ANALYSIS: 저장·지원·합격 공고의 공통점/패턴 분석
-                            ("저장한 공고 공통점", "합격한 공고 특징", "지원한 공고 기술스택 분석")
-                            → cohort 조건(saveType/stage/stageResult) 반드시 포함
-        - STATISTICS      : 단순 집계/통계, cohort 조건 없음
-                            ("전체 공고에서 많이 나오는 기술", "어떤 도메인 공고가 많아")
+        - STATISTICS      : 통계/집계/패턴 분석 — 전체 공고 또는 저장·지원·합격 공고 cohort
+                            ("전체 공고에서 많이 나오는 기술", "합격한 공고 공통점", "저장한 공고 기술스택")
         - EXPERIENCE_ANALYSIS: 사용자 본인의 면접·전형 경험 기반 분석
                             ("내 면접 질문 패턴", "불합격 공통점", "코딩테스트 유형 분석")
 
         [Intent 선택 규칙]
-        - "저장한", "찜한", "지원한", "합격한", "불합격한" → PATTERN_ANALYSIS (cohort 있음)
+        - "저장한", "찜한", "지원한", "합격한", "불합격한" + 공통점/특징/분석 → STATISTICS (cohort 조건 포함)
         - "내 면접", "내 경험", "면접 기록" → EXPERIENCE_ANALYSIS
-        - 집계·통계이지만 나의 공고가 아닌 전체 공고 → STATISTICS
+        - 집계·통계 (공고 대상) → STATISTICS
         - 공고 검색·탐색 → DOCUMENT_SEARCH
         - 분류 불가 → DOCUMENT_SEARCH (fallback)
 
         [semanticRetrieval]
         true  → DOCUMENT_SEARCH, SUMMARY
-        false → PATTERN_ANALYSIS, STATISTICS, EXPERIENCE_ANALYSIS
+        false → STATISTICS, EXPERIENCE_ANALYSIS
 
         [aggregation]
-        true  → PATTERN_ANALYSIS, STATISTICS
+        true  → STATISTICS
         false → 나머지
 
         [baseline]
-        true → PATTERN_ANALYSIS이고 "전체 대비", "평균 대비", "비교해줘" 포함 시
+        true → STATISTICS이고 cohort 있고 "전체 대비", "평균 대비", "비교해줘" 포함 시
 
         [filters.saveType]
         "SAVED" → "저장한", "찜한"
@@ -300,7 +315,7 @@ object GeminiPromptBuilder {
 
         [Output Format — valid JSON only, no markdown]
         {
-          "intent": "DOCUMENT_SEARCH"|"SUMMARY"|"PATTERN_ANALYSIS"|"STATISTICS"|"EXPERIENCE_ANALYSIS",
+          "intent": "DOCUMENT_SEARCH"|"SUMMARY"|"STATISTICS"|"EXPERIENCE_ANALYSIS",
           "semanticRetrieval": boolean,
           "aggregation": boolean,
           "baseline": boolean,
@@ -338,17 +353,25 @@ object GeminiPromptBuilder {
     fun buildFeatureExtractorSystemInstruction(): String = """
         You are a technical recruiter analyzing a set of job posting texts.
 
-        Your task is to identify common and distinctive qualitative features that appear across the provided documents.
-        Focus on: technical domain characteristics, system scale, engineering practices, or specific problem areas.
+        Your task is to identify common and distinctive qualitative features that describe the WORK ENVIRONMENT,
+        SYSTEM CHARACTERISTICS, or ENGINEERING PRACTICES — NOT the technology names themselves.
+
+        [What to extract — examples]
+        Good: "대용량 트래픽 처리", "MSA / 이벤트 기반 설계", "실시간 데이터 파이프라인", "AI 서비스 운영 경험",
+              "글로벌 서비스 운영", "온콜 및 장애 대응", "데이터 기반 의사결정", "스타트업 초기 멤버"
+
+        [What NOT to extract]
+        Bad: "Java", "Python", "Spring Boot", "Kafka", "Kubernetes", "REST API", "RDBMS", "Git"
+             → These are technology names, not qualitative features.
+             → Tech stacks are already captured separately via aggregation.
+        Bad: "협업", "커뮤니케이션", "성장" → too generic, not job-specific.
 
         [Rules]
         - Output ONLY a JSON array of Korean label strings (max 10 labels)
         - Each label must be a concise Korean phrase (2~15 characters)
-          Good examples: "대용량 트래픽", "MSA 기반 설계", "실시간 데이터 처리", "AI/ML 서비스"
-          Bad examples: "협업", "커뮤니케이션", "성장" (too generic)
         - If multiple documents: include only features that appear in at least 2 documents
         - If single document: extract up to 5 most distinctive features
-        - Return [] if no meaningful technical features found
+        - Return [] if no meaningful qualitative features found (do not force labels)
 
         [Output Format — valid JSON only, no markdown]
         ["레이블1", "레이블2", "레이블3"]
@@ -375,13 +398,19 @@ object GeminiPromptBuilder {
         - DOCUMENT_SEARCH / SUMMARY:
           Reference specific job postings by "[회사명] [포지션명]" format.
           Mention relevant tech stacks and responsibilities from the context.
-        - PATTERN_ANALYSIS / STATISTICS:
+        - STATISTICS:
           Cite exact numbers. Format: "N건 중 M건(X%)" or "전체 대비 X.Xx".
           For baselineMultiplier — "전체 대비 X.Xx" means the cohort requires this skill X times more than average.
           Mention top 3~5 items from aggregation; skip items with cohortCount=1.
-          If textFeatures exist, describe them as qualitative patterns observed.
+          If textFeatures exist, describe them as qualitative work environment/practice patterns — NOT tech stack names.
         - EXPERIENCE_ANALYSIS:
-          Reference the user's own records. Identify patterns across multiple entries if possible.
+          Context contains two data sources: "전형 경험 기록" (stage notes) and "공고 리뷰" (pros/cons/difficulty).
+          Your goal is to analyze PATTERNS and THEMES across both sources — NOT merely list them.
+          Focus on: recurring difficulties, common interview styles, topics that came up frequently,
+          personal strengths/weaknesses observed, satisfaction/difficulty trends across companies.
+          Synthesize qualitative insights from the notes and review comments. Quote specific snippets as evidence.
+          If only 1~2 records exist, draw insights from those rather than comparing.
+          Do NOT just restate "A사에서 합격, B사에서 탈락" unless the result pattern itself is the point.
 
         [General rules]
         - Answer in Korean.

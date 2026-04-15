@@ -7,6 +7,7 @@ import com.hirelog.api.job.application.rag.model.RagQuery
 import com.hirelog.api.job.application.rag.port.RagCohortQuery
 import com.hirelog.api.job.application.rag.port.RagEmbedding
 import com.hirelog.api.job.application.rag.port.RagLlmFeatureExtractor
+import com.hirelog.api.job.application.rag.port.RagReviewRecord
 import com.hirelog.api.job.application.rag.port.RagStageRecord
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchAdapter
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchAdapter.AggregationResult
@@ -166,7 +167,7 @@ class RagQueryExecutorTest {
             )
             every { ragCohortQuery.findJobSummaryIdsByCohort(memberId, MemberJobSummarySaveType.SAVED, null, null) } returns cohortIds
             every { openSearchAdapter.aggregateFields(cohortIds, any(), any(), any()) } returns cohortAgg
-            every { openSearchAdapter.aggregateFields(null, any()) } returns baselineAgg
+            every { openSearchAdapter.aggregateFields(null, any(), any(), any()) } returns baselineAgg
             every { openSearchAdapter.findCohortDocumentTexts(cohortIds) } returns emptyList()
             every { ragLlmFeatureExtractor.extractFeatureLabels(any()) } returns emptyList()
 
@@ -200,7 +201,7 @@ class RagQueryExecutorTest {
             )
             every { ragCohortQuery.findJobSummaryIdsByCohort(memberId, MemberJobSummarySaveType.SAVED, null, null) } returns cohortIds
             every { openSearchAdapter.aggregateFields(cohortIds, any(), any(), any()) } returns cohortAgg
-            every { openSearchAdapter.aggregateFields(null, any()) } returns baselineAgg
+            every { openSearchAdapter.aggregateFields(null, any(), any(), any()) } returns baselineAgg
             every { openSearchAdapter.findCohortDocumentTexts(cohortIds) } returns emptyList()
             every { ragLlmFeatureExtractor.extractFeatureLabels(any()) } returns emptyList()
 
@@ -297,8 +298,8 @@ class RagQueryExecutorTest {
     inner class ExperienceAnalysisTest {
 
         @Test
-        @DisplayName("HiringStageRecord 조회 결과를 stageRecords로 반환한다")
-        fun shouldReturnStageRecordsFromDb() {
+        @DisplayName("HiringStageRecord와 JobSummaryReview를 함께 반환한다")
+        fun shouldReturnStageRecordsAndReviewRecordsFromDb() {
             // Arrange
             val query = ragQuery(RagIntent.EXPERIENCE_ANALYSIS)
             val records = listOf(
@@ -317,7 +318,20 @@ class RagQueryExecutorTest {
                     result = "FAILED"
                 )
             )
+            val reviews = listOf(
+                RagReviewRecord(
+                    brandName = "토스",
+                    positionName = "Backend Engineer",
+                    hiringStage = "INTERVIEW_1",
+                    difficultyRating = 7,
+                    satisfactionRating = 9,
+                    prosComment = "자유로운 분위기",
+                    consComment = "프로세스가 빠름",
+                    tip = "알고리즘 준비 필수"
+                )
+            )
             every { ragCohortQuery.findStageRecordsForRag(memberId, null, null) } returns records
+            every { ragCohortQuery.findReviewsByMemberId(memberId) } returns reviews
 
             // Act
             val context = executor.execute(query, memberId)
@@ -326,22 +340,26 @@ class RagQueryExecutorTest {
             assertThat(context.stageRecords).hasSize(2)
             assertThat(context.stageRecords[0].brandName).isEqualTo("토스")
             assertThat(context.stageRecords[1].result).isEqualTo("FAILED")
+            assertThat(context.reviewRecords).hasSize(1)
+            assertThat(context.reviewRecords[0].prosComment).isEqualTo("자유로운 분위기")
             assertThat(context.documents).isEmpty()
             assertThat(context.aggregations).isEmpty()
         }
 
         @Test
-        @DisplayName("경험 기록이 없으면 빈 stageRecords를 반환한다")
+        @DisplayName("경험 기록이 없어도 리뷰 레코드는 독립적으로 반환된다")
         fun shouldReturnEmptyStageRecordsWhenNoneExist() {
             // Arrange
             val query = ragQuery(RagIntent.EXPERIENCE_ANALYSIS)
             every { ragCohortQuery.findStageRecordsForRag(memberId, null, null) } returns emptyList()
+            every { ragCohortQuery.findReviewsByMemberId(memberId) } returns emptyList()
 
             // Act
             val context = executor.execute(query, memberId)
 
             // Assert
             assertThat(context.stageRecords).isEmpty()
+            assertThat(context.reviewRecords).isEmpty()
         }
     }
 

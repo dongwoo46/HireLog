@@ -1,3 +1,5 @@
+import re
+
 from common.section.loader import load_header_keywords
 
 HEADER_MAX_LENGTH = 40
@@ -28,6 +30,7 @@ def is_ocr_header_line(line: dict) -> bool:
 
     text_lower = text.lower()
     text_no_space = text_lower.replace(" ", "")
+    text_compact = _normalize_compact(text_lower)
 
     # 0️⃣ bullet/숫자 시작은 즉시 제외
     if text.startswith(("·", "-", "•", "*")):
@@ -37,7 +40,7 @@ def is_ocr_header_line(line: dict) -> bool:
 
     # 1️⃣ 키워드 매칭 먼저 체크 (토스 스타일 대응)
     header_keywords = load_header_keywords()
-    matched_keyword = _get_matched_keyword(text_lower, text_no_space, header_keywords)
+    matched_keyword = _get_matched_keyword(text_lower, text_no_space, text_compact, header_keywords)
 
     if matched_keyword:
         # 키워드 길이가 충분하면 (토스 스타일) 제한 완화
@@ -74,7 +77,12 @@ def is_ocr_header_line(line: dict) -> bool:
     return False
 
 
-def _get_matched_keyword(text_lower: str, text_no_space: str, keywords: set) -> str | None:
+def _get_matched_keyword(
+    text_lower: str,
+    text_no_space: str,
+    text_compact: str,
+    keywords: set,
+) -> str | None:
     """
     텍스트에서 매칭되는 키워드 반환
 
@@ -87,7 +95,12 @@ def _get_matched_keyword(text_lower: str, text_no_space: str, keywords: set) -> 
 
     for kw in keywords:
         kw_no_space = kw.replace(" ", "")
-        if kw in text_lower or kw_no_space in text_no_space:
+        kw_compact = _normalize_compact(kw)
+        if (
+            kw in text_lower
+            or kw_no_space in text_no_space
+            or (kw_compact and kw_compact in text_compact)
+        ):
             if len(kw_no_space) > matched_len:
                 matched = kw
                 matched_len = len(kw_no_space)
@@ -111,6 +124,17 @@ def _looks_like_sentence(text: str) -> bool:
     ]
 
     return any(marker in text for marker in sentence_markers)
+
+
+def _normalize_compact(text: str) -> str:
+    """
+    Header 매칭용 정규화:
+    - 소문자
+    - 공백/구두점/특수문자 제거
+    - 한글/영문/숫자만 남김
+    """
+    t = (text or "").lower()
+    return re.sub(r"[^0-9a-z가-힣]", "", t)
 
 def _visual_header_signal(line: dict) -> bool:
     """

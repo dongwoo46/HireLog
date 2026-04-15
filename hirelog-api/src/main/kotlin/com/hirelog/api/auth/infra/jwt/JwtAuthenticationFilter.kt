@@ -90,7 +90,10 @@ class JwtAuthenticationFilter(
     }
 
     /**
-     * SSE 등 비동기 재디스패치에서도 JWT 인증을 유지한다.
+     * ASYNC 재디스패치는 SecurityConfig에서 permitAll 처리하므로 JWT 필터 스킵.
+     * (ASYNC dispatch는 다른 스레드 → ThreadLocal SecurityContext가 비어있어
+     *  OncePerRequestFilter의 already-filtered attribute로 재실행이 막혀 있어도
+     *  SecurityContext가 채워지지 않아 인가 실패가 발생하는 것을 방지)
      */
-    override fun shouldNotFilterAsyncDispatch(): Boolean = false
+    override fun shouldNotFilterAsyncDispatch(): Boolean = true
 }

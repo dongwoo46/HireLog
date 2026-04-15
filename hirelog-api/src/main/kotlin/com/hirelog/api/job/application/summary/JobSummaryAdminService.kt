@@ -7,6 +7,8 @@ import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.summary.pipeline.PostLlmProcessor
 import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
+import com.hirelog.api.job.application.summary.port.AdminJdUrlFetchPort
+import com.hirelog.api.job.application.summary.port.AdminJdUrlFetchPort.AdminJdFetchResult
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.application.summary.port.JobSummaryEmbedding
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
@@ -51,6 +53,7 @@ class JobSummaryAdminService(
     private val indexManager: JobSummaryIndexManager,
     private val summaryCommand: JobSummaryCommand,
     private val embeddingPort: JobSummaryEmbedding,
+    private val adminJdUrlFetchPort: AdminJdUrlFetchPort,
     @Value("\${admin.verify.password}")
     private val adminVerifyPassword: String
 ) {
@@ -179,18 +182,130 @@ class JobSummaryAdminService(
         }
     }
 
+    /**
+     * URL 크롤링 기반 Admin JobSummary 생성
+     *
+     * 처리 흐름:
+     * 1. Python 임베딩 서버 /admin/fetch-url 동기 호출
+     * 2. SUCCESS → 텍스트로 createDirectly() 위임
+     *    IMAGE_BASED → 이미지로 Gemini 멀티모달 호출 후 저장
+     *    INSUFFICIENT / ERROR → 예외 전파
+     *
+     * @return 생성된 JobSummary ID
+     */
+    fun createFromUrl(
+        brandName: String,
+        positionName: String,
+        url: String
+    ): Long {
+        log.info("[ADMIN_JOB_SUMMARY_URL_FETCH] brandName={}, url={}", brandName, url)
+
+        return when (val fetchResult = adminJdUrlFetchPort.fetch(url)) {
+            is AdminJdFetchResult.Success -> {
+                createDirectly(
+                    brandName = brandName,
+                    positionName = positionName,
+                    jdText = fetchResult.text,
+                    sourceUrl = url
+                )
+            }
+
+            is AdminJdFetchResult.ImageBased -> {
+                createFromImages(
+                    brandName = brandName,
+                    positionName = positionName,
+                    images = fetchResult.images,
+                    sourceUrl = url
+                )
+            }
+
+            is AdminJdFetchResult.Insufficient -> {
+                throw IllegalStateException("JD 텍스트 추출 불충분: ${fetchResult.message}")
+            }
+
+            is AdminJdFetchResult.Error -> {
+                throw IllegalStateException("URL 크롤링 실패: ${fetchResult.message}")
+            }
+        }
+    }
+
+    fun createDirectlyFromImages(
+        brandName: String,
+        positionName: String,
+        images: List<String>,
+        sourceUrl: String? = null
+    ): Long = createFromImages(brandName, positionName, images, sourceUrl)
+
+    private fun createFromImages(
+        brandName: String,
+        positionName: String,
+        images: List<String>,
+        sourceUrl: String?
+    ): Long {
+        if (sourceUrl != null && summaryQuery.existsBySourceUrl(sourceUrl)) {
+            throw IllegalStateException("Duplicate JD: sourceUrl already exists. url=$sourceUrl")
+        }
+
+        val positionCandidates = positionQuery.findActiveNames()
+        val existCompanies = companyQuery.findAllNames().map { it.name }
+
+        val llmResult = try {
+            llmClient.summarizeFromImagesAsync(
+                brandName = brandName,
+                positionName = positionName,
+                positionCandidates = positionCandidates,
+                existCompanies = existCompanies,
+                images = images
+            ).get(LLM_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        } catch (e: TimeoutException) {
+            log.error(
+                "[ADMIN_LLM_IMAGE_TIMEOUT] brandName={}, positionName={}, timeoutSeconds={}",
+                brandName, positionName, LLM_TIMEOUT_SECONDS, e
+            )
+            throw e
+        }
+
+        val emptyCanonicalMap = mapOf("etc" to emptyList<String>())
+        val hashes = jdIntakePolicy.generateIntakeHashes(emptyCanonicalMap)
+
+        val snapshotSupplier = JobSummaryWriteService.JobSnapshotCommand {
+            val snapshot = JobSnapshot.create(
+                sourceType = JobSourceType.TEXT,
+                sourceUrl = sourceUrl,
+                canonicalSections = emptyCanonicalMap,
+                recruitmentPeriodType = RecruitmentPeriodType.UNKNOWN,
+                openedDate = null,
+                closedDate = null,
+                canonicalHash = hashes.canonicalHash,
+                simHash = hashes.simHash,
+                coreText = hashes.coreText
+            )
+            snapshotCommand.record(snapshot)
+            snapshot
+        }
+
+        val summary = postLlmProcessor.executeForAdmin(
+            snapshotCommand = snapshotSupplier,
+            llmResult = llmResult,
+            brandPositionName = positionName,
+            sourceUrl = sourceUrl
+        )
+
+        log.info(
+            "[ADMIN_JOB_SUMMARY_IMAGE_CREATE_SUCCESS] summaryId={}, brandName={}, positionName={}",
+            summary.id, llmResult.brandName, llmResult.positionName
+        )
+
+        return summary.id
+    }
+
     private fun buildAdminCanonicalMap(jdText: String): Map<String, List<String>> {
         val lines = jdText
             .split("\n")
             .map { it.trim() }
             .filter { it.isNotBlank() }
 
-        return mapOf(
-            "raw" to lines,
-            "responsibilities" to lines,
-            "requirements" to lines,
-            "preferred" to lines
-        )
+        return mapOf("etc" to lines)
     }
 
     /**

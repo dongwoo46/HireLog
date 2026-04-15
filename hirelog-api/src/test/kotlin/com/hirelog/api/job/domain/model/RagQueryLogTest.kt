@@ -66,7 +66,7 @@ class RagQueryLogTest {
             val log = RagQueryLog.create(
                 memberId = 3L,
                 question = "핀테크 패턴 분석",
-                intent = RagIntent.PATTERN_ANALYSIS,
+                intent = RagIntent.STATISTICS,
                 parsedText = "핀테크 Kafka",
                 parsedFiltersJson = """{"careerType":"NEW"}""",
                 contextJson = """{"aggregations":[]}""",
@@ -76,7 +76,7 @@ class RagQueryLogTest {
                 sourcesJson = null
             )
 
-            assertThat(log.intent).isEqualTo(RagIntent.PATTERN_ANALYSIS)
+            assertThat(log.intent).isEqualTo(RagIntent.STATISTICS)
             assertThat(log.parsedFiltersJson).isEqualTo("""{"careerType":"NEW"}""")
             assertThat(log.contextJson).isEqualTo("""{"aggregations":[]}""")
             assertThat(log.reasoning).isEqualTo("저장 공고 12건 중 8건에서 Kafka 확인")

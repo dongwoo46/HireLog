@@ -53,8 +53,8 @@ class RagQueryExecutor(
     }
 
     fun execute(ragQuery: RagQuery, memberId: Long): RagContext = when (ragQuery.intent) {
-        RagIntent.DOCUMENT_SEARCH, RagIntent.SUMMARY, RagIntent.KEYWORD_SEARCH -> executeHybridSearch(ragQuery)
-        RagIntent.STATISTICS, RagIntent.PATTERN_ANALYSIS -> executeStatistics(ragQuery, memberId)
+        RagIntent.DOCUMENT_SEARCH, RagIntent.SUMMARY -> executeHybridSearch(ragQuery)
+        RagIntent.STATISTICS -> executeStatistics(ragQuery, memberId)
         RagIntent.EXPERIENCE_ANALYSIS -> executeExperienceAnalysis(ragQuery, memberId)
     }
 
@@ -114,12 +114,13 @@ class RagQueryExecutor(
     // ─────────────────────────────────────────────────────────────
 
     private fun executeExperienceAnalysis(ragQuery: RagQuery, memberId: Long): RagContext {
-        val records = ragCohortQuery.findStageRecordsForRag(
+        val stageRecords = ragCohortQuery.findStageRecordsForRag(
             memberId = memberId,
             stage = ragQuery.filters.stage,
             stageResult = ragQuery.filters.stageResult
         )
-        return RagContext(stageRecords = records)
+        val reviewRecords = ragCohortQuery.findReviewsByMemberId(memberId)
+        return RagContext(stageRecords = stageRecords, reviewRecords = reviewRecords)
     }
 
     // ─────────────────────────────────────────────────────────────

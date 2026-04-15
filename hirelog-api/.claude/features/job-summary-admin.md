@@ -71,3 +71,86 @@ PATCH /api/job-summary/{id}/activate     (@PreAuthorize("hasRole('ADMIN')"))
 - `JobSummaryDetailView.isActive` 기본값 `true` → 기존 사용자 쪽 코드 영향 없음
 - Admin 목록 (`searchAdmin`): `isActive = null` → 전체, `true`/`false` → 필터링
 - 정렬: `createdAt DESC`
+
+---
+
+## Admin 직접 생성 API (Python 전처리 파이프라인 미사용)
+
+### API
+
+| Method | URL | 입력 | 설명 |
+|--------|-----|------|------|
+| `POST` | `/api/admin/job-summary/direct` | `{brandName, positionName, jdText, sourceUrl?}` | 텍스트 직접 붙여넣기 |
+| `POST` | `/api/admin/job-summary/direct-url` | `{brandName, positionName, url}` | URL 크롤링 → 텍스트/이미지 자동 분기 |
+| `POST` | `/api/admin/job-summary/direct-images` | `{brandName, positionName, images, sourceUrl?}` | base64 이미지 직접 업로드 |
+
+모든 엔드포인트: `@PreAuthorize("hasRole('ADMIN')")`
+
+### 처리 흐름
+
+```
+POST /direct
+  → JobSummaryAdminService.createDirectly()
+      → buildAdminCanonicalMap(jdText)   // "etc" 키 단일 사용 (섹션 분리 없음)
+      → 중복 체크 (sourceUrl + canonicalHash)
+      → Gemini 동기 호출 (summarizeJobDescriptionAsync)
+      → PostLlmProcessor.executeForAdmin()  // Snapshot + JobSummary + Outbox 단일 트랜잭션
+
+POST /direct-url
+  → JobSummaryAdminService.createFromUrl()
+      → AdminJdUrlFetchPort.fetch(url)       // 임베딩 서버 /admin/fetch-url 동기 호출 (timeout 90s)
+          ├─ SUCCESS    → createDirectly()   // 텍스트 경로
+          ├─ IMAGE_BASED → createFromImages() // 이미지 경로 (Gemini 멀티모달)
+          ├─ INSUFFICIENT → IllegalStateException
+          └─ ERROR       → IllegalStateException
+
+POST /direct-images
+  → JobSummaryAdminService.createDirectlyFromImages()
+      → 중복 체크 (sourceUrl이 있을 때만)
+      → Gemini 멀티모달 동기 호출 (summarizeFromImagesAsync)
+      → PostLlmProcessor.executeForAdmin()
+```
+
+### Python 임베딩 서버 연동 (`/admin/fetch-url`)
+
+- 기존 임베딩 서버 FastAPI 프로세스에 추가 (`embedding/admin_router.py`)
+- Spring의 `embeddingWebClient` 빈 재사용
+- 플랫폼별 크롤링 전략:
+
+| 플랫폼 | 크롤링 방식 |
+|--------|------------|
+| JOBKOREA | `UrlFetcher` (정적 HTTP) |
+| SARAMIN | `SaraminPlaywrightFetcher` (Playwright, iframe 구조) |
+| WANTED, REMEMBER, 기타 | `PlaywrightFetcher` |
+
+- 텍스트 추출 후 `preprocess_url_text()` 적용 (노이즈 제거, 섹션 분리 없음)
+- 텍스트 길이 < 200 → JD 이미지 추출 시도 → `IMAGE_BASED` 응답
+- 응답 status: `SUCCESS` / `IMAGE_BASED` / `INSUFFICIENT` / `ERROR`
+
+### 이미지 처리 (Gemini 멀티모달)
+
+- OCR 미사용 — 이미지를 base64 그대로 Gemini에 전달
+- `GeminiClient.generateContentWithImagesAsync()`: `inlineData` parts 구성, timeout 60s
+- `JobSummaryLlm.summarizeFromImagesAsync()` 포트로 추상화
+
+### canonicalMap 설계 (Admin 경로 전용)
+
+- 텍스트 경로: `mapOf("etc" to lines)` — 섹션 분리 없이 전체 텍스트를 `ETC` 키 하나에
+- 이미지 경로: `mapOf("etc" to emptyList())` — 해시 계산용 더미, 실제 내용은 이미지에서 추출
+- `"etc"` 선택 이유: `JdSection.ETC`가 `toCanonicalText()`에서 iterate되는 유효한 키이며, raw 비분리 텍스트에 가장 적합한 의미
+
+### 코드 위치
+
+| 역할 | 파일 |
+|------|------|
+| Service | `job/application/summary/JobSummaryAdminService.kt` |
+| URL 추출 포트 | `job/application/summary/port/AdminJdUrlFetchPort.kt` |
+| URL 추출 어댑터 | `job/infra/external/admin/AdminJdUrlFetchAdapter.kt` |
+| 이미지 LLM 포트 | `job/application/summary/port/JobSummaryLlm.kt` (`summarizeFromImagesAsync`) |
+| Gemini 멀티모달 | `job/infra/external/gemini/GeminiClient.kt` (`generateContentWithImagesAsync`) |
+| Gemini 이미지 프롬프트 | `job/infra/external/gemini/GeminiPromptBuilder.kt` (`buildJobSummaryFromImagesPrompt`) |
+| Python 크롤링 엔드포인트 | `preprocess-pipeline/src/embedding/admin_router.py` |
+| Controller | `job/presentation/controller/JobSummaryAdminController.kt` |
+| 요청 DTO | `dto/request/JobSummaryAdminCreateReq.kt` |
+| | `dto/request/JobSummaryAdminCreateFromUrlReq.kt` |
+| | `dto/request/JobSummaryAdminCreateFromImagesReq.kt` |

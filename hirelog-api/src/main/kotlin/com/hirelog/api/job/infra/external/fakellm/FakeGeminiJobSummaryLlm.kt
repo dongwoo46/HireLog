@@ -46,6 +46,16 @@ class FakeGeminiJobSummaryLlm(
         }, executor)
     }
 
+    override fun summarizeFromImagesAsync(
+        brandName: String,
+        positionName: String,
+        positionCandidates: List<String>,
+        existCompanies: List<String>,
+        images: List<String>
+    ): CompletableFuture<JobSummaryLlmResult> = summarizeJobDescriptionAsync(
+        brandName, positionName, positionCandidates, existCompanies, emptyMap()
+    )
+
     private fun simulateLatency() {
         try {
             Thread.sleep((latencyMs - 200..latencyMs + 200).random())
