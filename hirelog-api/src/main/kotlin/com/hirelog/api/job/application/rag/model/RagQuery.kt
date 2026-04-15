@@ -24,6 +24,12 @@ data class RagQuery(
     val filters: RagFilters,
 
     /**
+     * true이면 STATISTICS aggregation에 techStack 버킷 포함
+     * 질문이 특정 기술명을 명시적으로 언급할 때만 true
+     */
+    val focusTechStack: Boolean,
+
+    /**
      * k-NN / aggregation에 사용할 파싱된 텍스트
      * KEYWORD_SEARCH일 때: 키워드 그대로
      * DOCUMENT_SEARCH/SUMMARY일 때: 스킬/역할 조건 텍스트

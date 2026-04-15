@@ -408,6 +408,8 @@ class JobSummaryOpenSearchAdapter(
             .aggregations(
                 mapOf(
                     "techStacks" to Aggregation.of { a -> a.terms { t -> t.field(Fields.TECH_STACK_PARSED).size(size) } },
+                    "careerTypes" to Aggregation.of { a -> a.terms { t -> t.field(Fields.CAREER_TYPE).size(size) } },
+                    "positionCategories" to Aggregation.of { a -> a.terms { t -> t.field("${Fields.POSITION_CATEGORY_NAME}.${Fields.KEYWORD_SUFFIX}").size(size) } },
                     "companyDomains" to Aggregation.of { a -> a.terms { t -> t.field(Fields.COMPANY_DOMAIN).size(size) } },
                     "companySizes" to Aggregation.of { a -> a.terms { t -> t.field(Fields.COMPANY_SIZE).size(size) } }
                 )
@@ -424,6 +426,8 @@ class JobSummaryOpenSearchAdapter(
 
         return AggregationResult(
             techStacks = extractTerms("techStacks"),
+            careerTypes = extractTerms("careerTypes"),
+            positionCategories = extractTerms("positionCategories"),
             companyDomains = extractTerms("companyDomains"),
             companySizes = extractTerms("companySizes")
         )
@@ -490,6 +494,8 @@ class JobSummaryOpenSearchAdapter(
 
     data class AggregationResult(
         val techStacks: Map<String, Long>,
+        val careerTypes: Map<String, Long>,
+        val positionCategories: Map<String, Long>,
         val companyDomains: Map<String, Long>,
         val companySizes: Map<String, Long>
     )

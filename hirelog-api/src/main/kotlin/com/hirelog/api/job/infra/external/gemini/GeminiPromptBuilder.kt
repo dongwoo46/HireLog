@@ -283,6 +283,11 @@ object GeminiPromptBuilder {
         [baseline]
         true → STATISTICS이고 cohort 있고 "전체 대비", "평균 대비", "비교해줘" 포함 시
 
+        [focusTechStack]
+        true → 질문이 특정 기술명(Spring, Python, Kafka 등)을 명시적으로 언급하며 그 기술의 빈도/비율을 물어볼 때
+               예: "spring 쓰는 곳 얼마나 합격했어?", "kafka 쓰는 회사 저장 몇 개야?"
+        false → 특징/공통점/패턴 등 정성적 분석 요청, 또는 기술명 언급 없음
+
         [filters.saveType]
         "SAVED" → "저장한", "찜한"
         "APPLY" → "지원한", "지원 의사"
@@ -319,6 +324,7 @@ object GeminiPromptBuilder {
           "semanticRetrieval": boolean,
           "aggregation": boolean,
           "baseline": boolean,
+          "focusTechStack": boolean,
           "parsedText": string,
           "filters": {
             "saveType": "SAVED"|"APPLY"|null,
@@ -399,10 +405,14 @@ object GeminiPromptBuilder {
           Reference specific job postings by "[회사명] [포지션명]" format.
           Mention relevant tech stacks and responsibilities from the context.
         - STATISTICS:
-          Cite exact numbers. Format: "N건 중 M건(X%)" or "전체 대비 X.Xx".
-          For baselineMultiplier — "전체 대비 X.Xx" means the cohort requires this skill X times more than average.
-          Mention top 3~5 items from aggregation; skip items with cohortCount=1.
-          If textFeatures exist, describe them as qualitative work environment/practice patterns — NOT tech stack names.
+          Aggregation may contain: techStack, careerType, positionCategory, companyDomain, companySize.
+          Check the category of each aggregation entry:
+          - techStack entries: cite ONLY if the user's question explicitly asked about a specific technology.
+            Otherwise skip all techStack entries entirely — do NOT mention them.
+          - careerType / positionCategory / companyDomain / companySize: cite if meaningful (cohortCount > 1).
+          If textFeatures exist, lead with them as the main answer: describe each as a qualitative
+          work environment / engineering practice pattern. Cite observedCount ("N개 공고에서 확인됨").
+          Skip aggregation entries with cohortCount=1.
         - EXPERIENCE_ANALYSIS:
           Context contains two data sources: "전형 경험 기록" (stage notes) and "공고 리뷰" (pros/cons/difficulty).
           Your goal is to analyze PATTERNS and THEMES across both sources — NOT merely list them.

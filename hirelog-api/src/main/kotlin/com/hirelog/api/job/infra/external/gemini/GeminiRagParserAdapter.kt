@@ -65,6 +65,7 @@ class GeminiRagParserAdapter(
         semanticRetrieval = true,
         aggregation = false,
         baseline = false,
+        focusTechStack = false,
         filters = RagFilters(),
         parsedText = question
     )
@@ -79,6 +80,7 @@ class GeminiRagParserAdapter(
         val semanticRetrieval: Boolean?,
         val aggregation: Boolean?,
         val baseline: Boolean?,
+        val focusTechStack: Boolean?,
         val parsedText: String?,
         val filters: RagFiltersRaw?
     ) {
@@ -91,6 +93,7 @@ class GeminiRagParserAdapter(
                 semanticRetrieval = semanticRetrieval ?: (intent == RagIntent.DOCUMENT_SEARCH || intent == RagIntent.SUMMARY),
                 aggregation = aggregation ?: false,
                 baseline = baseline ?: false,
+                focusTechStack = focusTechStack ?: false,
                 parsedText = parsedText?.takeIf { it.isNotBlank() } ?: originalQuestion,
                 filters = filters?.toRagFilters() ?: RagFilters()
             )
