@@ -47,10 +47,10 @@ class NotificationReadServiceTest {
 
             val result = service.getNotifications(memberId = 1L, isRead = null, page = 0, size = 10)
 
-            assertThat(result.items).hasSize(2)
-            assertThat(result.totalElements).isEqualTo(2L)
-            assertThat(result.page).isEqualTo(0)
-            assertThat(result.size).isEqualTo(10)
+            assertThat(result.notifications.items).hasSize(2)
+            assertThat(result.notifications.totalElements).isEqualTo(2L)
+            assertThat(result.notifications.page).isEqualTo(0)
+            assertThat(result.notifications.size).isEqualTo(10)
         }
 
         @Test
@@ -73,8 +73,8 @@ class NotificationReadServiceTest {
 
             val result = service.getNotifications(memberId = 1L, isRead = null, page = 0, size = 10)
 
-            assertThat(result.items).isEmpty()
-            assertThat(result.totalElements).isEqualTo(0L)
+            assertThat(result.notifications.items).isEmpty()
+            assertThat(result.notifications.totalElements).isEqualTo(0L)
         }
     }
 

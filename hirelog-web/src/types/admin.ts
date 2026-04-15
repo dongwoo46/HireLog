@@ -92,3 +92,26 @@ export interface AdminReportView {
     reviewedAt?: string | null;
     createdAt: string;
 }
+
+export type AdminRagIntent =
+  | 'DOCUMENT_SEARCH'
+  | 'PATTERN_ANALYSIS'
+  | 'EXPERIENCE_ANALYSIS'
+  | 'STATISTICS'
+  | 'KEYWORD_SEARCH'
+  | 'SUMMARY';
+
+export interface AdminRagLogView {
+    id: number;
+    memberId: number;
+    question: string;
+    intent: AdminRagIntent;
+    parsedText?: string | null;
+    parsedFiltersJson?: string | null;
+    contextJson?: string | null;
+    answer: string;
+    reasoning?: string | null;
+    evidencesJson?: string | null;
+    sourcesJson?: string | null;
+    createdAt: string;
+}

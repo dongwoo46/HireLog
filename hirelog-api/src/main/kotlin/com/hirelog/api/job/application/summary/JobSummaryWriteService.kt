@@ -320,6 +320,8 @@ class JobSummaryWriteService(
             brandName = brand.name,
             companyId = null,
             companyName = null,
+            companyDomain = llmResult.companyDomain,
+            companySize = llmResult.companySize,
             positionId = positionId,
             positionName = positionName,
             brandPositionId = brandPositionId,

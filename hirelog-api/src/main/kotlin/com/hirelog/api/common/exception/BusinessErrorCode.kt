@@ -16,5 +16,10 @@ enum class BusinessErrorCode(
         status = HttpStatus.BAD_REQUEST,
         code = "INVALID_REQUEST_PARAMETER",
         defaultMessage = "요청 파라미터가 올바르지 않습니다."
+    ),
+    RAG_RATE_LIMIT_EXCEEDED(
+        status = HttpStatus.TOO_MANY_REQUESTS,
+        code = "RAG_RATE_LIMIT_EXCEEDED",
+        defaultMessage = "RAG 일일 질문 횟수(3회)를 초과했습니다. 내일 다시 시도해주세요."
     )
 }

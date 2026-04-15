@@ -5,6 +5,10 @@ import com.hirelog.api.job.application.intake.JdIntakePolicy
 import com.hirelog.api.job.application.intake.model.DuplicateDecision
 import com.hirelog.api.job.application.snapshot.port.JobSnapshotCommand
 import com.hirelog.api.job.application.summary.pipeline.PostLlmProcessor
+import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
+import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
+import com.hirelog.api.job.application.summary.port.JobSummaryCommand
+import com.hirelog.api.job.application.summary.port.JobSummaryEmbedding
 import com.hirelog.api.job.application.summary.port.JobSummaryLlm
 import com.hirelog.api.job.application.summary.port.JobSummaryQuery
 import com.hirelog.api.job.domain.model.JobSnapshot
@@ -12,6 +16,8 @@ import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import com.hirelog.api.company.application.port.CompanyQuery
 import com.hirelog.api.position.application.port.PositionQuery
+import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryIndexManager
+import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchAdapter
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -41,6 +47,10 @@ class JobSummaryAdminService(
     private val positionQuery: PositionQuery,
     private val companyQuery: CompanyQuery,
     private val postLlmProcessor: PostLlmProcessor,
+    private val openSearchAdapter: JobSummaryOpenSearchAdapter,
+    private val indexManager: JobSummaryIndexManager,
+    private val summaryCommand: JobSummaryCommand,
+    private val embeddingPort: JobSummaryEmbedding,
     @Value("\${admin.verify.password}")
     private val adminVerifyPassword: String
 ) {
@@ -181,6 +191,118 @@ class JobSummaryAdminService(
             "requirements" to lines,
             "preferred" to lines
         )
+    }
+
+    /**
+     * 전체 재인덱싱
+     *
+     * 처리 흐름:
+     * 1. 기존 OpenSearch 인덱스 삭제 + 재생성 (knn_vector 매핑 포함)
+     * 2. DB에서 전체 JobSummary 커서 기반으로 순차 조회
+     * 3. 각 문서 임베딩 + OpenSearch 인덱싱
+     *
+     * @param batchSize 한 번에 처리할 건수
+     * @return 성공적으로 인덱싱된 문서 수
+     */
+    fun reindexAll(batchSize: Int = 50): Int {
+        require(batchSize in 1..200) { "batchSize must be between 1 and 200" }
+
+        log.info("[ADMIN_REINDEX_ALL_START] batchSize={}", batchSize)
+
+        indexManager.deleteIndex()
+        indexManager.createIndexIfNotExists()
+
+        var lastId = 0L
+        var totalSuccess = 0
+
+        while (true) {
+            val batch = summaryCommand.findAllForReindex(lastId, batchSize)
+            if (batch.isEmpty()) break
+
+            batch.forEach { summary ->
+                runCatching {
+                    val outbox = JobSummaryOutboxPayload.from(summary)
+                    val searchPayload = JobSummarySearchPayload.from(outbox)
+
+                    val vector = embeddingPort.embed(
+                        JobSummaryEmbedding.EmbedRequest(
+                            responsibilities = summary.responsibilities,
+                            requiredQualifications = summary.requiredQualifications,
+                            preferredQualifications = summary.preferredQualifications,
+                            idealCandidate = summary.insight.idealCandidate,
+                            mustHaveSignals = summary.insight.mustHaveSignals,
+                            technicalContext = summary.insight.technicalContext
+                        )
+                    )
+
+                    openSearchAdapter.index(searchPayload.copy(embeddingVector = vector))
+                    totalSuccess++
+                }.onFailure {
+                    log.error(
+                        "[ADMIN_REINDEX_ALL_DOC_FAILED] id={}, error={}",
+                        summary.id, it.message
+                    )
+                }
+            }
+
+            lastId = batch.last().id
+            log.info("[ADMIN_REINDEX_ALL_PROGRESS] lastId={}, totalSuccess={}", lastId, totalSuccess)
+
+            if (batch.size < batchSize) break
+        }
+
+        log.info("[ADMIN_REINDEX_ALL_DONE] totalSuccess={}", totalSuccess)
+        return totalSuccess
+    }
+
+    /**
+     * 임베딩 벡터 누락 문서 재임베딩
+     *
+     * 처리 흐름:
+     * 1. OpenSearch에서 embeddingVector 누락 문서 조회
+     * 2. 각 문서에 대해 임베딩 서버 호출
+     * 3. 벡터 부분 업데이트
+     *
+     * @param batchSize 한 번에 처리할 문서 수 (최대 500)
+     * @return 성공적으로 재임베딩된 문서 수
+     */
+    fun reindexMissingEmbeddings(batchSize: Int): Int {
+        require(batchSize in 1..500) { "batchSize must be between 1 and 500" }
+
+        val candidates = openSearchAdapter.findMissingEmbedding(batchSize)
+
+        log.info("[ADMIN_REINDEX_EMBEDDING_START] candidates={}", candidates.size)
+
+        var successCount = 0
+
+        candidates.forEach { candidate ->
+            runCatching {
+                val vector = embeddingPort.embed(
+                    JobSummaryEmbedding.EmbedRequest(
+                        responsibilities = candidate.responsibilities,
+                        requiredQualifications = candidate.requiredQualifications,
+                        preferredQualifications = candidate.preferredQualifications,
+                        idealCandidate = candidate.idealCandidate,
+                        mustHaveSignals = candidate.mustHaveSignals,
+                        technicalContext = candidate.technicalContext
+                    )
+                )
+                openSearchAdapter.updateEmbeddingVector(candidate.id, vector)
+                successCount++
+            }.onFailure {
+                log.error(
+                    "[ADMIN_REINDEX_EMBEDDING_FAILED] id={}, error={}",
+                    candidate.id, it.message
+                )
+            }
+        }
+
+        log.info(
+            "[ADMIN_REINDEX_EMBEDDING_DONE] total={}, success={}, failed={}",
+            candidates.size, successCount, candidates.size - successCount
+        )
+
+        return successCount
     }
 
     fun verify(password: String) {

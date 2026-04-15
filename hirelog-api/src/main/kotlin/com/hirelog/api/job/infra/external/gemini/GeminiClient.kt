@@ -26,14 +26,26 @@ class GeminiClient(
      * @param prompt Gemini에 전달할 입력 프롬프트
      * @return 응답 텍스트를 담은 CompletableFuture
      */
-    fun generateContentAsync(prompt: String): CompletableFuture<String> {
+    fun generateContentAsync(prompt: String): CompletableFuture<String> =
+        generateContentWithSystemAsync(GeminiPromptBuilder.buildSystemInstruction(), prompt)
 
-        // 1. 요청 바디 구성
-        // 변수 타입을 명시적으로 선언하여 타입 추론 에러 해결
+    /**
+     * system_instruction을 외부에서 주입받아 Gemini API를 비동기 호출한다.
+     * RAG Parser 등 JD 요약 외 다른 system instruction이 필요한 경우 사용.
+     *
+     * @param systemInstruction Gemini system_instruction 텍스트
+     * @param prompt 유저 프롬프트
+     * @return 응답 텍스트를 담은 CompletableFuture
+     */
+    fun generateContentWithSystemAsync(
+        systemInstruction: String,
+        prompt: String
+    ): CompletableFuture<String> {
+
         val requestBody: Map<String, Any> = mapOf(
             "system_instruction" to mapOf(
                 "parts" to listOf(
-                    mapOf("text" to GeminiPromptBuilder.buildSystemInstruction())
+                    mapOf("text" to systemInstruction)
                 )
             ),
             "contents" to listOf(

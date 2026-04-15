@@ -5,6 +5,9 @@ import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmRawResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
+import com.hirelog.api.common.logging.log
 
 /**
  * JobSummaryLlmResultAssembler (공통)
@@ -41,6 +44,10 @@ class JobSummaryLlmResultAssembler {
             positionName = raw.positionName
                 ?: throw IllegalStateException("positionName missing"),
             companyCandidate = raw.companyCandidate,
+            companyDomain = runCatching { raw.companyDomain?.let { CompanyDomain.valueOf(it) } }
+                .getOrNull() ?: CompanyDomain.OTHER,
+            companySize = runCatching { raw.companySize?.let { CompanySize.valueOf(it) } }
+                .getOrNull() ?: CompanySize.UNKNOWN,
 
             careerType = CareerType.from(raw.careerType),
             careerYears = raw.careerYears,

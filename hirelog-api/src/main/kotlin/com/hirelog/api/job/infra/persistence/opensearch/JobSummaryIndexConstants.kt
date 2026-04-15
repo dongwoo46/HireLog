@@ -20,6 +20,8 @@ object JobSummaryIndexConstants {
         // 기본 정보
         const val BRAND_NAME = "brandName"
         const val COMPANY_NAME = "companyName"
+        const val COMPANY_DOMAIN = "companyDomain"
+        const val COMPANY_SIZE = "companySize"
         const val POSITION_NAME = "positionName"
         const val BRAND_POSITION_NAME = "brandPositionName"
         const val POSITION_CATEGORY_NAME = "positionCategoryName"
@@ -48,6 +50,9 @@ object JobSummaryIndexConstants {
         const val TECHNICAL_CONTEXT = "technicalContext"
         const val QUESTIONS_TO_ASK = "questionsToAsk"
         const val CONSIDERATIONS = "considerations"
+
+        // 임베딩 벡터 (k-NN)
+        const val EMBEDDING_VECTOR = "embeddingVector"
 
         // 메타
         const val CREATED_AT = "createdAt"

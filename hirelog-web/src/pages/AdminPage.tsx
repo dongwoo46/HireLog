@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   TbAlertTriangle,
   TbBriefcase,
+  TbMessageCircle,
   TbMessageDots,
   TbShieldCheck,
   TbStar,
@@ -10,22 +11,24 @@ import {
 import AdminBrandTab from '../components/admin/AdminBrandTab';
 import AdminJobSummaryTab from '../components/admin/AdminJobSummaryTab';
 import AdminMemberTab from '../components/admin/AdminMemberTab';
+import AdminRagTab from '../components/admin/AdminRagTab';
 import AdminReportTab from '../components/admin/AdminReportTab';
 import AdminReviewTab from '../components/admin/AdminReviewTab';
 import AdminUserRequestTab from '../components/admin/AdminUserRequestTab';
 
-type AdminTab = 'job-summary' | 'reports' | 'brand' | 'user-request' | 'reviews' | 'members';
+type AdminTab = 'job-summary' | 'reports' | 'brand' | 'user-request' | 'reviews' | 'members' | 'rag-logs';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('job-summary');
 
   const tabs = [
-    { id: 'job-summary', label: '채용공고', icon: TbBriefcase },
-    { id: 'reports', label: '신고 처리', icon: TbAlertTriangle },
-    { id: 'brand', label: '브랜드', icon: TbShieldCheck },
-    { id: 'user-request', label: '사용자 문의', icon: TbMessageDots },
-    { id: 'reviews', label: '리뷰 관리', icon: TbStar },
-    { id: 'members', label: '사용자 관리', icon: TbUsers },
+    { id: 'job-summary', label: '\ucc44\uc6a9\uacf5\uace0', icon: TbBriefcase },
+    { id: 'reports', label: '\uc2e0\uace0 \ucc98\ub9ac', icon: TbAlertTriangle },
+    { id: 'brand', label: '\ube0c\ub79c\ub4dc', icon: TbShieldCheck },
+    { id: 'user-request', label: '\uc0ac\uc6a9\uc790 \ubb38\uc758', icon: TbMessageDots },
+    { id: 'reviews', label: '\ub9ac\ubdf0 \uad00\ub9ac', icon: TbStar },
+    { id: 'members', label: '\uc0ac\uc6a9\uc790 \uad00\ub9ac', icon: TbUsers },
+    { id: 'rag-logs', label: '\ucc44\uc6a9\ub3c4\uc6b0\ubbf8 \ub85c\uadf8', icon: TbMessageCircle },
   ] as const;
 
   const renderTabContent = () => {
@@ -42,17 +45,44 @@ export default function AdminPage() {
         return <AdminReviewTab />;
       case 'members':
         return <AdminMemberTab />;
+      case 'rag-logs':
+        return <AdminRagTab />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-20">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="flex flex-col gap-8 md:flex-row">
-          <aside className="w-full space-y-2 md:w-64">
-            <h1 className="mb-8 px-4 text-2xl font-bold text-gray-900">관리자 센터</h1>
+    <div className="min-h-screen bg-gray-50 pb-10 pt-20 sm:pb-20 sm:pt-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <h1 className="mb-4 text-2xl font-bold text-gray-900 md:hidden">{'\uad00\ub9ac\uc790 \uc13c\ud130'}</h1>
+
+        <div className="mb-4 overflow-x-auto md:hidden">
+          <div className="flex min-w-max gap-2 pb-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const selected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as AdminTab)}
+                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-all ${
+                    selected
+                      ? 'border border-gray-100 bg-white text-[#3FB6B2] shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+          <aside className="hidden w-full space-y-2 md:block md:w-64">
+            <h1 className="mb-8 px-4 text-2xl font-bold text-gray-900">{'\uad00\ub9ac\uc790 \uc13c\ud130'}</h1>
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -74,8 +104,8 @@ export default function AdminPage() {
             })}
           </aside>
 
-          <main className="min-h-[600px] flex-1 overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white shadow-sm">
-            <div className="p-8">{renderTabContent()}</div>
+          <main className="min-h-[520px] flex-1 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm md:rounded-[2.5rem]">
+            <div className="p-4 sm:p-6 lg:p-8">{renderTabContent()}</div>
           </main>
         </div>
       </div>

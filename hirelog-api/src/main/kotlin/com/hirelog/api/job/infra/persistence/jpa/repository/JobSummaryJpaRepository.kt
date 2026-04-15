@@ -35,4 +35,6 @@ interface JobSummaryJpaRepository : JpaRepository<JobSummary, Long> {
     fun findBySourceUrlAndIsActiveTrue(sourceUrl: String): JobSummary?
 
     fun findBySourceUrl(sourceUrl: String): JobSummary?
+
+    fun findByIdGreaterThanOrderByIdAsc(lastId: Long, pageable: org.springframework.data.domain.Pageable): List<JobSummary>
 }

@@ -18,6 +18,8 @@ data class JobSummarySearchQuery(
     val positionCategoryNames: List<String>? = null,
 
     val techStacks: List<String>? = null,
+    val companyDomains: List<String>? = null,
+    val companySizes: List<String>? = null,
     val cursor: String? = null,
     val size: Int = 20,
     val sortBy: SortBy = SortBy.CREATED_AT_DESC

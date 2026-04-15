@@ -26,3 +26,6 @@ RapidFuzz==3.14.3
 setuptools==80.9.0
 grpcio==1.62.3
 grpcio-tools==1.62.3
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+sentence-transformers==3.4.1

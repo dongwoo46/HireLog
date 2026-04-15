@@ -32,6 +32,8 @@ data class JobSummarySearchItem(
     val brandPositionName: String?,
     val positionCategoryName: String,
     val careerType: String,
+    val companyDomain: String?,
+    val companySize: String?,
     val summaryText: String,
     val techStackParsed: List<String>?,
     val createdAt: LocalDateTime,

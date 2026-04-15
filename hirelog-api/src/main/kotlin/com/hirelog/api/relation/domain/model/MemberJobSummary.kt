@@ -60,6 +60,15 @@ class MemberJobSummary private constructor(
     @Column(name = "position_category_name", nullable = false, length = 100)
     val positionCategoryName: String,
 
+    @Column(name = "career_type", length = 20)
+    val careerType: String? = null,
+
+    @Column(name = "company_domain", length = 30)
+    val companyDomain: String? = null,
+
+    @Column(name = "company_size", length = 20)
+    val companySize: String? = null,
+
     /* =========================
      * 상태
      * ========================= */
@@ -109,7 +118,10 @@ class MemberJobSummary private constructor(
             brandName: String,
             positionName: String,
             brandPositionName: String,
-            positionCategoryName: String
+            positionCategoryName: String,
+            careerType: String? = null,
+            companyDomain: String? = null,
+            companySize: String? = null,
         ): MemberJobSummary {
             return MemberJobSummary(
                 memberId = memberId,
@@ -118,6 +130,9 @@ class MemberJobSummary private constructor(
                 positionName = positionName,
                 brandPositionName = brandPositionName,
                 positionCategoryName = positionCategoryName,
+                careerType = careerType,
+                companyDomain = companyDomain,
+                companySize = companySize,
                 saveType = MemberJobSummarySaveType.SAVED
             )
         }

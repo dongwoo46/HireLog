@@ -12,6 +12,7 @@ import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryIndexConstants
 import com.hirelog.api.relation.application.memberjobsummary.port.MemberJobSummaryQuery
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.FieldValue
+import org.opensearch.client.opensearch._types.OpenSearchException
 import org.opensearch.client.opensearch._types.SortOptions
 import org.opensearch.client.opensearch._types.SortOrder
 import org.opensearch.client.opensearch._types.query_dsl.BoolQuery
@@ -85,7 +86,15 @@ class JobSummaryOpenSearchQuery(
 
         val searchRequest = buildSearchRequest(query, cursor)
 
-        val response = openSearchClient.search(searchRequest, Map::class.java)
+        val response = try {
+            openSearchClient.search(searchRequest, Map::class.java)
+        } catch (e: OpenSearchException) {
+            if (e.error().type() == "index_not_found_exception") {
+                log.warn("[OPENSEARCH_INDEX_NOT_FOUND] index={}", INDEX_NAME)
+                return JobSummarySearchResult(items = emptyList(), size = 0, hasNext = false, nextCursor = null)
+            }
+            throw e
+        }
         val hits = response.hits().hits()
 
         val hasNext = hits.size > query.size
@@ -223,6 +232,14 @@ class JobSummaryOpenSearchQuery(
         query.techStacks
             ?.takeIf { it.isNotEmpty() }
             ?.let { filterQueries += buildStringTermsQuery(Fields.TECH_STACK_PARSED, it) }
+
+        query.companyDomains
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterQueries += buildStringTermsQuery(Fields.COMPANY_DOMAIN, it) }
+
+        query.companySizes
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { filterQueries += buildStringTermsQuery(Fields.COMPANY_SIZE, it) }
 
         if (filterQueries.isNotEmpty()) {
             filterQueries.forEach { boolQuery.filter(it) }
@@ -382,7 +399,15 @@ class JobSummaryOpenSearchQuery(
             )
             .build()
 
-        val response = openSearchClient.search(request, Map::class.java)
+        val response = try {
+            openSearchClient.search(request, Map::class.java)
+        } catch (e: OpenSearchException) {
+            if (e.error().type() == "index_not_found_exception") {
+                log.warn("[OPENSEARCH_INDEX_NOT_FOUND] index={}", INDEX_NAME)
+                return emptyList()
+            }
+            throw e
+        }
         val stacks = response.hits().hits()
             .mapNotNull { hit -> hit.source() as? Map<String, Any?> }
             .flatMap { source ->
@@ -415,7 +440,15 @@ class JobSummaryOpenSearchQuery(
             )
             .build()
 
-        val response = openSearchClient.search(candidateRequest, Map::class.java)
+        val response = try {
+            openSearchClient.search(candidateRequest, Map::class.java)
+        } catch (e: OpenSearchException) {
+            if (e.error().type() == "index_not_found_exception") {
+                log.warn("[OPENSEARCH_INDEX_NOT_FOUND] index={}", INDEX_NAME)
+                return JobSummarySearchResult(items = emptyList(), size = 0, hasNext = false, nextCursor = null)
+            }
+            throw e
+        }
         val candidates = response.hits().hits()
             .mapNotNull { hit ->
                 @Suppress("UNCHECKED_CAST")
@@ -462,6 +495,8 @@ class JobSummaryOpenSearchQuery(
                 brandPositionName = source[Fields.BRAND_POSITION_NAME] as? String,
                 positionCategoryName = source[Fields.POSITION_CATEGORY_NAME] as? String ?: "",
                 careerType = source[Fields.CAREER_TYPE] as? String ?: "UNKNOWN",
+                companyDomain = source[Fields.COMPANY_DOMAIN] as? String,
+                companySize = source[Fields.COMPANY_SIZE] as? String,
                 summaryText = source[Fields.SUMMARY_TEXT] as? String ?: "",
                 techStackParsed = source[Fields.TECH_STACK_PARSED] as? List<String>,
                 createdAt = parseDateTime(source[Fields.CREATED_AT])

@@ -64,6 +64,8 @@ export const JobSummarySearch: React.FC<Props> = ({
       initialParams.positionCategoryNames ||
       (initialParams.positionCategoryName ? [initialParams.positionCategoryName] : undefined),
     positionNames: initialParams.positionNames || (initialParams.positionName ? [initialParams.positionName] : undefined),
+    companyDomains: initialParams.companyDomains || undefined,
+    companySizes: initialParams.companySizes || undefined,
     sortBy: initialParams.sortBy || 'CREATED_AT_DESC'
   }), [
     initialParams.keyword,
@@ -76,6 +78,8 @@ export const JobSummarySearch: React.FC<Props> = ({
     initialParams.positionCategoryName,
     initialParams.positionName,
     JSON.stringify(initialParams.techStacks || []),
+    JSON.stringify(initialParams.companyDomains || []),
+    JSON.stringify(initialParams.companySizes || []),
   ]);
 
   const [params, setParams] = useState<JobSummarySearchReq>(stableInitial);
@@ -274,6 +278,8 @@ export const JobSummarySearch: React.FC<Props> = ({
             keyword: params.keyword,
             careerType: params.careerType,
             careerTypes: params.careerTypes,
+            companyDomains: params.companyDomains,
+            companySizes: params.companySizes,
             sortBy: 'CREATED_AT_DESC'
           };
           setParams(reset);

@@ -185,8 +185,11 @@ services:
     restart: unless-stopped
     env_file:
       - .env.prod
+    expose:
+      - '8000'
     networks:
       - hirelog_external
+      - hirelog_internal
 
 networks:
   hirelog_internal:

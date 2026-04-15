@@ -2,6 +2,8 @@ package com.hirelog.api.job.application.summary.view
 
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
 
 /**
  * JobSummaryLlmResult
@@ -30,6 +32,10 @@ data class JobSummaryLlmResult(
     // 추론된 법인명 후보 (예: "토스" → "(주)비바리퍼블리카")
     // CompanyCandidate 생성에 사용
     val companyCandidate: String?,
+
+    val companyDomain: CompanyDomain,
+
+    val companySize: CompanySize,
 
     val careerType: CareerType,
 
