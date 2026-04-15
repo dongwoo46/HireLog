@@ -1,6 +1,7 @@
 import { apiClient } from '../utils/apiClient';
 import type {
   AdminJobSummaryDirectCreateReq,
+  AdminJobSummaryDirectImagesCreateReq,
   AdminJobSummaryDirectUrlCreateReq,
   AdminJobSummaryView,
   AdminPagedResult,
@@ -54,6 +55,13 @@ export const adminService = {
     payload: AdminJobSummaryDirectUrlCreateReq
   ): Promise<{ summaryId: number }> => {
     const response = await apiClient.post('/admin/job-summary/direct-url', payload);
+    return response.data;
+  },
+
+  createJobSummaryFromImagesDirectly: async (
+    payload: AdminJobSummaryDirectImagesCreateReq
+  ): Promise<{ summaryId: number }> => {
+    const response = await apiClient.post('/admin/job-summary/direct-images', payload);
     return response.data;
   },
 

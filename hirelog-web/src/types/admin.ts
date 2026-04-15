@@ -67,6 +67,13 @@ export interface AdminJobSummaryDirectUrlCreateReq {
     url: string;
 }
 
+export interface AdminJobSummaryDirectImagesCreateReq {
+    brandName: string;
+    positionName: string;
+    images: string[];
+    sourceUrl?: string;
+}
+
 export interface AdminJobSummaryView {
     summaryId: number;
     brandId: number;
