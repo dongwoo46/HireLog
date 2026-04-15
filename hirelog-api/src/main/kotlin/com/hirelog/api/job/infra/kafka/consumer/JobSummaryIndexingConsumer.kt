@@ -6,6 +6,7 @@ import com.hirelog.api.common.logging.log
 import com.hirelog.api.job.application.summary.JobSummaryOutboxConstants.EventType
 import com.hirelog.api.job.application.summary.payload.JobSummaryOutboxPayload
 import com.hirelog.api.job.application.summary.payload.JobSummarySearchPayload
+import com.hirelog.api.job.application.summary.port.JobSummaryEmbedding
 import com.hirelog.api.job.infra.kafka.topic.JdKafkaTopics
 import com.hirelog.api.job.infra.persistence.opensearch.JobSummaryOpenSearchAdapter
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -33,6 +34,7 @@ import java.nio.charset.StandardCharsets
 @Component
 class JobSummaryIndexingConsumer(
     private val openSearchAdapter: JobSummaryOpenSearchAdapter,
+    private val embeddingPort: JobSummaryEmbedding,
     private val objectMapper: ObjectMapper
 ) {
 
@@ -169,7 +171,26 @@ class JobSummaryIndexingConsumer(
         val actualPayload = unwrapDoubleSerializedJson(payload)
         val outboxPayload = objectMapper.readValue<JobSummaryOutboxPayload>(actualPayload)
         val searchPayload = JobSummarySearchPayload.from(outboxPayload)
-        openSearchAdapter.index(searchPayload)
+
+        val embeddingVector = runCatching {
+            embeddingPort.embed(
+                JobSummaryEmbedding.EmbedRequest(
+                    responsibilities = outboxPayload.responsibilities,
+                    requiredQualifications = outboxPayload.requiredQualifications,
+                    preferredQualifications = outboxPayload.preferredQualifications,
+                    idealCandidate = outboxPayload.idealCandidate,
+                    mustHaveSignals = outboxPayload.mustHaveSignals,
+                    technicalContext = outboxPayload.technicalContext
+                )
+            )
+        }.onFailure {
+            log.error(
+                "[JOB_SUMMARY_EMBEDDING_FAILED] id={}, errorClass={}, error={}",
+                outboxPayload.id, it.javaClass.simpleName, it.message
+            )
+        }.getOrNull()
+
+        openSearchAdapter.index(searchPayload.copy(embeddingVector = embeddingVector))
     }
 
     /**

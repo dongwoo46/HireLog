@@ -56,8 +56,31 @@ object GeminiPromptBuilder {
               - companyCandidate: Keep official suffixes (e.g., "(주)카카오").
               - Use official Korean names for KR companies, English for Global.
             
+            companyDomain:
+            - Company's primary business domain
+            - Output MUST be one of these exact enum names (English):
+              FINTECH, E_COMMERCE, FOOD_DELIVERY, LOGISTICS, MOBILITY,
+              HEALTHCARE, EDTECH, GAME, MEDIA_CONTENT, SOCIAL_COMMUNITY,
+              TRAVEL_ACCOMMODATION, REAL_ESTATE, HR_RECRUITING, AD_MARKETING,
+              AI_ML, CLOUD_INFRA, SECURITY, ENTERPRISE_SW, BLOCKCHAIN_CRYPTO,
+              MANUFACTURING_IOT, PUBLIC_SECTOR, OTHER
+            - Use OTHER if domain cannot be determined
+
+            companySize:
+            - Estimated company scale based on JD context, brand recognition, job complexity
+            - Output MUST be one of these exact enum names (English):
+              SEED            (Pre-Seed/Seed, ~10명, 초기 탐색 단계)
+              EARLY_STARTUP   (Series A, 10~50명)
+              GROWTH_STARTUP  (Series B~C, 50~300명)
+              SCALE_UP        (Series C+/유니콘급, 300명+, 예: 토스·당근·컬리)
+              MID_SIZED       (중소/중견기업, 상장 중소기업 또는 전통 IT)
+              LARGE_CORP      (대기업, 예: 카카오·네이버·삼성SDS·LG CNS)
+              FOREIGN_CORP    (외국계, 예: Google Korea·Amazon·Microsoft)
+              UNKNOWN         (판단 불가)
+            - Use UNKNOWN if size cannot be determined
+
             careerType: "신입" | "경력" | "무관" | null
-            
+
             careerYears:
             - Original Korean expression (e.g., "3년 이상", "5~7년")
             - null if not stated
@@ -134,6 +157,8 @@ object GeminiPromptBuilder {
               "brandName": string,
               "positionName": string,
               "companyCandidate": string | null,
+              "companyDomain": "FINTECH"|"E_COMMERCE"|"FOOD_DELIVERY"|"LOGISTICS"|"MOBILITY"|"HEALTHCARE"|"EDTECH"|"GAME"|"MEDIA_CONTENT"|"SOCIAL_COMMUNITY"|"TRAVEL_ACCOMMODATION"|"REAL_ESTATE"|"HR_RECRUITING"|"AD_MARKETING"|"AI_ML"|"CLOUD_INFRA"|"SECURITY"|"ENTERPRISE_SW"|"BLOCKCHAIN_CRYPTO"|"MANUFACTURING_IOT"|"PUBLIC_SECTOR"|"OTHER",
+              "companySize": "SEED"|"EARLY_STARTUP"|"GROWTH_STARTUP"|"SCALE_UP"|"MID_SIZED"|"LARGE_CORP"|"FOREIGN_CORP"|"UNKNOWN",
               "careerType": "신입" | "경력" | "무관" | null,
               "careerYears": string | null,
               "summary": string | null,
@@ -155,13 +180,16 @@ object GeminiPromptBuilder {
             }
             
             All fields MUST be present in JSON.
-            If information is unavailable, set the value to null
+            companyDomain and companySize MUST always have a value (use OTHER / UNKNOWN if uncertain).
+            Other fields: if information is unavailable, set the value to null
             
             [Example]
             {
               "brandName": "토스",
               "positionName": "Backend Engineer",
               "companyCandidate": "(주)비바리퍼블리카",
+              "companyDomain": "FINTECH",
+              "companySize": "SCALE_UP",
               "careerType": "경력",
               "careerYears": "3년 이상",
               "summary": "결제 플랫폼 백엔드 API 설계 및 운영\nSpring Boot와 Kafka 기반 대규모 트랜잭션 처리\n결제 데이터 파이프라인 구축 및 모니터링",
@@ -202,4 +230,201 @@ object GeminiPromptBuilder {
             Please analyze this JD based on your system instructions and provide the JSON result.
         """.trimIndent()
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // RAG Parser 프롬프트
+    // ─────────────────────────────────────────────────────────────
+
+    fun buildRagParserSystemInstruction(): String = """
+        You are a query parser for a job-search RAG system.
+        Parse the user's natural language question into a structured JSON for backend execution.
+
+        [Intent Types — choose exactly one]
+        - DOCUMENT_SEARCH : 공고 탐색/추천 ("이런 공고 찾아줘", "비슷한 포지션", "Kafka 쓰는 회사")
+        - SUMMARY         : 공고 내용 요약/정리 ("공고 정리해줘", "이 포지션 설명해줘")
+        - PATTERN_ANALYSIS: 저장·지원·합격 공고의 공통점/패턴 분석
+                            ("저장한 공고 공통점", "합격한 공고 특징", "지원한 공고 기술스택 분석")
+                            → cohort 조건(saveType/stage/stageResult) 반드시 포함
+        - STATISTICS      : 단순 집계/통계, cohort 조건 없음
+                            ("전체 공고에서 많이 나오는 기술", "어떤 도메인 공고가 많아")
+        - EXPERIENCE_ANALYSIS: 사용자 본인의 면접·전형 경험 기반 분석
+                            ("내 면접 질문 패턴", "불합격 공통점", "코딩테스트 유형 분석")
+
+        [Intent 선택 규칙]
+        - "저장한", "찜한", "지원한", "합격한", "불합격한" → PATTERN_ANALYSIS (cohort 있음)
+        - "내 면접", "내 경험", "면접 기록" → EXPERIENCE_ANALYSIS
+        - 집계·통계이지만 나의 공고가 아닌 전체 공고 → STATISTICS
+        - 공고 검색·탐색 → DOCUMENT_SEARCH
+        - 분류 불가 → DOCUMENT_SEARCH (fallback)
+
+        [semanticRetrieval]
+        true  → DOCUMENT_SEARCH, SUMMARY
+        false → PATTERN_ANALYSIS, STATISTICS, EXPERIENCE_ANALYSIS
+
+        [aggregation]
+        true  → PATTERN_ANALYSIS, STATISTICS
+        false → 나머지
+
+        [baseline]
+        true → PATTERN_ANALYSIS이고 "전체 대비", "평균 대비", "비교해줘" 포함 시
+
+        [filters.saveType]
+        "SAVED" → "저장한", "찜한"
+        "APPLY" → "지원한", "지원 의사"
+        null    → 명시되지 않은 경우
+
+        [filters.stage]
+        "DOCUMENT"       → "서류"
+        "CODING_TEST"    → "코딩테스트", "코테"
+        "INTERVIEW_1"    → "1차 면접"
+        "INTERVIEW_2"    → "2차 면접"
+        "INTERVIEW_FINAL"→ "최종 면접"
+        "FINAL_OFFER"    → "최종 합격", "오퍼"
+        null             → 명시되지 않은 경우
+
+        [filters.stageResult]
+        "PASSED"  → "합격"
+        "FAILED"  → "불합격"
+        "PENDING" → "결과 대기", "미정"
+        null      → 명시되지 않은 경우
+
+        [filters.careerType]
+        "신입" → 신입 공고만
+        "경력" → 경력 공고만
+        "무관" → 경력 무관
+        null   → 명시되지 않은 경우
+
+        [parsedText]
+        DOCUMENT_SEARCH / SUMMARY → 검색에 쓸 핵심 직무·기술 키워드를 한국어로 추출
+        그 외                     → 원본 질문 그대로
+
+        [Output Format — valid JSON only, no markdown]
+        {
+          "intent": "DOCUMENT_SEARCH"|"SUMMARY"|"PATTERN_ANALYSIS"|"STATISTICS"|"EXPERIENCE_ANALYSIS",
+          "semanticRetrieval": boolean,
+          "aggregation": boolean,
+          "baseline": boolean,
+          "parsedText": string,
+          "filters": {
+            "saveType": "SAVED"|"APPLY"|null,
+            "stage": "DOCUMENT"|"CODING_TEST"|"INTERVIEW_1"|"INTERVIEW_2"|"INTERVIEW_FINAL"|"FINAL_OFFER"|null,
+            "stageResult": "PASSED"|"FAILED"|"PENDING"|null,
+            "careerType": "신입"|"경력"|"무관"|null,
+            "companyDomain": string|null,
+            "techStacks": [string]|null,
+            "brandName": string|null,
+            "dateRangeFrom": "YYYY-MM-DD"|null,
+            "dateRangeTo": "YYYY-MM-DD"|null
+          }
+        }
+
+        All fields MUST be present. Unknown/unspecified values → null.
+    """.trimIndent()
+
+    fun buildRagParserPrompt(question: String): String = """
+        User question: "$question"
+
+        Parse this question according to your system instructions and return the JSON result.
+    """.trimIndent()
+
+    // ─────────────────────────────────────────────────────────────
+    // RAG Composer 프롬프트
+    // ─────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────
+    // RAG Feature Extractor 프롬프트
+    // ─────────────────────────────────────────────────────────────
+
+    fun buildFeatureExtractorSystemInstruction(): String = """
+        You are a technical recruiter analyzing a set of job posting texts.
+
+        Your task is to identify common and distinctive qualitative features that appear across the provided documents.
+        Focus on: technical domain characteristics, system scale, engineering practices, or specific problem areas.
+
+        [Rules]
+        - Output ONLY a JSON array of Korean label strings (max 10 labels)
+        - Each label must be a concise Korean phrase (2~15 characters)
+          Good examples: "대용량 트래픽", "MSA 기반 설계", "실시간 데이터 처리", "AI/ML 서비스"
+          Bad examples: "협업", "커뮤니케이션", "성장" (too generic)
+        - If multiple documents: include only features that appear in at least 2 documents
+        - If single document: extract up to 5 most distinctive features
+        - Return [] if no meaningful technical features found
+
+        [Output Format — valid JSON only, no markdown]
+        ["레이블1", "레이블2", "레이블3"]
+    """.trimIndent()
+
+    fun buildFeatureExtractorPrompt(preprocessedTexts: List<String>): String {
+        val docs = preprocessedTexts.mapIndexed { i, text -> "[Document ${i + 1}]\n$text" }.joinToString("\n\n")
+        return """
+            Analyze the following ${preprocessedTexts.size} job posting documents and extract common qualitative features.
+
+            $docs
+
+            Return a JSON array of Korean feature labels only.
+        """.trimIndent()
+    }
+
+    fun buildComposerSystemInstruction(): String = """
+        You are a job-search assistant that answers users' questions based on structured context data.
+
+        You receive a user question, an intent label, and structured context.
+        Your task is to produce a natural language answer grounded strictly in the provided context.
+
+        [Answer rules by intent]
+        - DOCUMENT_SEARCH / SUMMARY:
+          Reference specific job postings by "[회사명] [포지션명]" format.
+          Mention relevant tech stacks and responsibilities from the context.
+        - PATTERN_ANALYSIS / STATISTICS:
+          Cite exact numbers. Format: "N건 중 M건(X%)" or "전체 대비 X.Xx".
+          For baselineMultiplier — "전체 대비 X.Xx" means the cohort requires this skill X times more than average.
+          Mention top 3~5 items from aggregation; skip items with cohortCount=1.
+          If textFeatures exist, describe them as qualitative patterns observed.
+        - EXPERIENCE_ANALYSIS:
+          Reference the user's own records. Identify patterns across multiple entries if possible.
+
+        [General rules]
+        - Answer in Korean.
+        - Do NOT fabricate. Only use what is in the context.
+        - Be concise. No greetings or closing remarks.
+
+        [Output Format — valid JSON only, no markdown]
+        {
+          "answer": "Korean natural language answer",
+          "reasoning": "1~2 sentences on how you derived the answer from the context",
+          "evidences": [
+            {
+              "type": "DOCUMENT"|"AGGREGATION"|"EXPERIENCE",
+              "summary": "one-line evidence summary in Korean",
+              "detail": "supporting detail or null",
+              "sourceId": <jobSummaryId as number or null>
+            }
+          ],
+          "sources": [
+            {
+              "id": <jobSummaryId as number>,
+              "brandName": "회사 브랜드명",
+              "positionName": "포지션명"
+            }
+          ]
+        }
+
+        - evidences: key facts that support the answer (max 5). Set null if context has no discrete evidence items.
+        - sources: populate ONLY for DOCUMENT_SEARCH and SUMMARY. Set null for all other intents.
+        - type must be exactly one of: "DOCUMENT", "AGGREGATION", "EXPERIENCE" (no spaces, no pipes)
+        - All fields MUST be present in the JSON.
+    """.trimIndent()
+
+    fun buildComposerPrompt(question: String, intentName: String, contextText: String): String = """
+        [User Question]
+        $question
+
+        [Intent]
+        $intentName
+
+        [Context]
+        $contextText
+
+        Answer the question based on the context above. Return JSON only.
+    """.trimIndent()
 }

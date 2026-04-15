@@ -18,6 +18,8 @@ data class JobSummarySearchPayload(
     val brandName: String,
     val companyId: Long?,
     val companyName: String?,
+    val companyDomain: String?,
+    val companySize: String?,
     val positionId: Long,
     val positionName: String,
     val brandPositionId: Long?,
@@ -46,7 +48,11 @@ data class JobSummarySearchPayload(
     val questionsToAsk: String?,
     val considerations: String?,
 
-    val createdAt: String  // ISO-8601 형식
+    val createdAt: String,  // ISO-8601 형식
+
+    // === 임베딩 벡터 (k-NN 검색용) ===
+    // null: 임베딩 서버 호출 실패 시 (BM25 검색은 동작)
+    val embeddingVector: List<Float>? = null
 ) {
     companion object {
 
@@ -63,6 +69,8 @@ data class JobSummarySearchPayload(
                 brandName = outbox.brandName,
                 companyId = outbox.companyId,
                 companyName = outbox.companyName,
+                companyDomain = outbox.companyDomain,
+                companySize = outbox.companySize,
                 positionId = outbox.positionId,
                 positionName = outbox.positionName,
                 brandPositionId = outbox.brandPositionId,

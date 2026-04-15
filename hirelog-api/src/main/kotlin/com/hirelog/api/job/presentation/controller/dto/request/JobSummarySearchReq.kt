@@ -29,6 +29,8 @@ data class JobSummarySearchReq(
     val positionCategoryNames: List<String>? = null,
 
     val techStacks: List<String>? = null,
+    val companyDomains: List<String>? = null,
+    val companySizes: List<String>? = null,
     val cursor: String? = null,
     val size: Int = 20,
     val sortBy: String = "CREATED_AT_DESC"
@@ -71,6 +73,8 @@ data class JobSummarySearchReq(
             brandPositionNames = normalizeStrings(merge(brandPositionName, brandPositionNames)),
             positionCategoryNames = normalizeStrings(merge(positionCategoryName, positionCategoryNames)),
             techStacks = normalizeStrings(techStacks),
+            companyDomains = normalizeStrings(companyDomains),
+            companySizes = normalizeStrings(companySizes),
             cursor = cursor,
             size = size.coerceIn(1, 100),
             sortBy = runCatching {

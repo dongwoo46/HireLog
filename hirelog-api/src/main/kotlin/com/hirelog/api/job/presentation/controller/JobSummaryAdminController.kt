@@ -89,6 +89,32 @@ class JobSummaryAdminController(
         return ResponseEntity.ok(mapOf("summaryId" to summaryId))
     }
 
+    /**
+     * 전체 재인덱싱
+     *
+     * 인덱스 매핑 변경 시 사용 (기존 인덱스 삭제 + 재생성 + 전체 재인덱싱)
+     */
+    @PostMapping("/reindex-all")
+    fun reindexAll(
+        @RequestParam(defaultValue = "50") batchSize: Int
+    ): ResponseEntity<Map<String, Int>> {
+        val successCount = jobSummaryAdminService.reindexAll(batchSize)
+        return ResponseEntity.ok(mapOf("successCount" to successCount))
+    }
+
+    /**
+     * 임베딩 벡터 누락 문서 재임베딩
+     *
+     * 임베딩 서버 장애 등으로 벡터가 null인 문서를 재처리
+     */
+    @PostMapping("/reindex-embedding")
+    fun reindexMissingEmbeddings(
+        @RequestParam(defaultValue = "50") batchSize: Int
+    ): ResponseEntity<Map<String, Int>> {
+        val successCount = jobSummaryAdminService.reindexMissingEmbeddings(batchSize)
+        return ResponseEntity.ok(mapOf("successCount" to successCount))
+    }
+
     @PostMapping("/verify")
     fun verifyAdmin(@Valid @RequestBody request: VerifyAdminReq):ResponseEntity<Void> {
         jobSummaryAdminService.verify(request.password)

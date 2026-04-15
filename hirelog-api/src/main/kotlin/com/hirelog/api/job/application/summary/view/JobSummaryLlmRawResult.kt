@@ -19,6 +19,12 @@ data class JobSummaryLlmRawResult(
     // 추론된 법인명 후보 (예: "토스" → "(주)비바리퍼블리카")
     val companyCandidate: String?,
 
+    // 회사 도메인 (예: "핀테크", "커머스", "AI/ML")
+    val companyDomain: String?,
+
+    // 회사 규모 (예: "스타트업", "대기업", "외국계")
+    val companySize: String?,
+
     // 커리어 구분 (예: "신입", "경력", "무관")
     val careerType: String?,
 

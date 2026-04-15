@@ -22,5 +22,11 @@ data class MemberJobSummaryListView(
 
     val saveType: MemberJobSummarySaveType,
 
+    val careerType: String?,
+
+    val companyDomain: String?,
+
+    val companySize: String?,
+
     val createdAt: LocalDateTime
 )

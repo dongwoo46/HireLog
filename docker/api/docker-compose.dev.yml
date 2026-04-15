@@ -177,6 +177,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env.dev
+    ports:
+      - '8000:8000'
     networks:
       - hirelog_network
 

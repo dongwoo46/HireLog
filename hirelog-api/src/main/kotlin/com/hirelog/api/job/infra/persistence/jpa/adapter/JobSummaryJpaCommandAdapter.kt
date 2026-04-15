@@ -3,6 +3,7 @@ package com.hirelog.api.job.infra.persistence.jpa.adapter
 import com.hirelog.api.job.application.summary.port.JobSummaryCommand
 import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.job.infra.persistence.jpa.repository.JobSummaryJpaRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 
 /**
@@ -35,5 +36,9 @@ class JobSummaryJpaCommandAdapter(
 
     override fun findByJobSnapshotId(jobSnapshotId: Long): JobSummary? {
         return repository.findByJobSnapshotId(jobSnapshotId)
+    }
+
+    override fun findAllForReindex(lastId: Long, size: Int): List<JobSummary> {
+        return repository.findByIdGreaterThanOrderByIdAsc(lastId, PageRequest.of(0, size))
     }
 }

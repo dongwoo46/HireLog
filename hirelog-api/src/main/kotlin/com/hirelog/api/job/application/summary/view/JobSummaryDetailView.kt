@@ -37,6 +37,8 @@ data class JobSummaryDetailView(
     // 경력
     val careerType: CareerType = CareerType.UNKNOWN,
     val careerYears: String? = null,
+    val companyDomain: String? = null,
+    val companySize: String? = null,
 
     // JD 요약
     val summaryText: String = "",

@@ -75,6 +75,8 @@ class JobSummaryJpaQueryDslRepositoryImpl(
                     // --- 커리어 ---
                     q.careerType,
                     q.careerYears,
+                    q.companyDomain.stringValue().`as`("companyDomain"),
+                    q.companySize.stringValue().`as`("companySize"),
 
                     // --- 요약 결과 ---
                     q.summaryText.`as`("summary"),
@@ -141,6 +143,8 @@ class JobSummaryJpaQueryDslRepositoryImpl(
                     // 경력
                     q.careerType,
                     q.careerYears,
+                    q.companyDomain.stringValue().`as`("companyDomain"),
+                    q.companySize.stringValue().`as`("companySize"),
 
                     // JD 요약
                     q.summaryText,
@@ -204,6 +208,8 @@ class JobSummaryJpaQueryDslRepositoryImpl(
 
                     q.careerType,
                     q.careerYears,
+                    q.companyDomain.stringValue().`as`("companyDomain"),
+                    q.companySize.stringValue().`as`("companySize"),
 
                     q.summaryText,
                     q.responsibilities,

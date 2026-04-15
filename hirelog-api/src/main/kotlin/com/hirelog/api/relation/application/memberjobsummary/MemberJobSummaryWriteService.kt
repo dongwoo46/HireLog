@@ -44,15 +44,7 @@ class MemberJobSummaryWriteService(
             return
         }
 
-        val summary = MemberJobSummary.create(
-            memberId = command.memberId,
-            jobSummaryId = command.jobSummaryId,
-            brandName = command.brandName,
-            positionName = command.positionName,
-            brandPositionName = command.brandPositionName,
-            positionCategoryName = command.positionCategoryName
-        )
-
+        val summary = createFromJobSummary(command.memberId, command.jobSummaryId)
         memberJobSummaryCommand.save(summary)
     }
 
@@ -202,7 +194,10 @@ class MemberJobSummaryWriteService(
             brandName = jobSummary.brandName,
             positionName = jobSummary.positionName,
             brandPositionName = jobSummary.brandPositionName,
-            positionCategoryName = jobSummary.positionCategoryName
+            positionCategoryName = jobSummary.positionCategoryName,
+            careerType = jobSummary.careerType?.name,
+            companyDomain = jobSummary.companyDomain?.name,
+            companySize = jobSummary.companySize?.name,
         )
     }
 }
