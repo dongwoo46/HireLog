@@ -26,15 +26,15 @@ interface RagLlmComposer {
 /**
  * Executor → Composer 전달 컨텍스트
  *
- * documents:    k-NN 검색 결과 또는 ids filter 조회 문서 목록
- * aggregations: techStack/companyDomain 등 집계 결과 (PATTERN_ANALYSIS, STATISTICS)
+ * documents:    k-NN 하이브리드 검색 결과 문서 목록
+ * aggregations: techStack/companyDomain/companySize 집계 결과 (STATISTICS)
+ * textFeatures: cohort 문서에서 LLM이 추출한 정성적 특징 (STATISTICS + cohort 조건)
  * stageRecords: HiringStageRecord 원문 (EXPERIENCE_ANALYSIS)
- * baselineAggregations: 전체 분포 (PATTERN_ANALYSIS baseline=true일 때)
  */
 data class RagContext(
     val documents: List<RagDocument> = emptyList(),
-    val aggregations: Map<String, Long> = emptyMap(),
-    val baselineAggregations: Map<String, Long> = emptyMap(),
+    val aggregations: List<AggregationEntry> = emptyList(),
+    val textFeatures: List<TextFeature> = emptyList(),
     val stageRecords: List<RagStageRecord> = emptyList()
 )
 
@@ -42,6 +42,8 @@ data class RagDocument(
     val id: Long,
     val brandName: String,
     val positionName: String,
+    val companyDomain: String?,
+    val companySize: String?,
     val responsibilities: String,
     val requiredQualifications: String,
     val preferredQualifications: String?,
@@ -50,6 +52,20 @@ data class RagDocument(
     val mustHaveSignals: String?,
     val technicalContext: String?,
     val score: Float? = null
+)
+
+data class AggregationEntry(
+    val category: String,
+    val label: String,
+    val cohortCount: Long,
+    val baselineMultiplier: Double?
+)
+
+data class TextFeature(
+    val feature: String,
+    val observedCount: Int,
+    val snippets: List<String>,
+    val sourceIds: List<Long>
 )
 
 data class RagStageRecord(

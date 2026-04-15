@@ -39,6 +39,7 @@ data class RagAnswer(
 
 data class RagSource(
     val id: Long,
+    val brandName: String,
     val positionName: String
 )
 

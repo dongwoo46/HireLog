@@ -1,17 +1,19 @@
 ﻿import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { TbPlus } from 'react-icons/tb';
+import { TbMessageCircle, TbPlus } from 'react-icons/tb';
 import { useAuthStore } from '../store/authStore';
 import { jdSummaryService } from '../services/jdSummaryService';
 import type { JobSummarySearchReq, JobSummaryView } from '../types/jobSummary';
 import { JobSummarySearch } from '../components/JobSummarySearch';
 import { JobSummaryCard } from '../components/JobSummaryCard';
+import { RagChatModal } from '../components/rag/RagChatModal';
 
 const MainPage = () => {
   const navigate = useNavigate();
   const { isInitialized, isAuthenticated } = useAuthStore();
 
   const [featuredJds, setFeaturedJds] = useState<JobSummaryView[]>([]);
+  const [isRagModalOpen, setIsRagModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -116,6 +118,17 @@ const MainPage = () => {
           </button>
         </div>
       </section>
+
+      <button
+        type="button"
+        onClick={() => setIsRagModalOpen(true)}
+        className="fixed bottom-8 right-8 z-50 inline-flex items-center gap-2 rounded-full bg-[#4CDFD5] px-5 py-3 text-sm font-bold text-[#083a37] shadow-lg transition hover:brightness-95"
+      >
+        <TbMessageCircle size={18} />
+        {'\uCC44\uC6A9 \uB3C4\uC6B0\uBBF8'}
+      </button>
+
+      <RagChatModal isOpen={isRagModalOpen} onClose={() => setIsRagModalOpen(false)} />
     </div>
   );
 };

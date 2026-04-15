@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { TbMessageCircle } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import type { CareerType, JobSummarySearchReq, JobSummaryView } from '../types/jobSummary';
 import { jdSummaryService } from '../services/jdSummaryService';
 import { JobSummaryCard } from '../components/JobSummaryCard';
 import { JobSummarySearch } from '../components/JobSummarySearch';
+import { RagChatModal } from '../components/rag/RagChatModal';
 import { useAuthStore } from '../store/authStore';
 
 const CAREER_TYPE_LABELS: Record<string, string> = {
@@ -64,6 +66,7 @@ const JobSummaryListPage = () => {
   const [sideJds, setSideJds] = useState<JobSummaryView[]>([]);
   const [sideLoading, setSideLoading] = useState(false);
   const [sideUnsaveId, setSideUnsaveId] = useState<number | null>(null);
+  const [isRagModalOpen, setIsRagModalOpen] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const fetchMoreRef = useRef<() => void>(() => {});
@@ -248,6 +251,15 @@ const JobSummaryListPage = () => {
 
   return (
     <div className="relative min-h-screen bg-[#F6F8FA] pb-20">
+      <button
+        type="button"
+        onClick={() => setIsRagModalOpen(true)}
+        className="fixed bottom-8 right-8 z-50 inline-flex items-center gap-2 rounded-full bg-[#4CDFD5] px-5 py-3 text-sm font-bold text-[#083a37] shadow-lg transition hover:brightness-95"
+      >
+        <TbMessageCircle size={18} />
+        {'\uCC44\uC6A9 \uB3C4\uC6B0\uBBF8'}
+      </button>
+
       {isAuthenticated && !isSideOpen && (
         <button
           onClick={() => setIsSideOpen(true)}
@@ -404,6 +416,8 @@ const JobSummaryListPage = () => {
           <div className="py-6 text-center text-sm text-gray-300">모든 공고를 불러왔습니다.</div>
         )}
       </div>
+
+      <RagChatModal isOpen={isRagModalOpen} onClose={() => setIsRagModalOpen(false)} />
     </div>
   );
 };
