@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TbExternalLink, TbEyeOff, TbEye, TbRefresh } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { adminService } from '../../services/adminService';
@@ -7,6 +8,7 @@ import type { AdminJobSummaryView } from '../../types/admin';
 type ActiveFilter = 'all' | 'active' | 'inactive';
 
 export default function AdminJobSummaryTab() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<AdminJobSummaryView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -160,7 +162,7 @@ export default function AdminJobSummaryTab() {
           </button>
 
           <button
-            onClick={() => window.open('/admin/jd/request', '_blank')}
+            onClick={() => navigate('/admin/jd/request')}
             className="w-full rounded-xl bg-[#3FB6B2] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#34a09c] sm:w-auto"
           >
             {'JD \uc218\ub3d9 \ub4f1\ub85d'}

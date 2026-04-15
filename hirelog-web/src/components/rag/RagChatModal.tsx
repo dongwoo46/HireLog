@@ -3,16 +3,8 @@ import { TbMessageCircle, TbRobot, TbSend, TbUser } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { Modal } from '../common/Modal';
 import { getRagErrorMessage, isRagRateLimitError, ragService } from '../../services/ragService';
-import type { RagAnswer, RagIntent } from '../../types/rag';
-
-type ChatRole = 'user' | 'assistant';
-
-interface ChatMessage {
-  id: string;
-  role: ChatRole;
-  content: string;
-  ragAnswer?: RagAnswer;
-}
+import { useRagChatStore } from '../../store/ragChatStore';
+import type { RagIntent } from '../../types/rag';
 
 interface RagChatModalProps {
   isOpen: boolean;
@@ -32,10 +24,12 @@ const EXAMPLE_QUESTIONS = [
   '\uBA74\uC811 \uB2E8\uACC4\uC5D0\uC11C \uB5A8\uC5B4\uC9C0\uB294 \uBE44\uC728\uC774 \uB192\uC740 \uAD6C\uAC04\uC774 \uC5B4\uB514\uC57C?',
 ];
 
-const makeMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
 export function RagChatModal({ isOpen, onClose }: RagChatModalProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messages = useRagChatStore((state) => state.messages);
+  const ensureInitialized = useRagChatStore((state) => state.ensureInitialized);
+  const addUserMessage = useRagChatStore((state) => state.addUserMessage);
+  const addAssistantMessage = useRagChatStore((state) => state.addAssistantMessage);
+
   const [question, setQuestion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -44,17 +38,8 @@ export function RagChatModal({ isOpen, onClose }: RagChatModalProps) {
 
   useEffect(() => {
     if (!isOpen) return;
-    if (messages.length > 0) return;
-
-    setMessages([
-      {
-        id: makeMessageId(),
-        role: 'assistant',
-        content:
-          '\uC548\uB155\uD558\uC138\uC694. \uCC44\uC6A9 \uACF5\uACE0 \uC9C8\uBB38 \uB3C4\uC6B0\uBBF8\uC785\uB2C8\uB2E4. \uAD81\uAE08\uD55C \uB0B4\uC6A9\uC744 \uC790\uC720\uB86D\uAC8C \uC9C8\uBB38\uD574 \uC8FC\uC138\uC694.',
-      },
-    ]);
-  }, [isOpen, messages.length]);
+    ensureInitialized();
+  }, [isOpen, ensureInitialized]);
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -67,27 +52,11 @@ export function RagChatModal({ isOpen, onClose }: RagChatModalProps) {
 
     setQuestion('');
     setIsSubmitting(true);
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: makeMessageId(),
-        role: 'user',
-        content: trimmed,
-      },
-    ]);
+    addUserMessage(trimmed);
 
     try {
       const answer = await ragService.query({ question: trimmed });
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: makeMessageId(),
-          role: 'assistant',
-          content: answer.answer,
-          ragAnswer: answer,
-        },
-      ]);
+      addAssistantMessage(answer.answer, answer);
     } catch (error) {
       if (isRagRateLimitError(error)) {
         toast.warn('\uC624\uB298 \uC9C8\uBB38 3\uD68C\uB97C \uBAA8\uB450 \uC0AC\uC6A9\uD588\uC5B4\uC694. \uB0B4\uC77C \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.');
@@ -95,14 +64,7 @@ export function RagChatModal({ isOpen, onClose }: RagChatModalProps) {
         toast.error(getRagErrorMessage(error));
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: makeMessageId(),
-          role: 'assistant',
-          content: '\uC694\uCCAD\uC744 \uCC98\uB9AC\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.',
-        },
-      ]);
+      addAssistantMessage('\uC694\uCCAD\uC744 \uCC98\uB9AC\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.');
     } finally {
       setIsSubmitting(false);
     }
@@ -153,7 +115,15 @@ export function RagChatModal({ isOpen, onClose }: RagChatModalProps) {
                         <ul className="space-y-1 text-gray-600">
                           {message.ragAnswer.sources.slice(0, 3).map((source) => (
                             <li key={source.id} className="rounded-lg bg-gray-50 px-2 py-1">
-                              #{source.id} {source.positionName}
+                              <a
+                                href={`/jd/${source.id}`}
+                                className="underline decoration-gray-300 underline-offset-2 transition hover:text-[#276db8]"
+                              >
+                                #{source.id}{' '}
+                                {source.brandName
+                                  ? `${source.brandName} / ${source.positionName}`
+                                  : source.positionName}
+                              </a>
                             </li>
                           ))}
                         </ul>

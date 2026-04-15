@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   TbAlertTriangle,
   TbBriefcase,
+  TbMessageCircle,
   TbMessageDots,
   TbShieldCheck,
   TbStar,
@@ -10,11 +11,12 @@ import {
 import AdminBrandTab from '../components/admin/AdminBrandTab';
 import AdminJobSummaryTab from '../components/admin/AdminJobSummaryTab';
 import AdminMemberTab from '../components/admin/AdminMemberTab';
+import AdminRagTab from '../components/admin/AdminRagTab';
 import AdminReportTab from '../components/admin/AdminReportTab';
 import AdminReviewTab from '../components/admin/AdminReviewTab';
 import AdminUserRequestTab from '../components/admin/AdminUserRequestTab';
 
-type AdminTab = 'job-summary' | 'reports' | 'brand' | 'user-request' | 'reviews' | 'members';
+type AdminTab = 'job-summary' | 'reports' | 'brand' | 'user-request' | 'reviews' | 'members' | 'rag-logs';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('job-summary');
@@ -26,6 +28,7 @@ export default function AdminPage() {
     { id: 'user-request', label: '\uc0ac\uc6a9\uc790 \ubb38\uc758', icon: TbMessageDots },
     { id: 'reviews', label: '\ub9ac\ubdf0 \uad00\ub9ac', icon: TbStar },
     { id: 'members', label: '\uc0ac\uc6a9\uc790 \uad00\ub9ac', icon: TbUsers },
+    { id: 'rag-logs', label: '\ucc44\uc6a9\ub3c4\uc6b0\ubbf8 \ub85c\uadf8', icon: TbMessageCircle },
   ] as const;
 
   const renderTabContent = () => {
@@ -42,6 +45,8 @@ export default function AdminPage() {
         return <AdminReviewTab />;
       case 'members':
         return <AdminMemberTab />;
+      case 'rag-logs':
+        return <AdminRagTab />;
       default:
         return null;
     }

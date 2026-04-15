@@ -16,8 +16,10 @@
 - 임베딩 모델: `jhgan/ko-sroberta-multitask` (768차원, 기존 인덱스와 동일)
 - LLM: Gemini (기존 `JobSummaryLlm`과 동일 클라이언트)
 - k-NN k값: 기본 10 (응답 품질 보고 조정)
-- RAG 응답 sources: `id` + `positionName` 포함
+- RAG 응답 sources: `id` + `brandName` + `positionName` 포함
 - Gemini Parser 먼저 → semanticRetrieval = true일 때만 Python 임베딩 호출 (순차)
+- RAG 전 파이프라인(질문 → 파서 → 실행 → 응답) 전 과정 DB 저장 (`rag_query_log`)
+- USER 일일 3회 제한 (Redis INCR), ADMIN 무제한
 
 ---
 
@@ -109,33 +111,59 @@ Gemini Composer: note 텍스트를 컨텍스트로 → 패턴/공통점 추출
 job/
 ├── application/
 │   └── rag/
-│       ├── RagService.kt                  ← 오케스트레이터 (Phase 4)
+│       ├── RagService.kt                       ✅ 오케스트레이터 (RateLimiter → Parser → Executor → Composer → DB저장)
+│       ├── RagRateLimiter.kt                   ✅ Redis INCR, USER 3회/일
+│       ├── RagLogReadService.kt                ✅ RAG 로그 조회 서비스
 │       ├── model/
-│       │   ├── RagQuery.kt               ✅ 완료
-│       │   ├── RagFilters.kt             ✅ 완료
-│       │   └── RagAnswer.kt              ✅ 완료 (reasoning/evidences 포함)
+│       │   ├── RagQuery.kt                     ✅ Parser 출력 (intent, filters, semanticRetrieval, ...)
+│       │   ├── RagFilters.kt                   ✅ cohort + OpenSearch 필터
+│       │   ├── RagIntent.kt                    ✅ 6개 enum
+│       │   └── RagAnswer.kt                    ✅ reasoning/evidences/sources (brandName 포함)
 │       ├── port/
-│       │   ├── RagLlmParser.kt           ✅ 완료
-│       │   ├── RagLlmComposer.kt         ✅ 완료 (RagContext, RagDocument, RagStageRecord)
-│       │   └── RagEmbedding.kt           ✅ 완료
+│       │   ├── RagLlmParser.kt                 ✅ 질문 → RagQuery
+│       │   ├── RagLlmComposer.kt               ✅ RagContext → RagAnswer (RagContext, RagDocument, AggregationEntry, TextFeature 정의)
+│       │   ├── RagLlmFeatureExtractor.kt       ✅ 전처리 텍스트 → 특징 레이블
+│       │   ├── RagEmbedding.kt                 ✅ 텍스트 → 768차원 벡터
+│       │   ├── RagCohortQuery.kt               ✅ DB cohort 조회
+│       │   ├── RagQueryLogCommand.kt           ✅ 로그 저장 포트
+│       │   └── RagQueryLogQuery.kt             ✅ 로그 조회 포트 (페이징, 필터)
+│       ├── view/
+│       │   └── RagQueryLogView.kt              ✅ 로그 조회 Read model
 │       └── executor/
-│           └── RagQueryExecutor.kt       ← (Phase 3)
+│           └── RagQueryExecutor.kt             ✅ intent별 실행 분기 + 수치 계산
 │
-├── domain/type/
-│   ├── CompanyDomain.kt                  ✅ 완료 (22개 enum)
-│   └── CompanySize.kt                    ✅ 완료 (8개 enum, 스타트업 4단계)
+├── domain/
+│   ├── model/
+│   │   └── RagQueryLog.kt                      ✅ 파이프라인 전 과정 저장 엔티티
+│   └── type/
+│       ├── CompanyDomain.kt                    ✅ 22개 enum
+│       └── CompanySize.kt                      ✅ 8개 enum
 │
 ├── infra/
-│   ├── persistence/opensearch/
-│   │   └── JobSummaryOpenSearchAdapter   ✅ searchByVector() 추가
+│   ├── persistence/
+│   │   ├── jpa/
+│   │   │   ├── RagQueryLogJpaAdapter.kt        ✅ Command 구현체
+│   │   │   ├── RagQueryLogJpaQueryAdapter.kt   ✅ Query 구현체 (JpaSpecificationExecutor)
+│   │   │   └── repository/
+│   │   │       └── RagQueryLogJpaRepository.kt ✅ JpaSpecificationExecutor 포함
+│   │   └── opensearch/
+│   │       └── JobSummaryOpenSearchAdapter     ✅ searchHybrid / aggregateFields / findCohortDocumentTexts
 │   └── external/gemini/
-│       ├── GeminiClient.kt               ✅ generateContentWithSystemAsync() 추가
-│       ├── GeminiPromptBuilder.kt        ✅ buildRagParserSystemInstruction/Prompt 추가
-│       ├── GeminiRagParserAdapter.kt     ✅ 완료 (RagLlmParser 구현체)
-│       └── GeminiRagComposerAdapter.kt   ← (Phase 4)
+│       ├── GeminiClient.kt                     ✅ generateContentWithSystemAsync() 오버로드
+│       ├── GeminiPromptBuilder.kt              ✅ Parser/FeatureExtractor/Composer 프롬프트 빌더
+│       ├── GeminiRagParserAdapter.kt           ✅ RagLlmParser 구현, fallback 처리
+│       ├── GeminiRagFeatureExtractorAdapter.kt ✅ RagLlmFeatureExtractor 구현
+│       └── GeminiRagComposerAdapter.kt         ✅ RagContext 직렬화 → Gemini → RagAnswer
+│
+├── resources/db/migration/
+│   └── V13__create_rag_query_log.sql           ✅ rag_query_log 테이블 + 인덱스 3개
 │
 └── presentation/controller/
-    └── RagController.kt                  ← (Phase 4)
+    ├── RagController.kt                        ✅ POST /api/rag/query, GET /api/rag/logs
+    ├── RagAdminController.kt                   ✅ POST /api/admin/rag/parse, GET /api/admin/rag/logs, GET /api/admin/rag/logs/{id}
+    └── dto/response/
+        ├── RagAnswerRes.kt                     ✅
+        └── RagQueryLogRes.kt                   ✅
 ```
 
 ---
@@ -306,21 +334,28 @@ MemberJobSummaryQuery.findStageRecordsForRag() 추가 필요
 
 ---
 
-### Phase 3 — Executor 구현 (intent별)
+### ✅ Phase 3 — Executor 구현 (완료)
 
-1. `RagQueryExecutor` 구현
-   - `DOCUMENT_SEARCH` / `SUMMARY`: embed → k-NN
-   - `PATTERN_ANALYSIS`: DB cohort → OpenSearch aggregation + 텍스트 조회
-   - `EXPERIENCE_ANALYSIS`: DB HiringStageRecord 조회
-   - `STATISTICS`: OpenSearch aggregation only
-   - `KEYWORD_SEARCH`: 기존 BM25 재사용
-2. `MemberJobSummaryQuery.findJobSummaryIdsByCohort()` 포트 추가 + 어댑터 구현
-3. `MemberJobSummaryQuery.findStageRecordsForRag()` 포트 추가 + 어댑터 구현
+- `RagQueryExecutor`: DOCUMENT_SEARCH/SUMMARY/KEYWORD_SEARCH → Hybrid(k-NN+BM25+RRF), STATISTICS/PATTERN_ANALYSIS → aggregation, EXPERIENCE_ANALYSIS → DB HiringStageRecord
+- `JobSummaryOpenSearchAdapter`: `searchHybrid` / `aggregateFields` / `findCohortDocumentTexts` 추가
+- `RagCohortQuery` 포트 + `RagCohortQueryJpaAdapter` 구현 (cohort ids, stage records)
+- `GeminiRagFeatureExtractorAdapter`: cohort 텍스트 전처리 → Gemini → 특징 레이블
 
 ---
 
-### Phase 4 — Composer 및 서비스 조립
+### ✅ Phase 4 — Composer 및 서비스 조립 (완료)
 
-1. `GeminiRagComposerAdapter` 구현 (`RagLlmComposer` 포트)
-2. `RagService` 조립 (Parser → 조건부 임베딩 → Executor → Composer)
-3. `RagController` + `POST /api/rag/query` 노출
+- `GeminiRagComposerAdapter`: `RagContext` 마크다운 직렬화 → Gemini → `RagAnswer`
+- `RagService`: RateLimiter → Parser → Executor → Composer → DB 저장 (실패해도 응답 반환)
+- `RagController`: `POST /api/rag/query`, `GET /api/rag/logs`
+- `RagAdminController`: `POST /api/admin/rag/parse`, `GET /api/admin/rag/logs`, `GET /api/admin/rag/logs/{id}`
+
+---
+
+### ✅ Phase 5 — DB 로깅 및 조회 API (완료)
+
+- `V13__create_rag_query_log.sql`: rag_query_log 테이블 (member_id, intent, parsed_filters_json, context_json, evidences_json, sources_json 등)
+- `RagQueryLog` 엔티티: 파이프라인 4단계 전 결과 JSON TEXT 저장
+- `RagQueryLogCommand` / `RagQueryLogQuery` 포트 + 어댑터
+- `RagLogReadService`: searchAdmin / searchMine (필터: memberId, intent, dateFrom, dateTo, page, size)
+- `RagQueryLogRes` DTO: JSON 필드는 문자열 그대로 반환 (클라이언트 파싱)

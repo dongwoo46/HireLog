@@ -11,6 +11,7 @@ export interface RagEvidence {
 
 export interface RagSource {
   id: number;
+  brandName: string | null;
   positionName: string;
 }
 
@@ -24,4 +25,13 @@ export interface RagAnswer {
 
 export interface RagQueryReq {
   question: string;
+}
+
+export type RagChatRole = 'user' | 'assistant';
+
+export interface RagChatMessage {
+  id: string;
+  role: RagChatRole;
+  content: string;
+  ragAnswer?: RagAnswer;
 }

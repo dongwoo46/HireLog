@@ -3,6 +3,8 @@ import type {
   AdminJobSummaryDirectCreateReq,
   AdminJobSummaryView,
   AdminPagedResult,
+  AdminRagIntent,
+  AdminRagLogView,
   AdminReportView,
   AdminReviewView,
   BrandListView,
@@ -197,5 +199,41 @@ export const adminService = {
 
   processReport: async (reportId: number, processType: ReportProcessType): Promise<void> => {
     await apiClient.patch(`/admin/reports/${reportId}/process`, { processType });
+  },
+
+  getAllRagLogs: async (
+    page = 0,
+    size = 20,
+    params?: {
+      memberId?: number;
+      intent?: AdminRagIntent;
+      dateFrom?: string;
+      dateTo?: string;
+    },
+  ): Promise<AdminPagedResult<AdminRagLogView>> => {
+    const response = await apiClient.get('/admin/rag/logs', {
+      params: {
+        page,
+        size,
+        memberId: params?.memberId,
+        intent: params?.intent,
+        dateFrom: params?.dateFrom,
+        dateTo: params?.dateTo,
+      },
+    });
+
+    const data = response.data;
+    return {
+      items: data.items ?? [],
+      totalElements: data.totalElements ?? 0,
+      totalPages: data.totalPages ?? 0,
+      size: data.size ?? size,
+      number: data.page ?? page,
+    };
+  },
+
+  getRagLogById: async (id: number): Promise<AdminRagLogView> => {
+    const response = await apiClient.get(`/admin/rag/logs/${id}`);
+    return response.data;
   },
 };
