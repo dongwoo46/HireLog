@@ -44,6 +44,7 @@ class NotificationReadServiceTest {
             val views = listOf(makeView(1L), makeView(2L))
             every { notificationQuery.findByMemberId(1L, null, 0, 10) } returns views
             every { notificationQuery.countByMemberId(1L, null) } returns 2L
+            every { notificationQuery.countUnreadByMemberId(1L) } returns 1L
 
             val result = service.getNotifications(memberId = 1L, isRead = null, page = 0, size = 10)
 
@@ -58,6 +59,7 @@ class NotificationReadServiceTest {
         fun shouldPassIsReadFilter() {
             every { notificationQuery.findByMemberId(1L, false, 0, 5) } returns emptyList()
             every { notificationQuery.countByMemberId(1L, false) } returns 0L
+            every { notificationQuery.countUnreadByMemberId(1L) } returns 0L
 
             service.getNotifications(memberId = 1L, isRead = false, page = 0, size = 5)
 
@@ -70,6 +72,7 @@ class NotificationReadServiceTest {
         fun shouldReturnEmptyResult() {
             every { notificationQuery.findByMemberId(any(), any(), any(), any()) } returns emptyList()
             every { notificationQuery.countByMemberId(any(), any()) } returns 0L
+            every { notificationQuery.countUnreadByMemberId(any()) } returns 0L
 
             val result = service.getNotifications(memberId = 1L, isRead = null, page = 0, size = 10)
 

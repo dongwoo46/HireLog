@@ -2,6 +2,8 @@ package com.hirelog.api.job.domain.model
 
 import com.hirelog.api.common.domain.LlmProvider
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
 
@@ -16,6 +18,8 @@ class JobSummaryTest {
         brandName = "Toss",
         companyId = null,
         companyName = null,
+        companyDomain = CompanyDomain.OTHER,
+        companySize = CompanySize.UNKNOWN,
         positionId = 20L,
         positionName = "backend_engineer",
         brandPositionId = 30L,

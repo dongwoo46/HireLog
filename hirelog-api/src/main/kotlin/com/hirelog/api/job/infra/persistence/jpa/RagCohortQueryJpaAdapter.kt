@@ -1,7 +1,10 @@
 package com.hirelog.api.job.infra.persistence.jpa
 
 import com.hirelog.api.job.application.rag.port.RagCohortQuery
+import com.hirelog.api.job.application.rag.port.RagReviewRecord
 import com.hirelog.api.job.application.rag.port.RagStageRecord
+import com.hirelog.api.job.domain.model.QJobSummary.jobSummary
+import com.hirelog.api.job.domain.model.QJobSummaryReview.jobSummaryReview
 import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.domain.model.QHiringStageRecord.hiringStageRecord
 import com.hirelog.api.relation.domain.model.QMemberJobSummary.memberJobSummary
@@ -100,6 +103,40 @@ class RagCohortQueryJpaAdapter(
                     stage = tuple[hiringStageRecord.stage]!!.name,
                     note = tuple[hiringStageRecord.note]!!,
                     result = tuple[hiringStageRecord.result]?.name
+                )
+            }
+    }
+
+    override fun findReviewsByMemberId(memberId: Long): List<RagReviewRecord> {
+        return queryFactory
+            .select(
+                jobSummary.brandName,
+                jobSummary.positionName,
+                jobSummaryReview.hiringStage,
+                jobSummaryReview.difficultyRating,
+                jobSummaryReview.satisfactionRating,
+                jobSummaryReview.prosComment,
+                jobSummaryReview.consComment,
+                jobSummaryReview.tip
+            )
+            .from(jobSummaryReview)
+            .join(jobSummary).on(jobSummary.id.eq(jobSummaryReview.jobSummaryId))
+            .where(
+                jobSummaryReview.memberId.eq(memberId),
+                jobSummaryReview.deleted.isFalse
+            )
+            .orderBy(jobSummaryReview.id.desc())
+            .fetch()
+            .map { tuple ->
+                RagReviewRecord(
+                    brandName = tuple[jobSummary.brandName]!!,
+                    positionName = tuple[jobSummary.positionName]!!,
+                    hiringStage = tuple[jobSummaryReview.hiringStage]!!.name,
+                    difficultyRating = tuple[jobSummaryReview.difficultyRating]!!,
+                    satisfactionRating = tuple[jobSummaryReview.satisfactionRating]!!,
+                    prosComment = tuple[jobSummaryReview.prosComment]!!,
+                    consComment = tuple[jobSummaryReview.consComment]!!,
+                    tip = tuple[jobSummaryReview.tip]
                 )
             }
     }

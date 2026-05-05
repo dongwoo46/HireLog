@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TbMessageCircle } from 'react-icons/tb';
 import { toast } from 'react-toastify';
+import { COMPANY_SIZE_LABELS } from '../types/jobSummary';
 import type { CareerType, JobSummarySearchReq, JobSummaryView } from '../types/jobSummary';
 import { jdSummaryService } from '../services/jdSummaryService';
 import { JobSummaryCard } from '../components/JobSummaryCard';
@@ -40,16 +41,6 @@ const COMPANY_DOMAIN_LABELS: Record<string, string> = {
   OTHER: '기타',
 };
 
-const COMPANY_SIZE_LABELS: Record<string, string> = {
-  SEED: '시드 스타트업',
-  EARLY_STARTUP: '초기 스타트업',
-  GROWTH_STARTUP: '성장 스타트업',
-  SCALE_UP: '스케일업',
-  MID_SIZED: '중소/중견기업',
-  LARGE_CORP: '대기업',
-  FOREIGN_CORP: '외국계',
-  UNKNOWN: '확인불가',
-};
 
 const JobSummaryListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -329,7 +320,7 @@ const JobSummaryListPage = () => {
                       )}
                       {jd.companySize && (
                         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                          {COMPANY_SIZE_LABELS[jd.companySize] ?? jd.companySize}
+                          {COMPANY_SIZE_LABELS[jd.companySize as keyof typeof COMPANY_SIZE_LABELS] ?? jd.companySize}
                         </span>
                       )}
                     </div>

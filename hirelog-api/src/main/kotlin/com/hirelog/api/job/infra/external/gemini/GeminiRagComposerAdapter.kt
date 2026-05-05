@@ -107,10 +107,29 @@ class GeminiRagComposerAdapter(
         }
 
         if (context.stageRecords.isNotEmpty()) {
-            appendLine("## 경험 기록 (${context.stageRecords.size}건)")
+            appendLine("## 전형 경험 기록 (${context.stageRecords.size}건)")
+            appendLine("(아래 각 항목의 '기록 내용'이 분석의 핵심 재료입니다)")
             context.stageRecords.forEach { record ->
-                appendLine("- ${record.brandName} / ${record.positionName} / ${record.stage} / 결과: ${record.result ?: "미기록"}")
-                record.note.takeIf { it.isNotBlank() }?.let { appendLine("  노트: $it") }
+                appendLine("")
+                appendLine("### ${record.brandName} — ${record.positionName}")
+                appendLine("전형 단계: ${record.stage} | 결과: ${record.result ?: "미기록"}")
+                record.note.takeIf { it.isNotBlank() }?.let {
+                    appendLine("기록 내용:")
+                    appendLine(it)
+                }
+            }
+            appendLine()
+        }
+
+        if (context.reviewRecords.isNotEmpty()) {
+            appendLine("## 공고 리뷰 (${context.reviewRecords.size}건)")
+            context.reviewRecords.forEach { review ->
+                appendLine("")
+                appendLine("### ${review.brandName} — ${review.positionName}")
+                appendLine("전형 단계: ${review.hiringStage} | 난이도: ${review.difficultyRating}/10 | 만족도: ${review.satisfactionRating}/10")
+                appendLine("장점: ${review.prosComment}")
+                appendLine("단점: ${review.consComment}")
+                review.tip?.takeIf { it.isNotBlank() }?.let { appendLine("팁: $it") }
             }
         }
     }.trim()

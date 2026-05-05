@@ -54,6 +54,7 @@ class TextPreprocessPipeline:
 
         # 3️⃣ Canonical (공통 후반 파이프라인)
         canonical_map = self.canonical.process(sections)
+        canonical_map = self.canonical.to_jobsummary_canonical_map(canonical_map)
 
         logger.info(
             "TEXT pipeline completed",

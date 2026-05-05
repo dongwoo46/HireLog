@@ -109,6 +109,17 @@ class OpenAiJobSummaryLlm(
             }
     }
 
+    override fun summarizeFromImagesAsync(
+        brandName: String,
+        positionName: String,
+        positionCandidates: List<String>,
+        existCompanies: List<String>,
+        images: List<String>
+    ): CompletableFuture<JobSummaryLlmResult> =
+        CompletableFuture.failedFuture(
+            UnsupportedOperationException("OpenAI adapter does not support image-based summarization")
+        )
+
     private fun unwrap(ex: Throwable): Throwable =
         if (ex is CompletionException) ex.cause ?: ex else ex
 }

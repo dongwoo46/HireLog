@@ -22,5 +22,19 @@ interface JobSummaryLlm {
         existCompanies: List<String>,
         canonicalMap: Map<String, List<String>>
     ): CompletableFuture<JobSummaryLlmResult>
+
+    /**
+     * 이미지 기반 JD 요약 (멀티모달).
+     *
+     * 텍스트 추출 불가한 이미지 공고에서 사용.
+     * images: "data:{mime};base64,{data}" 형식 리스트
+     */
+    fun summarizeFromImagesAsync(
+        brandName: String,
+        positionName: String,
+        positionCandidates: List<String>,
+        existCompanies: List<String>,
+        images: List<String>
+    ): CompletableFuture<JobSummaryLlmResult>
 }
 

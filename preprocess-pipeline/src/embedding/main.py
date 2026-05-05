@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from embedding.config import config
 from embedding.model import load_model
 from embedding.router import router
+from embedding.admin_router import router as admin_router
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
+app.include_router(admin_router)
 
 
 if __name__ == "__main__":

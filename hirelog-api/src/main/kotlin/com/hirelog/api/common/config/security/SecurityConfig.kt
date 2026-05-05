@@ -4,6 +4,7 @@ import com.hirelog.api.auth.infra.jwt.JwtAuthenticationFilter
 import com.hirelog.api.auth.infra.oauth.handler.OAuth2LoginSuccessHandler
 import com.hirelog.api.auth.infra.oauth.repository.CookieOAuth2AuthorizationRequestRepository
 import com.hirelog.api.auth.infra.oauth.user.CustomOAuth2UserService
+import jakarta.servlet.DispatcherType
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -67,6 +68,9 @@ class SecurityConfig(
             // 인가 정책
             .authorizeHttpRequests { auth ->
                 auth
+                    // SSE / 비동기 재디스패치는 인증 컨텍스트가 없으므로 permitAll
+                    .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
+
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                     // Actuator

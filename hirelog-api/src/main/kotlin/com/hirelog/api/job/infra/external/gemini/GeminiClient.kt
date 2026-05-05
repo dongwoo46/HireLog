@@ -90,6 +90,53 @@ class GeminiClient(
      * @return 생성된 텍스트
      * @throws IllegalStateException 응답이 없거나 구조가 예상과 다를 경우
      */
+    /**
+     * 이미지 목록과 함께 Gemini API를 비동기 호출한다 (멀티모달).
+     *
+     * @param systemInstruction system_instruction 텍스트
+     * @param prompt 유저 프롬프트
+     * @param images "data:{mime};base64,{data}" 형식의 이미지 리스트
+     */
+    fun generateContentWithImagesAsync(
+        systemInstruction: String,
+        prompt: String,
+        images: List<String>
+    ): CompletableFuture<String> {
+
+        val parts = mutableListOf<Map<String, Any>>(mapOf("text" to prompt))
+
+        images.forEach { dataUri ->
+            val mimeType = dataUri.substringAfter("data:").substringBefore(";base64,")
+            val base64Data = dataUri.substringAfter(";base64,")
+            parts.add(mapOf("inlineData" to mapOf("mimeType" to mimeType, "data" to base64Data)))
+        }
+
+        val requestBody: Map<String, Any> = mapOf(
+            "system_instruction" to mapOf(
+                "parts" to listOf(mapOf("text" to systemInstruction))
+            ),
+            "contents" to listOf(mapOf("parts" to parts)),
+            "generationConfig" to mapOf(
+                "temperature" to 0.2,
+                "responseMimeType" to "application/json"
+            )
+        )
+
+        return webClient.post()
+            .uri {
+                it.path("/models/{model}:generateContent")
+                    .queryParam("key", properties.apiKey)
+                    .build(properties.model)
+            }
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(requestBody)
+            .retrieve()
+            .bodyToMono(Map::class.java)
+            .timeout(Duration.ofSeconds(60))
+            .map { response -> extractText(response) }
+            .toFuture()
+    }
+
     private fun extractText(response: Map<*, *>?): String {
 
         // Gemini API가 응답을 반환하지 않은 경우

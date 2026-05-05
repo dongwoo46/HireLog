@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { TbBriefcase, TbBuilding, TbCategory, TbSearch, TbUsers, TbWorld } from 'react-icons/tb';
 import { jdSummaryService, type SearchOptionItem } from '../services/jdSummaryService';
-import type { JobSummarySearchReq } from '../types/jobSummary';
+import { COMPANY_SIZE_LABELS } from '../types/jobSummary';
+import type { JobSummarySearchReq, CompanySizeType } from '../types/jobSummary';
 import { Modal } from './common/Modal';
 
 interface JobSummaryFilterModalProps {
@@ -43,16 +44,9 @@ const COMPANY_DOMAIN_OPTIONS = [
   { value: 'OTHER', label: '기타' },
 ] as const;
 
-const COMPANY_SIZE_OPTIONS = [
-  { value: 'SEED', label: '시드 스타트업' },
-  { value: 'EARLY_STARTUP', label: '초기 스타트업' },
-  { value: 'GROWTH_STARTUP', label: '성장 스타트업' },
-  { value: 'SCALE_UP', label: '스케일업' },
-  { value: 'MID_SIZED', label: '중소/중견기업' },
-  { value: 'LARGE_CORP', label: '대기업' },
-  { value: 'FOREIGN_CORP', label: '외국계' },
-  { value: 'UNKNOWN', label: '확인불가' },
-] as const;
+const COMPANY_SIZE_OPTIONS = (Object.entries(COMPANY_SIZE_LABELS) as [CompanySizeType, string][]).map(
+  ([value, label]) => ({ value, label }),
+);
 
 export const JobSummaryFilterModal: React.FC<JobSummaryFilterModalProps> = ({
   isOpen,

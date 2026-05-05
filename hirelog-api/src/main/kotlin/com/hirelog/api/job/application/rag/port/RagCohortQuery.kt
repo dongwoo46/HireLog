@@ -1,5 +1,6 @@
 package com.hirelog.api.job.application.rag.port
 
+import com.hirelog.api.job.application.rag.port.RagReviewRecord
 import com.hirelog.api.job.application.rag.port.RagStageRecord
 import com.hirelog.api.job.domain.type.HiringStage
 import com.hirelog.api.relation.domain.type.HiringStageResult
@@ -36,4 +37,11 @@ interface RagCohortQuery {
         stage: HiringStage?,
         stageResult: HiringStageResult?
     ): List<RagStageRecord>
+
+    /**
+     * 사용자가 작성한 공고 리뷰 조회
+     *
+     * 사용: EXPERIENCE_ANALYSIS → Composer 컨텍스트 구성
+     */
+    fun findReviewsByMemberId(memberId: Long): List<RagReviewRecord>
 }

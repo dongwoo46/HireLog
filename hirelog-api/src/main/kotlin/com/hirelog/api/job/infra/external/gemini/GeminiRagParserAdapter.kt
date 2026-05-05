@@ -13,9 +13,8 @@ import com.hirelog.api.job.infrastructure.external.gemini.GeminiClient
 import com.hirelog.api.job.infrastructure.external.gemini.GeminiPromptBuilder
 import com.hirelog.api.relation.domain.type.HiringStageResult
 import com.hirelog.api.relation.domain.type.MemberJobSummarySaveType
-import org.springframework.http.MediaType
+import io.github.resilience4j.ratelimiter.RateLimiter
 import org.springframework.stereotype.Component
-import org.springframework.web.reactive.function.client.WebClient
 
 /**
  * Gemini 기반 RAG LLM Parser 어댑터
@@ -28,16 +27,20 @@ import org.springframework.web.reactive.function.client.WebClient
 @Component
 class GeminiRagParserAdapter(
     private val geminiClient: GeminiClient,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val geminiRateLimiter: RateLimiter
 ) : RagLlmParser {
 
     override fun parse(question: String): RagQuery {
         return runCatching {
             val prompt = GeminiPromptBuilder.buildRagParserPrompt(question)
-            val rawText = geminiClient.generateContentWithSystemAsync(
-                systemInstruction = GeminiPromptBuilder.buildRagParserSystemInstruction(),
-                prompt = prompt
-            ).get()
+            val rateLimitedStage = RateLimiter.decorateCompletionStage(geminiRateLimiter) {
+                geminiClient.generateContentWithSystemAsync(
+                    systemInstruction = GeminiPromptBuilder.buildRagParserSystemInstruction(),
+                    prompt = prompt
+                )
+            }
+            val rawText = rateLimitedStage.get().toCompletableFuture().get()
 
             val normalized = rawText
                 .replace(Regex("```json\\s*", RegexOption.IGNORE_CASE), "")
@@ -53,15 +56,16 @@ class GeminiRagParserAdapter(
                 question, e.javaClass.simpleName, e.message
             )
         }.getOrElse {
-            keywordSearchFallback(question)
+            documentSearchFallback(question)
         }
     }
 
-    private fun keywordSearchFallback(question: String) = RagQuery(
-        intent = RagIntent.KEYWORD_SEARCH,
-        semanticRetrieval = false,
+    private fun documentSearchFallback(question: String) = RagQuery(
+        intent = RagIntent.DOCUMENT_SEARCH,
+        semanticRetrieval = true,
         aggregation = false,
         baseline = false,
+        focusTechStack = false,
         filters = RagFilters(),
         parsedText = question
     )
@@ -76,18 +80,20 @@ class GeminiRagParserAdapter(
         val semanticRetrieval: Boolean?,
         val aggregation: Boolean?,
         val baseline: Boolean?,
+        val focusTechStack: Boolean?,
         val parsedText: String?,
         val filters: RagFiltersRaw?
     ) {
         fun toRagQuery(originalQuestion: String): RagQuery {
             val intent = runCatching { RagIntent.valueOf(intent ?: "") }
-                .getOrElse { RagIntent.KEYWORD_SEARCH }
+                .getOrElse { RagIntent.DOCUMENT_SEARCH }
 
             return RagQuery(
                 intent = intent,
                 semanticRetrieval = semanticRetrieval ?: (intent == RagIntent.DOCUMENT_SEARCH || intent == RagIntent.SUMMARY),
                 aggregation = aggregation ?: false,
                 baseline = baseline ?: false,
+                focusTechStack = focusTechStack ?: false,
                 parsedText = parsedText?.takeIf { it.isNotBlank() } ?: originalQuestion,
                 filters = filters?.toRagFilters() ?: RagFilters()
             )

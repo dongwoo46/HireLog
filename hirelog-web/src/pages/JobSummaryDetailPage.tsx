@@ -34,6 +34,7 @@ import { useAuthStore } from '../store/authStore';
 import {
   HIRING_STAGE_LABELS,
   HIRING_STAGE_RESULT_LABELS,
+  COMPANY_SIZE_LABELS,
   type HiringStage,
   type HiringStageResult,
   type HiringStageView,
@@ -94,18 +95,7 @@ const DOMAIN_LABELS: Record<string, string> = {
   OTHER: '기타',
 };
 
-const SIZE_LABELS: Record<string, string> = {
-  SEED: '시드 단계',
-  EARLY_STARTUP: '초기 스타트업',
-  GROWTH_STARTUP: '성장 스타트업',
-  SCALE_UP: '스케일업',
-  MID_SIZED: '중견/중소 기업',
-  LARGE_CORP: '대기업',
-  FOREIGN_CORP: '외국계',
-  UNKNOWN: '확인 불가',
-};
-
-const shouldShowSize = (value?: string) => value === 'LARGE_CORP' || value === 'UNKNOWN';
+const shouldShowSize = (value?: string) => !!value;
 
 const JobSummaryDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -526,7 +516,7 @@ const JobSummaryDetailPage = () => {
             </span>
             {shouldShowSize(jd.companySize) && (
               <span className="rounded-full border border-white/35 bg-white/10 px-3 py-1">
-                {jd.companySize ? (SIZE_LABELS[jd.companySize] ?? jd.companySize) : '-'}
+                {jd.companySize ? (COMPANY_SIZE_LABELS[jd.companySize as keyof typeof COMPANY_SIZE_LABELS] ?? jd.companySize) : '-'}
               </span>
             )}
           </div>

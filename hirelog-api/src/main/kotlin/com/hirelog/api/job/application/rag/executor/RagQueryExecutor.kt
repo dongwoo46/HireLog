@@ -53,8 +53,8 @@ class RagQueryExecutor(
     }
 
     fun execute(ragQuery: RagQuery, memberId: Long): RagContext = when (ragQuery.intent) {
-        RagIntent.DOCUMENT_SEARCH, RagIntent.SUMMARY, RagIntent.KEYWORD_SEARCH -> executeHybridSearch(ragQuery)
-        RagIntent.STATISTICS, RagIntent.PATTERN_ANALYSIS -> executeStatistics(ragQuery, memberId)
+        RagIntent.DOCUMENT_SEARCH, RagIntent.SUMMARY -> executeHybridSearch(ragQuery)
+        RagIntent.STATISTICS -> executeStatistics(ragQuery, memberId)
         RagIntent.EXPERIENCE_ANALYSIS -> executeExperienceAnalysis(ragQuery, memberId)
     }
 
@@ -96,7 +96,7 @@ class RagQueryExecutor(
             openSearchAdapter.aggregateFields(ids = null, size = AGGREGATION_BUCKET_SIZE)
         } else null
 
-        val aggregations = buildAggregationEntries(cohortAgg, baselineAgg)
+        val aggregations = buildAggregationEntries(cohortAgg, baselineAgg, ragQuery.focusTechStack)
 
         // cohort 텍스트 특징 추출 (cohort 있을 때만)
         val textFeatures = if (cohortIds != null && cohortIds.isNotEmpty()) {
@@ -114,12 +114,13 @@ class RagQueryExecutor(
     // ─────────────────────────────────────────────────────────────
 
     private fun executeExperienceAnalysis(ragQuery: RagQuery, memberId: Long): RagContext {
-        val records = ragCohortQuery.findStageRecordsForRag(
+        val stageRecords = ragCohortQuery.findStageRecordsForRag(
             memberId = memberId,
             stage = ragQuery.filters.stage,
             stageResult = ragQuery.filters.stageResult
         )
-        return RagContext(stageRecords = records)
+        val reviewRecords = ragCohortQuery.findReviewsByMemberId(memberId)
+        return RagContext(stageRecords = stageRecords, reviewRecords = reviewRecords)
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -142,7 +143,8 @@ class RagQueryExecutor(
 
     private fun buildAggregationEntries(
         cohortAgg: AggregationResult,
-        baselineAgg: AggregationResult?
+        baselineAgg: AggregationResult?,
+        focusTechStack: Boolean
     ): List<AggregationEntry> {
         fun buildEntries(
             cohortMap: Map<String, Long>,
@@ -162,9 +164,13 @@ class RagQueryExecutor(
             }.sortedByDescending { it.cohortCount }
         }
 
-        return buildEntries(cohortAgg.techStacks, baselineAgg?.techStacks, "techStack") +
-            buildEntries(cohortAgg.companyDomains, baselineAgg?.companyDomains, "companyDomain") +
-            buildEntries(cohortAgg.companySizes, baselineAgg?.companySizes, "companySize")
+        return buildList {
+            if (focusTechStack) addAll(buildEntries(cohortAgg.techStacks, baselineAgg?.techStacks, "techStack"))
+            addAll(buildEntries(cohortAgg.careerTypes, baselineAgg?.careerTypes, "careerType"))
+            addAll(buildEntries(cohortAgg.positionCategories, baselineAgg?.positionCategories, "positionCategory"))
+            addAll(buildEntries(cohortAgg.companyDomains, baselineAgg?.companyDomains, "companyDomain"))
+            addAll(buildEntries(cohortAgg.companySizes, baselineAgg?.companySizes, "companySize"))
+        }
     }
 
     private fun buildTextFeatures(

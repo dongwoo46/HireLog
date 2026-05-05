@@ -49,35 +49,37 @@ const MainPage = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <section className="relative overflow-hidden border-b border-gray-50 pb-32 pt-40">
-        <div className="relative z-10 mx-auto max-w-7xl px-6">
-          <div className="mx-auto max-w-4xl text-center">
-            <div className="mb-10 inline-flex items-center gap-2 rounded-full border border-[#89cbb6]/20 bg-[#89cbb6]/10 px-4 py-2">
+      <section className="relative overflow-hidden border-b border-gray-50 pb-12 pt-32">
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
+          <div className="mx-auto max-w-6xl text-center">
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#89cbb6]/20 bg-[#89cbb6]/10 px-4 py-2">
               <span className="h-2 w-2 animate-pulse rounded-full bg-[#276db8]" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#276db8]">개인 채용 로그북</span>
             </div>
 
-            <h1 className="mb-10 text-6xl font-black leading-[1.0] tracking-tighter text-gray-900 md:text-8xl">
+            <h1 className="mb-7 text-5xl font-black leading-[1.02] tracking-tighter text-gray-900 md:text-7xl">
               당신의 성장도
               <br />
               <span className="text-[#3FB6B2]">기록하세요</span>
             </h1>
 
-            <p className="mx-auto mb-16 max-w-2xl text-xl font-medium leading-relaxed text-gray-400 md:text-2xl">
+            <p className="mx-auto mb-10 max-w-3xl text-lg font-medium leading-relaxed text-gray-400 md:text-xl">
               HireLog는 지원 기록을 정리하고 다음 합격 전략으로 연결해 주는 커리어 로그 서비스입니다.
             </p>
 
-            <JobSummarySearch onSearch={handleSearch} />
+            <div className="mx-auto max-w-5xl">
+              <JobSummarySearch onSearch={handleSearch} />
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="bg-[#F8F9FA]/50 py-24">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-16 flex items-end justify-between">
+      <section className="bg-[#F8F9FA]/50 pb-20 pt-10">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-10 flex items-end justify-between">
             <div>
-              <h2 className="mb-4 text-xs font-black uppercase tracking-[0.4em] text-[#89cbb6]">Recent Logs</h2>
-              <h3 className="text-4xl font-black tracking-tight text-gray-900">최근 수집된 채용 기록</h3>
+              <h2 className="mb-2 text-xs font-black uppercase tracking-[0.32em] text-[#89cbb6]">Recent Logs</h2>
+              <h3 className="text-3xl font-black tracking-tight text-gray-900 md:text-4xl">최근 수집된 채용 기록</h3>
             </div>
             <button
               onClick={() => navigate('/jd')}
@@ -87,7 +89,7 @@ const MainPage = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 md:gap-8">
             {(featuredJds || []).length > 0
               ? featuredJds.map((jd) => <JobSummaryCard key={jd.id} summary={jd} />)
               : [1, 2, 3].map((i) => <div key={i} className="h-80 rounded-3xl border border-gray-100 bg-white shadow-sm" />)}
@@ -96,7 +98,7 @@ const MainPage = () => {
       </section>
 
       <section className="border-t border-gray-100 bg-white py-24">
-        <div className="mx-auto max-w-7xl px-6 text-center">
+        <div className="mx-auto max-w-6xl px-6 text-center">
           <h2 className="mb-8 text-xs font-black uppercase tracking-[0.5em] text-gray-400">서비스 살펴보기</h2>
           <h3 className="mb-12 text-4xl font-black uppercase tracking-tight text-gray-900">기록을 전략으로 바꾸는 방법</h3>
 
@@ -134,3 +136,4 @@ const MainPage = () => {
 };
 
 export default MainPage;
+

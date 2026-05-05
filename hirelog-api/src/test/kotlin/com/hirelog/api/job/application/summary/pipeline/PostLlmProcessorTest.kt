@@ -10,6 +10,8 @@ import com.hirelog.api.job.application.summary.view.JobSummaryInsightResult
 import com.hirelog.api.job.application.summary.view.JobSummaryLlmResult
 import com.hirelog.api.job.domain.model.JobSummary
 import com.hirelog.api.job.domain.type.CareerType
+import com.hirelog.api.job.domain.type.CompanyDomain
+import com.hirelog.api.job.domain.type.CompanySize
 import com.hirelog.api.job.domain.type.JobSourceType
 import com.hirelog.api.job.domain.type.RecruitmentPeriodType
 import com.hirelog.api.common.domain.LlmProvider
@@ -47,6 +49,8 @@ class PostLlmProcessorTest {
         brandName = "Toss",
         positionName = "Backend Engineer",
         companyCandidate = companyCandidate,
+        companyDomain = CompanyDomain.OTHER,
+        companySize = CompanySize.UNKNOWN,
         careerType = CareerType.EXPERIENCED,
         careerYears = "3년 이상",
         summary = "요약",
