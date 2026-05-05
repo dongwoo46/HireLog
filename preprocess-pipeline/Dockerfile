@@ -1,3 +1,42 @@
+# ── Stage A: PaddleOCR 모델 사전 다운로드 ────────────────────────────────────
+# torch 없는 환경 → Intel/GNU OpenMP 충돌 없음
+FROM --platform=$TARGETPLATFORM python:3.11-slim AS paddle-downloader
+
+ENV GLOG_minloglevel=3 \
+    FLAGS_minloglevel=3 \
+    FLAGS_use_mkldnn=0 \
+    DISABLE_MODEL_SOURCE_CHECK=True \
+    OMP_NUM_THREADS=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir \
+    paddlepaddle==2.6.2 \
+    paddleocr==2.9.1 \
+    opencv-python-headless==4.9.0.80
+
+RUN HOME=/app python -c \
+    "from paddleocr import PaddleOCR; PaddleOCR(lang='korean', use_angle_cls=True)"
+
+# ── Stage B: Embedding 모델 사전 다운로드 ────────────────────────────────────
+# paddlepaddle 없는 환경 → Intel/GNU OpenMP 충돌 없음
+FROM --platform=$TARGETPLATFORM python:3.11-slim AS embedding-downloader
+
+ARG EMBEDDING_MODEL=jhgan/ko-sroberta-multitask
+
+RUN pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch==2.6.0+cpu \
+    sentence-transformers==3.4.1
+
+RUN HF_HOME=/app/.cache python -c \
+    "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBEDDING_MODEL}')"
+
+# ── Stage C: 최종 이미지 ─────────────────────────────────────────────────────
 FROM --platform=$TARGETPLATFORM python:3.11-slim
 
 # PaddleOCR / PaddlePaddle C++ 내부 로그 억제
@@ -40,11 +79,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ─────────────────────────────────────────────────────────────────
-# Embedding 모델 사전 다운로드
-#  런타임 네트워크 없이 모델 로드 가능
+# 사전 다운로드된 모델 파일 복사
+#  Stage A → /app/.paddleocr  (한국어 OCR 모델)
+#  Stage B → /app/.cache      (Embedding 모델, HOME=/app 기준 경로와 일치)
 # ─────────────────────────────────────────────────────────────────
-ARG EMBEDDING_MODEL=jhgan/ko-sroberta-multitask
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBEDDING_MODEL}')"
+COPY --from=paddle-downloader /app/.paddleocr /app/.paddleocr
+COPY --from=embedding-downloader /app/.cache /app/.cache
 
 # ─────────────────────────────────────────────────────────────────
 # Playwright Chromium + 시스템 의존성 설치, apt 정리
@@ -53,14 +93,6 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 # ─────────────────────────────────────────────────────────────────
 RUN playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
-
-# ─────────────────────────────────────────────────────────────────
-# PaddleOCR 한국어 모델 사전 다운로드
-#  HOME=/app 으로 설정 → 모델이 /app/.paddleocr 에 저장됨
-#  런타임 비루트 사용자(home=/app)와 경로 일치 → 기동 시 네트워크 불필요
-# ─────────────────────────────────────────────────────────────────
-RUN HOME=/app python -c \
-    "from paddleocr import PaddleOCR; PaddleOCR(lang='korean', use_angle_cls=True)"
 
 # ─────────────────────────────────────────────────────────────────
 # 소스 코드 복사
