@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>BLOG</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<h1 id="그럴듯한-답변-대신-근거-있는-답변을-만들기까지">“그럴듯한 답변”
+대신 “근거 있는 답변”을 만들기까지</h1>
+<h2 id="hirelog-rag를-다시-설계한-이유와-과정">HireLog RAG를 다시 설계한
+이유와 과정</h2>
+<p>RAG를 처음 붙일 때는 다 비슷하게 시작합니다. 질문을 받고, 비슷한
+문서를 찾고, LLM으로 답변을 생성합니다.</p>
+<p>저도 그렇게 시작했습니다. 그리고 금방 한계를 만났습니다.</p>
+<ul>
+<li>“서류합격 공고의 특징” 같은 질문을 검색 문제처럼 처리하게 됐고,</li>
+<li>결과는 분석이 아니라 기술스택 나열로 쏠렸고,</li>
+<li>왜 이 답이 나왔는지 나중에 설명하기도 어려웠습니다.</li>
+</ul>
+<p>이 글은 그 실패를 어떻게 분류했고, 왜 지금 구조를 선택했는지에 대한
+기록입니다.</p>
+<hr />
+<h2 id="첫-시도에서-무엇이-틀렸나">1. 첫 시도에서 무엇이 틀렸나</h2>
+<p>초기 버전은 파이프라인이 단순했습니다.</p>
+<pre class="mermaid"><code>flowchart TD
+    A[User Question] --&gt; B[Embedding + BM25 Retrieval]
+    B --&gt; C[Top-K Documents]
+    C --&gt; D[Single LLM Answer]
+    D --&gt; E[Response]</code></pre>
+<p>이 구조는 문서 검색에는 동작했지만, 분석 질문에서는 구조적으로
+실패했습니다.</p>
+<p>문제는 질문의 타입이 서로 다르다는 점이었습니다.</p>
+<ul>
+<li>“비슷한 공고 찾아줘”는 검색 문제</li>
+<li>“합격 공고 공통점은?”은 집계/비교 문제</li>
+<li>“내 면접 패턴 분석”은 개인 경험 데이터 문제</li>
+</ul>
+<p>모두를 한 경로로 처리하면 당연히 품질이 흔들립니다.</p>
+<p>특히 이때 가장 크게 느낀 건, 모델 품질 문제가 아니라 <strong>문제
+정의 오류</strong>였습니다. 검색형 질문과 분석형 질문을 구분하지 않으면,
+어떤 모델을 써도 결과는 불안정했습니다. 이 지점에서 "프롬프트를 더 잘
+쓰면 해결될까"를 여러 번 시도했지만, 결론은 "프롬프트 개선만으로는
+구조적 문제를 해결할 수 없다"였습니다.</p>
+<hr />
+<h2 id="그래서-어떤-선택을-했나-질문을-먼저-해석한다">2. 그래서 어떤
+선택을 했나: 질문을 먼저 해석한다</h2>
+<p>핵심 결정은 하나였습니다.</p>
+<blockquote>
+<p>먼저 질문을 해석하고, 그다음 실행 경로를 나눈다.</p>
+</blockquote>
+<p>즉 Parser-first로 바꿨습니다.</p>
+<pre class="mermaid"><code>flowchart TD
+    A[User Question] --&gt; B[LLM Parser]
+    B --&gt; C{Intent}
+    C --&gt;|DOCUMENT_SEARCH / SUMMARY| D[Retrieval Path]
+    C --&gt;|STATISTICS| E[Aggregation Path]
+    C --&gt;|EXPERIENCE_ANALYSIS| F[Experience Path]
+    D --&gt; G[LLM Composer]
+    E --&gt; G
+    F --&gt; G
+    G --&gt; H[Response]</code></pre>
+<p>이 선택의 이유는 단순합니다. “잘 답변하는 모델”보다 “어디서 틀렸는지
+추적 가능한 시스템”이 운영에서 더 중요했기 때문입니다.</p>
+<p>여기서 고려했던 대안은 두 가지였습니다.</p>
+<ul>
+<li>대안 A: Intent 분기 없이 Retrieval 강화 (rerank, 더 큰 top-k)</li>
+<li>대안 B: Intent 분기 후 실행 경로 분리</li>
+</ul>
+<p>실제 운영 관점에서는 B가 맞았습니다. 이유는 정확도 때문만이 아니라,
+장애 대응/디버깅/비용제어가 전부 B에서만 가능했기 때문입니다.</p>
+<hr />
+<h2 id="왜-llm을-한-번이-아니라-여러-번-호출했나">3. 왜 LLM을 한 번이
+아니라 여러 번 호출했나</h2>
+<p>초기에는 파싱/분석/생성을 한 번의 호출로 합치려 했습니다. 하지만 실패
+원인을 분리할 수 없었습니다.</p>
+<p>그래서 역할별 호출로 분해했습니다.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant U as User
+    participant S as RagService
+    participant P as LLM Parser
+    participant X as Executor(DB/OpenSearch)
+    participant F as LLM Feature Extractor
+    participant C as LLM Composer
+
+    U-&gt;&gt;S: question
+    S-&gt;&gt;P: parse(question)
+    P--&gt;&gt;S: RagQuery(intent, filters, flags)
+    S-&gt;&gt;X: execute(RagQuery)
+    alt STATISTICS + cohort
+        X-&gt;&gt;F: extractFeatureLabels(preprocessed texts)
+        F--&gt;&gt;X: labels
+    end
+    X--&gt;&gt;S: RagContext
+    S-&gt;&gt;C: compose(question, intent, context)
+    C--&gt;&gt;S: RagAnswer
+    S--&gt;&gt;U: response</code></pre>
+<p>호출 수는 intent에 따라 다릅니다.</p>
+<pre class="mermaid"><code>flowchart LR
+    A[Intent] --&gt; B{Type}
+    B --&gt;|DOCUMENT_SEARCH / SUMMARY| C[2 calls: Parser + Composer]
+    B --&gt;|STATISTICS without cohort| D[2 calls: Parser + Composer]
+    B --&gt;|STATISTICS with cohort| E[3 calls: Parser + FeatureExtractor + Composer]
+    B --&gt;|EXPERIENCE_ANALYSIS| F[2 calls: Parser + Composer]</code></pre>
+<p>결정 이유: - 파싱 품질 문제는 Parser에서, - 근거 구성 문제는
+Executor/Feature에서, - 문장화 문제는 Composer에서 각각 고칠 수 있게
+만들기 위해서입니다.</p>
+<p>Parser가 실제로 뽑는 핵심 필드는 아래입니다.</p>
+<ul>
+<li>intent:
+<code>DOCUMENT_SEARCH | SUMMARY | STATISTICS | EXPERIENCE_ANALYSIS</code></li>
+<li>semanticRetrieval: 임베딩 검색 필요 여부</li>
+<li>aggregation / baseline: 집계 및 전체 대비 비교 필요 여부</li>
+<li>focusTechStack: 기술 빈도 중심 질문 여부</li>
+<li>filters: <code>saveType</code>, <code>stage</code>,
+<code>stageResult</code>, <code>careerType</code>,
+<code>companyDomain</code>, <code>techStacks</code>,
+<code>brandName</code>, <code>dateRange</code></li>
+<li>parsedText: retrieval/aggregation에 넘길 정규화 질문 텍스트</li>
+</ul>
+<p>예시 1) 검색형 질문</p>
+<p>질문: <code>"Kafka 쓰는 백엔드 공고 찾아줘"</code></p>
+<p>Parser 출력 예시:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;intent&quot;</span><span class="fu">:</span> <span class="st">&quot;DOCUMENT_SEARCH&quot;</span><span class="fu">,</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;semanticRetrieval&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;aggregation&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;baseline&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;focusTechStack&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;parsedText&quot;</span><span class="fu">:</span> <span class="st">&quot;Kafka 백엔드 공고&quot;</span><span class="fu">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;filters&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;saveType&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;stage&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;stageResult&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;careerType&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;companyDomain&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;techStacks&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;Kafka&quot;</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;brandName&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dateRangeFrom&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dateRangeTo&quot;</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>예시 2) 통계형 질문</p>
+<p>질문: <code>"서류합격한 공고의 공통점 알려줘"</code></p>
+<p>Parser 출력 예시:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;intent&quot;</span><span class="fu">:</span> <span class="st">&quot;STATISTICS&quot;</span><span class="fu">,</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;semanticRetrieval&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;aggregation&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;baseline&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;focusTechStack&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;parsedText&quot;</span><span class="fu">:</span> <span class="st">&quot;서류합격한 공고의 공통점 알려줘&quot;</span><span class="fu">,</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;filters&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;saveType&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;stage&quot;</span><span class="fu">:</span> <span class="st">&quot;DOCUMENT&quot;</span><span class="fu">,</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;stageResult&quot;</span><span class="fu">:</span> <span class="st">&quot;PASSED&quot;</span><span class="fu">,</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;careerType&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;companyDomain&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;techStacks&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;brandName&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dateRangeFrom&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dateRangeTo&quot;</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>예시 3) 경험 분석 질문</p>
+<p>질문: <code>"내가 코딩테스트에서 자주 막힌 유형 분석해줘"</code></p>
+<p>Parser 출력 예시:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;intent&quot;</span><span class="fu">:</span> <span class="st">&quot;EXPERIENCE_ANALYSIS&quot;</span><span class="fu">,</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;semanticRetrieval&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;aggregation&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;baseline&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;focusTechStack&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;parsedText&quot;</span><span class="fu">:</span> <span class="st">&quot;내가 코딩테스트에서 자주 막힌 유형 분석해줘&quot;</span><span class="fu">,</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;filters&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;saveType&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;stage&quot;</span><span class="fu">:</span> <span class="st">&quot;CODING_TEST&quot;</span><span class="fu">,</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;stageResult&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;careerType&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;companyDomain&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;techStacks&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;brandName&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dateRangeFrom&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dateRangeTo&quot;</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>추가로 중요한 이유가 하나 더 있었습니다. 호출을 분리하면 실패를 "부분
+실패"로 처리할 수 있습니다. 예를 들어 Parser가 fallback 되어도 검색
+답변은 반환할 수 있고, Feature 단계가 비어도 aggregation 기반 답변은
+유지할 수 있습니다. 한 번 호출 구조에서는 이런 완충이 거의
+불가능했습니다.</p>
+<hr />
+<h2 id="실행-경로는-어떻게-분리됐나">4. 실행 경로는 어떻게 분리됐나</h2>
+<h3 id="검색-질문은-검색-경로로">4-1) 검색 질문은 검색 경로로</h3>
+<p>실패 경험: - BM25만 사용했을 때, 키워드가 정확히 겹치지 않는 연관
+공고를 놓치는 케이스가 반복됐습니다. - 예: 표현은 다르지만 같은
+역할/문맥의 공고가 검색 상위에 오르지 않음.</p>
+<p>해결 결정: - DB 저장 후 인덱싱 시 텍스트를 벡터화하고, OpenSearch에
+<code>embedding_vector</code>를 함께 저장 - 질의 시
+<code>BM25 + kNN</code> 하이브리드로 결합해 키워드 정합성과 의미
+유사도를 동시에 확보</p>
+<pre class="mermaid"><code>flowchart LR
+    A[Question] --&gt; B[LLM Parser]
+    B --&gt; C[parsedText]
+    C --&gt; D[Query Embedding /embed/query]
+    C --&gt; E[BM25 multi_match]
+    D --&gt; F[OpenSearch Hybrid: kNN + BM25]
+    E --&gt; F
+    F --&gt; G[Top-N Documents]
+    G --&gt; H[Composer]</code></pre>
+<p>결정 이유: 검색 질문에서는 의미 유사도와 키워드 정합성이 모두
+필요했기 때문입니다.</p>
+<p>실무에서 보면, 임베딩만 쓰면 키워드 정확도가 떨어지고, BM25만 쓰면
+의미 유사 질의를 놓칩니다. 그래서 두 축을 함께 가져가되, 검색 질문에서만
+이 비용을 쓰도록 제한했습니다.</p>
+<p>여기서 구분 기준은 명확합니다.</p>
+<ul>
+<li>필터로 구별할 것(정확 조건): <code>careerType</code>,
+<code>companyDomain</code>, <code>saveType</code>, <code>stage</code>,
+<code>dateRange</code></li>
+<li>연관도로 구별할 것(유사 문맥): 역할/업무/요건의 의미적 유사성</li>
+</ul>
+<p>즉, "정확 조건"은 필터에서 자르고, "비슷한 내용"은 kNN으로 찾아야
+합니다.</p>
+<h3 id="통계-질문은-집계-경로로">4-2) 통계 질문은 집계 경로로</h3>
+<pre class="mermaid"><code>flowchart TD
+    A[STATISTICS intent] --&gt; B[DB에서 cohort ids]
+    B --&gt; C[OpenSearch aggregation]
+    C --&gt; D{baseline 필요?}
+    D --&gt;|Yes| E[전체 분포 aggregation]
+    D --&gt;|No| F[cohort만 사용]
+    E --&gt; G[서버에서 multiplier 계산]
+    F --&gt; H[Composer]
+    G --&gt; H</code></pre>
+<pre class="text"><code>multiplier = (cohortCount / cohortTotal) / (baselineCount / baselineTotal)</code></pre>
+<p>이 수식을 쓴 이유는 단순 count 비교가 cohort 크기에 따라 쉽게
+왜곡되기 때문입니다. cohort가 작으면 raw count만으로도 특정 항목이
+과대해 보일 수 있고, 반대로 cohort가 크면 신호가 묻힐 수 있습니다.
+초기에는 count 중심으로 해석해 표본 크기 차이에서 오는 오판이 있었고,
+그래서 baseline 대비 비율(배율)로 바꿨습니다.</p>
+<p>결정 이유: 숫자 계산을 LLM에 맡기면 재현성이 떨어지기 때문에, 계산은
+반드시 서버에서 끝냅니다.</p>
+<p>이 결정으로 얻은 가장 큰 장점은 "답변 재실행 시 동일 수치
+재현"입니다. 동일 조건에서 동일 결과가 나오기 때문에, 사용자 문의 대응과
+품질 점검이 쉬워졌습니다.</p>
+<h3 id="경험-분석은-개인-데이터-경로로">4-3) 경험 분석은 개인 데이터
+경로로</h3>
+<pre class="mermaid"><code>flowchart TD
+    A[EXPERIENCE_ANALYSIS intent] --&gt; B[HiringStageRecord 조회]
+    A --&gt; C[JobSummaryReview 조회]
+    B --&gt; D[통합 컨텍스트]
+    C --&gt; D
+    D --&gt; E[Composer 패턴 분석]</code></pre>
+<p>결정 이유: 이 질문은 검색보다 사용자의 이력 데이터가 본질이기
+때문입니다.</p>
+<p>경험 분석을 별도 intent로 분리한 뒤에는, 단순 공고 설명보다 실제
+지원자 관점의 인사이트(반복되는 약점/강점)가 더 안정적으로
+나왔습니다.</p>
+<hr />
+<h2 id="실제-실패와-수정-무엇을-바꿨고-왜-바꿨나">5. 실제 실패와 수정:
+무엇을 바꿨고 왜 바꿨나</h2>
+<p>여기서부터는 실제로 품질을 흔든 실패들입니다.</p>
+<h3 id="실패-a.-특징-질문이-skill-나열로-쏠림">실패 A. 특징 질문이 skill
+나열로 쏠림</h3>
+<p>문제: - “특징”을 물었는데 기술명 목록이 답변 중심이 됨</p>
+<p>원인: - techStack 신호가 과도하게 강했고 - 질문 의도를 구분하는
+플래그가 없었음</p>
+<p>해결: - <code>focusTechStack</code> 도입 - 기술 빈도 질문일 때만
+techStack 집계 포함 - 특징 질문은 textFeatures 우선 서술</p>
+<p>구현 포인트: - Parser 출력에 <code>focusTechStack</code> 필드를
+고정해 의도 신호를 명시화 - Executor에서
+<code>focusTechStack=false</code>일 때 techStack aggregation을 제외 -
+Composer 규칙에서 특징 질문은 textFeatures 먼저, techStack은 조건부
+인용만 허용</p>
+<p>결과: - 특징/공통점 질문에서 기술명 나열 편향이 눈에 띄게 감소 -
+답변이 "스택 목록"에서 "채용 특성 설명"으로 이동</p>
+<p>분류 기준을 명시한 것도 중요했습니다. "특징/공통점/패턴" 계열
+질문에서는 기술 버킷을 기본 숨기고, "Spring/Kafka 얼마나"처럼 기술
+빈도를 직접 묻는 경우에만 techStack을 노출하도록 고정했습니다.</p>
+<h3 id="실패-b.-문서를-너무-잘라서-답변이-얕아짐">실패 B. 문서를 너무
+잘라서 답변이 얕아짐</h3>
+<p>문제: - 맞는 답인데 밀도가 낮고 반복적</p>
+<p>원인: - 안전하게 만들려고 절단을 과하게 적용 - precision을 올리다
+recall을 크게 잃음</p>
+<p>해결: - 고정 절단 -&gt; intent 기반 절단으로 전환 - 통계형/요약형에
+따라 문맥 보존 전략 분리 - 핵심 문장(역할/문제/환경) 보존 규칙 추가</p>
+<p>구현 포인트: - 전처리 시 필드별 상한은 유지하되 intent에 따라 보존
+우선순위를 변경 - 통계형은 증거 추출 가능성이 높은 문장을 우선 보존 -
+요약형은 문맥 연결성을 우선 보존해 설명 밀도를 유지</p>
+<p>결과: - 답변 길이보다 정보 밀도가 좋아지고, 반복 문장 비율이 감소 -
+같은 질문군에서 근거 문장 포함률이 개선</p>
+<p>여기서 얻은 교훈은 "짧게 자르면 안전"이 아니라 "짧게 자르면 빈약"이
+될 수 있다는 점이었습니다. 토큰 절약은 필요하지만, 답변 품질을
+유지하려면 정보 밀도를 보존하는 절단 규칙이 함께 필요했습니다.</p>
+<hr />
+<h2 id="실패를-운영에서-어떻게-다루고-있나">6. 실패를 운영에서 어떻게
+다루고 있나</h2>
+<p>현재는 수동 루프입니다.</p>
+<pre class="mermaid"><code>flowchart TD
+    A[rag_query_log 조회] --&gt; B[사람이 실패 유형 분류]
+    B --&gt; C[수정 레이어 결정]
+    C --&gt; D[Parser/Executor/Composer/전처리 수정]
+    D --&gt; E[동일 질문 회귀 검증]</code></pre>
+<p>그리고 목표는 자동 루프 전환입니다.</p>
+<pre class="mermaid"><code>flowchart TD
+    A[rag_query_log 적재] --&gt; B[Quality Classifier Job]
+    B --&gt; C[rag_quality_issue 저장]
+    C --&gt; D[Regression Case Registry]
+    D --&gt; E[Replay Runner]
+    E --&gt; F[전/후 비교]
+    F --&gt; G{품질 게이트}
+    G --&gt;|Fail| H[배포 차단]
+    G --&gt;|Pass| I[배포]</code></pre>
+<p>결정 이유: 실패 분석이 사람 의존이면 개선 속도가 트래픽 증가를 못
+따라가기 때문입니다.</p>
+<p>실제로 수동 루프의 병목은 명확했습니다.</p>
+<ul>
+<li>사람이 로그를 읽는 시간</li>
+<li>실패 유형 분류 기준의 일관성 부족</li>
+<li>동일 질문 회귀 테스트의 반복 비용</li>
+</ul>
+<p>그래서 자동화의 목적은 "더 똑똑한 분석"이 아니라 "반복 작업의
+기계화"입니다.</p>
+<p>실제 병목 사례: - "특징 질문에서 skill 편향" 이슈 재발 시, 로그 선별
+-&gt; 유형 분류 -&gt; 회귀 테스트를 수동으로 반복하면서 반영까지 하루
+이상 지연된 적이 있었습니다. 이 경험이 자동 분류/리플레이 전환의
+직접적인 근거였습니다.</p>
+<p>결과(현재 상태): - 실패 대응의 재현성은 확보됐지만, 처리 속도는 아직
+사람 처리량에 제한 - 그래서 다음 단계는 자동 분류/리플레이로 전환하는
+것이 맞음</p>
+<hr />
+<h2 id="운영에서-붙인-안전장치">7. 운영에서 붙인 안전장치</h2>
+<h3 id="비용남용-제어-2중-rate-limit">7-1) 비용/남용 제어: 2중 Rate
+Limit</h3>
+<pre class="mermaid"><code>flowchart TD
+    A[Request] --&gt; B[Redis Daily Limit]
+    B --&gt;|초과| C[429]
+    B --&gt;|통과| D[Gemini RateLimiter]
+    D --&gt;|초과| E[즉시 실패/Parser fallback]
+    D --&gt;|통과| F[RAG 실행]</code></pre>
+<ul>
+<li>USER 일 3회 제한</li>
+<li>ADMIN 무제한</li>
+<li>Gemini rate limiter는 파서 게이트 중심 적용</li>
+</ul>
+<p>파서를 게이트로 둔 이유는 체인 중간 실패를 줄이기 위해서입니다. 진입
+전에 실패시키는 것이, 중간에서 끊기는 것보다 UX/비용 측면에서 더 예측
+가능합니다.</p>
+<h3 id="재현성-확보-파이프라인-전-과정-로깅">7-2) 재현성 확보:
+파이프라인 전 과정 로깅</h3>
+<p><code>rag_query_log</code>에 질문/파싱/컨텍스트/최종응답을
+저장합니다. 이 로그가 있어야 품질 개선이 감에 의존하지 않습니다.</p>
+<p>또한 이 로그는 글에 적은 실패 분류의 근거 데이터 역할을 합니다. 즉,
+"느낌상 이상하다"가 아니라, 동일 질문군에서 어떤 유형이 얼마나
+발생했는지로 판단할 수 있게 됩니다.</p>
+<p>결과: - 이슈 재현 시간이 줄고, "왜 이 답이 나왔는지" 설명 가능한
+케이스가 늘어남</p>
+<hr />
+<h2 id="설계-트레이드오프-품질을-얻는-대신-비용이-커졌다">8. 설계
+트레이드오프: 품질을 얻는 대신 비용이 커졌다</h2>
+<p>100회 요청 테스트를 진행했고, 총비용은 약 <strong>714~857원(평균 체감
+약 800원)</strong> 이 나왔습니다. 이를 1회 단가로 환산하면 약
+<strong>7.14~8.57원/회(평균 약 8원/회)</strong> 입니다.</p>
+<p>이 비용은 우연이 아니라 앞선 설계 결정의 결과입니다. Parser-first
+분기, 통계 경로의 추가 LLM 단계, 근거 중심 컨텍스트 전달이 품질을 올린
+대신 단가를 키웠습니다. 즉 트래픽이 늘면 비용이 빠르게 커집니다.</p>
+<pre class="mermaid"><code>flowchart LR
+    A[평균 단가 약 8원/회] --&gt; B[100회 약 800원]
+    A --&gt; C[1,000회 약 8,000원]
+    A --&gt; D[10,000회 약 80,000원]</code></pre>
+<p>왜 비쌌는지 원인: - 요청당 LLM 호출이 2~3회 - 통계/코호트 질문에서
+컨텍스트 토큰 증가 - 캐시 부재로 유사질문도 매번 비용 발생</p>
+<p>계산식:</p>
+<pre class="text"><code>평균 단가 = 총비용 / 총요청수
+예상 비용 = 평균 단가 × 요청수</code></pre>
+<p>정리하면, 이 비용은 "잘못된 구현의 비용"이 아니라 "설명 가능성과
+재현성을 얻기 위해 지불한 비용"입니다. 그래서 본문 설계의 다음 과제는
+기능 추가가 아니라 단가 최적화입니다.</p>
+<hr />
+<h2 id="다음-과제-특징-질문의-신호-우선순위-재조정">9. 다음 과제: 특징
+질문의 신호 우선순위 재조정</h2>
+<p>이 섹션은 아직 적용 완료된 변경이 아니라, 현재 확인된 한계에 대한
+<strong>미적용 과제</strong>입니다.</p>
+<p>문제: - 여러 차례 테스트에서 사용자는 "우대사항"과 "주요 업무" 기반
+특징을 기대하는데, 현재 답변은 상대적으로 <code>careerType</code>,
+<code>positionCategory</code> 축에 과집중되는 경향이 있었습니다.</p>
+<p>원인 추정: - aggregation 우선순위와 composer 서술 순서가 정성 JD
+필드(우대사항/주요업무)보다 구조화 카테고리(경력/포지션 유형)를 먼저
+소비하도록 설계되어 있기 때문입니다.</p>
+<p>개선 방향: 1. 통계/특징 질문에서
+<code>preferredQualifications</code>, <code>responsibilities</code> 기반
+feature를 1순위 신호로 승격 2.
+<code>careerType</code>/<code>positionCategory</code>는 보조 근거로만
+노출하도록 composer 정책 조정 3. "특징" intent에서는 우대사항/주요업무
+관련 evidence 비율을 최소 기준 이상으로 강제</p>
+<hr />
+<h2 id="마무리">마무리</h2>
+<p>이 글에서 실제로 확인한 결론은 다음 4가지입니다.</p>
+<ol type="1">
+<li>Parser를 분리하니 "어디서 실패했는지"를 단계별로 추적할 수 있게
+됐습니다.</li>
+<li>계산을 서버로 고정하니 통계 질문의 수치 재현성이 확보됐습니다.</li>
+<li><code>rag_query_log</code>를 남기니 체감이 아니라 근거 기반으로 개선
+결정을 할 수 있게 됐습니다.</li>
+<li>품질을 올린 설계는 비용을 키웠고, 다음 최적화의 중심은 기능 추가가
+아니라 단가 절감입니다.</li>
+</ol>
+<p>즉, 이 RAG의 성과는 "답변이 나온다"가 아니라 "실패를 분해하고,
+재현하고, 다시 고칠 수 있는 구조"를 만든 데 있습니다.</p>
+<hr />
+<h2 id="appendix-컴포넌트-역할-경계">Appendix: 컴포넌트 역할 경계</h2>
+<p>파일명 자체보다 "각 컴포넌트가 무엇을 책임지는가"가 이 구조의
+핵심입니다.</p>
+<table>
+<thead>
+<tr>
+<th>컴포넌트</th>
+<th>책임</th>
+<th>하지 않는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parser</td>
+<td>질문을 intent/filters로 구조화</td>
+<td>최종 답변 생성, 수치 계산</td>
+</tr>
+<tr>
+<td>Executor</td>
+<td>DB/OpenSearch 실행, 수치/근거 계산</td>
+<td>자연어 문장 생성</td>
+</tr>
+<tr>
+<td>Feature Extractor</td>
+<td>정성 라벨 추출</td>
+<td>건수 계산, 근거 ID 생성</td>
+</tr>
+<tr>
+<td>Composer</td>
+<td>구조화 컨텍스트를 자연어로 설명</td>
+<td>새 데이터 계산/추측</td>
+</tr>
+<tr>
+<td>Query Log</td>
+<td>질문~응답 전 과정 기록</td>
+<td>품질 판정 자동화(현재 수동)</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
