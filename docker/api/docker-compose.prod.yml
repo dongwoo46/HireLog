@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.time=30d'
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
