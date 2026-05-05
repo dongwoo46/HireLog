@@ -4,7 +4,10 @@ FROM --platform=$TARGETPLATFORM python:3.12-slim
 ENV GLOG_minloglevel=3 \
     FLAGS_minloglevel=3 \
     FLAGS_use_mkldnn=0 \
-    DISABLE_MODEL_SOURCE_CHECK=True
+    DISABLE_MODEL_SOURCE_CHECK=True \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1
 
 # src/ 를 Python import 루트로 등록
 ENV PYTHONPATH=/app/src \
