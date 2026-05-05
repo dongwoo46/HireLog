@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM python:3.12-slim
+FROM --platform=$TARGETPLATFORM python:3.11-slim
 
 # PaddleOCR / PaddlePaddle C++ 내부 로그 억제
 ENV GLOG_minloglevel=3 \
