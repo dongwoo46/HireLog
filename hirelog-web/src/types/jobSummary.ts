@@ -1,4 +1,25 @@
 ﻿export type CareerType = 'NEW' | 'EXPERIENCED' | 'ANY';
+
+export type CompanySizeType =
+  | 'SEED'
+  | 'EARLY_STARTUP'
+  | 'GROWTH_STARTUP'
+  | 'SCALE_UP'
+  | 'MID_SIZED'
+  | 'LARGE_CORP'
+  | 'FOREIGN_CORP'
+  | 'UNKNOWN';
+
+export const COMPANY_SIZE_LABELS: Record<CompanySizeType, string> = {
+  SEED: '시드 스타트업',
+  EARLY_STARTUP: '초기 스타트업',
+  GROWTH_STARTUP: '성장 스타트업',
+  SCALE_UP: '스케일업',
+  MID_SIZED: '중소/중견기업',
+  LARGE_CORP: '대기업',
+  FOREIGN_CORP: '외국계',
+  UNKNOWN: '확인 불가',
+};
 export type MemberJobSummarySaveType = 'SAVED' | 'APPLY' | 'UNSAVED';
 
 export interface JobSummarySearchReq {

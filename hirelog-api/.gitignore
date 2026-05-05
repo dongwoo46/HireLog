@@ -44,3 +44,14 @@ out/
 
 .gradle-cache\*
 ./.claude/test/results/*
+
+.gradle/
+build/
+out/
+node_modules/
+coverage/
+*.log
+*.jar
+*.class
+generated/
+.venv

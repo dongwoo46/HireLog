@@ -57,7 +57,7 @@ RUN playwright install --with-deps chromium \
 #  런타임 비루트 사용자(home=/app)와 경로 일치 → 기동 시 네트워크 불필요
 # ─────────────────────────────────────────────────────────────────
 RUN HOME=/app python -c \
-    "from paddleocr import PaddleOCR; PaddleOCR(lang='korean')"
+    "from paddleocr import PaddleOCR; PaddleOCR(lang='korean', use_angle_cls=True)"
 
 # ─────────────────────────────────────────────────────────────────
 # 소스 코드 복사

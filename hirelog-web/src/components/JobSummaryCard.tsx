@@ -4,6 +4,7 @@ import { TbBookmark, TbBookmarkFilled } from 'react-icons/tb';
 import { toast } from 'react-toastify';
 import { jdSummaryService } from '../services/jdSummaryService';
 import { useAuthStore } from '../store/authStore';
+import { COMPANY_SIZE_LABELS } from '../types/jobSummary';
 import type { JobSummaryView } from '../types/jobSummary';
 
 interface Props {
@@ -35,20 +36,9 @@ const DOMAIN_LABELS: Record<string, string> = {
   OTHER: '기타',
 };
 
-const SIZE_LABELS: Record<string, string> = {
-  SEED: '시드 단계',
-  EARLY_STARTUP: '초기 스타트업',
-  GROWTH_STARTUP: '성장 스타트업',
-  SCALE_UP: '스케일업',
-  MID_SIZED: '중견/중소 기업',
-  LARGE_CORP: '대기업',
-  FOREIGN_CORP: '외국계',
-  UNKNOWN: '확인 불가',
-};
-
 const toDomainLabel = (value?: string) => (value ? DOMAIN_LABELS[value] ?? value : '-');
-const toSizeLabel = (value?: string) => (value ? SIZE_LABELS[value] ?? value : '-');
-const shouldShowSize = (value?: string) => value === 'LARGE_CORP' || value === 'UNKNOWN';
+const toSizeLabel = (value?: string) => (value ? COMPANY_SIZE_LABELS[value as keyof typeof COMPANY_SIZE_LABELS] ?? value : '-');
+const shouldShowSize = (value?: string) => !!value;
 
 export const JobSummaryCard: React.FC<Props> = ({ summary }) => {
   const navigate = useNavigate();
