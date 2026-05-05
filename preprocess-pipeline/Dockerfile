@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir \
-    paddlepaddle-cpu==2.6.2 \
+    "numpy<2" \
+    paddlepaddle==2.6.2 \
     paddleocr==2.9.1 \
     opencv-python-headless==4.9.0.80
 
